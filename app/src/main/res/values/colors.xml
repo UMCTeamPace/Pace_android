@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary_900">#354204</color>
+    <color name="primary_800">#445505</color>
+    <color name="primary_700">#5B7107</color>
+    <color name="primary_600">#7A9709</color>
+    <color name="primary_500">#98BD0B</color>
+    <color name="primary_400">#C7DD6A</color>
+    <color name="primary_300">#DFEBB3</color>
+    <color name="primary_200">#F0F5DA</color>
+    <color name="primary_100">#F5F8E7</color>
+
+
+    <color name="secondary_900">#1B1345</color>
+    <color name="secondary_800">#201466</color>
+    <color name="secondary_700">#251773</color>
+    <color name="secondary_600">#3924B2</color>
+    <color name="secondary_500">#5E45E6</color>
+    <color name="secondary_400">#7E66FF</color>
+    <color name="secondary_300">#BEB1FF</color>
+    <color name="secondary_200">#D7D0FF</color>
+    <color name="secondary_100">#F2F0FF</color>
+
+
+    <color name="gray_900">#191914</color>
+    <color name="gray_800">#222222</color>
+    <color name="gray_700">#4D4D4D</color>
+    <color name="gray_600">#666666</color>
+    <color name="gray_500">#999999</color>
+    <color name="gray_400">#D9D9D9</color>
+    <color name="gray_300">#DEDEDE</color>
+    <color name="gray_200">#EDEDED</color>
+    <color name="gray_100">#F2F2F2</color>
+
+
+    <color name="semantic_success">#4F81FF</color>
+    <color name="semantic_warning">#FF4F4F</color>
+    <color name="semantic_error">#FF4F4F</color>
+    <color name="semantic_info">#98BD0B</color>
+
+
+    <color name="text_primary">#191914</color>
+    <color name="text_primary2">#222222</color>
+    <color name="text_secondary">#666666</color>
+    <color name="text_secondary2">#999999</color>
+    <color name="text_disabled">#D9D9D9</color>
+
+
+    <color name="schedule_1">#F1A23A</color>
+    <color name="schedule_2">#EE823D</color>
+    <color name="schedule_3">#D8643F</color>
+    <color name="schedule_4">#D34B3F</color>
+    <color name="schedule_5">#DC354B</color>
+    <color name="schedule_6">#DB3B72</color>
+    <color name="schedule_7">#C42954</color>
+    <color name="schedule_8">#5F46DD</color>
+    <color name="schedule_9">#7C65EC</color>
+    <color name="schedule_10">#7A82F7</color>
+    <color name="schedule_11">#7092E6</color>
+    <color name="schedule_12">#2A4ABF</color>
+    <color name="schedule_13">#3F8FE3</color>
+    <color name="schedule_14">#51AEED</color>
+    <color name="schedule_15">#44947D</color>
+    <color name="schedule_16">#55B474</color>
+    <color name="schedule_17">#67D988</color>
+    <color name="schedule_18">#A2BD3B</color>
+
+    <color name="route_line_1">#0D3692</color>
+    <color name="route_line_2">#33A23D</color>
+    <color name="route_line_3">#FC8332</color>
+    <color name="route_line_4">#00A3D1</color>
+    <color name="route_line_5">#8B50A4</color>
+    <color name="route_line_6">#C55C1D</color>
+    <color name="route_line_7">#54640D</color>
+    <color name="route_line_8">#F14C82</color>
+    <color name="route_line_9">#AA9872</color>
+
+    <color name="route_incheon_1">#3681B7</color>
+    <color name="route_gyeongchun">#0C8E72</color>
+    <color name="route_suin_bundang">#FFBB00</color>
+    <color name="route_gyeongui_jungang">#77C4A3</color>
+    <color name="route_metropolitan_bus">#E64839</color>
+    <color name="route_mainline_bus">#005BAC</color>
+    <color name="route_branch_bus">#53B332</color>
+
+
+
+
+</resources>
+
