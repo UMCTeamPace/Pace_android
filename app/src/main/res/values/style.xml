@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="TextAppearance.App.HeadlineLg" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">24sp</item>
+        <item name="android:fontFamily">@font/pretendard_semibold</item>
+        <item name="lineHeight">30sp</item>
+        <item name="android:letterSpacing">-0.01</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+    <style name="TextAppearance.App.HeadlineMd" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">20sp</item>
+        <item name="android:fontFamily">@font/pretendard_semibold</item>
+        <item name="lineHeight">26sp</item>
+        <item name="android:letterSpacing">-0.01</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+    <style name="TextAppearance.App.HeadlineSm" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">18sp</item>
+        <item name="android:fontFamily">@font/pretendard_semibold</item>
+        <item name="lineHeight">24sp</item>
+        <item name="android:letterSpacing">-0.01</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+    <style name="TextAppearance.App.BodyMd.SemiBold" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">16sp</item>
+        <item name="android:fontFamily">@font/pretendard_semibold</item>
+        <item name="lineHeight">24sp</item>
+        <item name="android:letterSpacing">-0.01</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+    <style name="TextAppearance.App.BodyMd.Medium" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">16sp</item>
+        <item name="android:fontFamily">@font/pretendard_medium</item>
+        <item name="lineHeight">24sp</item>
+        <item name="android:letterSpacing">-0.01</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+    <style name="TextAppearance.App.BodySm.Regular" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">@font/pretendard_regular</item>
+        <item name="lineHeight">20sp</item>
+        <item name="android:letterSpacing">-0.03</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+    <style name="TextAppearance.App.BodySm.Medium" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">@font/pretendard_medium</item>
+        <item name="lineHeight">20sp</item>
+        <item name="android:letterSpacing">-0.03</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+    <style name="TextAppearance.App.BodySm.Semibold" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">@font/pretendard_semibold</item>
+        <item name="lineHeight">20sp</item>
+        <item name="android:letterSpacing">-0.03</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+    <style name="TextAppearance.App.CaptionLg.Regular" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">12sp</item>
+        <item name="android:fontFamily">@font/pretendard_regular</item>
+        <item name="lineHeight">16sp</item>
+        <item name="android:letterSpacing">-0.05</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+    <style name="TextAppearance.App.CaptionLg.Medium" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">12sp</item>
+        <item name="android:fontFamily">@font/pretendard_medium</item>
+        <item name="lineHeight">16sp</item>
+        <item name="android:letterSpacing">-0.05</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+    <style name="TextAppearance.App.CaptionLg.Semibold" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">12sp</item>
+        <item name="android:fontFamily">@font/pretendard_semibold</item>
+        <item name="lineHeight">16sp</item>
+        <item name="android:letterSpacing">-0.05</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+    <style name="TextAppearance.App.CaptionMd.Regular" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">10sp</item>
+        <item name="android:fontFamily">@font/pretendard_regular</item>
+        <item name="lineHeight">14sp</item>
+        <item name="android:letterSpacing">-0.05</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+    <style name="TextAppearance.App.CaptionMd.Medium" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">10sp</item>
+        <item name="android:fontFamily">@font/pretendard_medium</item>
+        <item name="lineHeight">14sp</item>
+        <item name="android:letterSpacing">-0.05</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+    <style name="TextAppearance.App.CaptionMd.Semibold" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">10sp</item>
+        <item name="android:fontFamily">@font/pretendard_semibold</item>
+        <item name="lineHeight">14sp</item>
+        <item name="android:letterSpacing">-0.05</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+    <style name="TextAppearance.App.CaptionSm.Medium" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">8sp</item>
+        <item name="android:fontFamily">@font/pretendard_medium</item>
+        <item name="lineHeight">10sp</item>
+        <item name="android:letterSpacing">-0.05</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+
+
+    <style name="TextAppearance.App.Roboto" parent="TextAppearance.AppCompat">
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+    <style name="TextAppearance.App.Num.HeadlineLg" parent="TextAppearance.App.Roboto">
+        <item name="android:textSize">24sp</item>
+        <item name="android:fontFamily">@font/roboto_semibold</item>
+        <item name="lineHeight">30sp</item>
+        <item name="android:letterSpacing">-0.01</item>
+    </style>
+
+    <style name="TextAppearance.App.Num.HeadlineMd" parent="TextAppearance.App.Roboto">
+        <item name="android:textSize">20sp</item>
+        <item name="android:fontFamily">@font/roboto_semibold</item>
+        <item name="lineHeight">26sp</item>
+        <item name="android:letterSpacing">-0.01</item>
+    </style>
+
+    <style name="TextAppearance.App.Num.HeadlineSm" parent="TextAppearance.App.Roboto">
+        <item name="android:textSize">18sp</item>
+        <item name="android:fontFamily">@font/roboto_semibold</item>
+        <item name="lineHeight">24sp</item>
+        <item name="android:letterSpacing">-0.01</item>
+    </style>
+
+    <style name="TextAppearance.App.Num.BodyMd.Medium" parent="TextAppearance.App.Roboto">
+        <item name="android:textSize">16sp</item>
+        <item name="android:fontFamily">@font/roboto_medium</item>
+        <item name="lineHeight">24sp</item>
+        <item name="android:letterSpacing">-0.01</item>
+    </style>
+
+    <style name="TextAppearance.App.Num.BodyMd.Semibold" parent="TextAppearance.App.Roboto">
+        <item name="android:textSize">16sp</item>
+        <item name="android:fontFamily">@font/roboto_semibold</item>
+        <item name="lineHeight">24sp</item>
+        <item name="android:letterSpacing">-0.01</item>
+    </style>
+
+    <style name="TextAppearance.App.Num.BodyMd.Regular" parent="TextAppearance.App.Roboto">
+        <item name="android:textSize">16sp</item>
+        <item name="android:fontFamily">@font/roboto_regular</item>
+        <item name="lineHeight">24sp</item>
+        <item name="android:letterSpacing">-0.01</item>
+    </style>
+
+    <style name="TextAppearance.App.Num.BodySm.Regular" parent="TextAppearance.App.Roboto">
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">@font/roboto_regular</item>
+        <item name="lineHeight">20sp</item>
+        <item name="android:letterSpacing">-0.03</item>
+    </style>
+
+    <style name="TextAppearance.App.Num.BodySm.Medium" parent="TextAppearance.App.Roboto">
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">@font/roboto_medium</item>
+        <item name="lineHeight">20sp</item>
+        <item name="android:letterSpacing">-0.03</item>
+    </style>
+
+    <style name="TextAppearance.App.Num.CaptionLg.Regular" parent="TextAppearance.App.Roboto">
+        <item name="android:textSize">12sp</item>
+        <item name="android:fontFamily">@font/roboto_regular</item>
+        <item name="lineHeight">16sp</item>
+        <item name="android:letterSpacing">-0.05</item>
+    </style>
+
+    <style name="TextAppearance.App.Num.CaptionLg.Medium" parent="TextAppearance.App.Roboto">
+        <item name="android:textSize">12sp</item>
+        <item name="android:fontFamily">@font/roboto_medium</item>
+        <item name="lineHeight">16sp</item>
+        <item name="android:letterSpacing">-0.05</item>
+    </style>
+
+    <style name="TextAppearance.App.Num.CaptionMd.Medium" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">11sp</item>
+        <item name="android:fontFamily">@font/pretendard_medium</item>
+        <item name="lineHeight">14sp</item>
+        <item name="android:letterSpacing">-0.05</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+    <style name="TextAppearance.App.Num.CaptionMd.Regular" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">11sp</item>
+        <item name="android:fontFamily">@font/pretendard_regular</item>
+        <item name="lineHeight">14sp</item>
+        <item name="android:letterSpacing">-0.05</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+    <style name="TextAppearance.App.Num.CaptionSm.Regular" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">10sp</item>
+        <item name="android:fontFamily">@font/pretendard_regular</item>
+        <item name="lineHeight">14sp</item>
+        <item name="android:letterSpacing">-0.05</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+    <style name="TextAppearance.App.Num.CaptionSm.Medium" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">10sp</item>
+        <item name="android:fontFamily">@font/pretendard_medium</item>
+        <item name="lineHeight">14sp</item>
+        <item name="android:letterSpacing">-0.05</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+
+</resources>
