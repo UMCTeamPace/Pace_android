@@ -86,7 +86,11 @@
     <color name="route_branch_bus">#53B332</color>
 
 
+    <color name="transparent">#00FFFFFF</color>
 
+    <!--Temporary-->
+    <color name="black">#000000</color>
+    <color name="white">#FFFFFF</color>
 
 </resources>
 
