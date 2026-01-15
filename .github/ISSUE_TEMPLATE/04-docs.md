@@ -1,9 +1,4 @@
----
-name: 📚 문서화
-about: 문서 추가/수정
-title: '[DOCS]'
-labels: ['documentation']
----
+- [Docs] 내용 - #이슈번호
 
-## 📄 문서 위치
+## 문서 위치, 내용 설명
 
