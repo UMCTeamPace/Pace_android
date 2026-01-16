@@ -199,7 +199,7 @@
 
     <style name="TextAppearance.App.Num.CaptionMd.Medium" parent="TextAppearance.AppCompat">
         <item name="android:textSize">11sp</item>
-        <item name="android:fontFamily">@font/pretendard_medium</item>
+        <item name="android:fontFamily">@font/roboto_medium</item>
         <item name="lineHeight">14sp</item>
         <item name="android:letterSpacing">-0.05</item>
         <item name="android:textColor">@color/black</item>
@@ -207,7 +207,7 @@
 
     <style name="TextAppearance.App.Num.CaptionMd.Regular" parent="TextAppearance.AppCompat">
         <item name="android:textSize">11sp</item>
-        <item name="android:fontFamily">@font/pretendard_regular</item>
+        <item name="android:fontFamily">@font/roboto_regular</item>
         <item name="lineHeight">14sp</item>
         <item name="android:letterSpacing">-0.05</item>
         <item name="android:textColor">@color/black</item>
@@ -215,7 +215,7 @@
 
     <style name="TextAppearance.App.Num.CaptionSm.Regular" parent="TextAppearance.AppCompat">
         <item name="android:textSize">10sp</item>
-        <item name="android:fontFamily">@font/pretendard_regular</item>
+        <item name="android:fontFamily">@font/roboto_regular</item>
         <item name="lineHeight">14sp</item>
         <item name="android:letterSpacing">-0.05</item>
         <item name="android:textColor">@color/black</item>
@@ -223,7 +223,7 @@
 
     <style name="TextAppearance.App.Num.CaptionSm.Medium" parent="TextAppearance.AppCompat">
         <item name="android:textSize">10sp</item>
-        <item name="android:fontFamily">@font/pretendard_medium</item>
+        <item name="android:fontFamily">@font/roboto_medium</item>
         <item name="lineHeight">14sp</item>
         <item name="android:letterSpacing">-0.05</item>
         <item name="android:textColor">@color/black</item>
