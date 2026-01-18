@@ -1,4 +1,6 @@
 package com.example.pace.ui.add_schedule
 
-class SelectionActivity {
+import androidx.appcompat.app.AppCompatActivity
+
+class SelectionActivity: AppCompatActivity() {
 }

@@ -20,6 +20,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".ui.settings.SettingsActivity"
+            android:exported="true"/>
+        <activity android:name=".ui.settings.SyncWithCalendarActivity"
+            android:exported="true"/>
+        <activity android:name=".ui.add_schedule.SelectionActivity"
+            android:exported="true"/>
     </application>
 
 </manifest>
