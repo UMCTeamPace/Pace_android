@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Pace</string>
+    <string name="schedule_title">일정</string>
 </resources>
