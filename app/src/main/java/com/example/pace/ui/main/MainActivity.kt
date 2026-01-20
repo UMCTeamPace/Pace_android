@@ -28,6 +28,14 @@ class MainActivity : AppCompatActivity() {
         binding.mainBnv.setOnItemSelectedListener { item ->
             changeFragment(item)
         }
+
+        // 처음 툴바 보이는거 설정
+        binding.mainLogoIv.visibility = android.view.View.VISIBLE
+        binding.mainTitleTv.visibility = android.view.View.GONE
+        binding.mainSettingsIv.visibility = android.view.View.VISIBLE
+        binding.mainEditIv.visibility = android.view.View.VISIBLE
+        binding.mainSearchIv.visibility = android.view.View.GONE
+
         // 설정 이동
         binding.mainSettingsIv.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
@@ -38,16 +46,31 @@ class MainActivity : AppCompatActivity() {
             R.id.home -> {
                 supportFragmentManager.beginTransaction().replace(R.id.main_fcv,
                     HomeFragment()).commit()
+                binding.mainLogoIv.visibility = android.view.View.VISIBLE
+                binding.mainTitleTv.visibility = android.view.View.GONE
+                binding.mainSettingsIv.visibility = android.view.View.VISIBLE
+                binding.mainEditIv.visibility = android.view.View.VISIBLE
+                binding.mainSearchIv.visibility = android.view.View.GONE
                 return true
             }
             R.id.calendar -> {
                 supportFragmentManager.beginTransaction().replace(R.id.main_fcv,
                     CalendarFragment()).commit()
+                binding.mainLogoIv.visibility = android.view.View.GONE
+                binding.mainTitleTv.visibility = android.view.View.VISIBLE
+                binding.mainSettingsIv.visibility = android.view.View.GONE
+                binding.mainEditIv.visibility = android.view.View.GONE
+                binding.mainSearchIv.visibility = android.view.View.VISIBLE
                 return true
             }
             R.id.route -> {
                 supportFragmentManager.beginTransaction().replace(R.id.main_fcv,
                     RouteFragment()).commit()
+                binding.mainLogoIv.visibility = android.view.View.VISIBLE
+                binding.mainTitleTv.visibility = android.view.View.GONE
+                binding.mainSettingsIv.visibility = android.view.View.VISIBLE
+                binding.mainEditIv.visibility = android.view.View.VISIBLE
+                binding.mainSearchIv.visibility = android.view.View.GONE
                 return true
             }
             else -> return false
