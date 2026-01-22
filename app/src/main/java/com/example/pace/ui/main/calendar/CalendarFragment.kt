@@ -4,55 +4,39 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
-import androidx.core.view.children
 import androidx.fragment.app.Fragment
 import com.example.pace.databinding.FragmentCalendarBinding
-import com.kizitonwose.calendar.core.*
-import com.kizitonwose.calendar.view.*
-import java.time.YearMonth
-import java.time.format.TextStyle
-import java.time.temporal.WeekFields
-import java.util.Locale
+import com.google.android.material.tabs.TabLayoutMediator
 
+// 전체 프래그먼트를 포함하는 프래그먼트로 뷰페이저를 담고있음
 class CalendarFragment: Fragment() {
-    lateinit var binding: FragmentCalendarBinding
+    private var _binding: FragmentCalendarBinding? = null
+    private val binding get() = _binding!!
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        binding = FragmentCalendarBinding.inflate(inflater, container, false)
+    ): View {
+        _binding = FragmentCalendarBinding.inflate(inflater, container, false)
         return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        class DayViewContainer(view: View) : ViewContainer(view) {
-            val textView = view.findViewById<TextView>(com.example.pace.R.id.calendarDayText)
-        }
-        // 캘린더 화면에 띄우기
-        binding.calendarView.dayBinder = object : MonthDayBinder<DayViewContainer> {
-            override fun create(view: View) = DayViewContainer(view)
-            override fun bind(container: DayViewContainer, day: CalendarDay) {
-                container.textView.text = day.date.dayOfMonth.toString()
-            }
-        }
+        val calendarFragmentAdapter = CalendarFragmentAdapter(this)
+        binding.calendarVp.adapter = calendarFragmentAdapter
+        binding.calendarVp.isUserInputEnabled = false // 가로 스크롤 오류로 인하여 뷰페이저 스크롤 막기
 
-        val currentMonth = YearMonth.now()
-        val firstMonth = currentMonth.minusMonths(10)
-        val lastMonth = currentMonth.plusMonths(10)
-        val firstDayOfWeek = WeekFields.of(Locale.getDefault()).firstDayOfWeek
-        binding.calendarView.setup(firstMonth, lastMonth, firstDayOfWeek)
-        binding.calendarView.scrollToMonth(currentMonth)
+        val tabTitles = listOf("List", "Calendar")
+        TabLayoutMediator(binding.calendarTabLayout, binding.calendarVp) { tab, position ->
+            tab.text = tabTitles[position]
+        }.attach()
+    }
 
-
-        // 위에 헤더에다가 각 요일 표시하기
-        val daysOfWeek = daysOfWeek(firstDayOfWeek)
-        binding.legendLayout.root.children.forEachIndexed { index, view ->
-            (view as TextView).text = daysOfWeek[index].getDisplayName(TextStyle.SHORT, Locale.getDefault())
-        }
-
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 }
