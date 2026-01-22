@@ -51,13 +51,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         // 검색하다가 뒤로가기 누르면 키보드 없애고, 또 눌렀을 때 routeFragment로 이동
-        onBackPressedDispatcher.addCallback (this, object : OnBackPressedCallback(true){
-            override fun handleOnBackPressed(){
-                if(supportFragmentManager.backStackEntryCount > 0){
-                    if(binding.searchEt.hasFocus()){
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (supportFragmentManager.backStackEntryCount > 0) {
+                    if (binding.searchEt.hasFocus()) {
                         binding.searchEt.clearFocus()
                         hideKeyboard()
-                    }else{
+                    } else {
                         supportFragmentManager.popBackStack()
                     }
                 } else {
@@ -66,7 +66,7 @@ class MainActivity : AppCompatActivity() {
                     isEnabled = true
                 }
             }
-        } )
+        })
 
         // 검색창 눌렸을 때 프래그먼트 이동
         binding.searchEt.setOnFocusChangeListener { _, hasFocus ->
@@ -74,7 +74,7 @@ class MainActivity : AppCompatActivity() {
                 // 현재 화면이 SearchLocationFragment라면 새로 띄우지 않음
                 // 검색할 때 칩이 초기화되지 않음
                 val currentFragment = supportFragmentManager.findFragmentById(R.id.main_fcv)
-                if(currentFragment !is SearchLocationFragment){
+                if (currentFragment !is SearchLocationFragment) {
                     supportFragmentManager.beginTransaction()
                         .replace(R.id.main_fcv, SearchLocationFragment())
                         .addToBackStack("SEARCH_MODE")
@@ -94,7 +94,7 @@ class MainActivity : AppCompatActivity() {
 
         // 시스템 뒤로가기
         supportFragmentManager.addOnBackStackChangedListener {
-            if(supportFragmentManager.backStackEntryCount == 0){
+            if (supportFragmentManager.backStackEntryCount == 0) {
                 binding.mainBnv.visibility = android.view.View.VISIBLE
 
                 binding.searchEt.clearFocus()
@@ -143,11 +143,14 @@ class MainActivity : AppCompatActivity() {
         }
         return super.dispatchTouchEvent(ev)
     }
-    private fun changeFragment(item: MenuItem): Boolean{
-        when(item.itemId){
+
+    private fun changeFragment(item: MenuItem): Boolean {
+        when (item.itemId) {
             R.id.home -> {
-                supportFragmentManager.beginTransaction().replace(R.id.main_fcv,
-                    HomeFragment()).commit()
+                supportFragmentManager.beginTransaction().replace(
+                    R.id.main_fcv,
+                    HomeFragment()
+                ).commit()
                 binding.mainLogoIv.visibility = android.view.View.VISIBLE
                 binding.mainTitleTv.visibility = android.view.View.GONE
                 binding.mainSettingsIv.visibility = android.view.View.VISIBLE
@@ -157,9 +160,12 @@ class MainActivity : AppCompatActivity() {
                 binding.mainSearchLl.visibility = android.view.View.GONE
                 return true
             }
+
             R.id.calendar -> {
-                supportFragmentManager.beginTransaction().replace(R.id.main_fcv,
-                    CalendarFragment()).commit()
+                supportFragmentManager.beginTransaction().replace(
+                    R.id.main_fcv,
+                    CalendarFragment()
+                ).commit()
                 binding.mainLogoIv.visibility = android.view.View.GONE
                 binding.mainTitleTv.visibility = android.view.View.VISIBLE
                 binding.mainSettingsIv.visibility = android.view.View.GONE
@@ -169,9 +175,12 @@ class MainActivity : AppCompatActivity() {
                 binding.mainSearchLl.visibility = android.view.View.GONE
                 return true
             }
+
             R.id.route -> {
-                supportFragmentManager.beginTransaction().replace(R.id.main_fcv,
-                    RouteFragment()).commit()
+                supportFragmentManager.beginTransaction().replace(
+                    R.id.main_fcv,
+                    RouteFragment()
+                ).commit()
                 binding.mainLogoIv.visibility = android.view.View.GONE
                 binding.mainTitleTv.visibility = android.view.View.GONE
                 binding.mainSettingsIv.visibility = android.view.View.GONE
@@ -181,6 +190,7 @@ class MainActivity : AppCompatActivity() {
                 binding.mainSearchLl.visibility = android.view.View.VISIBLE
                 return true
             }
+
             else -> return false
         }
     }

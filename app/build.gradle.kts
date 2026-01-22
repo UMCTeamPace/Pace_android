@@ -62,4 +62,7 @@ dependencies {
 
     //내 위치
     implementation("com.google.android.gms:play-services-location:21.0.1")
+
+    implementation("com.afollestad.material-dialogs:core:3.3.0")
+    implementation("com.afollestad.material-dialogs:color:3.3.0")
 }
