@@ -64,6 +64,54 @@
             android:layout_marginRight="10dp"
             android:clickable="true"
             android:src="@drawable/ic_write"/>
+
+        <ImageView
+            android:id="@+id/main_back_iv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:layout_marginLeft="15dp"
+            android:src="@drawable/ic_arrow_opened"
+            android:visibility="gone"/>
+
+        <LinearLayout
+            android:id="@+id/main_search_ll"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="20dp"
+            android:layout_marginEnd="20dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginBottom="10dp"
+            android:background="@drawable/box_saerch_box"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone">
+            <EditText
+                android:id="@+id/search_et"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@null"
+                android:hint="장소를 검색하세요"
+                android:textColorHint="#999999"
+                android:padding="10dp"
+                android:inputType="text"
+                android:maxLines="1"
+                android:textSize="16sp" />
+
+            <ImageView
+                android:id="@+id/btn_search"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/ic_search"
+                android:scaleType="centerInside"
+                app:tint="#9E9E9E"
+                android:padding="12dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true" />
+
+        </LinearLayout>
     </androidx.appcompat.widget.Toolbar>
     <FrameLayout
         android:id="@+id/main_fcv"

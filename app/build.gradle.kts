@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
 }
 
 android {
@@ -58,4 +59,13 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
     implementation("com.kizitonwose.calendar:view:2.5.1")
     implementation("com.kizitonwose.calendar:core:2.5.1")
+
+    //지도 sdk
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+
+    //내 위치
+    implementation("com.google.android.gms:play-services-location:21.0.1")
+
+    implementation("com.afollestad.material-dialogs:core:3.3.0")
+    implementation("com.afollestad.material-dialogs:color:3.3.0")
 }
