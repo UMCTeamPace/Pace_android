@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="8dp"
+    android:padding="12dp"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:background="@drawable/box_schedule">
+    <LinearLayout
+        android:id="@+id/schedule_title_ll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:gravity="center_vertical"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+        <ImageView
+            android:id="@+id/schedule_category_iv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:scaleType="fitCenter"
+            android:adjustViewBounds="true"
+            android:padding="4dp"
+            android:src="@drawable/ic_schedule_orange" />
+        <TextView
+            android:id="@+id/schedule_title_tv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="4dp"
+            android:text="일정 제목"
+            android:textAppearance="@style/TextAppearance.App.HeadlineSm"
+            android:layout_marginStart="4dp"/>
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/schedule_time_ll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginStart="6dp"
+        android:gravity="center_vertical"
+        app:layout_constraintTop_toBottomOf="@id/schedule_title_ll"
+        app:layout_constraintStart_toStartOf="parent">
+        <ImageView
+            android:id="@+id/schedule_time_iv"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:src="@drawable/ic_time" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="하루 종일"
+            android:textAppearance="@style/TextAppearance.App.Num.CaptionLg.Regular"
+            android:layout_marginStart="4dp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:visibility="gone"
+        android:id="@+id/schedule_normal_location_ll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:layout_marginTop="8dp"
+        android:gravity="center_vertical"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/schedule_time_ll">
+
+        <ImageView
+            android:id="@+id/schedule_normal_location_iv"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:src="@drawable/ic_route_unselected" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:text="장소"
+            android:textAppearance="@style/TextAppearance.App.Num.CaptionLg.Regular" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/schedule_route_location_ll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:padding="6dp"
+        android:gravity="center_vertical"
+        android:background="@drawable/box_route_schedule"
+        android:orientation="vertical"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/schedule_time_ll">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+            <ImageView
+                android:id="@+id/schedule_route_location_iv"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_route_schedule" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:text="장소1 --> 장소2"
+                android:textAppearance="@style/TextAppearance.App.Num.CaptionLg.Regular" />
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:text="00:00 - 00:00"
+                android:textAppearance="@style/TextAppearance.App.Num.CaptionLg.Regular" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="|"
+                android:textAppearance="@style/TextAppearance.App.Num.CaptionLg.Regular"
+                android:layout_marginStart="8dp"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0시간 0분"
+                android:textAppearance="@style/TextAppearance.App.Num.CaptionLg.Regular"
+                android:layout_marginStart="8dp"/>
+        </LinearLayout>
+
+    </LinearLayout>
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>
