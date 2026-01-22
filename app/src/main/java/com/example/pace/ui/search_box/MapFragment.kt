@@ -27,8 +27,8 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
             if (isGranted) {
-                // 권한 허용되면 내 위치로 이동
-                enableMyLocation()
+                enableMyLocationUI()
+                moveToCurrentLocation(isAnimate = false)
             }else {
                 Toast.makeText(requireContext(), "위치 권한을 허용해야 내 위치를 찾을 수 있습니다.", Toast.LENGTH_SHORT).show()
             }
@@ -52,9 +52,9 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         // 2. 지도 로딩 시작 (비동기)
         mapFragment?.getMapAsync(this)
 
+        // 내 위치 버튼 클릭됐을 때
         view.findViewById<ImageButton>(R.id.btn_go_my_location).setOnClickListener {
-            // 권한 체크 후 내 위치로 이동하는 함수 호출
-            checkLocationPermission()
+            checkLocationPermission(isAnimate = true)
         }
     }
 
@@ -62,41 +62,49 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     override fun onMapReady(map: GoogleMap) {
         this.googleMap = map
         map.uiSettings.isMyLocationButtonEnabled = false
-        // 2. 맵이 준비되면 권한 체크 후 내 위치 활성화
-        checkLocationPermission()
+
+        checkLocationPermission(isAnimate = false)
     }
 
-    private fun checkLocationPermission() {
+    private fun checkLocationPermission(isAnimate: Boolean) {
         // 이미 권한이 있는지 확인
         if (ContextCompat.checkSelfPermission(
                 requireContext(),
                 Manifest.permission.ACCESS_FINE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
         ) {
-            enableMyLocation()
+            enableMyLocationUI()
+            moveToCurrentLocation(isAnimate)
         } else {
             requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
     }
 
-    private fun enableMyLocation() {
-        // 1. 구글맵에 '내 위치 버튼(파란 점)' 활성화 (빨간 줄 떠도 무시하거나 Alt+Enter로 Permission check 추가)
+    //지도에 파란점 띄우기
+    private fun enableMyLocationUI() {
         try {
             googleMap?.isMyLocationEnabled = true
         } catch (e: SecurityException) {
             return
         }
+    }
 
-        // 2. 현재 위치 좌표를 얻어와서 카메라 이동
+    // 위치를 찾아서 카메라 옮기기
+    private fun moveToCurrentLocation(isAnimate: Boolean) {
         try {
             fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-                if (location != null) {
-                    val currentLatLng = LatLng(location.latitude, location.longitude)
-                    googleMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15f))
+                val targetLocation = if (location != null) {
+                    LatLng(location.latitude, location.longitude)
                 } else {
-                    // 위치를 못 가져오면 기본값(서울 시청)으로 이동
-                    val defaultLocation = LatLng(37.5665, 126.9780)
-                    googleMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(defaultLocation, 15f))
+                    LatLng(37.5665, 126.9780) // 위치 못 찾으면 서울 시청
+                }
+
+                if (isAnimate) {
+                    // [버튼 클릭 시] : 부드럽게 이동(animate) + 줌 레벨 유지(newLatLng)
+                    googleMap?.animateCamera(CameraUpdateFactory.newLatLng(targetLocation))
+                } else {
+                    // [초기 로딩 시] : 바로 이동(move) + 줌 레벨 15로 고정(newLatLngZoom)
+                    googleMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(targetLocation, 15f))
                 }
             }
         } catch (e: SecurityException) {

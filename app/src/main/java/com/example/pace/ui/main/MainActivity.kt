@@ -42,13 +42,15 @@ class MainActivity : AppCompatActivity() {
         binding.mainSettingsIv.visibility = android.view.View.VISIBLE
         binding.mainEditIv.visibility = android.view.View.VISIBLE
         binding.mainSearchIv.visibility = android.view.View.GONE
+        binding.mainBackIv.visibility = android.view.View.GONE
+        binding.mainSearchLl.visibility = android.view.View.GONE
 
         // 설정 이동
         binding.mainSettingsIv.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
 
-        // 검색하다가 뒤로가기 누르면 검색 자판 없애고, 또 눌렀을 때 routeFragment로 이동
+        // 검색하다가 뒤로가기 누르면 키보드 없애고, 또 눌렀을 때 routeFragment로 이동
         onBackPressedDispatcher.addCallback (this, object : OnBackPressedCallback(true){
             override fun handleOnBackPressed(){
                 if(supportFragmentManager.backStackEntryCount > 0){
@@ -102,6 +104,26 @@ class MainActivity : AppCompatActivity() {
                 binding.mainBackIv.visibility = android.view.View.GONE
             }
         }
+
+        // 텍스트 창에 아이콘 바꾸기
+        binding.searchEt.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+
+            override fun afterTextChanged(s: android.text.Editable?) {
+                if (s.isNullOrEmpty()) {
+                    binding.btnSearch.setImageResource(R.drawable.ic_search)
+                } else {
+                    binding.btnSearch.setImageResource(R.drawable.ic_close)
+                }
+            }
+        })
+
+        binding.btnSearch.setOnClickListener {
+            if (binding.searchEt.text.isNotEmpty()) {
+                binding.searchEt.setText("")
+            }
+        }
     }
 
     // 텍스트 창 바깥 클릭됐을 때
@@ -109,11 +131,11 @@ class MainActivity : AppCompatActivity() {
         if (ev?.action == android.view.MotionEvent.ACTION_DOWN) {
             val v = currentFocus
             if (v is android.widget.EditText) {
-                val outRect = android.graphics.Rect()
-                v.getGlobalVisibleRect(outRect)
+                val searchBoxRect = android.graphics.Rect()
+                binding.mainSearchLl.getGlobalVisibleRect(searchBoxRect)
 
                 // 터치한 위치가 텍스트 창 밖인지 확인
-                if (!outRect.contains(ev.rawX.toInt(), ev.rawY.toInt())) {
+                if (!searchBoxRect.contains(ev.rawX.toInt(), ev.rawY.toInt())) {
                     v.clearFocus()
                     hideKeyboard()
                 }
