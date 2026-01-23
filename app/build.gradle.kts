@@ -55,4 +55,8 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
     implementation("com.kizitonwose.calendar:view:2.5.1")
     implementation("com.kizitonwose.calendar:core:2.5.1")
+
+    //썽아 라이브러리
+    implementation("com.afollestad.material-dialogs:core:3.3.0")
+    implementation("com.afollestad.material-dialogs:color:3.3.0")
 }
