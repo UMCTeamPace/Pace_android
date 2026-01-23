@@ -7,13 +7,13 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import com.example.pace.R
-import com.example.pace.databinding.FragmentSearchLocationBinding
-class SearchLocationFragment : Fragment() {
+
+class SearchHistoryFragment : Fragment() {
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        return inflater.inflate(R.layout.fragment_search_location, container, false)
+        return inflater.inflate(R.layout.fragment_search_history, container, false)
     }
 }
