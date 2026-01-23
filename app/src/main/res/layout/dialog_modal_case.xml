@@ -14,7 +14,7 @@
         android:layout_height="wrap_content"
         android:text="2026년 2월 20일 금요일"
         android:textAppearance="@style/TextAppearance.App.Num.CaptionLg.Regular"
-        android:textColor="@color/gray_600"
+        style="@style/TextColor.Secondary"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"/>
     <androidx.viewpager2.widget.ViewPager2

@@ -88,7 +88,6 @@
     <color name="transparent">#00FFFFFF</color>
     <color name="setting_box">#F8F8F8</color>
 
-    <!--Temporary-->
     <color name="black">#000000</color>
     <color name="white">#FFFFFF</color>
 </resources>
