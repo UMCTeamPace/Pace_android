@@ -34,6 +34,8 @@ class HomeFragment: Fragment() {
         val today = LocalDate.now()
         val horizontalCalendarAdapter = HorizontalCalendarRVAdapter(today)
         binding.homeHorizontalCalendarRv.adapter = horizontalCalendarAdapter
+        var calendarText = today.year.toString() + "년 " + today.monthValue.toString() + "월"
+        binding.homeHorizontalCalendarTv.text = calendarText
 
         val snapHelper = LinearSnapHelper()
         snapHelper.attachToRecyclerView(binding.homeHorizontalCalendarRv)
@@ -62,7 +64,8 @@ class HomeFragment: Fragment() {
                             val diff = (todayPos - position).toLong()
                             today.minusDays(diff)
                         }
-                        Log.d("Date", centerDate.dayOfMonth.toString())
+                        calendarText = centerDate.year.toString() + "년 " + centerDate.monthValue.toString() + "월"
+                        binding.homeHorizontalCalendarTv.text = calendarText
                         // Todo: centerDate에 적힌 일정 가져오기
                     }
                 }

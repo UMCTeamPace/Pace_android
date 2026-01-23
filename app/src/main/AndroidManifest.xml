@@ -18,7 +18,7 @@
         tools:replace="android:theme">
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="$AIzaSyBhZHJmVwZl9JfaDC-26WADWZDxEWreD6o" />
+            android:value="${GOOGLE_API_KEY}" />
 
         <activity
             android:name=".ui.main.MainActivity"
