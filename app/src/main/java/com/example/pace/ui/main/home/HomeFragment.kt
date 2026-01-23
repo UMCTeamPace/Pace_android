@@ -64,6 +64,7 @@ class HomeFragment: Fragment() {
                             val diff = (todayPos - position).toLong()
                             today.minusDays(diff)
                         }
+
                         calendarText = centerDate.year.toString() + "년 " + centerDate.monthValue.toString() + "월"
                         binding.homeHorizontalCalendarTv.text = calendarText
                         // Todo: centerDate에 적힌 일정 가져오기
