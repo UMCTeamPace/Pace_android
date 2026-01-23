@@ -7,6 +7,7 @@
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
     android:background="#F5F5F5">
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -18,32 +19,57 @@
             android:layout_marginHorizontal="20dp"
             android:layout_marginTop="12dp"
             android:background="@drawable/box_schedule"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:padding="16dp">
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:animateLayoutChanges="true">
 
-            <View
-                android:id="@+id/view_color_dot"
-                android:layout_width="12dp"
-                android:layout_height="12dp"
-                android:padding="8dp"
-                android:background="@drawable/circle_schedulecolor"
-                android:backgroundTint="@color/schedule_5"
-                />
-
-
-            <EditText
-                android:id="@+id/et_schedule_name"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
-                android:background="@null"
-                android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                android:hint="일정명"
-                android:importantForAutofill="no"
-                android:inputType="text"
-                android:textColor="@color/black" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+                <View
+                    android:id="@+id/view_color_dot"
+                    android:layout_width="12dp"
+                    android:layout_height="12dp"
+                    android:padding="8dp"
+                    android:background="@drawable/circle_schedulecolor"
+                    android:backgroundTint="@color/schedule_5"
+                    />
 
+
+                <EditText
+                    android:id="@+id/et_schedule_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:background="@null"
+                    android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                    android:hint="일정명"
+                    android:importantForAutofill="no"
+                    android:inputType="text"
+                    android:textColor="@color/black" />
+
+            </LinearLayout>
+            <LinearLayout
+                android:id="@+id/layout_color_selector"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="20dp"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/box_schedule"
+                android:orientation="horizontal"
+                android:padding="12dp"
+                android:gravity="center"
+                android:visibility="gone">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvColors"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+            </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
@@ -245,7 +271,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="4dp"
                     android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                    android:text="장소"
+                    android:text="경로"
                     android:textColor="@color/gray_500" />
             </LinearLayout>
 
@@ -270,7 +296,7 @@
                 <ImageView
                     android:layout_width="20dp"
                     android:layout_height="20dp"
-                    android:src="@drawable/ic_alarm_remind_unselected" />
+                    android:src="@drawable/ic_alarm_schedule" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -296,7 +322,7 @@
                 <ImageView
                     android:layout_width="20dp"
                     android:layout_height="20dp"
-                    android:src="@drawable/ic_alarm_remind_unselected" />
+                    android:src="@drawable/ic_alarm_started" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -316,11 +342,10 @@
             android:layout_marginHorizontal="20dp"
             android:layout_marginTop="12dp"
             android:background="@drawable/box_schedule"
-            android:orientation="horizontal"
+            android:orientation="vertical"
             android:padding="16dp">
 
             <LinearLayout
-                android:id="@+id/btn_memo"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
@@ -329,21 +354,27 @@
                 <ImageView
                     android:layout_width="20dp"
                     android:layout_height="20dp"
-                    android:src="@drawable/ic_alarm_remind_unselected" />
+                    android:src="@drawable/ic_memo" />
 
-                <EditText
-                    android:id="@+id/et_memo"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:background="@null"
-                    android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                    android:hint="메모"
-                    android:importantForAutofill="no"
-                    android:inputType="text"
-                    android:textColor="@color/black" />
-
+                <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="메모"
+                android:textAppearance="@style/TextAppearance.App.BodySm.Medium"
+                android:textColor="@color/gray_600" />
             </LinearLayout>
+
+            <EditText
+                android:id="@+id/et_memo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="@null"
+                android:gravity="top"
+                android:inputType="textMultiLine"
+                android:minLines="3"
+                android:padding="4dp" />
 
         </LinearLayout>
 

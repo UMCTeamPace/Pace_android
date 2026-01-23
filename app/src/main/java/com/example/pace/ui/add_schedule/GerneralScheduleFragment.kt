@@ -9,13 +9,14 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.NumberPicker
 import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.afollestad.materialdialogs.MaterialDialog
 import com.afollestad.materialdialogs.color.colorChooser
-import com.example.pace.databinding.FragmentGeneralScheduleBinding // 바인딩 클래스 임포트
+import com.example.pace.R
+import com.example.pace.databinding.FragmentGeneralScheduleBinding
 
 class GeneralScheduleFragment : Fragment() {
 
-    // 1. 메모리 누수 방지를 위한 바인딩 객체 선언
     private var _binding: FragmentGeneralScheduleBinding? = null
     private val binding get() = _binding!!
 
@@ -26,7 +27,7 @@ class GeneralScheduleFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        // fragment_general_schedule.xml 레이아웃 연결
+
         _binding = FragmentGeneralScheduleBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -34,33 +35,31 @@ class GeneralScheduleFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // 초기 설정: NumberPicker 범위 지정 등 (필수)
         initTimePickers()
 
-        // 1. 시작 날짜/시간 클릭 리스너
         binding.btnStartDate.setOnClickListener { showCalendar() }
         binding.tvStartTime.setOnClickListener {
-            isEditingStartTime = true // 시작 시간 수정 모드
+            isEditingStartTime = true
             showTimePicker()
         }
 
-        // 2. 종료 날짜/시간 클릭 리스너 (추가)
+
         binding.btnEndDate.setOnClickListener { showCalendar() }
         binding.tvEndTime.setOnClickListener {
-            isEditingStartTime = false // 종료 시간 수정 모드
+            isEditingStartTime = false
             showTimePicker()
         }
 
-        // 3. 컬러 피커(view_color_dot) 클릭 리스너 설정
+
         binding.viewColorDot.setOnClickListener {
             openColorPicker()
         }
 
-        // 1. 메인 동그라미 클릭 시 색상 판넬 토글
+
         binding.viewColorDot.setOnClickListener {
             if (binding.layoutColorSelector.visibility == View.GONE) {
                 binding.layoutColorSelector.visibility = View.VISIBLE
-                // 다른 피커(달력, 타임피커)는 닫아주는 것이 깔끔함
+
                 binding.calendarPicker.visibility = View.GONE
                 binding.timePickerContainer.visibility = View.GONE
             } else {
@@ -68,19 +67,35 @@ class GeneralScheduleFragment : Fragment() {
             }
         }
 
-        // 2. 개별 색상 클릭 시 처리 (예시: 빨강, 핑크)
-        binding.colorRed.setOnClickListener { changeSelectedColor("#F44336") }
-        binding.colorPink.setOnClickListener { changeSelectedColor("#E91E63") }
-        binding.colorGreen.setOnClickListener { changeSelectedColor("#4CAF50") }
+
+        val colorList = listOf(
+            ColorItem(R.color.schedule_5,"#DC354B"),
+            ColorItem(R.color.route_line_3, "#D8643F"),
+            ColorItem(R.color.route_suin_bundang, "#FFBB00"),
+            ColorItem(R.color.route_branch_bus, "#53B332"),
+            ColorItem(R.color.schedule_14, "#51AEED"),
+            ColorItem(R.color.schedule_12, "#2A4ABF"),
+            ColorItem(R.color.schedule_8, "#5F46DD"),
+            ColorItem(R.color.route_line_8,"#F14C82"),
+            ColorItem(R.color.gray_600, "#666666")
+        )
+
+
+        val colorAdapter = ColorAdapter(colorList) { selectedColor ->
+            changeSelectedColor(selectedColor)
+        }
+
+        binding.rvColors.apply {
+            adapter = colorAdapter
+            layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
+        }
 
 
     }
 
     private fun changeSelectedColor(colorStr: String) {
         val color = Color.parseColor(colorStr)
-        // 메인 동그라미 색상 변경
         binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(color)
-        // 선택 후 판넬 닫기 (선택 사항)
         binding.layoutColorSelector.visibility = View.GONE
     }
 
@@ -102,17 +117,17 @@ class GeneralScheduleFragment : Fragment() {
     }
 
     private fun initTimePickers() {
-        // 시간 설정 (00 ~ 23)
+        // (00 ~ 23)
         binding.pickerHour.apply {
             minValue = 0
             maxValue = 23
 
             setFormatter { String.format("%02d", it) }
-            // 순환 모드 (23시 다음 00시)
+            // 순환(23시 다음 00시)
             wrapSelectorWheel = true
         }
 
-        // 분 설정 (00 ~ 59)
+        // (00 ~ 59)
         binding.pickerMinute.apply {
             minValue = 0
             maxValue = 59
@@ -126,11 +141,11 @@ class GeneralScheduleFragment : Fragment() {
             val formattedTime = "$hour:$minute"
 
             if (isEditingStartTime) {
-                // 시작 시간 업데이트
+
                 binding.tvStartTime.text = formattedTime
                 binding.tvStartTime.setTextColor(Color.parseColor("#8BC34A"))
             } else {
-                // 종료 시간 업데이트 (추가)
+
                 binding.tvEndTime.text = formattedTime
                 binding.tvEndTime.setTextColor(Color.parseColor("#8BC34A"))
             }
@@ -150,7 +165,6 @@ class GeneralScheduleFragment : Fragment() {
         binding.timePickerContainer.visibility = View.VISIBLE
         binding.calendarPicker.visibility = View.GONE
 
-        // 현재 텍스트 뷰에 있는 시간 정보를 안전하게 가져오기
         val timeText = if (isEditingStartTime) {
             binding.tvStartTime.text.toString()
         } else {
@@ -158,18 +172,15 @@ class GeneralScheduleFragment : Fragment() {
         }
 
         try {
-            // "10:00" 형태를 ":" 기준으로 분리
             val parts = timeText.split(":")
             if (parts.size == 2) {
                 val h = parts[0].trim().toInt()
                 val m = parts[1].trim().toInt()
 
-                // NumberPicker 범위(0~23, 0~59)를 벗어나지 않는지 체크 후 세팅
                 binding.pickerHour.value = if (h in 0..23) h else 0
                 binding.pickerMinute.value = if (m in 0..59) m else 0
             }
         } catch (e: Exception) {
-            // 형식 에러가 나면 기본값(현재 시간 등)으로 세팅하여 튕김 방지
             binding.pickerHour.value = 10
             binding.pickerMinute.value = 0
         }

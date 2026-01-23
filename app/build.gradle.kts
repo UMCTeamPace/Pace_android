@@ -70,6 +70,13 @@ dependencies {
     // Coroutines (디바운싱 - 시간 지연용) 장소 검색
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1")
 
+    //Material Dialogs 라이브러리 주석 처리
     implementation("com.afollestad.material-dialogs:core:3.3.0")
     implementation("com.afollestad.material-dialogs:color:3.3.0")
+
+    //viewpager2 최신 안정화 버전
+    implementation("androidx.viewpager2:viewpager2:1.1.0")
+
+    //tablayout 라이브러리
+    implementation("com.google.android.material:material:1.11.0")
 }

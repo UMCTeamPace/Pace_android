@@ -63,32 +63,13 @@
                 android:gravity="center"
                 android:visibility="gone">
 
-                <View
-                android:id="@+id/color_red"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:layout_marginHorizontal="8dp"
-                android:background="@drawable/circle_schedulecolor"
-                android:backgroundTint="#F44336" />
-
-                <View
-                    android:id="@+id/color_pink"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:layout_marginHorizontal="8dp"
-                    android:background="@drawable/circle_schedulecolor"
-                    android:backgroundTint="#E91E63" />
-
-                <View
-                    android:id="@+id/color_green"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:layout_marginHorizontal="8dp"
-                    android:background="@drawable/circle_schedulecolor"
-                    android:backgroundTint="#4CAF50" />
-
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvColors"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
             </LinearLayout>
-
         </LinearLayout>
 
         <LinearLayout
@@ -320,7 +301,7 @@
                 <ImageView
                     android:layout_width="20dp"
                     android:layout_height="20dp"
-                    android:src="@drawable/ic_alarm_remind_unselected" />
+                    android:src="@drawable/ic_alarm_schedule" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -339,11 +320,10 @@
             android:layout_marginHorizontal="20dp"
             android:layout_marginTop="12dp"
             android:background="@drawable/box_schedule"
-            android:orientation="horizontal"
+            android:orientation="vertical"
             android:padding="16dp">
 
             <LinearLayout
-                android:id="@+id/btn_memo"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
@@ -352,21 +332,27 @@
                 <ImageView
                     android:layout_width="20dp"
                     android:layout_height="20dp"
-                    android:src="@drawable/ic_alarm_remind_unselected" />
+                    android:src="@drawable/ic_memo" />
 
-                <EditText
-                    android:id="@+id/et_memo"
+                <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:background="@null"
-                    android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                    android:hint="메모"
-                    android:importantForAutofill="no"
-                    android:inputType="text"
-                    android:textColor="@color/black" />
-
+                    android:layout_marginStart="8dp"
+                    android:text="메모"
+                    android:textAppearance="@style/TextAppearance.App.BodySm.Medium"
+                    android:textColor="@color/gray_600" />
             </LinearLayout>
+
+            <EditText
+                android:id="@+id/et_memo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="@null"
+                android:gravity="top"
+                android:inputType="textMultiLine"
+                android:minLines="3"
+                android:padding="4dp" />
 
         </LinearLayout>
 
