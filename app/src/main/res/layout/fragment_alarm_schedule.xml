@@ -1,0 +1,271 @@
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background"
+    android:fitsSystemWindows="true"
+    android:clickable="true"      android:focusable="true">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/alarm_schedule_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/white"
+        app:navigationIcon="@drawable/ic_arrow_opened"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="일정 알림"
+            android:textAppearance="@style/TextAppearance.App.HeadlineSm"
+            android:textColor="@color/black"
+            android:textStyle="bold" />
+    </androidx.appcompat.widget.Toolbar>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/alarm_schedule_toolbar">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/box_schedule"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="0dp">
+
+        <RadioGroup
+            android:id="@+id/rg_repeat_options"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="8dp">
+
+            <RadioButton
+                android:id="@+id/rb_none"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:text="안함"
+                android:button="@null"
+                android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                android:paddingEnd="16dp"
+                android:drawableTint="@color/selector_radio_button"
+                android:drawableTintMode="src_in"
+                android:background="@null"
+                android:backgroundTint="@android:color/transparent"
+                android:checked="true"/>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#F1F3F5" />
+
+            <RadioButton
+                android:id="@+id/rb_starttime"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:text="일정 시작 시간"
+                android:button="@null"
+                android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                android:paddingEnd="16dp"
+                android:drawableTint="@color/selector_radio_button"
+                android:background="@null"
+                android:backgroundTint="@android:color/transparent"
+                android:drawableTintMode="src_in" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#F1F3F5" />
+
+            <RadioButton
+                android:id="@+id/rb_5mago"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:text="5분 전"
+                android:button="@null"
+                android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                android:paddingEnd="16dp"
+                android:drawableTint="@color/selector_radio_button"
+                android:background="@null"
+                android:backgroundTint="@android:color/transparent"
+                android:drawableTintMode="src_in" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#F1F3F5" />
+
+            <RadioButton
+                android:id="@+id/rb_10mago"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:text="10분 전"
+                android:button="@null"
+                android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                android:paddingEnd="16dp"
+                android:drawableTint="@color/selector_radio_button"
+                android:background="@null"
+                android:backgroundTint="@android:color/transparent"
+                android:drawableTintMode="src_in" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#F1F3F5" />
+
+            <RadioButton
+                android:id="@+id/rb_15mago"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:text="15분 전"
+                android:button="@null"
+                android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                android:paddingEnd="16dp"
+                android:drawableTint="@color/selector_radio_button"
+                android:background="@null"
+                android:backgroundTint="@android:color/transparent"
+                android:drawableTintMode="src_in" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#F1F3F5" />
+
+            <RadioButton
+                android:id="@+id/rb_30mago"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:text="30분 전"
+                android:button="@null"
+                android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                android:paddingEnd="16dp"
+                android:drawableTint="@color/selector_radio_button"
+                android:background="@null"
+                android:backgroundTint="@android:color/transparent"
+                android:drawableTintMode="src_in" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#F1F3F5" />
+
+            <RadioButton
+                android:id="@+id/rb_1hago"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:text="1시간 전"
+                android:button="@null"
+                android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                android:paddingEnd="16dp"
+                android:drawableTint="@color/selector_radio_button"
+                android:background="@null"
+                android:backgroundTint="@android:color/transparent"
+                android:drawableTintMode="src_in" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#F1F3F5" />
+
+            <RadioButton
+                android:id="@+id/rb_2hago"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:text="2시간 전"
+                android:button="@null"
+                android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                android:paddingEnd="16dp"
+                android:drawableTint="@color/selector_radio_button"
+                android:background="@null"
+                android:backgroundTint="@android:color/transparent"
+                android:drawableTintMode="src_in" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#F1F3F5" />
+
+            <RadioButton
+                android:id="@+id/rb_1dago"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:text="1일 전"
+                android:button="@null"
+                android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                android:paddingEnd="16dp"
+                android:drawableTint="@color/selector_radio_button"
+                android:background="@null"
+                android:backgroundTint="@android:color/transparent"
+                android:drawableTintMode="src_in" />
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#F1F3F5" />
+
+            <RadioButton
+                android:id="@+id/rb_2dago"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:text="2일 전"
+                android:button="@null"
+                android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                android:paddingEnd="16dp"
+                android:drawableTint="@color/selector_radio_button"
+                android:background="@null"
+                android:backgroundTint="@android:color/transparent"
+                android:drawableTintMode="src_in" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#F1F3F5" />
+
+            <RadioButton
+                android:id="@+id/rb_1wago"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:text="1주 전"
+                android:button="@null"
+                android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                android:paddingEnd="16dp"
+                android:drawableTint="@color/selector_radio_button"
+                android:background="@null"
+                android:backgroundTint="@android:color/transparent"
+                android:drawableTintMode="src_in" />
+        </RadioGroup>
+    </androidx.cardview.widget.CardView>
+
+        <TextView
+            android:id="@+id/tv_alarm_description"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="*알림은 총 5개 까지 설정할 수 있습니다."
+            android:gravity="center"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Semibold"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp" />
+
+    </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

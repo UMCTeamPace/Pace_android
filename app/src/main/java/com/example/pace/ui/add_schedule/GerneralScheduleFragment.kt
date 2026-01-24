@@ -9,6 +9,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.NumberPicker
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.setFragmentResultListener
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.afollestad.materialdialogs.MaterialDialog
 import com.afollestad.materialdialogs.color.colorChooser
@@ -21,6 +22,15 @@ class GeneralScheduleFragment : Fragment() {
     private val binding get() = _binding!!
 
     private var isEditingStartTime: Boolean = true
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setFragmentResultListener("repeatKey") { _, bundle ->
+            val result = bundle.getString("selectedRepeat")
+            binding.tvRepeatStatus.text = result // 레이아웃의 텍스트 변경
+        }
+
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -35,6 +45,22 @@ class GeneralScheduleFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // 1. Fragment Result Listener (데이터 수신)
+        setFragmentResultListener("repeatKey") { _, bundle ->
+            val result = bundle.getString("selectedRepeat")
+            binding.tvRepeatStatus.text = result // 화면에 반영
+        }
+
+        // 2. 반복 설정 버튼 클릭 시 이동
+        binding.btnRepeat.setOnClickListener {
+            val repeatFragment = ScheduleRepeatFragment()
+
+            // ViewPager2 에러를 피하기 위해 Activity의 FragmentManager를 사용
+            requireActivity().supportFragmentManager.beginTransaction()
+                .replace(android.R.id.content, repeatFragment)
+                .addToBackStack(null) // 뒤로가기 시 GeneralScheduleFragment로 복귀
+                .commit()
+        }
         initTimePickers()
 
         binding.btnStartDate.setOnClickListener { showCalendar() }
