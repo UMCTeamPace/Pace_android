@@ -15,6 +15,7 @@
         android:textSize="18sp" />
 
     <androidx.core.widget.NestedScrollView
+        android:id="@+id/bottom_sheet_scroll_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
