@@ -42,7 +42,7 @@
                 android:id="@+id/et_schedule_name"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
+                android:layout_marginStart="10dp"
                 android:background="@null"
                 android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
                 android:hint="일정명"
@@ -240,6 +240,7 @@
                     android:src="@drawable/ic_arrow_change" />
 
                 <TextView
+                    android:id="@+id/tv_repeat_status"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
@@ -340,7 +341,7 @@
                     android:layout_marginStart="8dp"
                     android:text="메모"
                     android:textAppearance="@style/TextAppearance.App.BodySm.Medium"
-                    android:textColor="@color/gray_600" />
+                    android:textColor="@color/gray_500" />
             </LinearLayout>
 
             <EditText
@@ -352,6 +353,8 @@
                 android:gravity="top"
                 android:inputType="textMultiLine"
                 android:minLines="3"
+                android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                android:textSize="14sp"
                 android:padding="4dp" />
 
         </LinearLayout>
