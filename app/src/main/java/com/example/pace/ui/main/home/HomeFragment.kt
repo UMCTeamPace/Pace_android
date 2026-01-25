@@ -2,12 +2,14 @@ package com.example.pace.ui.main.home
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.DisplayMetrics
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.LinearSmoothScroller
 import androidx.recyclerview.widget.LinearSnapHelper
 import androidx.recyclerview.widget.PagerSnapHelper
 import androidx.recyclerview.widget.RecyclerView
@@ -23,6 +25,7 @@ class HomeFragment: Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
+
         binding = FragmentHomeBinding.inflate(inflater, container, false)
 
         // 일정 추가
@@ -31,29 +34,50 @@ class HomeFragment: Fragment() {
         }
 
         // 하단 캘린더
+        val calendarSize = 1000000
         val today = LocalDate.now()
+        val layoutManager = binding.homeHorizontalCalendarRv.layoutManager as LinearLayoutManager
+        val todayPos = calendarSize / 2
+        var calendarText = today.year.toString() + "년 " + today.monthValue.toString() + "월"
+
         val horizontalCalendarAdapter = HorizontalCalendarRVAdapter(today)
         binding.homeHorizontalCalendarRv.adapter = horizontalCalendarAdapter
-        var calendarText = today.year.toString() + "년 " + today.monthValue.toString() + "월"
-        binding.homeHorizontalCalendarTv.text = calendarText
 
         val snapHelper = LinearSnapHelper()
         snapHelper.attachToRecyclerView(binding.homeHorizontalCalendarRv)
         binding.homeHorizontalCalendarRv.post{
-            val layoutManager = binding.homeHorizontalCalendarRv.layoutManager as LinearLayoutManager
             val screenWidth = binding.homeHorizontalCalendarRv.width
             val itemWidth = screenWidth / 7
             val offset = (screenWidth / 2) - (itemWidth / 2)
-            val centerPos = Int.MAX_VALUE / 2
-            layoutManager.scrollToPositionWithOffset(centerPos, offset)
-            horizontalCalendarAdapter.changeSelectedDate(centerPos)
+            layoutManager.scrollToPositionWithOffset(todayPos, offset)
+            horizontalCalendarAdapter.changeSelectedDate(todayPos)
         }
+
+        binding.homeHorizontalCalendarTv.text = calendarText
+        horizontalCalendarAdapter.setMyOnclickListener(object: HorizontalCalendarRVAdapter.MyItemOnClickListener{
+            override fun changeSelectedDate(position: Int) {
+                val smoothScroller = object: LinearSmoothScroller(binding.homeHorizontalCalendarRv.context){
+                    override fun calculateDxToMakeVisible(view: View, snapPreference: Int): Int {
+                        val screenCenter = binding.homeHorizontalCalendarRv.width/2
+                        val itemCenter = (view.left + view.right)/2
+                        return screenCenter - itemCenter
+                    }
+                    override fun getHorizontalSnapPreference(): Int = SNAP_TO_START
+                    override fun calculateSpeedPerPixel(displayMetrics: DisplayMetrics): Float {
+                        return 150f/displayMetrics.densityDpi
+                    }
+                }
+                smoothScroller.targetPosition = position
+                binding.homeHorizontalCalendarRv.layoutManager?.startSmoothScroll(smoothScroller)
+                horizontalCalendarAdapter.changeSelectedDate(position)
+            }
+        })
+
         binding.homeHorizontalCalendarRv.addOnScrollListener(object :
             RecyclerView.OnScrollListener() {
             override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
                 super.onScrollStateChanged(recyclerView, newState)
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                    val todayPos = Int.MAX_VALUE / 2
                     val centerView = snapHelper.findSnapView(recyclerView.layoutManager)
                     if (centerView != null) {
                         val position = recyclerView.getChildAdapterPosition(centerView)
@@ -67,6 +91,7 @@ class HomeFragment: Fragment() {
 
                         calendarText = centerDate.year.toString() + "년 " + centerDate.monthValue.toString() + "월"
                         binding.homeHorizontalCalendarTv.text = calendarText
+                        Log.d("selected", centerDate.year.toString() + centerDate.monthValue.toString() + centerDate.dayOfMonth.toString())
                         // Todo: centerDate에 적힌 일정 가져오기
                     }
                 }

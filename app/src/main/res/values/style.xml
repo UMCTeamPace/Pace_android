@@ -244,4 +244,7 @@
     <style name="TextColor.Setting" parent="Theme.AppCompat">
         <item name="android:textColor">#CC000000</item>
     </style>
+    <style name="TextColor.HorizontalCalendar" parent="Theme.AppCompat">
+        <item name="android:textColor">@color/gray_400</item>
+    </style>
 </resources>
