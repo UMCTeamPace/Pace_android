@@ -90,5 +90,6 @@
 
     <color name="black">#000000</color>
     <color name="white">#FFFFFF</color>
+    <color name="background">#F5F5F5</color>
 </resources>
 

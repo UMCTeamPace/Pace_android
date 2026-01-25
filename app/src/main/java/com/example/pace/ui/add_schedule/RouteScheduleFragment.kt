@@ -9,6 +9,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.NumberPicker
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.setFragmentResultListener
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.afollestad.materialdialogs.MaterialDialog
 import com.afollestad.materialdialogs.color.colorChooser
@@ -36,6 +37,28 @@ class RouteScheduleFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         initTimePickers()
+
+        binding.btnRemindalarm.setOnClickListener {
+            val alarmFragment = AlarmScheduleFragment()
+
+            // android.R.id.content를 사용하여 화면 전체를 덮어씌웁니다.
+            requireActivity().supportFragmentManager.beginTransaction()
+                .replace(android.R.id.content, alarmFragment)
+                .addToBackStack(null) // 뒤로가기 시 다시 RouteScheduleFragment로 복귀
+                .commit()
+        }
+
+        setFragmentResultListener("alarmKey") { _, bundle ->
+            val result = bundle.getString("selectedAlarm")
+
+            result?.let {
+                // 1. 텍스트 내용 변경 (예: "일정 알림 10분 전")
+                binding.tvAlarmStatus.text = "일정 알림 $it"
+
+                // 2. 텍스트 색상을 검정색으로 변경
+                binding.tvAlarmStatus.setTextColor(Color.BLACK)
+            }
+        }
 
         binding.btnStartDate.setOnClickListener { showCalendar() }
         binding.tvStartTime.setOnClickListener {
@@ -185,6 +208,8 @@ class RouteScheduleFragment : Fragment() {
             binding.pickerMinute.value = 0
         }
     }
+
+
 
     // 4. 프래그먼트 파괴 시 바인딩 해제
     override fun onDestroyView() {
