@@ -8,6 +8,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.LinearSmoothScroller
 import androidx.recyclerview.widget.LinearSnapHelper
@@ -32,6 +33,31 @@ class HomeFragment: Fragment() {
         binding.homeAddScheduleIv.setOnClickListener {
             startActivity(Intent(context, AddScheduleActivity::class.java))
         }
+
+        // 일정뷰
+        val exampleList = listOf("Example1", "Example2", "Example3")
+        val scheduleAdapter = ScheduleRVAdapter(exampleList, requireContext())
+        binding.homeScheduleRv.adapter = scheduleAdapter
+        scheduleAdapter.setMyOnClickListener(object: ScheduleRVAdapter.MyOnClickListener{
+            override fun showModalCase() {
+                scheduleAdapter.showModalCase()
+            }
+        })
+        val swipeHelper = ScheduleTouchHelper(object: MySwipeListener{
+            override fun onScheduleSwiped(position: Int, direction: Int) {
+                if(direction == ItemTouchHelper.LEFT){
+                    Log.d("Swipe", "Left")
+                    // Todo: 디자인 및 요구사항 구현
+                }
+                else{
+                    Log.d("Swipe", "Right")
+                    // Todo: 디자인 및 요구사항 구현
+                }
+            }
+        })
+        val scheduleTouchHelper = ItemTouchHelper(swipeHelper)
+        scheduleTouchHelper.attachToRecyclerView(binding.homeScheduleRv)
+
 
         // 하단 캘린더
         val calendarSize = 1000000
