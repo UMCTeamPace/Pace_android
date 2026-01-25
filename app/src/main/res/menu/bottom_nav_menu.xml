@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/home"
+        android:icon="@drawable/menu_home_selector"
+        android:title="홈" />
+    <item android:id="@+id/calendar"
+        android:icon="@drawable/menu_calendar_selector"
+        android:title="캘린더"/>
+    <item android:id="@+id/route"
+        android:icon="@drawable/menu_route_selector"
+        android:title="경로"/>
+</menu>

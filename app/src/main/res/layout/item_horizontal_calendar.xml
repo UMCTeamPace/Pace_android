@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:clickable="true"
+    android:focusable="true">
+    <TextView
+        android:id="@+id/horizontal_calendar_day_tv"
+        android:layout_width="42dp"
+        android:layout_height="20dp"
+        android:text="Fri"
+        android:textColor="@color/horizontal_calendar_day_color"
+        android:textAppearance="@style/TextAppearance.App.BodySm.Medium"
+        android:gravity="center"/>
+    <TextView
+        android:id="@+id/horizontal_calendar_date_tv"
+        android:layout_width="38dp"
+        android:layout_height="38dp"
+        android:background="@drawable/box_horizontal_calendar"
+        android:layout_marginStart="2dp"
+        android:paddingStart="7dp"
+        android:paddingEnd="7dp"
+        android:gravity="center"
+        android:text="20"
+        android:textAppearance="@style/TextAppearance.App.Num.HeadlineMd"
+        android:textColor="@color/horizontal_calendar_date_color"/>
+</LinearLayout>

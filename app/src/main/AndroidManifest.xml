@@ -2,6 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+<!--    android:name=".ui.main.PaceApplication"-->
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -10,16 +14,31 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Pace">
+        android:theme="@style/Theme.Pace"
+        tools:replace="android:theme">
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${GOOGLE_API_KEY}" />
+
+<!--        android:windowSoftInputMode="adjustResize-->
         <activity
-            android:name=".MainActivity"
-            android:exported="true">
+            android:name=".ui.main.MainActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustNothing">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".ui.settings.SettingsActivity"
+            android:exported="true"/>
+        <activity android:name=".ui.settings.SyncWithCalendarActivity"
+            android:exported="true"/>
+        <activity android:name=".ui.add_schedule.SelectionActivity"
+            android:exported="true"/>
+        <activity android:name=".ui.add_schedule.AddScheduleActivity"
+            android:exported="true"/>
     </application>
 
 </manifest>
