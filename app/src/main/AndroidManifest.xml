@@ -14,10 +14,11 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Pace">
+        android:theme="@style/Theme.Pace"
+        tools:replace="android:theme">
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="${GOOGLE_API_KEY}" />
+            android:value="$AIzaSyBhZHJmVwZl9JfaDC-26WADWZDxEWreD6o" />
 
 <!--        android:windowSoftInputMode="adjustResize-->
         <activity
@@ -35,6 +36,8 @@
         <activity android:name=".ui.settings.SyncWithCalendarActivity"
             android:exported="true"/>
         <activity android:name=".ui.add_schedule.SelectionActivity"
+            android:exported="true"/>
+        <activity android:name=".ui.add_schedule.AddScheduleActivity"
             android:exported="true"/>
     </application>
 

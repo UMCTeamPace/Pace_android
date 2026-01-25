@@ -229,5 +229,19 @@
         <item name="android:textColor">@color/black</item>
     </style>
 
-
+    <style name="TextColor.Primary" parent="Theme.AppCompat">
+        <item name="android:textColor">@color/gray_900</item>
+    </style>
+    <style name="TextColor.Secondary" parent="Theme.AppCompat">
+        <item name="android:textColor">@color/gray_600</item>
+    </style>
+    <style name="TextColor.Tertiary" parent="Theme.AppCompat">
+        <item name="android:textColor">@color/gray_500</item>
+    </style>
+    <style name="TextColor.White" parent="Theme.AppCompat">
+        <item name="android:textColor">@color/white</item>
+    </style>
+    <style name="TextColor.Setting" parent="Theme.AppCompat">
+        <item name="android:textColor">#CC000000</item>
+    </style>
 </resources>

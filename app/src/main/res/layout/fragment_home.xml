@@ -22,7 +22,8 @@
             android:layout_weight="1"
             android:layout_marginStart="18dp"
             android:layout_gravity="center_vertical"
-            android:textAppearance="@style/TextAppearance.App.CaptionLg.Semibold"/>
+            android:textAppearance="@style/TextAppearance.App.CaptionLg.Semibold"
+            style="@style/TextColor.Secondary"/>
         <ImageView
             android:id="@+id/home_add_schedule_iv"
             android:layout_width="wrap_content"
@@ -76,7 +77,8 @@
             android:text="2026년 2월"
             android:textAppearance="@style/TextAppearance.App.Num.HeadlineLg"
             android:textColor="@color/gray_900"
-            android:gravity="center"/>
+            android:gravity="center"
+            style="@style/TextColor.Primary"/>
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/home_horizontal_calendar_rv"
             android:layout_width="match_parent"

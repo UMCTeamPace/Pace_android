@@ -1,8 +1,10 @@
 package com.example.pace.ui.main.calendar
 
+import androidx.transition.TransitionManager
 import android.app.AlertDialog
 import android.graphics.Color
 import android.os.Bundle
+import android.os.StrictMode
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,10 +14,8 @@ import android.widget.FrameLayout
 import android.widget.NumberPicker
 import android.widget.TextView
 import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.core.content.ContentProviderCompat.requireContext
 import androidx.core.content.ContextCompat
 import androidx.core.view.children
-import androidx.core.view.postDelayed
 import androidx.fragment.app.Fragment
 import com.example.pace.R
 import com.example.pace.databinding.FragmentCalendarPageBinding
@@ -29,6 +29,7 @@ import java.time.format.TextStyle
 import java.time.temporal.WeekFields
 import java.util.Locale
 
+
 class CalendarPageFragment: Fragment() {
     private var _binding: FragmentCalendarPageBinding? = null
     private val binding get() = _binding!!
@@ -39,7 +40,6 @@ class CalendarPageFragment: Fragment() {
     private val today = LocalDate.now()
 
     private var headerHeight = 0
-
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -53,35 +53,60 @@ class CalendarPageFragment: Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        StrictMode.setThreadPolicy(
+            StrictMode.ThreadPolicy.Builder()
+                .detectAll()
+                .penaltyLog()
+                .penaltyFlashScreen()  // 디버그 시 화면 깜빡임으로 확인
+                .build()
+        )
+
+        bottomSheetBehavior = BottomSheetBehavior.from(binding.bottomSheet)
+
         //월간 캘린더뷰가 담기는 컨테이너가 변화하는 바텀시트 높이에 대응하여 동적으로 변하게 하기
         binding.calendarContainer.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
             override fun onGlobalLayout() {
                 binding.calendarContainer.viewTreeObserver.removeOnGlobalLayoutListener(this)
                 headerHeight = binding.headerContainer.height
+
+                // Temporarily make it invisible to get the height
+                binding.weekCalendarView.visibility = View.INVISIBLE
+                val weekViewHeight = binding.weekCalendarView.height
+                // Set it back to gone
+                binding.weekCalendarView.visibility = View.GONE
+
+                val screenHeight = binding.root.height
+                val desiredHeight = screenHeight - headerHeight - weekViewHeight
+                
+                val layoutParams = binding.bottomSheet.layoutParams
+                layoutParams.height = desiredHeight
+                binding.bottomSheet.layoutParams = layoutParams
+
                 adjustCalendarHeight()
             }
         })
 
-        bottomSheetBehavior = BottomSheetBehavior.from(binding.bottomSheet)
-        bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
-        bottomSheetBehavior.peekHeight = 0
+        bottomSheetBehavior.apply {
+            state = BottomSheetBehavior.STATE_HIDDEN
+            peekHeight = 300
+            isFitToContents = true // We will control height by setting the container's height
+            isHideable = true
+            skipCollapsed = true // We want to skip collapsed on drag, but not on programmatic set
+        }
 
         binding.calendarNumberPickerBtnIv.setOnClickListener {
             showMonthYearPicker()
         }
 
         class DayViewContainer(view: View) : ViewContainer(view) {
-            //binding을 밑에서도 써야해서 findViewById를 사용했어야 했음
             val rootLayout: ConstraintLayout = view.findViewById(R.id.root_layout)
             val textView: TextView = view.findViewById(R.id.calendarDayText)
 
             lateinit var day: CalendarDay   // Month용
             lateinit var weekDay: WeekDay   // Week용
 
-            // 이거를 init에서 실행함으로써 다음달 캘린더로 넘어가도 클릭리스너를 계속해서 다시 안달아도됨
             init {
                 rootLayout.setOnClickListener {
-                    // 월간인지 주차별인지 나누어서 클릭리스너 작성
                     val date: LocalDate
                     val isThisMonth: Boolean
 
@@ -94,37 +119,34 @@ class CalendarPageFragment: Fragment() {
                             date = weekDay.date
                             isThisMonth = YearMonth.from(weekDay.date) == selectedMonth
                         }
-                        // 이거는 클릭무시하라는건데, setOnClickListener는 void형 함수라서 이런형태로 사용해서 람다조기종료를 한다고함
                         else -> return@setOnClickListener
                     }
 
-                    android.util.Log.d("CalendarClick", "clicked=$date, selected=$selectedDate, isThisMonth=$isThisMonth")
-
                     if (!isThisMonth) return@setOnClickListener
 
-
-                    // 공통 클릭 로직
-                    if (selectedDate == date) {
-                        // 같은 날짜를 다시 누르면 bottomSheet 토글
-                        if (bottomSheetBehavior.state == BottomSheetBehavior.STATE_HIDDEN) {
-                            bottomSheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
-                            bottomSheetBehavior.peekHeight = 300
-                        } else {
-                            bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
-                        }
-                    } else {
-                        // 다른 날짜 선택
-                        if (bottomSheetBehavior.state != BottomSheetBehavior.STATE_HIDDEN) {
-                            bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
-                        }
+                    if (selectedDate != date) {
+                        // Different date clicked
                         val oldDate = selectedDate
                         selectedDate = date
-
                         binding.calendarView.notifyDateChanged(date)
                         oldDate?.let { binding.calendarView.notifyDateChanged(it) }
-
                         binding.weekCalendarView.notifyDateChanged(date)
                         oldDate?.let { binding.weekCalendarView.notifyDateChanged(it) }
+                        // If sheet was hidden, show it collapsed
+                        if (bottomSheetBehavior.state == BottomSheetBehavior.STATE_HIDDEN) {
+                            bottomSheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
+                        }
+                    } else {
+                        // Same date clicked, toggle
+                        when (bottomSheetBehavior.state) {
+                            BottomSheetBehavior.STATE_HIDDEN -> {
+                                bottomSheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
+                            }
+                            // If collapsed or expanded, hide it
+                            else -> {
+                                bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+                            }
+                        }
                     }
                 }
             }
@@ -281,39 +303,54 @@ class CalendarPageFragment: Fragment() {
         // 바텀시트 움직임을 등록
         bottomSheetBehavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
             override fun onStateChanged(bottomSheet: View, newState: Int) {
+                android.util.Log.d("BottomSheetState", "newState=$newState (${stateName(newState)})")
+                
+                TransitionManager.beginDelayedTransition(binding.root as ViewGroup)
+
                 when (newState) {
-                    BottomSheetBehavior.STATE_EXPANDED -> {
-                        binding.calendarView.visibility = View.GONE
-                        binding.weekCalendarView.visibility = View.VISIBLE
-                        binding.weekCalendarView.scrollToWeek(selectedDate ?: today)
-                    }
-                    BottomSheetBehavior.STATE_COLLAPSED -> {
-                        binding.calendarView.visibility = View.VISIBLE
-                        binding.weekCalendarView.visibility = View.GONE
-                        selectedDate?.let { binding.calendarView.scrollToMonth(YearMonth.from(it)) }
-
-
-                        bottomSheet.post {
-                            val containerHeight = binding.calendarContainer.height
-                            val bottomSheetHeight = bottomSheet.height.takeIf { it > 0 } ?: 300
-                            val calendarHeight = containerHeight - headerHeight - bottomSheetHeight
-                            if (calendarHeight > 0) {
-                                binding.calendarView.layoutParams.height = calendarHeight
-                                binding.calendarView.requestLayout()
-                            }
-                        }
-                    }
                     BottomSheetBehavior.STATE_HIDDEN -> {
                         binding.calendarView.visibility = View.VISIBLE
                         binding.weekCalendarView.visibility = View.GONE
                         selectedDate?.let { binding.calendarView.scrollToMonth(YearMonth.from(it)) }
                         adjustCalendarHeight()
                     }
+
+                    BottomSheetBehavior.STATE_COLLAPSED -> {
+                        binding.calendarView.visibility = View.VISIBLE
+                        binding.weekCalendarView.visibility = View.GONE
+                        selectedDate?.let { binding.calendarView.scrollToMonth(YearMonth.from(it)) }
+
+                        // 높이 재계산
+                        val containerHeight = binding.calendarContainer.height
+                        val bottomSheetHeight = bottomSheetBehavior.peekHeight
+                        val calendarHeight = containerHeight - headerHeight - bottomSheetHeight
+                        if (calendarHeight > 0) {
+                            binding.calendarView.layoutParams.height = calendarHeight
+                            binding.calendarView.requestLayout()
+                        }
+                    }
+
+                    BottomSheetBehavior.STATE_EXPANDED -> {
+                        binding.calendarView.visibility = View.GONE
+                        binding.weekCalendarView.visibility = View.VISIBLE
+                        binding.weekCalendarView.scrollToWeek(selectedDate ?: today)
+                    }
                 }
             }
+            override fun onSlide(bottomSheet: View, slideOffset: Float) {
 
-            override fun onSlide(bottomSheet: View, slideOffset: Float) {}
+            }
         })
+
+    }
+    private fun stateName(state: Int): String = when (state) {
+        BottomSheetBehavior.STATE_HIDDEN -> "HIDDEN"
+        BottomSheetBehavior.STATE_COLLAPSED -> "COLLAPSED"
+        BottomSheetBehavior.STATE_EXPANDED -> "EXPANDED"
+        BottomSheetBehavior.STATE_DRAGGING -> "DRAGGING"
+        BottomSheetBehavior.STATE_SETTLING -> "SETTLING"
+        BottomSheetBehavior.STATE_HALF_EXPANDED -> "HALF_EXPANDED"
+        else -> "UNKNOWN($state)"
     }
 
 
