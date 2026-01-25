@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.example.pace.R
+import com.example.pace.ui.main.MainActivity
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -22,17 +23,6 @@ import com.google.android.gms.maps.model.LatLng
 
 class MapFragment : Fragment(), OnMapReadyCallback {
     private var googleMap: GoogleMap? = null
-    private lateinit var fusedLocationClient: FusedLocationProviderClient
-
-    private val requestPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
-            if (isGranted) {
-                enableMyLocationUI()
-                moveToCurrentLocation(isAnimate = false)
-            }else {
-                Toast.makeText(requireContext(), "위치 권한을 허용해야 내 위치를 찾을 수 있습니다.", Toast.LENGTH_SHORT).show()
-            }
-        }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -44,11 +34,8 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity())
-
         val mapFragment = childFragmentManager
             .findFragmentById(R.id.google_map_container) as SupportMapFragment?
-
         // 2. 지도 로딩 시작 (비동기)
         mapFragment?.getMapAsync(this)
 
@@ -67,16 +54,18 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun checkLocationPermission(isAnimate: Boolean) {
-        // 이미 권한이 있는지 확인
+        // 1. 권한이 있는지 확인
         if (ContextCompat.checkSelfPermission(
                 requireContext(),
                 Manifest.permission.ACCESS_FINE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
         ) {
+            // 권한 있으면 -> 파란 점 켜고 이동
             enableMyLocationUI()
             moveToCurrentLocation(isAnimate)
         } else {
-            requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            // 권한 없으면 -> 메인 액티비티한테 "팝업 좀 띄워줘" 요청
+            (requireActivity() as? MainActivity)?.checkPermissionAndStart()
         }
     }
 
@@ -91,24 +80,28 @@ class MapFragment : Fragment(), OnMapReadyCallback {
 
     // 위치를 찾아서 카메라 옮기기
     private fun moveToCurrentLocation(isAnimate: Boolean) {
-        try {
-            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-                val targetLocation = if (location != null) {
-                    LatLng(location.latitude, location.longitude)
-                } else {
-                    LatLng(37.5665, 126.9780) // 위치 못 찾으면 서울 시청
-                }
+        val mainActivity = requireActivity() as? MainActivity
+        val location = mainActivity?.myLocation
 
-                if (isAnimate) {
-                    // [버튼 클릭 시] : 부드럽게 이동(animate) + 줌 레벨 유지(newLatLng)
-                    googleMap?.animateCamera(CameraUpdateFactory.newLatLng(targetLocation))
-                } else {
-                    // [초기 로딩 시] : 바로 이동(move) + 줌 레벨 15로 고정(newLatLngZoom)
-                    googleMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(targetLocation, 15f))
-                }
+        if (location != null) {
+            val targetLocation = LatLng(location.latitude, location.longitude)
+
+            if (isAnimate) {
+                // [버튼 클릭 시]
+                googleMap?.animateCamera(CameraUpdateFactory.newLatLng(targetLocation))
+            } else {
+                // [초기 로딩 시]
+                googleMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(targetLocation, 15f))
             }
-        } catch (e: SecurityException) {
-            e.printStackTrace()
+        } else {
+            mainActivity?.startLocationUpdates()
+
+            val defaultLocation = LatLng(37.5665, 126.9780)
+            googleMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(defaultLocation, 15f))
         }
+    }
+
+    fun updateButtonTranslation(offset: Float) {
+        view?.findViewById<View>(R.id.btn_go_my_location)?.translationY = -offset
     }
 }

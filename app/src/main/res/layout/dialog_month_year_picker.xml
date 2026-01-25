@@ -15,7 +15,9 @@
         <NumberPicker
             android:id="@+id/picker_year"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
+            android:layout_height="wrap_content"
+            android:selectionDividerHeight="1dp"
+            android:theme="@style/CustomNumberPicker"/>
 
         <TextView
             android:layout_width="wrap_content"
@@ -29,7 +31,9 @@
         <NumberPicker
             android:id="@+id/picker_month"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
+            android:layout_height="wrap_content"
+            android:selectionDividerHeight="1dp"
+            android:theme="@style/CustomNumberPicker" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -47,17 +51,18 @@
         android:layout_marginTop="24dp"
         android:orientation="horizontal">
 
-        <Button
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btn_cancel"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginEnd="8dp"
             android:layout_weight="1"
             android:background="@drawable/btn_cancel_bg"
+            android:backgroundTint="@null"
             android:text="취소"
-            android:textColor="@color/text_secondary" />
+            android:textColor="@color/text_secondary"/>
 
-        <Button
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btn_confirm"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
