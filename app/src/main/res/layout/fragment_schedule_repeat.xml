@@ -187,6 +187,7 @@
                             android:layout_height="wrap_content"
                             android:backgroundTint="#888888"
                             android:backgroundTintMode="src_in"
+                            android:layout_marginStart="24dp"
                             android:inputType="number"
                             android:text="1"
                             android:minWidth="30dp"
