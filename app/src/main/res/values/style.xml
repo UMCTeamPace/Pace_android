@@ -244,4 +244,9 @@
     <style name="TextColor.Setting" parent="Theme.AppCompat">
         <item name="android:textColor">#CC000000</item>
     </style>
+    <style name="CustomNumberPicker" parent="ThemeOverlay.AppCompat.Light">
+        <item name="colorControlNormal">@color/text_disabled</item>  <!-- 구분선 색상 -->
+        <item name="android:textColorPrimary">@color/text_primary</item>  <!-- 숫자 색상 -->
+    </style>
+
 </resources>
