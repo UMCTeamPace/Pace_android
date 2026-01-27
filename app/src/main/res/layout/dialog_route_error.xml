@@ -20,14 +20,14 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="경로 일정 기간이 30일을 초과했습니다."
+            android:text="경로가 설정되지 않았습니다."
             android:textAppearance="@style/TextAppearance.App.BodyMd.Medium" />
         <TextView
             android:layout_marginTop="10dp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="일정 기간을 확인해주세요."
-            android:textAppearance="@style/TextAppearance.App.BodyMd.Medium" />
+            android:text="일반 일정으로 진행하시겠습니까?"
+            android:textAppearance="@style/TextAppearance.App.Num.BodyMd.Medium" />
     </LinearLayout>
 
     <LinearLayout

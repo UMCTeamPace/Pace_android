@@ -42,254 +42,201 @@
                 app:cardCornerRadius="12dp"
                 app:cardElevation="0dp">
 
-                <RadioGroup
-                    android:id="@+id/rg_repeat_options"
+                <LinearLayout
+                    android:id="@+id/layout_checkbox_container"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:orientation="vertical"
                     android:padding="8dp">
 
-                    <RadioButton
+                    <CheckBox
                         android:id="@+id/rb_none"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="24dp"
                         android:text="안함"
                         android:button="@null"
-                        android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                        android:drawableEnd="@drawable/selector_circle_checkbox"
                         android:paddingEnd="16dp"
-                        android:drawableTint="@color/selector_radio_button"
-                        android:drawableTintMode="src_in"
-                        android:background="@null"
-                        android:backgroundTint="@android:color/transparent"
-                        android:checked="true"/>
+                        android:background="@null" />
 
-                    <View
-                        android:layout_width="match_parent"
+                    <View android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:background="#F1F3F5" />
 
-                    <RadioButton
+                    <CheckBox
                         android:id="@+id/rb_start5mago"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="24dp"
                         android:text="출발 5분 전"
                         android:button="@null"
-                        android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                        android:drawableEnd="@drawable/selector_circle_checkbox"
                         android:paddingEnd="16dp"
-                        android:drawableTint="@color/selector_radio_button"
-                        android:background="@null"
-                        android:backgroundTint="@android:color/transparent"
-                        android:drawableTintMode="src_in" />
+                        android:background="@null" />
 
-                    <View
-                        android:layout_width="match_parent"
+                    <View android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:background="#F1F3F5" />
 
-                    <RadioButton
+                    <CheckBox
                         android:id="@+id/rb_start10mago"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="24dp"
                         android:text="출발 10분 전"
                         android:button="@null"
-                        android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                        android:drawableEnd="@drawable/selector_circle_checkbox"
                         android:paddingEnd="16dp"
-                        android:drawableTint="@color/selector_radio_button"
-                        android:background="@null"
-                        android:backgroundTint="@android:color/transparent"
-                        android:drawableTintMode="src_in" />
+                        android:background="@null" />
 
-                    <View
-                        android:layout_width="match_parent"
+                    <View android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:background="#F1F3F5" />
 
-                    <RadioButton
+                    <CheckBox
                         android:id="@+id/rb_start15mago"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="24dp"
                         android:text="출발 15분 전"
                         android:button="@null"
-                        android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                        android:drawableEnd="@drawable/selector_circle_checkbox"
                         android:paddingEnd="16dp"
-                        android:drawableTint="@color/selector_radio_button"
-                        android:background="@null"
-                        android:backgroundTint="@android:color/transparent"
-                        android:drawableTintMode="src_in" />
+                        android:background="@null" />
 
-                    <View
-                        android:layout_width="match_parent"
+                    <View android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:background="#F1F3F5" />
 
-                    <RadioButton
+                    <CheckBox
                         android:id="@+id/rb_start20mago"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="24dp"
                         android:text="출발 20분 전"
                         android:button="@null"
-                        android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                        android:drawableEnd="@drawable/selector_circle_checkbox"
                         android:paddingEnd="16dp"
-                        android:drawableTint="@color/selector_radio_button"
-                        android:background="@null"
-                        android:backgroundTint="@android:color/transparent"
-                        android:drawableTintMode="src_in" />
+                        android:background="@null" />
 
-                    <View
-                        android:layout_width="match_parent"
+                    <View android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:background="#F1F3F5" />
 
-                    <RadioButton
+                    <CheckBox
                         android:id="@+id/rb_start25mago"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="24dp"
                         android:text="출발 25분 전"
                         android:button="@null"
-                        android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                        android:drawableEnd="@drawable/selector_circle_checkbox"
                         android:paddingEnd="16dp"
-                        android:drawableTint="@color/selector_radio_button"
-                        android:background="@null"
-                        android:backgroundTint="@android:color/transparent"
-                        android:drawableTintMode="src_in" />
+                        android:background="@null" />
 
-                    <View
-                        android:layout_width="match_parent"
+                    <View android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:background="#F1F3F5" />
 
-                    <RadioButton
+                    <CheckBox
                         android:id="@+id/rb_start30mago"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="24dp"
                         android:text="출발 30분 전"
                         android:button="@null"
-                        android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                        android:drawableEnd="@drawable/selector_circle_checkbox"
                         android:paddingEnd="16dp"
-                        android:drawableTint="@color/selector_radio_button"
-                        android:background="@null"
-                        android:backgroundTint="@android:color/transparent"
-                        android:drawableTintMode="src_in" />
+                        android:background="@null" />
 
-                    <View
-                        android:layout_width="match_parent"
+                    <View android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:background="#F1F3F5" />
 
-                    <RadioButton
+                    <CheckBox
                         android:id="@+id/rb_start35mago"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="24dp"
                         android:text="출발 35분 전"
                         android:button="@null"
-                        android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                        android:drawableEnd="@drawable/selector_circle_checkbox"
                         android:paddingEnd="16dp"
-                        android:drawableTint="@color/selector_radio_button"
-                        android:background="@null"
-                        android:backgroundTint="@android:color/transparent"
-                        android:drawableTintMode="src_in" />
+                        android:background="@null" />
 
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:background="#F1F3F5" />
-
-                    <RadioButton
+                    <CheckBox
                         android:id="@+id/rb_start40mago"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="24dp"
                         android:text="출발 40분 전"
                         android:button="@null"
-                        android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                        android:drawableEnd="@drawable/selector_circle_checkbox"
                         android:paddingEnd="16dp"
-                        android:drawableTint="@color/selector_radio_button"
-                        android:background="@null"
-                        android:backgroundTint="@android:color/transparent"
-                        android:drawableTintMode="src_in" />
+                        android:background="@null" />
 
-                    <View
-                        android:layout_width="match_parent"
+                    <View android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:background="#F1F3F5" />
 
-                    <RadioButton
+                    <CheckBox
                         android:id="@+id/rb_start45mago"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="24dp"
                         android:text="출발 45분 전"
                         android:button="@null"
-                        android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                        android:drawableEnd="@drawable/selector_circle_checkbox"
                         android:paddingEnd="16dp"
-                        android:drawableTint="@color/selector_radio_button"
-                        android:background="@null"
-                        android:backgroundTint="@android:color/transparent"
-                        android:drawableTintMode="src_in" />
+                        android:background="@null" />
 
-                    <View
-                        android:layout_width="match_parent"
+                    <View android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:background="#F1F3F5" />
 
-                    <RadioButton
+                    <CheckBox
                         android:id="@+id/rb_start50mago"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="24dp"
                         android:text="출발 50분 전"
                         android:button="@null"
-                        android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                        android:drawableEnd="@drawable/selector_circle_checkbox"
                         android:paddingEnd="16dp"
-                        android:drawableTint="@color/selector_radio_button"
-                        android:background="@null"
-                        android:backgroundTint="@android:color/transparent"
-                        android:drawableTintMode="src_in" />
-                    <View
-                        android:layout_width="match_parent"
+                        android:background="@null" />
+
+                    <View android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:background="#F1F3F5" />
 
-                    <RadioButton
+                    <CheckBox
                         android:id="@+id/rb_start55mago"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="24dp"
                         android:text="출발 55분 전"
                         android:button="@null"
-                        android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                        android:drawableEnd="@drawable/selector_circle_checkbox"
                         android:paddingEnd="16dp"
-                        android:drawableTint="@color/selector_radio_button"
-                        android:background="@null"
-                        android:backgroundTint="@android:color/transparent"
-                        android:drawableTintMode="src_in" />
+                        android:background="@null" />
 
-                    <View
-                        android:layout_width="match_parent"
+                    <View android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:background="#F1F3F5" />
 
-                    <RadioButton
+                    <CheckBox
                         android:id="@+id/rb_start1hago"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="24dp"
                         android:text="출발 1시간 전"
                         android:button="@null"
-                        android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                        android:drawableEnd="@drawable/selector_circle_checkbox"
                         android:paddingEnd="16dp"
-                        android:drawableTint="@color/selector_radio_button"
-                        android:background="@null"
-                        android:backgroundTint="@android:color/transparent"
-                        android:drawableTintMode="src_in" />
-                </RadioGroup>
+                        android:background="@null" />
+
+                </LinearLayout>
             </androidx.cardview.widget.CardView>
 
             <TextView

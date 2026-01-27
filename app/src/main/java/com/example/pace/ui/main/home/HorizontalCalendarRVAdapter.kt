@@ -9,8 +9,18 @@ import java.time.LocalDate
 class HorizontalCalendarRVAdapter(
     private var startDate: LocalDate
 ): RecyclerView.Adapter<HorizontalCalendarRVAdapter.ViewHolder>() {
+    private val calendarSize = 1000000
     private var selectedDate = -1
-    private val startPos = Int.MAX_VALUE / 2
+    private val startPos = calendarSize / 2
+    lateinit var mItemOnClickListener: MyItemOnClickListener
+
+    interface MyItemOnClickListener{
+        fun changeSelectedDate(position:Int)
+    }
+    fun setMyOnclickListener(myOnclickListener: MyItemOnClickListener){
+        mItemOnClickListener = myOnclickListener
+    }
+
     override fun onCreateViewHolder(
         parent: ViewGroup,
         viewType: Int
@@ -33,15 +43,20 @@ class HorizontalCalendarRVAdapter(
         val futureDate = startDate.plusDays((position - startPos).toLong())
         holder.bind(futureDate.dayOfWeek.toString(), futureDate.dayOfMonth.toString())
         holder.binding.root.isSelected = (position == selectedDate)
+        holder.binding.root.setOnClickListener {
+            changeSelectedDate(position)
+            mItemOnClickListener.changeSelectedDate(position)
+        }
     }
 
-    override fun getItemCount() = Int.MAX_VALUE
+    override fun getItemCount() = calendarSize
     fun changeSelectedDate(position: Int){
         val pSelectedDate = selectedDate
         selectedDate = position
         notifyItemChanged(pSelectedDate)
         notifyItemChanged(selectedDate)
     }
+
     inner class ViewHolder(val binding: ItemHorizontalCalendarBinding): RecyclerView.ViewHolder(binding.root){
         fun bind(day: String, date: String){
             val formattedDay = day.substring(0,1) + day.substring(1,3).toLowerCase()
