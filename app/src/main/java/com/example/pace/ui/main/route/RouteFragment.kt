@@ -79,7 +79,7 @@ class RouteFragment : Fragment() {
 
     private fun setupMainActivityListeners() {
         mainBinding?.searchEt?.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus) enterSearchMode()
+            if (hasFocus) enterSearchMode(false)
         }
 
         setupSearchTextWatcher()
@@ -103,7 +103,7 @@ class RouteFragment : Fragment() {
         }
     }
 
-    private fun enterSearchMode() {
+    private fun enterSearchMode(isRouteInput: Boolean = false) {
         mainBinding?.mainBackIv?.visibility = View.VISIBLE
         mainBinding?.mainBnv?.visibility = View.GONE
 
@@ -120,7 +120,12 @@ class RouteFragment : Fragment() {
         binding.routeSearchFcv.bringToFront()
 
         val query = mainBinding?.searchEt?.text.toString().trim()
-        showSearchFragment(if (query.isNotEmpty()) recommendFragment else historyFragment)
+        val targetFragment = if (query.isNotEmpty()) recommendFragment else historyFragment
+        showSearchFragment(targetFragment)
+
+        if (targetFragment is SearchHistoryFragment) {
+            targetFragment.setRouteOptionsVisible(isRouteInput)
+        }
 
         mainBinding?.searchEt?.requestFocus()
         showKeyBoard()
@@ -219,7 +224,7 @@ class RouteFragment : Fragment() {
                     if (isDetailFromRecommend) {
                         bottomSheetBehavior.isHideable = true
                         bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
-                        enterSearchMode()
+                        enterSearchMode(false)
                     } else {
                         bottomSheetBehavior.isFitToContents = false
                         bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
@@ -232,7 +237,7 @@ class RouteFragment : Fragment() {
                         bottomSheetBehavior.isHideable = true
                         bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
                         mainBinding?.searchEt?.setText("")
-                        enterSearchMode()
+                        enterSearchMode(false)
                     } else {
                         bottomSheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
                     }
@@ -255,7 +260,7 @@ class RouteFragment : Fragment() {
             bottomSheetBehavior.isHideable = true
             bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
             mainBinding?.searchEt?.setText("")
-            enterSearchMode()
+            enterSearchMode(false)
             return
         }
 
