@@ -9,6 +9,7 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.pace.databinding.FragmentSearchRecommendBinding
 import com.example.pace.ui.main.MainActivity
+import com.example.pace.ui.main.route.RouteFragment
 
 class SearchRecommendFragment : Fragment() {
     private var _binding: FragmentSearchRecommendBinding? = null
@@ -29,7 +30,7 @@ class SearchRecommendFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         resultAdapter = SearchRecommendAdapter(emptyList()) { item ->
-            (activity as? MainActivity)?.onRecommendItemClick(item)
+            (parentFragment as? RouteFragment)?.onRecommendItemClick(item)
         }
 
         binding.searchResultRv.apply {
