@@ -7,13 +7,47 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import com.example.pace.R
+import com.example.pace.databinding.FragmentSearchHistoryBinding
+import com.example.pace.ui.main.route.RouteFragment
 
 class SearchHistoryFragment : Fragment() {
+    private var _binding: FragmentSearchHistoryBinding? = null
+    private val binding get() = _binding!!
+
+    var onRouteOptionClick: ((isMyLocation: Boolean) -> Unit)? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        return inflater.inflate(R.layout.fragment_search_history, container, false)
+        _binding = FragmentSearchHistoryBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        binding.btnMyLocation.setOnClickListener {
+            onRouteOptionClick?.invoke(true)
+        }
+
+        binding.btnSelectOnMap.setOnClickListener {
+            val parent = parentFragment as? RouteFragment
+            parent?.onSelectOnMapSelected()
+        }
+    }
+
+    fun setRouteOptionsVisible(isVisible: Boolean) {
+        if (_binding == null) return
+        if (isVisible) {
+            binding.layoutRouteOptions.visibility = View.VISIBLE
+        } else {
+            binding.layoutRouteOptions.visibility = View.GONE
+        }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null // 메모리 누수 방지
     }
 }

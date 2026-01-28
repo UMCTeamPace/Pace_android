@@ -41,6 +41,7 @@
 
 
     <color name="text_primary">#191914</color>
+    <color name="text_primary_transparency">#65191914</color>
     <color name="text_primary2">#222222</color>
     <color name="text_secondary">#666666</color>
     <color name="text_secondary2">#999999</color>

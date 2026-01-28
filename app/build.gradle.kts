@@ -71,7 +71,7 @@ dependencies {
     //내 위치
     implementation("com.google.android.gms:play-services-location:21.0.1")
     //구글 place api
-    implementation("com.google.android.libraries.places:places:3.3.0")
+    implementation("com.google.android.libraries.places:places:3.5.0")
     // Coroutines (디바운싱 - 시간 지연용) 장소 검색
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1")
 
