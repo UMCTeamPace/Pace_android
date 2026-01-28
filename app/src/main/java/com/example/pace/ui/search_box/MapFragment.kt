@@ -13,6 +13,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.example.pace.R
 import com.example.pace.ui.main.MainActivity
+import com.example.pace.ui.main.route.RouteFragment
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -50,6 +51,11 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         this.googleMap = map
         map.uiSettings.isMyLocationButtonEnabled = false
 
+        map.setOnCameraIdleListener {
+            val center = map.cameraPosition.target
+            (parentFragment as? RouteFragment)?.updateAddressFromMapCenter(center)
+        }
+
         checkLocationPermission(isAnimate = false)
     }
 
@@ -64,7 +70,6 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             enableMyLocationUI()
             moveToCurrentLocation(isAnimate)
         } else {
-            // 권한 없으면 -> 메인 액티비티한테 "팝업 좀 띄워줘" 요청
             (requireActivity() as? MainActivity)?.checkPermissionAndStart()
         }
     }

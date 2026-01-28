@@ -8,6 +8,7 @@ import android.view.View
 import android.view.ViewGroup
 import com.example.pace.R
 import com.example.pace.databinding.FragmentSearchHistoryBinding
+import com.example.pace.ui.main.route.RouteFragment
 
 class SearchHistoryFragment : Fragment() {
     private var _binding: FragmentSearchHistoryBinding? = null
@@ -31,7 +32,8 @@ class SearchHistoryFragment : Fragment() {
         }
 
         binding.btnSelectOnMap.setOnClickListener {
-            onRouteOptionClick?.invoke(false)
+            val parent = parentFragment as? RouteFragment
+            parent?.onSelectOnMapSelected()
         }
     }
 
