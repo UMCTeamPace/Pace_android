@@ -5,6 +5,7 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 
 import android.app.AlertDialog
+import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
 import android.os.StrictMode
@@ -95,7 +96,10 @@ class CalendarPageFragment: Fragment() {
                 bottomSheetBehavior.expandedOffset = headerHeight + weekViewHeight
 
                 // STATE_HIDDEN일 때의 월간 캘린더 높이 설정
-                adjustCalendarHeight()
+                val targetHeight = containerHeight - headerHeight
+                if (targetHeight > 0 && binding.calendarView.layoutParams.height != targetHeight) {
+                    binding.calendarView.layoutParams.height = targetHeight
+                }
             }
         })
 
@@ -110,6 +114,8 @@ class CalendarPageFragment: Fragment() {
             isHideable = true
         }
 
+        var lastBottomSheetState: Int = bottomSheetBehavior.state
+
         binding.calendarNumberPickerBtnIv.setOnClickListener {
             showMonthYearPicker()
         }
@@ -122,6 +128,7 @@ class CalendarPageFragment: Fragment() {
             lateinit var day: CalendarDay
             lateinit var weekDay: WeekDay
 
+            // 이 부분 잘 모르겠음
             init {
                 rootLayout.setOnClickListener {
                     val date: LocalDate
@@ -165,6 +172,7 @@ class CalendarPageFragment: Fragment() {
             }
         }
 
+        // 월간 캘린더뷰에서 커스터마이징
         val monthDayBinder = object : MonthDayBinder<DayViewContainer> {
             override fun create(view: View) = DayViewContainer(view)
             override fun bind(container: DayViewContainer, day: CalendarDay) {
@@ -173,6 +181,7 @@ class CalendarPageFragment: Fragment() {
                 val rootLayout = container.rootLayout
 
                 textView.text = day.date.dayOfMonth.toString()
+                // 잔상이 남는다는 말이 있어서 초기화 강화
                 textView.background = null
                 rootLayout.background = null
                 textView.setTextColor(
@@ -181,11 +190,13 @@ class CalendarPageFragment: Fragment() {
 
                 if (day.position == DayPosition.MonthDate) {
                     when {
+                        // 선택된 날짜가 오늘이면 하얀글씨에 초록원
                         day.date == selectedDate && day.date == today -> {
                             rootLayout.setBackgroundResource(R.drawable.bg_selected_day_outline)
                             textView.setTextColor(Color.WHITE)
                             textView.setBackgroundResource(R.drawable.drawable_circle_green)
                         }
+                       // 그냥 선택됐으면 초록글씨에 하얀원
                         day.date == selectedDate -> {
                             rootLayout.setBackgroundResource(R.drawable.bg_selected_day_outline)
                             textView.setTextColor(
@@ -193,22 +204,28 @@ class CalendarPageFragment: Fragment() {
                             )
                             textView.setBackgroundResource(R.drawable.drawable_circle_white)
                         }
+                        // 오늘에는 테두리없이 하얀글씨에 초록원
                         day.date == today -> {
                             textView.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
                             textView.setBackgroundResource(R.drawable.drawable_circle_green)
                         }
+                        //아무것도 없으면 텍스트만 검정색으로
                         else -> {
                             textView.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_primary))
+                            textView.background = null
+                            rootLayout.background = null
                         }
                     }
                 } else {
-                    // This handles the "disable" part of the "4+1" week display
+                    // 이번달이 아니면 회색으로 표시
                     textView.setTextColor(ContextCompat.getColor(requireContext(), R.color.gray_400))
                 }
             }
         }
+        // 월간 캘린더뷰에 커스터마이징 완료한 바인더 넣어주기
         binding.calendarView.dayBinder = monthDayBinder
 
+        // 주간 캘린더뷰 커스터마이징
         val weekDayBinder = object : WeekDayBinder<DayViewContainer> {
             override fun create(view: View) = DayViewContainer(view)
             override fun bind(container: DayViewContainer, day: WeekDay) {
@@ -252,23 +269,32 @@ class CalendarPageFragment: Fragment() {
                 }
             }
         }
+
+        // 커스터마이징 완료한 주간캘린더뷰 바인딩
         binding.weekCalendarView.dayBinder = weekDayBinder
 
+        // 시작, 마지막월을 앞뒤로 100달 넣어주기
         val firstMonth = currentMonth.minusMonths(100)
         val lastMonth = currentMonth.plusMonths(100)
-        // D. 주의 시작을 일요일로 설정
+        // 시작을 일요일로 설정(기본 월요일이라 계산할 때 편하게 하기위함)
         val firstDayOfWeek = DayOfWeek.SUNDAY
+
         binding.calendarView.setup(firstMonth, lastMonth, firstDayOfWeek)
+        // 해당 월이 아니면 지정된 스타일로 해주기
         binding.calendarView.outDateStyle = OutDateStyle.EndOfRow
+        // 선택된 날을 시작으로 스크롤
         binding.calendarView.scrollToMonth(currentMonth)
 
+        // 주차별 캘린더도 한계지점 설정
         binding.weekCalendarView.setup(
             today.minusWeeks(52),
             today.plusWeeks(52),
             firstDayOfWeek
         )
+        // 선택된 날을 기준으로 스크롤 시작
         binding.weekCalendarView.scrollToWeek(selectedDate ?: today)
 
+        // 월별로 넘어갈 때 제목 수정하기
         binding.calendarView.monthScrollListener = {
             selectedMonth = it.yearMonth
             updateTitle()
@@ -286,40 +312,68 @@ class CalendarPageFragment: Fragment() {
             updateTitle()
         }
 
+        // 주차별로 일요일과 토요일에 색상 설정
         val daysOfWeek = daysOfWeek(firstDayOfWeek)
         binding.legendLayout.root.children.forEachIndexed { index, view ->
             val tv = view as TextView
             tv.text = daysOfWeek[index].getDisplayName(TextStyle.SHORT, Locale.getDefault())
             tv.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_primary))
             when (daysOfWeek[index]) {
-                DayOfWeek.SUNDAY -> tv.setTextColor(Color.parseColor("#FF4242"))
-                DayOfWeek.SATURDAY -> tv.setTextColor(Color.parseColor("#4F81FF"))
+                DayOfWeek.SUNDAY -> tv.setTextColor(ContextCompat.getColor(requireContext(), R.color.semantic_error))
+                DayOfWeek.SATURDAY -> tv.setTextColor(ContextCompat.getColor(requireContext(), R.color.semantic_success))
                 else -> {}
             }
         }
         updateTitle()
 
+        // 바텀시트의 상태에 따라 캘린더뷰 크기 재계산
         bottomSheetBehavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
             override fun onStateChanged(bottomSheet: View, newState: Int) {
-                android.util.Log.d("BottomSheetState", "newState=$newState (${stateName(newState)})")
-
                 when (newState) {
                     BottomSheetBehavior.STATE_HIDDEN -> {
                         binding.weekCalendarView.visibility = View.GONE
                         binding.calendarView.visibility = View.VISIBLE
                         selectedDate?.let { binding.calendarView.scrollToMonth(YearMonth.from(it)) }
                         val targetHeight = containerHeight - headerHeight
-                        if (targetHeight > 0) {
-                            animateCalendarHeight(targetHeight)
+                        if (targetHeight > 0 && binding.calendarView.layoutParams.height != targetHeight) {
+                            binding.calendarView.layoutParams.height = targetHeight
+                            binding.calendarView.requestLayout()
                         }
                     }
                     BottomSheetBehavior.STATE_COLLAPSED -> {
-                        binding.weekCalendarView.visibility = View.GONE
-                        binding.calendarView.visibility = View.VISIBLE
-                        selectedDate?.let { binding.calendarView.scrollToMonth(YearMonth.from(it)) }
-                        val targetHeight = containerHeight - headerHeight - bottomSheetBehavior.peekHeight
-                        if (targetHeight > 0) {
-                            animateCalendarHeight(targetHeight)
+                        val calendar = binding.calendarView
+                        val weekCalendar = binding.weekCalendarView
+                        val collapsedHeight = containerHeight - headerHeight - bottomSheetBehavior.peekHeight
+
+                        if (lastBottomSheetState == BottomSheetBehavior.STATE_EXPANDED) {
+                            // Start animating calendarView back to collapsed height
+                            // weekCalendarView will still be visible initially, calendarView will expand beneath it
+                            calendar.visibility = View.VISIBLE
+                            val animator = ValueAnimator.ofInt(weekViewHeight, collapsedHeight).apply {
+                                duration = 250
+                                interpolator = DecelerateInterpolator()
+                                addUpdateListener { animation ->
+                                    calendar.layoutParams.height = animation.animatedValue as Int
+                                    calendar.requestLayout()
+                                }
+                                addListener(object : AnimatorListenerAdapter() {
+                                    override fun onAnimationEnd(animation: Animator) {
+                                        // Once calendarView has expanded, hide weekCalendarView
+                                        weekCalendar.visibility = View.GONE
+                                        selectedDate?.let { binding.calendarView.scrollToMonth(YearMonth.from(it)) }
+                                    }
+                                })
+                            }
+                            animator.start()
+                        } else {
+                            // Not coming from EXPANDED, just set states directly
+                            weekCalendar.visibility = View.GONE
+                            calendar.visibility = View.VISIBLE
+                            selectedDate?.let { binding.calendarView.scrollToMonth(YearMonth.from(it)) }
+                            if (collapsedHeight > 0 && calendar.layoutParams.height != collapsedHeight) {
+                                calendar.layoutParams.height = collapsedHeight
+                                calendar.requestLayout()
+                            }
                         }
                     }
                     BottomSheetBehavior.STATE_EXPANDED -> {
@@ -352,37 +406,37 @@ class CalendarPageFragment: Fragment() {
                         }
                     }
                 }
+                lastBottomSheetState = newState
             }
-            override fun onSlide(bottomSheet: View, slideOffset: Float) {}
+
+            override fun onSlide(bottomSheet: View, slideOffset: Float) {
+                // Only handle sliding for HIDDEN and COLLAPSED transitions
+                // When slideOffset <= 0, it means the bottom sheet is moving between COLLAPSED (0) and HIDDEN (-1).
+                // When slideOffset > 0, it means the bottom sheet is moving between COLLAPSED (0) and EXPANDED (1).
+                // We let the ValueAnimator in onStateChanged handle the EXPANDED <-> COLLAPSED transition
+                if (slideOffset <= 0) {
+                    val calendarView = binding.calendarView
+                    val peekHeight = bottomSheetBehavior.peekHeight
+
+                    if (containerHeight == 0 || headerHeight == 0) return
+
+                    val hiddenHeight = containerHeight - headerHeight
+                    val collapsedHeight = containerHeight - headerHeight - peekHeight
+
+                    if (collapsedHeight > 0 && hiddenHeight > 0) {
+                        // Interpolate height between collapsedHeight (at slideOffset=0) and hiddenHeight (at slideOffset=-1)
+                        val newHeight = (collapsedHeight * (1 + slideOffset) + hiddenHeight * (-slideOffset)).toInt()
+                        if (newHeight > 0) {
+                            calendarView.layoutParams.height = newHeight
+                            calendarView.requestLayout()
+                        }
+                    }
+                }
+            }
         })
     }
 
-    private fun animateCalendarHeight(toHeight: Int) {
-        val calendar = binding.calendarView
-        if (calendar.height == toHeight) return
-
-        val animator = ValueAnimator.ofInt(calendar.height, toHeight).apply {
-            duration = 250
-            interpolator = DecelerateInterpolator()
-            addUpdateListener { animation ->
-                val layoutParams = calendar.layoutParams
-                layoutParams.height = animation.animatedValue as Int
-                calendar.layoutParams = layoutParams
-            }
-        }
-        animator.start()
-    }
-
-    private fun stateName(state: Int): String = when (state) {
-        BottomSheetBehavior.STATE_HIDDEN -> "HIDDEN"
-        BottomSheetBehavior.STATE_COLLAPSED -> "COLLAPSED"
-        BottomSheetBehavior.STATE_EXPANDED -> "EXPANDED"
-        BottomSheetBehavior.STATE_DRAGGING -> "DRAGGING"
-        BottomSheetBehavior.STATE_SETTLING -> "SETTLING"
-        BottomSheetBehavior.STATE_HALF_EXPANDED -> "HALF_EXPANDED"
-        else -> "UNKNOWN($state)"
-    }
-
+    // 피커 보여주는 함수
     private fun showMonthYearPicker() {
         val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_month_year_picker, null)
         val yearPicker = dialogView.findViewById<NumberPicker>(R.id.picker_year)
@@ -422,18 +476,10 @@ class CalendarPageFragment: Fragment() {
         dialog.show()
     }
 
+    // 연 월 업데이트 함수
     private fun updateTitle() {
         binding.calendarNumberPickerTv.text = "${selectedMonth.year}년 ${selectedMonth.monthValue}월"
     }
-
-    private fun adjustCalendarHeight() {
-        // A. Hidden 상태일 때 항상 컨테이너 전체 높이 차지
-        val targetHeight = containerHeight - headerHeight
-        if (targetHeight > 0 && binding.calendarView.layoutParams.height != targetHeight) {
-            binding.calendarView.layoutParams.height = targetHeight
-        }
-    }
-
 
     override fun onDestroyView() {
         super.onDestroyView()
