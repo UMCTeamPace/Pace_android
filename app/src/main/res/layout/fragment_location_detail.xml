@@ -111,6 +111,13 @@
                 android:layout_height="wrap_content"
                 android:src="@drawable/ic_arrive"
                 android:layout_marginEnd="10dp"/>
+
+            <ImageView
+                android:id="@+id/ic_select_location"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_select_location"
+                android:layout_marginEnd="10dp"/>
         </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>

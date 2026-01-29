@@ -10,6 +10,7 @@ import android.widget.LinearLayout
 import androidx.core.content.ContentProviderCompat
 import androidx.fragment.app.Fragment
 import com.example.pace.databinding.FragmentLocationDetailBinding
+import com.example.pace.ui.main.route.RouteFragment
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.net.FetchPhotoRequest
@@ -34,17 +35,36 @@ class LocationDetailFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         placesClient = Places.createClient(requireContext())
 
-        // 1. 전달받은 데이터 꺼내기
         val name = arguments?.getString("name") ?: ""
         val info = arguments?.getString("info") ?: ""
         val placeId = arguments?.getString("placeId") ?: ""
+        val isCalendarMode = arguments?.getBoolean("isCalendarMode") ?: false
 
-        // 2. 텍스트 연결
         binding.tvTitle.text = name
         binding.tvMetaInfo.text = info
 
         if (placeId.isNotEmpty()) {
             fetchPlacePhotos(placeId)
+        }
+
+        if (isCalendarMode) {
+            binding.icStart.visibility = View.GONE
+            binding.icArrive.visibility = View.GONE
+            binding.icSelectLocation.visibility = View.VISIBLE
+        } else {
+            binding.icStart.visibility = View.VISIBLE
+            binding.icArrive.visibility = View.VISIBLE
+            binding.icSelectLocation.visibility = View.GONE
+        }
+
+        binding.icStart.setOnClickListener {
+            val parent = parentFragment as? RouteFragment
+            parent?.onLocationSelected(name, placeId, isStart = true)
+        }
+
+        binding.icArrive.setOnClickListener {
+            val parent = parentFragment as? RouteFragment
+            parent?.onLocationSelected(name, placeId, isStart = false)
         }
     }
 
@@ -105,7 +125,6 @@ class LocationDetailFragment : Fragment() {
             setImageBitmap(bitmap)
         }
 
-        // 3. 조합 후 컨테이너에 추가
         cardView.addView(imageView)
         binding.photoContainer.addView(cardView)
     }
@@ -120,14 +139,15 @@ class LocationDetailFragment : Fragment() {
     }
 
     companion object {
-        fun newInstance(item: SearchItem): LocationDetailFragment {
+        fun newInstance(item: SearchItem, isCalendarMode: Boolean): LocationDetailFragment {
             val fragment = LocationDetailFragment()
             val bundle = Bundle().apply {
                 putString("name", item.name)
-                // "영업중 · 카페 · 23km" 같은 한 줄 정보를 만들어서 넘김
                 val infoString = "${item.category} · ${item.distance} · ${item.address}"
                 putString("info", infoString)
                 putString("placeId", item.placeId)
+
+                putBoolean("isCalendarMode", isCalendarMode)
             }
             fragment.arguments = bundle
             return fragment
