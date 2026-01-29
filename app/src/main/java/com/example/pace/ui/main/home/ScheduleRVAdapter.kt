@@ -33,13 +33,20 @@ class ScheduleRVAdapter(
         holder.binding.root.setOnClickListener {
             showModalCase()
         }
+        holder.binding.schedulePinIv.setOnClickListener {
+            holder.binding.schedulePinnedIv.visibility = View.VISIBLE
+        }
+        holder.binding.scheduleDeleteIv.setOnClickListener {
+            val deleteScheduleDialog = DeleteScheduleDialog(context)
+            deleteScheduleDialog.show()
+        }
     }
 
     override fun getItemCount(): Int = scheduleList.size
 
     fun showModalCase(){
-        val dialog = ModalCaseDialog(context)
-        dialog.show()
+        val modalCaseDialog = ModalCaseDialog(context)
+        modalCaseDialog.show()
     }
 
     inner class ViewHolder(val binding: ItemScheduleBinding):RecyclerView.ViewHolder(binding.root){
@@ -48,6 +55,7 @@ class ScheduleRVAdapter(
             binding.scheduleTitleTv.text = text
             binding.scheduleTimeTv.text = "하루 종일"
             binding.scheduleNormalLocationTv.text = "장소"
+            binding.schedulePinnedIv.visibility = View.GONE
             binding.scheduleAlertTv.visibility = View.GONE
             binding.scheduleCheckbox.visibility = View.GONE
             binding.scheduleRouteLocationLl.visibility = View.GONE

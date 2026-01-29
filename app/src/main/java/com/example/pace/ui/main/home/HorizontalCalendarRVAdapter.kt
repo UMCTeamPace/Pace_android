@@ -38,11 +38,15 @@ class HorizontalCalendarRVAdapter(
         holder: ViewHolder,
         position: Int
     ) {
+        // 가운데 날짜 기준 양옆 날짜 바인딩
         val pastDate = startDate.minusDays((position - startPos).toLong())
         holder.bind(pastDate.dayOfWeek.toString(), pastDate.dayOfMonth.toString())
         val futureDate = startDate.plusDays((position - startPos).toLong())
         holder.bind(futureDate.dayOfWeek.toString(), futureDate.dayOfMonth.toString())
+
+        // 가운데 날짜 선택하기
         holder.binding.root.isSelected = (position == selectedDate)
+        // 날짜 누르면 해당 날짜를 선택하고 RV의 가운데로 이동
         holder.binding.root.setOnClickListener {
             changeSelectedDate(position)
             mItemOnClickListener.changeSelectedDate(position)

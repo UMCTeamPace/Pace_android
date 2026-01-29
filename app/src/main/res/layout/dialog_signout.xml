@@ -3,7 +3,7 @@
     android:layout_width="300dp"
     android:layout_height="156dp"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:background="@drawable/box_dialog">
+    android:background="@drawable/box_setting_dialog">
     <LinearLayout
         android:id="@+id/signout_tv_ll"
         android:layout_width="wrap_content"
@@ -42,7 +42,7 @@
             android:layout_height="38dp"
             android:text="취소"
             android:layout_marginEnd="11dp"
-            android:background="@drawable/btn_dialog"
+            android:background="@drawable/btn_setting_dialog"
             android:stateListAnimator="@null"/>
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/signout_confirm_btn"
@@ -50,7 +50,7 @@
             android:layout_height="38dp"
             android:text="확인"
             android:layout_marginEnd="11dp"
-            android:background="@drawable/btn_dialog"
+            android:background="@drawable/btn_setting_dialog"
             android:stateListAnimator="@null"/>
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

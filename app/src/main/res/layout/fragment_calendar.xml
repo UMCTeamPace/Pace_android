@@ -18,7 +18,7 @@
         app:tabIndicatorHeight="2dp"
         app:tabSelectedTextColor="@color/primary_500"
         app:tabTextColor="@color/black"
-        android:background="@drawable/box_dialog"/>
+        android:background="@drawable/box_setting_dialog"/>
 
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/calendar_vp"

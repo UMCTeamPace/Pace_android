@@ -43,21 +43,8 @@ class HomeFragment: Fragment() {
                 scheduleAdapter.showModalCase()
             }
         })
-        val swipeHelper = ScheduleTouchHelper(object: MySwipeListener{
-            override fun onScheduleSwiped(position: Int, direction: Int) {
-                if(direction == ItemTouchHelper.LEFT){
-                    Log.d("Swipe", "Left")
-                    // Todo: 디자인 및 요구사항 구현
-                }
-                else{
-                    Log.d("Swipe", "Right")
-                    // Todo: 디자인 및 요구사항 구현
-                }
-            }
-        })
-        val scheduleTouchHelper = ItemTouchHelper(swipeHelper)
+        val scheduleTouchHelper = ItemTouchHelper(ScheduleTouchHelper())
         scheduleTouchHelper.attachToRecyclerView(binding.homeScheduleRv)
-
 
         // 하단 캘린더
         val calendarSize = 1000000
@@ -71,6 +58,7 @@ class HomeFragment: Fragment() {
 
         val snapHelper = LinearSnapHelper()
         snapHelper.attachToRecyclerView(binding.homeHorizontalCalendarRv)
+        // 오늘 날짜를 RV의 가운데로 이동
         binding.homeHorizontalCalendarRv.post{
             val screenWidth = binding.homeHorizontalCalendarRv.width
             val itemWidth = screenWidth / 7
@@ -79,6 +67,7 @@ class HomeFragment: Fragment() {
             horizontalCalendarAdapter.changeSelectedDate(todayPos)
         }
 
+        // 날짜 클릭 시 해당 날짜 선택 및 RV의 중앙으로 이동
         binding.homeHorizontalCalendarTv.text = calendarText
         horizontalCalendarAdapter.setMyOnclickListener(object: HorizontalCalendarRVAdapter.MyItemOnClickListener{
             override fun changeSelectedDate(position: Int) {
@@ -88,7 +77,6 @@ class HomeFragment: Fragment() {
                         val itemCenter = (view.left + view.right)/2
                         return screenCenter - itemCenter
                     }
-                    override fun getHorizontalSnapPreference(): Int = SNAP_TO_START
                     override fun calculateSpeedPerPixel(displayMetrics: DisplayMetrics): Float {
                         return 150f/displayMetrics.densityDpi
                     }
@@ -99,6 +87,7 @@ class HomeFragment: Fragment() {
             }
         })
 
+        // 스크롤 후 선택된 날짜 변환
         binding.homeHorizontalCalendarRv.addOnScrollListener(object :
             RecyclerView.OnScrollListener() {
             override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
