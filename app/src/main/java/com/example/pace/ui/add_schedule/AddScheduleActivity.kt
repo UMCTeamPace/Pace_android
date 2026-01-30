@@ -37,5 +37,6 @@ class AddScheduleActivity : AppCompatActivity() {
         TabLayoutMediator(binding.tabLayout, binding.viewPager) { tab, position ->
             tab.text = if (position == 0) "일반 일정" else "경로 일정"
         }.attach()
+
     }
 }
