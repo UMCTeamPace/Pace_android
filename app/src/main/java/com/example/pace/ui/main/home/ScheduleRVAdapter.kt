@@ -15,7 +15,7 @@ class ScheduleRVAdapter(
     lateinit var mOnClickListener: MyOnClickListener
 
     interface MyOnClickListener{
-        fun showModalCase()
+        fun showModalCase(position: Int)
     }
     fun setMyOnClickListener(myOnClickListener: MyOnClickListener){
         mOnClickListener = myOnClickListener
@@ -31,7 +31,7 @@ class ScheduleRVAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         holder.bind(scheduleList[position])
         holder.binding.root.setOnClickListener {
-            showModalCase()
+            showModalCase(position)
         }
         holder.binding.schedulePinIv.setOnClickListener {
             holder.binding.schedulePinnedIv.visibility = View.VISIBLE
@@ -44,8 +44,8 @@ class ScheduleRVAdapter(
 
     override fun getItemCount(): Int = scheduleList.size
 
-    fun showModalCase(){
-        val modalCaseDialog = ModalCaseDialog(context)
+    fun showModalCase(position: Int){
+        val modalCaseDialog = ModalCaseDialog(context, scheduleList, position)
         modalCaseDialog.show()
     }
 

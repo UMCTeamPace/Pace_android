@@ -39,8 +39,8 @@ class HomeFragment: Fragment() {
         val scheduleAdapter = ScheduleRVAdapter(exampleList, requireContext())
         binding.homeScheduleRv.adapter = scheduleAdapter
         scheduleAdapter.setMyOnClickListener(object: ScheduleRVAdapter.MyOnClickListener{
-            override fun showModalCase() {
-                scheduleAdapter.showModalCase()
+            override fun showModalCase(position: Int) {
+                scheduleAdapter.showModalCase(position)
             }
         })
         val scheduleTouchHelper = ItemTouchHelper(ScheduleTouchHelper())
