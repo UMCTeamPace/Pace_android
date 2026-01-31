@@ -232,26 +232,6 @@ class RouteFragment : Fragment() {
         mainBinding?.mainToolbar?.visibility = View.VISIBLE
         mainBinding?.mainBackIv?.visibility = View.VISIBLE
 
-        binding.layoutMapSelectOverlay.visibility = View.VISIBLE
-        binding.layoutMapSelectOverlay.bringToFront()
-
-        val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
-
-        val supportMapFrag = mapFrag?.childFragmentManager
-            ?.findFragmentById(R.id.google_map_container) as? SupportMapFragment
-
-        supportMapFrag?.getMapAsync { googleMap ->
-            val center = googleMap.cameraPosition.target
-            updateAddressFromMapCenter(center)
-        }
-    }
-
-    private fun enterSearchMode() {
-        binding.layoutRouteInputHeader.root.visibility = View.GONE
-
-        mainBinding?.mainToolbar?.visibility = View.VISIBLE
-        mainBinding?.mainBackIv?.visibility = View.VISIBLE
-
         if (::bottomSheetBehavior.isInitialized) {
             bottomSheetBehavior.isHideable = true
             bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
