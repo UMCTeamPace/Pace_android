@@ -115,17 +115,18 @@ class RouteFragment : Fragment() {
         }
 
         mainBinding?.mainBackIv?.setOnClickListener {
-            val detailFrag = childFragmentManager.findFragmentByTag("DETAIL")
-            if (detailFrag != null && detailFrag.isVisible) {
-                // 상세 페이지라면 시스템 뒤로가기와 동일하게 작동
-                handleCustomBackClick()
-            } else if (isBottomSheetVisible()) {
-                // 리스트라면 검색 모드로 복귀
-                enterSearchMode()
-            } else {
-                // 검색 모드라면 키보드 유무 상관없이 즉시 초기화 및 종료
-                exitSearchMode()
-            }
+//            val detailFrag = childFragmentManager.findFragmentByTag("DETAIL")
+//            if (detailFrag != null && detailFrag.isVisible) {
+//                // 상세 페이지라면 시스템 뒤로가기와 동일하게 작동
+//                handleCustomBackClick()
+//            } else if (isBottomSheetVisible()) {
+//                // 리스트라면 검색 모드로 복귀
+//                enterSearchMode()
+//            } else {
+//                // 검색 모드라면 키보드 유무 상관없이 즉시 초기화 및 종료
+//                exitSearchMode()
+//            }
+            handleCustomBackClick()
         }
 
         mainBinding?.btnSearch?.setOnClickListener {
@@ -141,13 +142,16 @@ class RouteFragment : Fragment() {
         }
 
         isDetailFromRecommend = false
+        historyFragment.setRouteOptionsVisible(false)
 
         if (isStart) {
             selectedStartPlace = Pair(itemName, placeId)
-            binding.layoutRouteInputHeader.etRouteStart.setText(itemName)
+            binding.layoutRouteInputHeader.tvRouteStart.setText(itemName)
+            updateClearButtonVisibility()
         } else {
             selectedEndPlace = Pair(itemName, placeId)
-            binding.layoutRouteInputHeader.etRouteEnd.setText(itemName)
+            binding.layoutRouteInputHeader.tvRouteEnd.setText(itemName)
+            updateClearButtonVisibility()
         }
 
         if (::bottomSheetBehavior.isInitialized) {
@@ -186,6 +190,7 @@ class RouteFragment : Fragment() {
     }
 
     fun onSelectOnMapSelected() {
+        hideKeyboard()
         val transaction = childFragmentManager.beginTransaction()
 
         if (historyFragment.isAdded) transaction.hide(historyFragment)
@@ -274,10 +279,9 @@ class RouteFragment : Fragment() {
         currentEntryMode = EntryMode.MAIN
         isDetailFromRecommend = false
         sessionToken = null
-        isSelectingStart = true
 
-        binding.layoutRouteInputHeader.etRouteStart.setText("")
-        binding.layoutRouteInputHeader.etRouteEnd.setText("")
+        binding.layoutRouteInputHeader.tvRouteStart.setText("")
+        binding.layoutRouteInputHeader.tvRouteEnd.setText("")
 
         val transaction = childFragmentManager.beginTransaction()
         if (historyFragment.isAdded) transaction.hide(historyFragment)
@@ -350,6 +354,21 @@ class RouteFragment : Fragment() {
         hideKeyboard()
         mainBinding?.searchEt?.clearFocus()
 
+        if(currentEntryMode == EntryMode.ROUTE_PLAN){
+            onLocationSelected(item.name, item.placeId, isSelectingStart)
+
+            val transaction = childFragmentManager.beginTransaction()
+            if (historyFragment.isAdded) transaction.hide(historyFragment)
+            if (recommendFragment.isAdded) transaction.hide(recommendFragment)
+            transaction.commitAllowingStateLoss()
+
+            binding.routeSearchFcv.visibility = View.GONE
+
+            mainBinding?.searchEt?.setText("")
+
+            return
+        }
+
         exitSearchMode()
 
         isDetailFromRecommend = true
@@ -397,16 +416,49 @@ class RouteFragment : Fragment() {
     }
 
     private fun setupRouteHeaderListeners() {
-        binding.layoutRouteInputHeader.etRouteStart.setOnClickListener {
+        binding.layoutRouteInputHeader.tvRouteStart.setOnClickListener {
             isSelectingStart = true
             enterSearchMode()
         }
 
-        binding.layoutRouteInputHeader.etRouteEnd.setOnClickListener {
+        binding.layoutRouteInputHeader.tvRouteEnd.setOnClickListener {
             isSelectingStart = false
             enterSearchMode()
         }
+
+        binding.layoutRouteInputHeader.btnStartClear.setOnClickListener {
+            selectedStartPlace = null
+            binding.layoutRouteInputHeader.tvRouteStart.text = ""
+            updateClearButtonVisibility()
+        }
+
+        binding.layoutRouteInputHeader.btnEndClear.setOnClickListener {
+            selectedEndPlace = null
+            binding.layoutRouteInputHeader.tvRouteEnd.text = ""
+            updateClearButtonVisibility()
+        }
+
+        binding.layoutRouteInputHeader.btnRouteBack.setOnClickListener {
+
+            if (currentEntryMode == EntryMode.CALENDAR) {
+                // 캘린더로 돌아가기? 아니면 장소검색으로?
+            }
+            else{
+                exitSearchMode()
+            }
+        }
     }
+
+    private fun updateClearButtonVisibility() {
+        val startText = binding.layoutRouteInputHeader.tvRouteStart.text
+        binding.layoutRouteInputHeader.btnStartClear.visibility =
+            if (startText.isNotEmpty()) View.VISIBLE else View.GONE
+
+        val endText = binding.layoutRouteInputHeader.tvRouteEnd.text
+        binding.layoutRouteInputHeader.btnEndClear.visibility =
+            if (endText.isNotEmpty()) View.VISIBLE else View.GONE
+    }
+
     private fun setupOnBackPressed() {
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -451,11 +503,29 @@ class RouteFragment : Fragment() {
             return
         }
 
-        // 5. & 6. 통합 처리
-        // 검색 중(하나만 입력)이거나, 결과 화면(둘 다 입력)이거나
-        // 어쨌든 "초기 화면이 아닌 상태"라면 -> 초기 화면으로 복귀
-        if (isSearchMode() || (selectedStartPlace != null && selectedEndPlace != null)) {
-            exitSearchMode() // 여기서 싹 다 지우고 초기화
+        if (isSearchMode()) {
+
+            if (currentEntryMode == EntryMode.ROUTE_PLAN) {
+
+                if (selectedStartPlace == null && selectedEndPlace == null) {
+                    exitSearchMode()
+                }
+                else {
+                    hideKeyboard()
+                    mainBinding?.searchEt?.clearFocus()
+                    mainBinding?.searchEt?.setText("")
+
+                    showSearchRouteFragment()
+
+                    binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
+                    mainBinding?.mainToolbar?.visibility = View.GONE
+
+                    historyFragment.setRouteOptionsVisible(false)
+                }
+                return
+            }
+
+            exitSearchMode()
             return
         }
 
