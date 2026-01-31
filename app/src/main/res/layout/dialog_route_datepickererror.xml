@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="300dp"
-    android:layout_height="156dp"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:background="@drawable/box_dialog">
+    android:background="@drawable/dialog_rounded_bg"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:layout_margin="30dp">
 
     <LinearLayout
         android:id="@+id/datepierror_tv_ll"
@@ -12,45 +15,49 @@
         android:orientation="vertical"
         android:gravity="center_horizontal"
         android:layout_marginTop="30dp"
-
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent">
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="경로 일정 기간이 30일을 초과했습니다."
-            android:textAppearance="@style/TextAppearance.App.Num.BodyMd.Medium"
-            style="@style/TextColor.Setting"/>
+            android:textAppearance="@style/TextAppearance.App.BodyMd.Medium" />
         <TextView
+            android:layout_marginTop="10dp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="일정 기간을 확인해주세요."
-            android:textAppearance="@style/TextAppearance.App.Num.CaptionLg.Regular"
-            style="@style/TextColor.Setting"/>
+            android:textAppearance="@style/TextAppearance.App.BodyMd.Medium" />
     </LinearLayout>
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="18dp"
-        android:layout_marginStart="23dp"
-        android:layout_marginEnd="22dp"
+        android:layout_marginTop="24dp"
+        android:orientation="horizontal"
         app:layout_constraintTop_toBottomOf="@id/datepierror_tv_ll"
-        app:layout_constraintStart_toStartOf="parent">
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
         <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/signout_cancel_btn"
-            android:layout_width="122dp"
-            android:layout_height="38dp"
+            android:id="@+id/btn_cancel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:background="@drawable/btn_cancel_bg"
+            android:backgroundTint="@null"
             android:text="취소"
-            android:layout_marginEnd="11dp"
-            android:background="@drawable/btn_dialog"
-            android:stateListAnimator="@null"/>
+            android:textColor="@color/text_secondary"/>
+
         <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/signout_confirm_btn"
-            android:layout_width="122dp"
-            android:layout_height="38dp"
+            android:id="@+id/btn_confirm"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:background="@drawable/btn_confirm_bg"
             android:text="확인"
-            android:layout_marginEnd="11dp"
-            android:background="@drawable/btn_dialog"
-            android:stateListAnimator="@null"/>
+            android:textColor="@android:color/white" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

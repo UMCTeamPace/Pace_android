@@ -1,157 +1,156 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/main_coordinator"
+    android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fitsSystemWindows="false"
+    android:fitsSystemWindows="true"
+    android:background="@color/white"
     tools:context=".ui.main.MainActivity">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/main_content_container"
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/main_toolbar"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:fitsSystemWindows="true"
-        android:background="@color/white">
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+<!--        홈탭꺼-->
+        <ImageView
+            android:id="@+id/main_logo_iv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:layout_marginLeft="20dp"
+            android:src="@drawable/ic_logo"
+            android:visibility="visible"/>
 
-        <androidx.appcompat.widget.Toolbar
-            android:id="@+id/main_toolbar"
+        <ImageView
+            android:id="@+id/main_settings_iv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:layout_marginTop="10dp"
+            android:layout_marginRight="20dp"
+            android:clickable="true"
+            android:src="@drawable/ic_setting"/>
+
+
+<!--        일정 탭꺼-->
+        <TextView
+            android:id="@+id/schedule_title_tv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:layout_marginLeft="20dp"
+            android:text="@string/schedule_title"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="@color/black"
+            android:visibility="gone"/>
+
+        <ImageView
+            android:id="@+id/schedule_edit_iv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:layout_marginTop="10dp"
+            android:layout_marginRight="20dp"
+            android:clickable="true"
+            android:src="@drawable/ic_edit"
+            android:visibility="gone"/>
+        <ImageView
+            android:id="@+id/schedule_add_iv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:layout_marginTop="10dp"
+            android:layout_marginRight="20dp"
+            android:clickable="true"
+            android:src="@drawable/ic_plus"
+            android:visibility="gone"/>
+        <ImageView
+            android:id="@+id/schedule_search_iv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:layout_marginTop="10dp"
+            android:layout_marginRight="20dp"
+            android:clickable="true"
+            android:src="@drawable/ic_search"
+            android:visibility="gone"/>
+
+
+<!--        경로 탭꺼-->
+        <ImageView
+            android:id="@+id/main_back_iv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:layout_marginLeft="15dp"
+            android:src="@drawable/ic_arrow_opened"
+            android:visibility="gone"/>
+
+        <LinearLayout
+            android:id="@+id/main_search_ll"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent">
+            android:layout_marginStart="20dp"
+            android:layout_marginEnd="20dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginBottom="10dp"
+            android:background="@drawable/box_saerch_box"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone">
+            <EditText
+                android:id="@+id/search_et"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@null"
+                android:hint="장소를 검색하세요"
+                android:textColorHint="#999999"
+                android:padding="10dp"
+                android:inputType="text"
+                android:maxLines="1"
+                android:textSize="16sp" />
 
             <ImageView
-                android:id="@+id/main_logo_iv"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:layout_marginLeft="20dp"
-                android:src="@drawable/ic_logo"/>
-
-            <TextView
-                android:id="@+id/main_title_tv"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:layout_marginLeft="20dp"
-                android:text="@string/schedule_title"
-                android:textSize="20sp"
-                android:textStyle="bold"
-                android:textColor="@color/black"
-                android:visibility="gone"/>
-
-            <ImageView
-                android:id="@+id/main_search_iv"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="end"
-                android:layout_marginTop="10dp"
-                android:layout_marginRight="20dp"
-                android:clickable="true"
+                android:id="@+id/btn_search"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:src="@drawable/ic_search"
-                android:visibility="gone"/>
-
-            <ImageView
-                android:id="@+id/main_settings_iv"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="end"
-                android:layout_marginTop="10dp"
-                android:layout_marginRight="20dp"
+                android:scaleType="centerInside"
+                app:tint="#9E9E9E"
+                android:padding="12dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
                 android:clickable="true"
-                android:src="@drawable/ic_setting"/>
-            <ImageView
-                android:id="@+id/main_edit_iv"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="end"
-                android:layout_marginTop="10dp"
-                android:layout_marginRight="10dp"
-                android:clickable="true"
-                android:src="@drawable/ic_write"/>
+                android:focusable="true" />
 
-            <ImageView
-                android:id="@+id/main_back_iv"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:layout_marginLeft="15dp"
-                android:src="@drawable/ic_arrow_opened"
-                android:visibility="gone"/>
-
-            <LinearLayout
-                android:id="@+id/main_search_ll"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="20dp"
-                android:layout_marginEnd="20dp"
-                android:layout_marginTop="10dp"
-                android:layout_marginBottom="10dp"
-                android:background="@drawable/box_saerch_box"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:visibility="gone">
-                <EditText
-                    android:id="@+id/search_et"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:background="@null"
-                    android:hint="장소를 검색하세요"
-                    android:textColorHint="#999999"
-                    android:padding="10dp"
-                    android:inputType="text"
-                    android:maxLines="1"
-                    android:textSize="16sp" />
-
-                <ImageView
-                    android:id="@+id/btn_search"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:src="@drawable/ic_search"
-                    android:scaleType="centerInside"
-                    app:tint="#9E9E9E"
-                    android:padding="12dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:clickable="true"
-                    android:focusable="true" />
-
-            </LinearLayout>
-        </androidx.appcompat.widget.Toolbar>
-
-        <FrameLayout
-            android:id="@+id/main_fcv"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            app:layout_constraintTop_toBottomOf="@id/main_toolbar"
-            app:layout_constraintBottom_toTopOf="@+id/main_bnv"
-            app:layout_constraintStart_toStartOf="parent"/>
-
-        <com.google.android.material.bottomnavigation.BottomNavigationView
-            android:id="@+id/main_bnv"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:menu="@menu/bottom_nav_menu"
-            android:background="@color/transparent"
-            app:itemIconTint="@color/transparent"
-            app:itemTextColor="@color/menu_color"
-            app:itemTextAppearanceActive="@style/TextAppearance.App.CaptionLg.Semibold"
-            app:labelVisibilityMode="labeled"
-            app:itemRippleColor="@color/transparent"
-            app:itemActiveIndicatorStyle="@null"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"/>
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
+        </LinearLayout>
+    </androidx.appcompat.widget.Toolbar>
     <FrameLayout
-        android:id="@+id/bottom_sheet_container"
+        android:id="@+id/main_fcv"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@android:color/white"
-        app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior"
-        style="@style/Widget.Design.BottomSheet.Modal" />
+        android:layout_height="0dp"
+        app:layout_constraintTop_toBottomOf="@id/main_toolbar"
+        app:layout_constraintBottom_toTopOf="@+id/main_bnv"
+        app:layout_constraintStart_toStartOf="parent"/>
 
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/main_bnv"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:menu="@menu/bottom_nav_menu"
+        android:background="@color/transparent"
+        app:itemIconTint="@color/transparent"
+        app:itemTextColor="@color/menu_color"
+        app:itemTextAppearanceActive="@style/TextAppearance.App.CaptionLg.Semibold"
+        app:labelVisibilityMode="labeled"
+        app:itemRippleColor="@color/transparent"
+        app:itemActiveIndicatorStyle="@null"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"/>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

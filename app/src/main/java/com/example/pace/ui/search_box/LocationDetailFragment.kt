@@ -7,9 +7,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
-import androidx.core.content.ContentProviderCompat
 import androidx.fragment.app.Fragment
 import com.example.pace.databinding.FragmentLocationDetailBinding
+import com.example.pace.R
+import com.example.pace.ui.main.route.RouteFragment
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.net.FetchPhotoRequest
@@ -34,30 +35,73 @@ class LocationDetailFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         placesClient = Places.createClient(requireContext())
 
-        // 1. 전달받은 데이터 꺼내기
         val name = arguments?.getString("name") ?: ""
         val info = arguments?.getString("info") ?: ""
         val placeId = arguments?.getString("placeId") ?: ""
+        val openStatus = arguments?.getString("openStatus") ?: ""
+        val isCalendarMode = arguments?.getBoolean("isCalendarMode") ?: false
 
-        // 2. 텍스트 연결
         binding.tvTitle.text = name
         binding.tvMetaInfo.text = info
+        binding.tvOpenStatus.text = openStatus
+
+        val context = requireContext()
+        val colorResId = when {
+            openStatus.contains("영업 중") -> R.color.semantic_info
+            openStatus.contains("영업 종료") || openStatus.contains("운영 중단") -> R.color.semantic_warning
+            else -> R.color.black
+        }
+        binding.tvOpenStatus.setTextColor(androidx.core.content.ContextCompat.getColor(context, colorResId))
 
         if (placeId.isNotEmpty()) {
             fetchPlacePhotos(placeId)
+        } else {
+            binding.svPhotos.visibility = View.GONE
+        }
+
+        if (isCalendarMode) {
+            binding.icStart.visibility = View.GONE
+            binding.icArrive.visibility = View.GONE
+            binding.icSelectLocation.visibility = View.VISIBLE
+        } else {
+            binding.icStart.visibility = View.VISIBLE
+            binding.icArrive.visibility = View.VISIBLE
+            binding.icSelectLocation.visibility = View.GONE
+        }
+
+        binding.icStart.setOnClickListener {
+            val parent = parentFragment as? RouteFragment
+            parent?.onLocationSelected(name, placeId, isStart = true)
+        }
+
+        binding.icArrive.setOnClickListener {
+            val parent = parentFragment as? RouteFragment
+            parent?.onLocationSelected(name, placeId, isStart = false)
         }
     }
 
     private fun fetchPlacePhotos(placeId: String) {
-        val fields = listOf(Place.Field.PHOTO_METADATAS)
+        val fields = listOf(Place.Field.PHOTO_METADATAS, Place.Field.LAT_LNG)
         val request = FetchPlaceRequest.newInstance(placeId, fields)
 
         placesClient.fetchPlace(request).addOnSuccessListener { response ->
+            val place = response.place
+            if (place.latLng != null) {
+                val lat = place.latLng!!.latitude
+                val lng = place.latLng!!.longitude
+                val name = binding.tvTitle.text.toString()
+
+                (parentFragment as? RouteFragment)?.updateMapFromDetail(name, placeId, lat, lng)
+            }
+
             val metadataList = response.place.photoMetadatas
 
-            binding.photoContainer.removeAllViews()
+            if (metadataList.isNullOrEmpty()) {
+                binding.svPhotos.visibility = View.GONE
+            }else {
+                binding.svPhotos.visibility = View.VISIBLE
+                binding.photoContainer.removeAllViews()
 
-            if (!metadataList.isNullOrEmpty()) {
                 val count = minOf(metadataList.size, 3)
 
                 for (i in 0 until count) {
@@ -69,11 +113,12 @@ class LocationDetailFragment : Fragment() {
 
                     placesClient.fetchPhoto(photoRequest).addOnSuccessListener { photoResponse ->
                         addDynamicPhotoView(photoResponse.bitmap)
+                    }.addOnFailureListener {
                     }
                 }
             }
         }.addOnFailureListener {
-            // 에러 처리
+            binding.svPhotos.visibility = View.GONE
         }
     }
 
@@ -83,7 +128,7 @@ class LocationDetailFragment : Fragment() {
 
         val context = requireContext()
 
-        // 1. CardView 생성 (둥근 모서리용)
+        // 1. CardView 생성
         val cardView = androidx.cardview.widget.CardView(context).apply {
             layoutParams = LinearLayout.LayoutParams(
                 dpToPx(130),
@@ -105,7 +150,6 @@ class LocationDetailFragment : Fragment() {
             setImageBitmap(bitmap)
         }
 
-        // 3. 조합 후 컨테이너에 추가
         cardView.addView(imageView)
         binding.photoContainer.addView(cardView)
     }
@@ -120,14 +164,15 @@ class LocationDetailFragment : Fragment() {
     }
 
     companion object {
-        fun newInstance(item: SearchItem): LocationDetailFragment {
+        fun newInstance(item: SearchItem, isCalendarMode: Boolean): LocationDetailFragment {
             val fragment = LocationDetailFragment()
             val bundle = Bundle().apply {
                 putString("name", item.name)
-                // "영업중 · 카페 · 23km" 같은 한 줄 정보를 만들어서 넘김
                 val infoString = "${item.category} · ${item.distance} · ${item.address}"
                 putString("info", infoString)
                 putString("placeId", item.placeId)
+                putString("openStatus", item.openStatus)
+                putBoolean("isCalendarMode", isCalendarMode)
             }
             fragment.arguments = bundle
             return fragment

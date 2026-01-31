@@ -5,14 +5,15 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.NumberPicker
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResultListener
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.afollestad.materialdialogs.MaterialDialog
-import com.afollestad.materialdialogs.color.colorChooser
+import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.R
 import com.example.pace.databinding.FragmentGeneralScheduleBinding
 
@@ -23,11 +24,13 @@ class GeneralScheduleFragment : Fragment() {
 
     private var isEditingStartTime: Boolean = true
 
+    private var isAllDay = true
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setFragmentResultListener("repeatKey") { _, bundle ->
             val result = bundle.getString("selectedRepeat")
-            binding.tvRepeatStatus.text = result // 레이아웃의 텍스트 변경
+            binding.tvRepeatStatus.text = result
         }
 
     }
@@ -45,23 +48,73 @@ class GeneralScheduleFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // 1. Fragment Result Listener (데이터 수신)
-        setFragmentResultListener("repeatKey") { _, bundle ->
-            val result = bundle.getString("selectedRepeat")
-            binding.tvRepeatStatus.text = result // 화면에 반영
+        initTimePickers()
+
+        updateTimeVisibility()
+
+        binding.layoutScheduleName.setOnClickListener {
+            binding.etScheduleName.requestFocus()
+
+            val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+            imm.showSoftInput(binding.etScheduleName, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
         }
 
-        // 2. 반복 설정 버튼 클릭 시 이동
+        binding.btnConfirm.setOnClickListener {
+            val scheduleName = binding.etScheduleName.text.toString().trim()
+
+            if (scheduleName.isEmpty()) {
+                Toast.makeText(context, "일정명을 입력해 주세요.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            if (!isAllDay) {
+                val start = binding.tvStartTime.text.toString()
+                val end = binding.tvEndTime.text.toString()
+                if (isTimeAfter(start, end)) {
+                    Toast.makeText(context, "종료 시간이 시작 시간보다 빨라야 합니다.", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+            }
+
+            Toast.makeText(context, "일정이 저장되었습니다.", Toast.LENGTH_SHORT).show()
+            if (parentFragmentManager.backStackEntryCount > 0) {
+                parentFragmentManager.popBackStack()
+            } else {
+                requireActivity().finish()
+            }
+        }
+
+        binding.btnCancel.setOnClickListener {
+            androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle("작성 취소")
+                .setMessage("작성 중인 내용을 삭제하고 메인 화면으로 돌아갈까요?")
+                .setPositiveButton("확인") { _, _ ->
+                    if (parentFragmentManager.backStackEntryCount > 0) {
+                        parentFragmentManager.popBackStack()
+                    } else {
+                        requireActivity().finish()
+                    }
+                }
+                .setNegativeButton("계속 작성", null)
+                .show()
+        }
+
+        setupKeyboardVisibilityListener()
+
+        setFragmentResultListener("repeatKey") { _, bundle ->
+            val result = bundle.getString("selectedRepeat")
+            binding.tvRepeatStatus.text = result
+        }
+
+
         binding.btnRepeat.setOnClickListener {
             val repeatFragment = ScheduleRepeatFragment()
 
-            // ViewPager2 에러를 피하기 위해 Activity의 FragmentManager를 사용
             requireActivity().supportFragmentManager.beginTransaction()
                 .replace(android.R.id.content, repeatFragment)
-                .addToBackStack(null) // 뒤로가기 시 GeneralScheduleFragment로 복귀
+                .addToBackStack(null)
                 .commit()
         }
-        initTimePickers()
 
         binding.btnStartDate.setOnClickListener { showCalendar() }
         binding.tvStartTime.setOnClickListener {
@@ -78,14 +131,8 @@ class GeneralScheduleFragment : Fragment() {
 
 
         binding.viewColorDot.setOnClickListener {
-            openColorPicker()
-        }
-
-
-        binding.viewColorDot.setOnClickListener {
             if (binding.layoutColorSelector.visibility == View.GONE) {
                 binding.layoutColorSelector.visibility = View.VISIBLE
-
                 binding.calendarPicker.visibility = View.GONE
                 binding.timePickerContainer.visibility = View.GONE
             } else {
@@ -114,8 +161,36 @@ class GeneralScheduleFragment : Fragment() {
         binding.rvColors.apply {
             adapter = colorAdapter
             layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
+
+            // ViewPager2와의 터치 간섭 해결
+            addOnItemTouchListener(object : RecyclerView.OnItemTouchListener {
+                override fun onInterceptTouchEvent(rv: RecyclerView, e: MotionEvent): Boolean {
+                    when (e.action) {
+                        MotionEvent.ACTION_DOWN -> {
+                            rv.parent.requestDisallowInterceptTouchEvent(true)
+                        }
+                        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                            rv.parent.requestDisallowInterceptTouchEvent(false)
+                        }
+                    }
+                    return false
+                }
+                override fun onTouchEvent(rv: RecyclerView, e: MotionEvent) {}
+                override fun onRequestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {}
+            })
         }
 
+        binding.addscheMyPhoneIv.setOnClickListener {
+            isAllDay = !isAllDay
+
+            if (isAllDay) {
+                binding.addscheMyPhoneIv.setImageResource(R.drawable.ic_toggle_selected)
+            } else {
+                binding.addscheMyPhoneIv.setImageResource(R.drawable.ic_toggle_unselected)
+            }
+
+            updateTimeVisibility()
+        }
 
     }
 
@@ -123,23 +198,6 @@ class GeneralScheduleFragment : Fragment() {
         val color = Color.parseColor(colorStr)
         binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(color)
         binding.layoutColorSelector.visibility = View.GONE
-    }
-
-    private fun openColorPicker() {
-        val colors = intArrayOf(
-            Color.parseColor("#F44336"), Color.parseColor("#E91E63"),
-            Color.parseColor("#FF9800"), Color.parseColor("#4CAF50"),
-            Color.parseColor("#2196F3"), Color.parseColor("#9C27B0")
-        )
-
-        MaterialDialog(requireContext()).show {
-            title(text = "색상 선택")
-            colorChooser(colors) { _, color ->
-                // 선택한 색상을 view_color_dot에 즉시 적용
-                binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(color)
-            }
-            positiveButton(text = "확인")
-        }
     }
 
     private fun initTimePickers() {
@@ -162,18 +220,29 @@ class GeneralScheduleFragment : Fragment() {
         }
 
         val timeChangeListener = NumberPicker.OnValueChangeListener { _, _, _ ->
-            val hour = String.format("%02d", binding.pickerHour.value)
-            val minute = String.format("%02d", binding.pickerMinute.value)
-            val formattedTime = "$hour:$minute"
+            val hour = binding.pickerHour.value
+            val minute = binding.pickerMinute.value
+            val formattedTime = String.format("%02d:%02d", hour, minute)
 
             if (isEditingStartTime) {
-
                 binding.tvStartTime.text = formattedTime
                 binding.tvStartTime.setTextColor(Color.parseColor("#8BC34A"))
-            } else {
 
-                binding.tvEndTime.text = formattedTime
-                binding.tvEndTime.setTextColor(Color.parseColor("#8BC34A"))
+                val endTime = binding.tvEndTime.text.toString()
+                if (isTimeAfter(formattedTime, endTime)) {
+                    val newEndHour = if (hour < 23) hour + 1 else 23
+                    val newEndTime = String.format("%02d:%02d", newEndHour, minute)
+                    binding.tvEndTime.text = newEndTime
+                }
+            } else {
+                val startTime = binding.tvStartTime.text.toString()
+                if (isTimeAfter(startTime, formattedTime)) {
+                    binding.tvEndTime.text = formattedTime
+                    binding.tvEndTime.setTextColor(Color.RED)
+                } else {
+                    binding.tvEndTime.text = formattedTime
+                    binding.tvEndTime.setTextColor(Color.parseColor("#8BC34A"))
+                }
             }
         }
 
@@ -212,7 +281,53 @@ class GeneralScheduleFragment : Fragment() {
         }
     }
 
-    // 4. 프래그먼트 파괴 시 바인딩 해제
+    private fun updateTimeVisibility() {
+        if (isAllDay) {
+
+            binding.tvStartTime.visibility = View.GONE
+            binding.tvEndTime.visibility = View.GONE
+        } else {
+
+            binding.tvStartTime.visibility = View.VISIBLE
+            binding.tvEndTime.visibility = View.VISIBLE
+
+            if (isEditingStartTime) {
+                binding.tvStartTime.setTextColor(Color.parseColor("#8BC34A"))
+                binding.tvEndTime.setTextColor(Color.BLACK)
+            } else {
+                binding.tvStartTime.setTextColor(Color.BLACK)
+                binding.tvEndTime.setTextColor(Color.parseColor("#8BC34A"))
+            }
+        }
+    }
+
+    private fun setupKeyboardVisibilityListener() {
+        val rootView = binding.root
+        rootView.viewTreeObserver.addOnGlobalLayoutListener {
+            val rect = android.graphics.Rect()
+            rootView.getWindowVisibleDisplayFrame(rect)
+
+            val screenHeight = rootView.rootView.height
+            val keypadHeight = screenHeight - rect.bottom
+
+            if (keypadHeight > screenHeight * 0.15) {
+                binding.layoutBottomButtons.visibility = View.GONE
+            } else {
+                binding.layoutBottomButtons.visibility = View.VISIBLE
+            }
+        }
+    }
+
+    private fun isTimeAfter(t1: String, t2: String): Boolean {
+        val s = t1.split(":").map { it.trim().toInt() }
+        val e = t2.split(":").map { it.trim().toInt() }
+
+        val sMin = s[0] * 60 + s[1]
+        val eMin = e[0] * 60 + e[1]
+
+        return sMin > eMin
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null

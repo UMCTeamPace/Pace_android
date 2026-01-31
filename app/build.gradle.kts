@@ -3,6 +3,7 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.ksp)
     id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
 }
 
@@ -58,6 +59,11 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 
+    // Room
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+
     // Modal Case Indicator
     implementation("me.relex:circleindicator:2.1.6")
 
@@ -71,7 +77,7 @@ dependencies {
     //내 위치
     implementation("com.google.android.gms:play-services-location:21.0.1")
     //구글 place api
-    implementation("com.google.android.libraries.places:places:3.3.0")
+    implementation("com.google.android.libraries.places:places:3.5.0")
     // Coroutines (디바운싱 - 시간 지연용) 장소 검색
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1")
 

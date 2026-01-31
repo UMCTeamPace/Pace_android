@@ -12,12 +12,10 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.LinearSmoothScroller
 import androidx.recyclerview.widget.LinearSnapHelper
-import androidx.recyclerview.widget.PagerSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.databinding.FragmentHomeBinding
 import com.example.pace.ui.add_schedule.AddScheduleActivity
 import java.time.LocalDate
-import java.util.Locale
 
 class HomeFragment: Fragment() {
     lateinit var binding: FragmentHomeBinding
@@ -35,29 +33,28 @@ class HomeFragment: Fragment() {
         }
 
         // 일정뷰
-        val exampleList = listOf("Example1", "Example2", "Example3")
+        val exampleList = listOf<String>("Example 1", "Example 2", "Example 3")
+        // 일정 개수에 따라 뷰 변환하기
+        if(exampleList.size == 0){
+            binding.homeNoSchedule.visibility = View.VISIBLE
+            binding.homeScheduleRv.visibility = View.GONE
+        }else{
+            binding.homeNoSchedule.visibility = View.GONE
+            binding.homeScheduleRv.visibility = View.VISIBLE
+        }
+
         val scheduleAdapter = ScheduleRVAdapter(exampleList, requireContext())
+        val scheduleTouchHelper = ScheduleTouchHelper(scheduleAdapter)
+        val itemTouchHelper = ItemTouchHelper(scheduleTouchHelper)
+
         binding.homeScheduleRv.adapter = scheduleAdapter
         scheduleAdapter.setMyOnClickListener(object: ScheduleRVAdapter.MyOnClickListener{
-            override fun showModalCase() {
-                scheduleAdapter.showModalCase()
+            override fun showModalCase(position: Int) {
+                scheduleAdapter.showModalCase(position)
             }
         })
-        val swipeHelper = ScheduleTouchHelper(object: MySwipeListener{
-            override fun onScheduleSwiped(position: Int, direction: Int) {
-                if(direction == ItemTouchHelper.LEFT){
-                    Log.d("Swipe", "Left")
-                    // Todo: 디자인 및 요구사항 구현
-                }
-                else{
-                    Log.d("Swipe", "Right")
-                    // Todo: 디자인 및 요구사항 구현
-                }
-            }
-        })
-        val scheduleTouchHelper = ItemTouchHelper(swipeHelper)
-        scheduleTouchHelper.attachToRecyclerView(binding.homeScheduleRv)
-
+        scheduleAdapter.scheduleTouchHelper = scheduleTouchHelper
+        itemTouchHelper.attachToRecyclerView(binding.homeScheduleRv)
 
         // 하단 캘린더
         val calendarSize = 1000000
@@ -71,6 +68,7 @@ class HomeFragment: Fragment() {
 
         val snapHelper = LinearSnapHelper()
         snapHelper.attachToRecyclerView(binding.homeHorizontalCalendarRv)
+        // 오늘 날짜를 RV의 가운데로 이동
         binding.homeHorizontalCalendarRv.post{
             val screenWidth = binding.homeHorizontalCalendarRv.width
             val itemWidth = screenWidth / 7
@@ -79,6 +77,7 @@ class HomeFragment: Fragment() {
             horizontalCalendarAdapter.changeSelectedDate(todayPos)
         }
 
+        // 날짜 클릭 시 해당 날짜 선택 및 RV의 중앙으로 이동
         binding.homeHorizontalCalendarTv.text = calendarText
         horizontalCalendarAdapter.setMyOnclickListener(object: HorizontalCalendarRVAdapter.MyItemOnClickListener{
             override fun changeSelectedDate(position: Int) {
@@ -88,7 +87,6 @@ class HomeFragment: Fragment() {
                         val itemCenter = (view.left + view.right)/2
                         return screenCenter - itemCenter
                     }
-                    override fun getHorizontalSnapPreference(): Int = SNAP_TO_START
                     override fun calculateSpeedPerPixel(displayMetrics: DisplayMetrics): Float {
                         return 150f/displayMetrics.densityDpi
                     }
@@ -99,6 +97,7 @@ class HomeFragment: Fragment() {
             }
         })
 
+        // 스크롤 후 선택된 날짜 변환
         binding.homeHorizontalCalendarRv.addOnScrollListener(object :
             RecyclerView.OnScrollListener() {
             override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
