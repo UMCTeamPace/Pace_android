@@ -61,6 +61,15 @@ class SettingFragment: Fragment() {
             signoutDialog.show()
         }
 
+        binding.settingsRouteLl.setOnClickListener {
+            val earlyDepartureFragment = SettingEarlyarrivedFragment()
+            requireActivity().supportFragmentManager.beginTransaction()
+                .replace(R.id.main_fcv, earlyDepartureFragment)
+                .addToBackStack(null)
+                .commit()
+        }
+
+
         return binding.root
     }
 }

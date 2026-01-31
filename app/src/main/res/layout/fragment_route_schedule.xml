@@ -109,25 +109,17 @@
                         android:id="@+id/btn_all_day"
                         android:layout_width="20dp"
                         android:layout_height="20dp"
-                        android:src="@drawable/ic_time" />
+                        android:src="@drawable/ic_time"
+                        android:tint="@color/black"/>
 
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="4dp"
                         android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                        android:text="하루 종일"
+                        android:text="일정 시간"
                         android:textColor="@color/black" />
                 </LinearLayout>
-
-                <ImageView
-                    android:id="@+id/addsche_my_phone_iv"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:clickable="true"
-                    android:src="@drawable/ic_toggle_selected"
-                    android:layout_alignParentRight="true"
-                    android:layout_centerVertical="true" />
 
             </RelativeLayout>
 

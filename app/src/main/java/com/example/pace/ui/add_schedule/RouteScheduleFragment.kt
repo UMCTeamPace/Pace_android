@@ -25,8 +25,6 @@ class RouteScheduleFragment : Fragment() {
 
     private var isEditingStartTime: Boolean = true
 
-    private var isAllDay = true
-
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -44,12 +42,10 @@ class RouteScheduleFragment : Fragment() {
 
         updateTimeVisibility()
 
-        // 일정명 레이아웃 클릭 시 EditText에 포커스 주기
-        // (XML에서 해당 레이아웃에 id를 @+id/layout_schedule_name으로 설정했다고 가정합니다)
-        binding.layoutScheduleName.setOnClickListener {
-            binding.etScheduleName.requestFocus() // EditText로 포커스 이동
 
-            // 키보드 강제로 올리기
+        binding.layoutScheduleName.setOnClickListener {
+            binding.etScheduleName.requestFocus()
+
             val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
             imm.showSoftInput(binding.etScheduleName, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
         }
@@ -57,36 +53,30 @@ class RouteScheduleFragment : Fragment() {
         binding.btnConfirm.setOnClickListener {
             val scheduleName = binding.etScheduleName.text.toString().trim()
 
-            // 이름 확인
+
             if (scheduleName.isEmpty()) {
                 Toast.makeText(context, "일정명을 입력해 주세요.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
-            // 시간 유효성 확인
-            if (!isAllDay) {
                 val start = binding.tvStartTime.text.toString()
                 val end = binding.tvEndTime.text.toString()
                 if (isTimeAfter(start, end)) {
                     Toast.makeText(context, "종료 시간이 시작 시간보다 빨라야 합니다.", Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
-            }
 
-            // 모든 검증 통과 시 저장 후 종료
+
             Toast.makeText(context, "일정이 저장되었습니다.", Toast.LENGTH_SHORT).show()
 
-            // 1. 뒤로가기 스택이 있다면 뒤로가기
             if (parentFragmentManager.backStackEntryCount > 0) {
                 parentFragmentManager.popBackStack()
             } else {
-                // 2. 스택이 없다면 현재 Fragment를 호스팅하는 Activity를 종료하여 메인으로 복귀
                 requireActivity().finish()
             }
 
         }
 
-        // 2. 취소 버튼 로직
         binding.btnCancel.setOnClickListener {
             androidx.appcompat.app.AlertDialog.Builder(requireContext())
                 .setTitle("작성 취소")
@@ -102,7 +92,6 @@ class RouteScheduleFragment : Fragment() {
                 .show()
         }
 
-        // 3. 키보드 상태에 따른 버튼 레이아웃 제어
         setupKeyboardVisibilityListener()
 
         binding.btnRemindalarm.setOnClickListener {
@@ -144,6 +133,7 @@ class RouteScheduleFragment : Fragment() {
         binding.btnStartDate.setOnClickListener { showCalendar() }
         binding.tvStartTime.setOnClickListener {
             isEditingStartTime = true
+            updateTimeVisibility()
             showTimePicker()
         }
 
@@ -151,6 +141,7 @@ class RouteScheduleFragment : Fragment() {
         binding.btnEndDate.setOnClickListener { showCalendar() }
         binding.tvEndTime.setOnClickListener {
             isEditingStartTime = false
+            updateTimeVisibility()
             showTimePicker()
         }
 
@@ -205,17 +196,7 @@ class RouteScheduleFragment : Fragment() {
             })
         }
 
-        binding.addscheMyPhoneIv.setOnClickListener {
-            isAllDay = !isAllDay
-
-            if (isAllDay) {
-                binding.addscheMyPhoneIv.setImageResource(R.drawable.ic_toggle_selected)
-            } else {
-                binding.addscheMyPhoneIv.setImageResource(R.drawable.ic_toggle_unselected) // OFF 이미지 필요
-            }
-
-            updateTimeVisibility()
-        }
+        updateTimeVisibility()
 
 
     }
@@ -307,16 +288,9 @@ class RouteScheduleFragment : Fragment() {
     }
 
     private fun updateTimeVisibility() {
-        if (isAllDay) {
-            // 하루 종일 ON: 시간 숨김
-            binding.tvStartTime.visibility = View.GONE
-            binding.tvEndTime.visibility = View.GONE
-        } else {
-            // 하루 종일 OFF: 시간 표시
             binding.tvStartTime.visibility = View.VISIBLE
             binding.tvEndTime.visibility = View.VISIBLE
 
-            // 현재 수정 중인 시간 텍스트만 강조 (연두색)
             if (isEditingStartTime) {
                 binding.tvStartTime.setTextColor(Color.parseColor("#8BC34A"))
                 binding.tvEndTime.setTextColor(Color.BLACK)
@@ -324,7 +298,7 @@ class RouteScheduleFragment : Fragment() {
                 binding.tvStartTime.setTextColor(Color.BLACK)
                 binding.tvEndTime.setTextColor(Color.parseColor("#8BC34A"))
             }
-        }
+
     }
 
     private fun setupKeyboardVisibilityListener() {
@@ -333,11 +307,9 @@ class RouteScheduleFragment : Fragment() {
             val rect = android.graphics.Rect()
             rootView.getWindowVisibleDisplayFrame(rect)
 
-            // 전체 화면 높이와 현재 보이는 화면 높이의 차이를 계산
             val screenHeight = rootView.rootView.height
             val keypadHeight = screenHeight - rect.bottom
 
-            // 차이가 200dp 이상이면 키보드가 올라온 것으로 판단
             if (keypadHeight > screenHeight * 0.15) {
                 binding.layoutBottomButtons.visibility = View.GONE
             } else {
