@@ -31,29 +31,15 @@
                 android:id="@+id/tv_filter_location"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="내 위치 중심"
+                android:text="관련도 순"
                 android:textSize="14sp"
-                android:textColor="#333333"
-                android:textStyle="bold"
+                android:textColor="@color/text_secondary"
+                android:fontFamily="@font/pretendard_medium"
                 android:drawableEnd="@drawable/ic_arrow_down"
                 android:drawablePadding="4dp"
                 android:gravity="center_vertical"
                 android:background="?attr/selectableItemBackground"
                 android:layout_marginEnd="4dp"/>
-
-            <TextView
-                android:id="@+id/tv_filter_sort"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:text="거리순"
-                android:textSize="14sp"
-                android:textColor="#333333"
-                android:textStyle="bold"
-                android:drawableEnd="@drawable/ic_arrow_down"
-                android:drawablePadding="4dp"
-                android:gravity="center_vertical"
-                android:background="?attr/selectableItemBackground"/>
         </LinearLayout>
     </HorizontalScrollView>
 

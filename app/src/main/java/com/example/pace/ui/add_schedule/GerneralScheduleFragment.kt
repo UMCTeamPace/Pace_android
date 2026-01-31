@@ -14,8 +14,6 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResultListener
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.afollestad.materialdialogs.MaterialDialog
-import com.afollestad.materialdialogs.color.colorChooser
 import com.example.pace.R
 import com.example.pace.databinding.FragmentGeneralScheduleBinding
 
@@ -32,7 +30,7 @@ class GeneralScheduleFragment : Fragment() {
         super.onCreate(savedInstanceState)
         setFragmentResultListener("repeatKey") { _, bundle ->
             val result = bundle.getString("selectedRepeat")
-            binding.tvRepeatStatus.text = result // 레이아웃의 텍스트 변경
+            binding.tvRepeatStatus.text = result
         }
 
     }
@@ -54,12 +52,9 @@ class GeneralScheduleFragment : Fragment() {
 
         updateTimeVisibility()
 
-        // 일정명 레이아웃 클릭 시 EditText에 포커스 주기
-        // (XML에서 해당 레이아웃에 id를 @+id/layout_schedule_name으로 설정했다고 가정합니다)
         binding.layoutScheduleName.setOnClickListener {
-            binding.etScheduleName.requestFocus() // EditText로 포커스 이동
+            binding.etScheduleName.requestFocus()
 
-            // 키보드 강제로 올리기
             val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
             imm.showSoftInput(binding.etScheduleName, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
         }
@@ -67,13 +62,11 @@ class GeneralScheduleFragment : Fragment() {
         binding.btnConfirm.setOnClickListener {
             val scheduleName = binding.etScheduleName.text.toString().trim()
 
-            // 이름 확인
             if (scheduleName.isEmpty()) {
                 Toast.makeText(context, "일정명을 입력해 주세요.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
-            // 시간 유효성 확인
             if (!isAllDay) {
                 val start = binding.tvStartTime.text.toString()
                 val end = binding.tvEndTime.text.toString()
@@ -83,18 +76,14 @@ class GeneralScheduleFragment : Fragment() {
                 }
             }
 
-            // 모든 검증 통과 시 저장 후 종료
             Toast.makeText(context, "일정이 저장되었습니다.", Toast.LENGTH_SHORT).show()
-            // 1. 뒤로가기 스택이 있다면 뒤로가기
             if (parentFragmentManager.backStackEntryCount > 0) {
                 parentFragmentManager.popBackStack()
             } else {
-                // 2. 스택이 없다면 현재 Fragment를 호스팅하는 Activity를 종료하여 메인으로 복귀
                 requireActivity().finish()
             }
         }
 
-        // 2. 취소 버튼 로직
         binding.btnCancel.setOnClickListener {
             androidx.appcompat.app.AlertDialog.Builder(requireContext())
                 .setTitle("작성 취소")
@@ -110,12 +99,11 @@ class GeneralScheduleFragment : Fragment() {
                 .show()
         }
 
-        // 3. 키보드 상태에 따른 버튼 레이아웃 제어
         setupKeyboardVisibilityListener()
 
         setFragmentResultListener("repeatKey") { _, bundle ->
             val result = bundle.getString("selectedRepeat")
-            binding.tvRepeatStatus.text = result // 화면에 반영
+            binding.tvRepeatStatus.text = result
         }
 
 
@@ -124,7 +112,7 @@ class GeneralScheduleFragment : Fragment() {
 
             requireActivity().supportFragmentManager.beginTransaction()
                 .replace(android.R.id.content, repeatFragment)
-                .addToBackStack(null) // 뒤로가기 시 GeneralScheduleFragment로 복귀
+                .addToBackStack(null)
                 .commit()
         }
 
@@ -198,7 +186,7 @@ class GeneralScheduleFragment : Fragment() {
             if (isAllDay) {
                 binding.addscheMyPhoneIv.setImageResource(R.drawable.ic_toggle_selected)
             } else {
-                binding.addscheMyPhoneIv.setImageResource(R.drawable.ic_toggle_unselected) // OFF 이미지 필요
+                binding.addscheMyPhoneIv.setImageResource(R.drawable.ic_toggle_unselected)
             }
 
             updateTimeVisibility()
@@ -240,20 +228,15 @@ class GeneralScheduleFragment : Fragment() {
                 binding.tvStartTime.text = formattedTime
                 binding.tvStartTime.setTextColor(Color.parseColor("#8BC34A"))
 
-                // [검증] 시작 시간이 종료 시간보다 늦어졌는지 확인
                 val endTime = binding.tvEndTime.text.toString()
                 if (isTimeAfter(formattedTime, endTime)) {
-                    // 시작 시간이 더 늦다면 종료 시간을 시작 시간 + 1시간 등으로 자동 조정
                     val newEndHour = if (hour < 23) hour + 1 else 23
                     val newEndTime = String.format("%02d:%02d", newEndHour, minute)
                     binding.tvEndTime.text = newEndTime
                 }
             } else {
-                // [검증] 종료 시간을 수정할 때 시작 시간보다 앞서는지 확인
                 val startTime = binding.tvStartTime.text.toString()
                 if (isTimeAfter(startTime, formattedTime)) {
-                    // 종료 시간이 더 빠르면 토스트 메시지를 띄우거나 수정을 막음
-                    // 여기서는 일단 텍스트는 바꾸되, 색상을 빨간색으로 표시해 경고를 줄 수 있습니다.
                     binding.tvEndTime.text = formattedTime
                     binding.tvEndTime.setTextColor(Color.RED)
                 } else {
@@ -300,15 +283,14 @@ class GeneralScheduleFragment : Fragment() {
 
     private fun updateTimeVisibility() {
         if (isAllDay) {
-            // 하루 종일 ON: 시간 숨김
+
             binding.tvStartTime.visibility = View.GONE
             binding.tvEndTime.visibility = View.GONE
         } else {
-            // 하루 종일 OFF: 시간 표시
+
             binding.tvStartTime.visibility = View.VISIBLE
             binding.tvEndTime.visibility = View.VISIBLE
 
-            // 현재 수정 중인 시간 텍스트만 강조 (연두색)
             if (isEditingStartTime) {
                 binding.tvStartTime.setTextColor(Color.parseColor("#8BC34A"))
                 binding.tvEndTime.setTextColor(Color.BLACK)
@@ -325,11 +307,9 @@ class GeneralScheduleFragment : Fragment() {
             val rect = android.graphics.Rect()
             rootView.getWindowVisibleDisplayFrame(rect)
 
-            // 전체 화면 높이와 현재 보이는 화면 높이의 차이를 계산
             val screenHeight = rootView.rootView.height
             val keypadHeight = screenHeight - rect.bottom
 
-            // 차이가 200dp 이상이면 키보드가 올라온 것으로 판단
             if (keypadHeight > screenHeight * 0.15) {
                 binding.layoutBottomButtons.visibility = View.GONE
             } else {
