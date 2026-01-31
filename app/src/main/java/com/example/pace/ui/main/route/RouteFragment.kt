@@ -142,6 +142,7 @@ class RouteFragment : Fragment() {
         }
 
         isDetailFromRecommend = false
+
         historyFragment.setRouteOptionsVisible(false)
 
         if (isStart) {
@@ -231,6 +232,26 @@ class RouteFragment : Fragment() {
         mainBinding?.mainToolbar?.visibility = View.VISIBLE
         mainBinding?.mainBackIv?.visibility = View.VISIBLE
 
+        binding.layoutMapSelectOverlay.visibility = View.VISIBLE
+        binding.layoutMapSelectOverlay.bringToFront()
+
+        val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+
+        val supportMapFrag = mapFrag?.childFragmentManager
+            ?.findFragmentById(R.id.google_map_container) as? SupportMapFragment
+
+        supportMapFrag?.getMapAsync { googleMap ->
+            val center = googleMap.cameraPosition.target
+            updateAddressFromMapCenter(center)
+        }
+    }
+
+    private fun enterSearchMode() {
+        binding.layoutRouteInputHeader.root.visibility = View.GONE
+
+        mainBinding?.mainToolbar?.visibility = View.VISIBLE
+        mainBinding?.mainBackIv?.visibility = View.VISIBLE
+
         if (::bottomSheetBehavior.isInitialized) {
             bottomSheetBehavior.isHideable = true
             bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
@@ -282,6 +303,7 @@ class RouteFragment : Fragment() {
 
         binding.layoutRouteInputHeader.tvRouteStart.setText("")
         binding.layoutRouteInputHeader.tvRouteEnd.setText("")
+
 
         val transaction = childFragmentManager.beginTransaction()
         if (historyFragment.isAdded) transaction.hide(historyFragment)
@@ -459,6 +481,7 @@ class RouteFragment : Fragment() {
             if (endText.isNotEmpty()) View.VISIBLE else View.GONE
     }
 
+
     private fun setupOnBackPressed() {
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -526,6 +549,7 @@ class RouteFragment : Fragment() {
             }
 
             exitSearchMode()
+
             return
         }
 

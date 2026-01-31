@@ -5,30 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
-    android:background="@color/white"
-    tools:context=".ui.settings.SyncWithCalendarActivity">
-    <androidx.appcompat.widget.Toolbar
-        android:id="@+id/sync_toolbar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
-        <ImageView
-            android:id="@+id/sync_back_iv"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:clickable="true"
-            android:layout_marginTop="22dp"
-            android:layout_marginLeft="21dp"
-            android:src="@drawable/ic_arrow_opened"/>
-        <TextView
-            android:id="@+id/sync_tv"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="캘린더"
-            android:textAppearance="@style/TextAppearance.App.Num.BodyMd.Medium"
-            android:layout_gravity="center"/>
-    </androidx.appcompat.widget.Toolbar>
+    android:background="@color/white">
     <LinearLayout
         android:id="@+id/sync_my_phone_ll"
         android:layout_width="match_parent"
@@ -39,7 +16,7 @@
         android:background="@drawable/box_single_settings"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        app:layout_constraintTop_toBottomOf="@id/sync_toolbar"
+        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent">
         <TextView
             android:layout_width="0dp"
