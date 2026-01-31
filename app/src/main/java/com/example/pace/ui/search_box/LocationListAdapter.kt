@@ -2,6 +2,7 @@ package com.example.pace.ui.search_box
 
 import android.graphics.Bitmap
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.R
@@ -15,6 +16,7 @@ class LocationListAdapter(
 ): RecyclerView.Adapter<LocationListAdapter.LocationViewHolder>() {
     private var items: List<SearchItem> = emptyList()
 
+    var onFavoriteClick: ((String) -> Unit)? = null
     fun submitList(newItems: List<SearchItem>) {
         this.items = newItems
         notifyDataSetChanged()
@@ -66,23 +68,32 @@ class LocationListAdapter(
             // 이미지
             val metadata = item.photoMetadata
 
-            // 이미지 뷰 초기화 (재사용 문제 방지)
-            binding.ivPlaceImage.setImageResource(R.drawable.ic_launcher_background) // 기본 이미지 혹은 로딩중 이미지
+            if(metadata == null){
+                binding.cvImageContainer.visibility = View.GONE
+            }else{
+                binding.cvImageContainer.visibility = View.VISIBLE
 
-            if (metadata != null) {
-                val photoRequest = FetchPhotoRequest.builder(metadata)
-                    .setMaxWidth(1080) // 대부분의 폰에서 깨지지 않는 넉넉한 너비
-                    .setMaxHeight(600) // 150dp는 대략 400~600px 사이 (밀도에 따라 다름)
-                    .build()
+                // 이미지 뷰 초기화 (재사용 문제 방지)
+                binding.ivPlaceImage.setImageResource(R.drawable.ic_launcher_background) // 기본 이미지 혹은 로딩중 이미지
 
-                placesClient.fetchPhoto(photoRequest)
-                    .addOnSuccessListener { fetchPhotoResponse ->
-                        val bitmap: Bitmap = fetchPhotoResponse.bitmap
-                        binding.ivPlaceImage.setImageBitmap(bitmap)
-                    }
-                    .addOnFailureListener {
-                        // 실패 시 기본 이미지 유지하거나 에러 이미지 표시
-                    }
+                if (metadata != null) {
+                    val photoRequest = FetchPhotoRequest.builder(metadata)
+                        .setMaxWidth(1080) // 대부분의 폰에서 깨지지 않는 넉넉한 너비
+                        .setMaxHeight(600) // 150dp는 대략 400~600px 사이 (밀도에 따라 다름)
+                        .build()
+
+                    placesClient.fetchPhoto(photoRequest)
+                        .addOnSuccessListener { fetchPhotoResponse ->
+                            val bitmap: Bitmap = fetchPhotoResponse.bitmap
+                            binding.ivPlaceImage.setImageBitmap(bitmap)
+                        }
+                        .addOnFailureListener {
+                            binding.cvImageContainer.visibility = View.GONE
+                        }
+                }
+            }
+            binding.ivFavorite.setOnClickListener{
+                //item.placeId
             }
         }
     }

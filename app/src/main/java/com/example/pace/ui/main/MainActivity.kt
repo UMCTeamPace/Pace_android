@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Looper
+import android.util.Log
 import android.view.MenuItem
 import android.view.View
 import androidx.activity.enableEdgeToEdge
@@ -46,11 +47,26 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    //달력 권한 요청 런처
+    private val calendarPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        Log.d("MainActivity", "onCreate3: checkCalendarPermissions()")
+        val readGranted = permissions[Manifest.permission.READ_CALENDAR] ?: false
+        val writeGranted = permissions[Manifest.permission.WRITE_CALENDAR] ?: false
+        if (!readGranted || !writeGranted) {
+            // Handle the case where permissions are not granted, maybe show a toast or a dialog.
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        checkCalendarPermissions()
+        Log.d("MainActivity", "onCreate1: checkCalendarPermissions()")
 
         // 1. 초기화 (위치, Places API, 바텀시트)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
@@ -66,10 +82,11 @@ class MainActivity : AppCompatActivity() {
 
         // 초기 툴바 상태 설정 (Home 기준)
         binding.mainLogoIv.visibility = View.VISIBLE
-        binding.mainTitleTv.visibility = View.GONE
         binding.mainSettingsIv.visibility = View.VISIBLE
-        binding.mainEditIv.visibility = View.VISIBLE
-        binding.mainSearchIv.visibility = View.GONE
+        binding.scheduleTitleTv.visibility = View.GONE
+        binding.scheduleEditIv.visibility = View.GONE
+        binding.scheduleAddIv.visibility = View.GONE
+        binding.scheduleSearchIv.visibility = View.GONE
         binding.mainBackIv.visibility = View.GONE
         binding.mainSearchLl.visibility = View.GONE
 
@@ -82,6 +99,19 @@ class MainActivity : AppCompatActivity() {
         // 4. 설정 버튼 이동
         binding.mainSettingsIv.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
+        }
+    }
+
+    private fun checkCalendarPermissions() {
+        Log.d("MainActivity", "onCreate2: checkCalendarPermissions()")
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED ||
+            ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_CALENDAR) != PackageManager.PERMISSION_GRANTED) {
+            calendarPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.READ_CALENDAR,
+                    Manifest.permission.WRITE_CALENDAR
+                )
+            )
         }
     }
 
@@ -129,13 +159,14 @@ class MainActivity : AppCompatActivity() {
                     R.id.main_fcv,
                     HomeFragment()
                 ).commit()
-                binding.mainLogoIv.visibility = android.view.View.VISIBLE
-                binding.mainTitleTv.visibility = android.view.View.GONE
-                binding.mainSettingsIv.visibility = android.view.View.VISIBLE
-                binding.mainEditIv.visibility = android.view.View.VISIBLE
-                binding.mainSearchIv.visibility = android.view.View.GONE
-                binding.mainBackIv.visibility = android.view.View.GONE
-                binding.mainSearchLl.visibility = android.view.View.GONE
+                binding.mainLogoIv.visibility = View.VISIBLE
+                binding.mainSettingsIv.visibility = View.VISIBLE
+                binding.scheduleTitleTv.visibility = View.GONE
+                binding.scheduleEditIv.visibility = View.GONE
+                binding.scheduleSearchIv.visibility = View.GONE
+                binding.scheduleAddIv.visibility = View.GONE
+                binding.mainBackIv.visibility = View.GONE
+                binding.mainSearchLl.visibility = View.GONE
                 return true
             }
 
@@ -145,10 +176,11 @@ class MainActivity : AppCompatActivity() {
                     CalendarFragment()
                 ).commit()
                 binding.mainLogoIv.visibility = android.view.View.GONE
-                binding.mainTitleTv.visibility = android.view.View.VISIBLE
                 binding.mainSettingsIv.visibility = android.view.View.GONE
-                binding.mainEditIv.visibility = android.view.View.GONE
-                binding.mainSearchIv.visibility = android.view.View.VISIBLE
+                binding.scheduleEditIv.visibility = android.view.View.VISIBLE
+                binding.scheduleTitleTv.visibility = android.view.View.VISIBLE
+                binding.scheduleSearchIv.visibility = android.view.View.VISIBLE
+                binding.scheduleAddIv.visibility = View.VISIBLE
                 binding.mainBackIv.visibility = android.view.View.GONE
                 binding.mainSearchLl.visibility = android.view.View.GONE
                 return true
@@ -160,10 +192,11 @@ class MainActivity : AppCompatActivity() {
                     RouteFragment()
                 ).commit()
                 binding.mainLogoIv.visibility = android.view.View.GONE
-                binding.mainTitleTv.visibility = android.view.View.GONE
                 binding.mainSettingsIv.visibility = android.view.View.GONE
-                binding.mainEditIv.visibility = android.view.View.GONE
-                binding.mainSearchIv.visibility = android.view.View.GONE
+                binding.scheduleTitleTv.visibility = android.view.View.GONE
+                binding.scheduleEditIv.visibility = android.view.View.GONE
+                binding.scheduleSearchIv.visibility = android.view.View.GONE
+                binding.scheduleAddIv.visibility = View.GONE
                 binding.mainBackIv.visibility = android.view.View.GONE
                 binding.mainSearchLl.visibility = android.view.View.VISIBLE
                 return true

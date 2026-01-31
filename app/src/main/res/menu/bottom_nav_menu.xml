@@ -5,7 +5,7 @@
         android:title="홈" />
     <item android:id="@+id/calendar"
         android:icon="@drawable/menu_calendar_selector"
-        android:title="캘린더"/>
+        android:title="일정"/>
     <item android:id="@+id/route"
         android:icon="@drawable/menu_route_selector"
         android:title="경로"/>

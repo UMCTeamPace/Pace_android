@@ -107,9 +107,10 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
         <TextView
+            android:id="@+id/settings_route_minute_tv1"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="미리 출발"
+            android:text="미리 도착"
             android:layout_weight="1"
             android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
             android:layout_marginStart="19dp"/>
