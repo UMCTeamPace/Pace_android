@@ -12,6 +12,7 @@
         android:id="@+id/tv_place_name"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:minHeight="24dp"
         tools:text="스타벅스 사당점"
         android:textColor="@android:color/black"
         android:textSize="14sp"
@@ -19,6 +20,15 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageView
+        android:id="@+id/iv_favorite"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/ic_favorites"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/tv_place_name"
+        app:layout_constraintBottom_toBottomOf="@id/tv_place_name" />
 
     <LinearLayout
         android:id="@+id/layout_meta"
@@ -59,7 +69,7 @@
     <androidx.cardview.widget.CardView
         android:id="@+id/cv_image_container"
         android:layout_width="0dp"
-        android:layout_height="160dp"
+        android:layout_height="100dp"
         android:layout_marginTop="12dp"
         app:cardCornerRadius="12dp"
         app:cardElevation="0dp"
