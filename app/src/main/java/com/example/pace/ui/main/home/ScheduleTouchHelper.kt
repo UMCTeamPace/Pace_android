@@ -9,13 +9,15 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.R
 
-class ScheduleTouchHelper(): ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
+class ScheduleTouchHelper(
+    private val adapter: ScheduleRVAdapter
+): ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
     // 스와이프 범위
     private val leftWidth = dpToPx(70)
     private val rightWidth = dpToPx(120)
     // 스와이프된 상태 저장 변수
     private var currentScrollX = 0f
-    private var isMenuOpened = false
+    var isSwiping = false
     private var swipedViewHolder: RecyclerView.ViewHolder? = null
 
     override fun onMove(
@@ -47,6 +49,7 @@ class ScheduleTouchHelper(): ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.L
         actionState: Int,
         isCurrentlyActive: Boolean
     ) {
+        isSwiping = isCurrentlyActive
         if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE) {
             // 상단 뷰 찾기
             val viewTop = viewHolder.itemView.findViewById<ConstraintLayout>(R.id.schedule_view_top)
@@ -81,18 +84,18 @@ class ScheduleTouchHelper(): ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.L
                         else -> {
                             // 왼쪽 스크롤 및 임계점 도달
                             if(dX < 0 && currentScrollX == -rightWidth){
-                                isMenuOpened = true
+                                adapter.swipedList[viewHolder.bindingAdapterPosition] = true
                                 swipedViewHolder = viewHolder
                                 translationX = -rightWidth
                             }
                             // 우측 스크롤 및 임계점 도달
                             else if(dX > 0 && currentScrollX == leftWidth){
-                                isMenuOpened = true
+                                adapter.swipedList[viewHolder.bindingAdapterPosition] = true
                                 swipedViewHolder = viewHolder
                                 translationX = leftWidth
                             }
                             else{
-                                isMenuOpened = false
+                                adapter.swipedList[viewHolder.bindingAdapterPosition] = false
                                 translationX = 0f
                             }
                             // 상단 뷰 가로 위치 고정
@@ -105,6 +108,15 @@ class ScheduleTouchHelper(): ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.L
     }
 
     override fun getSwipeThreshold(viewHolder: RecyclerView.ViewHolder): Float = 2f
+
+    // 스와이프 메뉴 닫는 함수
+    fun closeSwipedMenu(){
+        val viewTop = swipedViewHolder?.itemView?.findViewById<ConstraintLayout>(R.id.schedule_view_top)
+        viewTop?.translationX = 0f
+        currentScrollX = 0f
+        swipedViewHolder = null
+    }
+
     private fun dpToPx(int: Int): Float {
         return int * Resources.getSystem().displayMetrics.densityDpi.toFloat() / DisplayMetrics.DENSITY_DEFAULT
     }

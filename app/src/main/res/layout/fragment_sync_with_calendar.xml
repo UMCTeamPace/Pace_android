@@ -23,7 +23,7 @@
             android:layout_height="wrap_content"
             android:text="내 휴대전화"
             android:layout_weight="1"
-            android:textAppearance="@style/TextAppearance.App.Num.CaptionLg.Regular"
+            android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
             android:layout_marginStart="19dp"/>
         <ImageView
             android:id="@+id/sync_my_phone_iv"
@@ -50,7 +50,7 @@
             android:layout_height="wrap_content"
             android:text="Google"
             android:layout_weight="1"
-            android:textAppearance="@style/TextAppearance.App.Num.CaptionLg.Regular"
+            android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
             android:layout_marginStart="19dp"/>
         <ImageView
             android:id="@+id/sync_google1_iv"
@@ -77,7 +77,7 @@
             android:layout_height="wrap_content"
             android:text="Google"
             android:layout_weight="1"
-            android:textAppearance="@style/TextAppearance.App.Num.CaptionLg.Regular"
+            android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
             android:layout_marginStart="19dp"/>
         <ImageView
             android:id="@+id/sync_google2_iv"
@@ -104,7 +104,7 @@
             android:layout_height="wrap_content"
             android:text="Samsung"
             android:layout_weight="1"
-            android:textAppearance="@style/TextAppearance.App.Num.CaptionLg.Regular"
+            android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
             android:layout_marginStart="19dp"/>
         <ImageView
             android:id="@+id/sync_samsung_iv"
