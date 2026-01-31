@@ -5,6 +5,7 @@ import android.util.DisplayMetrics
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -12,6 +13,7 @@ import com.example.pace.R
 import com.example.pace.databinding.FragmentLocationBottomSheetBinding
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.net.PlacesClient
+import com.google.android.libraries.places.api.net.SearchByTextRequest
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 
@@ -26,6 +28,7 @@ class LocationBottomSheetFragment : Fragment() {
     private var currentItems: List<SearchItem> = emptyList()
 
     var onItemClick: ((SearchItem) -> Unit)? = null
+    var onSortTypeSelected: ((SearchByTextRequest.RankPreference) -> Unit)? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -38,14 +41,11 @@ class LocationBottomSheetFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // 1. 둥근 모서리 배경
         (view.parent as? View)?.backgroundTintList = null
 
-        // 2. Places 클라이언트 초기화
         placesClient = Places.createClient(requireContext())
 
         adapter = LocationListAdapter(placesClient) { selectedItem ->
-            // 어댑터에서 클릭 발생 -> 여기서 받아서 -> 메인 액티비티로 토스!
             onItemClick?.invoke(selectedItem)
         }
         binding.rvSearchResults.adapter = adapter
@@ -73,16 +73,26 @@ class LocationBottomSheetFragment : Fragment() {
 
     private fun setupFilterListeners() {
 
-        // 1. 위치 필터 클릭 시
         binding.tvFilterLocation.setOnClickListener {
-            // 나중에 여기에 팝업 메뉴 코드 넣으시면 됩니다.
-            Toast.makeText(context, "위치 필터 기능 준비 중", Toast.LENGTH_SHORT).show()
-        }
+            val popup = PopupMenu(requireContext(), view)
 
-        // 2. 정렬 필터 클릭 시
-        binding.tvFilterSort.setOnClickListener {
-            // 나중에 여기에 팝업 메뉴 코드 넣으시면 됩니다.
-            Toast.makeText(context, "정렬 필터 기능 준비 중", Toast.LENGTH_SHORT).show()
+            popup.menu.add(0, 0, 0, "관련도 순")
+            popup.menu.add(0, 1, 1, "거리 순")
+
+            popup.setOnMenuItemClickListener { item ->
+                when (item.title) {
+                    "관련도 순" -> {
+                        binding.tvFilterLocation.text = "관련도 순"
+                        onSortTypeSelected?.invoke(SearchByTextRequest.RankPreference.RELEVANCE)
+                    }
+                    "거리 순" -> {
+                        binding.tvFilterLocation.text = "거리 순"
+                        onSortTypeSelected?.invoke(SearchByTextRequest.RankPreference.DISTANCE)
+                    }
+                }
+                true
+            }
+            popup.show()
         }
     }
 
@@ -94,6 +104,12 @@ class LocationBottomSheetFragment : Fragment() {
         adapter.submitList(items)
 
         binding.rvSearchResults.scrollToPosition(0)
+    }
+
+    fun resetFilter() {
+        if (_binding != null) {
+            binding.tvFilterLocation.text = "관련도 순"
+        }
     }
 
     override fun onDestroyView() {

@@ -10,5 +10,7 @@ data class SearchItem(
     val distance: String,
     val category: String,
     val photoMetadata: PhotoMetadata? = null,
+    val lat: Double = 0.0,
+    val lng: Double = 0.0,
     val openStatus: String = "정보없음"
 ) : Serializable

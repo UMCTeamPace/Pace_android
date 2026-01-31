@@ -7,9 +7,9 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
-import androidx.core.content.ContentProviderCompat
 import androidx.fragment.app.Fragment
 import com.example.pace.databinding.FragmentLocationDetailBinding
+import com.example.pace.R
 import com.example.pace.ui.main.route.RouteFragment
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.Place
@@ -38,13 +38,25 @@ class LocationDetailFragment : Fragment() {
         val name = arguments?.getString("name") ?: ""
         val info = arguments?.getString("info") ?: ""
         val placeId = arguments?.getString("placeId") ?: ""
+        val openStatus = arguments?.getString("openStatus") ?: ""
         val isCalendarMode = arguments?.getBoolean("isCalendarMode") ?: false
 
         binding.tvTitle.text = name
         binding.tvMetaInfo.text = info
+        binding.tvOpenStatus.text = openStatus
+
+        val context = requireContext()
+        val colorResId = when {
+            openStatus.contains("영업 중") -> R.color.semantic_info
+            openStatus.contains("영업 종료") || openStatus.contains("운영 중단") -> R.color.semantic_warning
+            else -> R.color.black
+        }
+        binding.tvOpenStatus.setTextColor(androidx.core.content.ContextCompat.getColor(context, colorResId))
 
         if (placeId.isNotEmpty()) {
             fetchPlacePhotos(placeId)
+        } else {
+            binding.svPhotos.visibility = View.GONE
         }
 
         if (isCalendarMode) {
@@ -69,15 +81,27 @@ class LocationDetailFragment : Fragment() {
     }
 
     private fun fetchPlacePhotos(placeId: String) {
-        val fields = listOf(Place.Field.PHOTO_METADATAS)
+        val fields = listOf(Place.Field.PHOTO_METADATAS, Place.Field.LAT_LNG)
         val request = FetchPlaceRequest.newInstance(placeId, fields)
 
         placesClient.fetchPlace(request).addOnSuccessListener { response ->
+            val place = response.place
+            if (place.latLng != null) {
+                val lat = place.latLng!!.latitude
+                val lng = place.latLng!!.longitude
+                val name = binding.tvTitle.text.toString()
+
+                (parentFragment as? RouteFragment)?.updateMapFromDetail(name, placeId, lat, lng)
+            }
+
             val metadataList = response.place.photoMetadatas
 
-            binding.photoContainer.removeAllViews()
+            if (metadataList.isNullOrEmpty()) {
+                binding.svPhotos.visibility = View.GONE
+            }else {
+                binding.svPhotos.visibility = View.VISIBLE
+                binding.photoContainer.removeAllViews()
 
-            if (!metadataList.isNullOrEmpty()) {
                 val count = minOf(metadataList.size, 3)
 
                 for (i in 0 until count) {
@@ -89,11 +113,12 @@ class LocationDetailFragment : Fragment() {
 
                     placesClient.fetchPhoto(photoRequest).addOnSuccessListener { photoResponse ->
                         addDynamicPhotoView(photoResponse.bitmap)
+                    }.addOnFailureListener {
                     }
                 }
             }
         }.addOnFailureListener {
-            // 에러 처리
+            binding.svPhotos.visibility = View.GONE
         }
     }
 
@@ -103,7 +128,7 @@ class LocationDetailFragment : Fragment() {
 
         val context = requireContext()
 
-        // 1. CardView 생성 (둥근 모서리용)
+        // 1. CardView 생성
         val cardView = androidx.cardview.widget.CardView(context).apply {
             layoutParams = LinearLayout.LayoutParams(
                 dpToPx(130),
@@ -146,7 +171,7 @@ class LocationDetailFragment : Fragment() {
                 val infoString = "${item.category} · ${item.distance} · ${item.address}"
                 putString("info", infoString)
                 putString("placeId", item.placeId)
-
+                putString("openStatus", item.openStatus)
                 putBoolean("isCalendarMode", isCalendarMode)
             }
             fragment.arguments = bundle
