@@ -189,10 +189,10 @@ class RouteFragment : Fragment() {
             selectedCalendarPlace = null
         }
 
-         binding.layoutMapSelectHeader.btnMapSelectBack.setOnClickListener {
+        binding.layoutMapSelectHeader.btnMapSelectBack.setOnClickListener {
             binding.layoutMapSelectOverlay.visibility = View.GONE
             enterSearchMode()
-         }
+        }
     }
 
     fun onSelectOnMapSelected() {
