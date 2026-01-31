@@ -1,7 +1,13 @@
 package com.example.pace.ui.main.home
 
+import android.annotation.SuppressLint
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import android.view.DragEvent
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
@@ -13,6 +19,13 @@ class ScheduleRVAdapter(
     private val context: Context
 ): RecyclerView.Adapter<ScheduleRVAdapter.ViewHolder>() {
     lateinit var mOnClickListener: MyOnClickListener
+    lateinit var scheduleTouchHelper: ScheduleTouchHelper
+
+    // 임시 리스트 추후 상태 프로퍼티로 수정
+    var swipedList = arrayListOf(false, false, false)
+
+    var isJustClosed = false
+    var closedPos = -1
 
     interface MyOnClickListener{
         fun showModalCase(position: Int)
@@ -30,15 +43,38 @@ class ScheduleRVAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         holder.bind(scheduleList[position])
-        holder.binding.root.setOnClickListener {
-            showModalCase(position)
-        }
         holder.binding.schedulePinIv.setOnClickListener {
             holder.binding.schedulePinnedIv.visibility = View.VISIBLE
         }
         holder.binding.scheduleDeleteIv.setOnClickListener {
             val deleteScheduleDialog = DeleteScheduleDialog(context)
             deleteScheduleDialog.show()
+        }
+
+        @SuppressLint("ClickableViewAccessibility")
+        holder.binding.scheduleViewTop.setOnTouchListener { v, event ->
+            when(event.action){
+                MotionEvent.ACTION_DOWN -> {
+                    isJustClosed = false
+                }
+            }
+            false
+        }
+        holder.binding.scheduleViewTop.setOnClickListener {
+
+            if (swipedList[position]) {
+                scheduleTouchHelper.closeSwipedMenu()
+                swipedList[position] = false
+                isJustClosed = true
+                closedPos = position
+            } else {
+                if(closedPos != position){
+                    closedPos = -1
+                }else{
+                    showModalCase(position)
+                    closedPos = -1
+                }
+            }
         }
     }
 

@@ -46,6 +46,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_marginTop="8dp"
+        android:clickable="true"
         android:padding="12dp"
         android:background="@drawable/box_schedule">
         <LinearLayout
@@ -101,8 +102,8 @@
                 style="@style/TextColor.White"/>
             <CheckBox
                 android:id="@+id/schedule_checkbox"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
                 android:button="@null"
                 android:background="@drawable/ic_schedule_checkbox"/>
         </LinearLayout>
@@ -124,7 +125,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="하루 종일"
-                android:textAppearance="@style/TextAppearance.App.Num.CaptionLg.Regular"
+                android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
                 android:layout_marginStart="4dp"
                 style="@style/TextColor.Secondary"/>
             <View
@@ -164,7 +165,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="4dp"
                 android:text="장소"
-                android:textAppearance="@style/TextAppearance.App.Num.CaptionLg.Regular"
+                android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
                 style="@style/TextColor.Secondary"/>
         </LinearLayout>
 
@@ -194,7 +195,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="4dp"
                     android:text="장소1 --> 장소2"
-                    android:textAppearance="@style/TextAppearance.App.Num.CaptionLg.Regular"
+                    android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
                     style="@style/TextColor.Primary"/>
             </LinearLayout>
             <LinearLayout
@@ -206,20 +207,20 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="4dp"
                     android:text="00:00 - 00:00"
-                    android:textAppearance="@style/TextAppearance.App.Num.CaptionLg.Regular"
+                    android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
                     style="@style/TextColor.Secondary"/>
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="|"
-                    android:textAppearance="@style/TextAppearance.App.Num.CaptionLg.Regular"
+                    android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
                     android:layout_marginStart="8dp"
                     style="@style/TextColor.Tertiary"/>
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="0시간 0분"
-                    android:textAppearance="@style/TextAppearance.App.Num.CaptionLg.Regular"
+                    android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
                     android:layout_marginStart="8dp"
                     style="@style/TextColor.Secondary"/>
             </LinearLayout>
