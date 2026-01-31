@@ -1,22 +1,21 @@
 package com.example.pace.ui.settings
 
 import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.Fragment
 import com.example.pace.R
-import com.example.pace.databinding.ActivitySyncWithCalendarBinding
+import com.example.pace.databinding.FragmentSyncWithCalendarBinding
 
-class SyncWithCalendarActivity: AppCompatActivity() {
-    lateinit var binding: ActivitySyncWithCalendarBinding
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        binding = ActivitySyncWithCalendarBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
-        binding.syncBackIv.setOnClickListener {
-            onBackPressed()
-        }
+class SyncWithCalendarFragment: Fragment() {
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
+        val binding = FragmentSyncWithCalendarBinding.inflate(inflater, container,false)
 
         val calendarSyncMap= mutableMapOf<String, Boolean>()
         // 캘린더 연동 디폴트
@@ -62,5 +61,6 @@ class SyncWithCalendarActivity: AppCompatActivity() {
                 calendarSyncMap["Samsung"] = true
             }
         }
+        return binding.root
     }
 }
