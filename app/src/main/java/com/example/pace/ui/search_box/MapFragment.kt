@@ -57,7 +57,6 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         }
     }
 
-    // 3. 지도가 다 로딩되면 이 함수가 자동으로 호출됩니다.
     override fun onMapReady(map: GoogleMap) {
         this.googleMap = map
         map.uiSettings.isMapToolbarEnabled = false
@@ -124,7 +123,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     fun moveCameraToSinglePosition(lat: Double, lng: Double) {
         val map = googleMap ?: return
         val position = LatLng(lat, lng)
-        map.animateCamera(CameraUpdateFactory.newLatLngZoom(position, 16f))
+        map.animateCamera(CameraUpdateFactory.newLatLngZoom(position, 17.5f))
     }
 
     private fun bitmapDescriptorFromVector(context: Context, vectorResId: Int): BitmapDescriptor? {
@@ -134,6 +133,14 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         val canvas = Canvas(bitmap)
         vectorDrawable.draw(canvas)
         return BitmapDescriptorFactory.fromBitmap(bitmap)
+    }
+
+    fun initMapSelectionMode() {
+        clearMarkers()
+
+        setMapPadding(0)
+
+        checkLocationPermission(isAnimate = true)
     }
 
     // 바텀 패딩 조절 (디테일 뷰 등에서 중심점 맞출 때 사용)
