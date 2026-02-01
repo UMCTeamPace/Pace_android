@@ -24,6 +24,6 @@
         android:paddingEnd="7dp"
         android:gravity="center"
         android:text="20"
-        android:textAppearance="@style/TextAppearance.App.Num.HeadlineMd"
+        android:textAppearance="@style/TextAppearance.App.HeadlineMd"
         android:textColor="@color/horizontal_calendar_date_color"/>
 </LinearLayout>

@@ -12,12 +12,10 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.LinearSmoothScroller
 import androidx.recyclerview.widget.LinearSnapHelper
-import androidx.recyclerview.widget.PagerSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.databinding.FragmentHomeBinding
 import com.example.pace.ui.add_schedule.AddScheduleActivity
 import java.time.LocalDate
-import java.util.Locale
 
 class HomeFragment: Fragment() {
     lateinit var binding: FragmentHomeBinding
@@ -35,16 +33,28 @@ class HomeFragment: Fragment() {
         }
 
         // 일정뷰
-        val exampleList = listOf("Example1", "Example2", "Example3")
+        val exampleList = listOf<String>("Example 1", "Example 2", "Example 3")
+        // 일정 개수에 따라 뷰 변환하기
+        if(exampleList.size == 0){
+            binding.homeNoSchedule.visibility = View.VISIBLE
+            binding.homeScheduleRv.visibility = View.GONE
+        }else{
+            binding.homeNoSchedule.visibility = View.GONE
+            binding.homeScheduleRv.visibility = View.VISIBLE
+        }
+
         val scheduleAdapter = ScheduleRVAdapter(exampleList, requireContext())
+        val scheduleTouchHelper = ScheduleTouchHelper(scheduleAdapter)
+        val itemTouchHelper = ItemTouchHelper(scheduleTouchHelper)
+
         binding.homeScheduleRv.adapter = scheduleAdapter
         scheduleAdapter.setMyOnClickListener(object: ScheduleRVAdapter.MyOnClickListener{
             override fun showModalCase(position: Int) {
                 scheduleAdapter.showModalCase(position)
             }
         })
-        val scheduleTouchHelper = ItemTouchHelper(ScheduleTouchHelper())
-        scheduleTouchHelper.attachToRecyclerView(binding.homeScheduleRv)
+        scheduleAdapter.scheduleTouchHelper = scheduleTouchHelper
+        itemTouchHelper.attachToRecyclerView(binding.homeScheduleRv)
 
         // 하단 캘린더
         val calendarSize = 1000000

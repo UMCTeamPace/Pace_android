@@ -18,7 +18,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="잘 즐기고 계신가요?"
-        android:textAppearance="@style/TextAppearance.App.Num.BodyMd.Medium"
+        android:textAppearance="@style/TextAppearance.App.BodyMd.Medium"
         style="@style/TextColor.Setting"
         android:layout_marginTop="16dp"
         android:layout_marginStart="28dp"

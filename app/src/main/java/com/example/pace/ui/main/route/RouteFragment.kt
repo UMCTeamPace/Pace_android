@@ -85,9 +85,22 @@ class RouteFragment : Fragment() {
         initPlacesClient()
         initBottomSheet()
 
+        val mapFragment = MapFragment()
+
+        mapFragment.onMapTouched = {
+            if (::bottomSheetBehavior.isInitialized
+                && bottomSheetBehavior.state != BottomSheetBehavior.STATE_HIDDEN
+                && bottomSheetBehavior.state != BottomSheetBehavior.STATE_COLLAPSED) {
+
+                bottomSheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
+
+                mapFragment.setMapPadding(bottomSheetBehavior.peekHeight)
+            }
+        }
+
         // 맵 프래그먼트 로드 (childFragmentManager 사용)
         childFragmentManager.beginTransaction()
-            .replace(R.id.route_map_fcv, MapFragment())
+            .replace(R.id.route_map_fcv, mapFragment)
             .commitAllowingStateLoss()
 
         setupMainActivityListeners()
@@ -189,10 +202,10 @@ class RouteFragment : Fragment() {
             selectedCalendarPlace = null
         }
 
-         binding.layoutMapSelectHeader.btnMapSelectBack.setOnClickListener {
+        binding.layoutMapSelectHeader.btnMapSelectBack.setOnClickListener {
             binding.layoutMapSelectOverlay.visibility = View.GONE
             enterSearchMode()
-         }
+        }
     }
 
     fun onSelectOnMapSelected() {
@@ -221,7 +234,7 @@ class RouteFragment : Fragment() {
         binding.layoutMapSelectOverlay.bringToFront()
 
         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
-        mapFrag?.clearMarkers()
+        mapFrag?.initMapSelectionMode()
 
         val supportMapFrag = mapFrag?.childFragmentManager
             ?.findFragmentById(R.id.google_map_container) as? SupportMapFragment
@@ -529,9 +542,13 @@ class RouteFragment : Fragment() {
         if (detailFrag != null && detailFrag.isVisible) {
             childFragmentManager.popBackStack()
             if (isDetailFromRecommend) {
+                bottomSheetBehavior.isHideable = true
                 bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
                 enterSearchMode()
             } else {
+                bottomSheetBehavior.isHideable = false
+                val density = resources.displayMetrics.density
+                bottomSheetBehavior.peekHeight = (130 * density).toInt()
                 bottomSheetBehavior.expandedOffset = 0
                 bottomSheetBehavior.isFitToContents = false
                 bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
@@ -714,11 +731,8 @@ class RouteFragment : Fragment() {
                     showBottomSheet(resultList)
 
                     val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
-                    mapFrag?.showMultipleMarkers(resultList)
-
-                    mapFrag?.setMapPadding(0)
-
                     setMapPaddingToBottomSheetHeight()
+                    mapFrag?.showMultipleMarkers(resultList)
                 }
                 .addOnFailureListener {
                     it.printStackTrace()
@@ -746,10 +760,9 @@ class RouteFragment : Fragment() {
     private fun showBottomSheet(items: List<SearchItem>) {
         var sheetFragment = childFragmentManager.findFragmentByTag(LocationBottomSheetFragment.TAG) as? LocationBottomSheetFragment
 
-        // 2. 만약 없으면(null이면) 새로 만듭니다. (상세 화면에서 돌아왔을 때를 대비)
+        // 상세 화면에서 돌아왔을 때
         if (sheetFragment == null) {
             sheetFragment = LocationBottomSheetFragment().apply {
-                // 리스너는 새로 만들 때 꼭 다시 연결해야 합니다.
                 onItemClick = {
                     isDetailFromRecommend = false
                     showLocationDetail(it)
@@ -761,20 +774,25 @@ class RouteFragment : Fragment() {
                     }
                 }
             }
-            // 화면에 끼워넣기 (즉시 실행)
             childFragmentManager.beginTransaction()
                 .replace(R.id.bottom_sheet_container, sheetFragment, LocationBottomSheetFragment.TAG)
                 .commitNowAllowingStateLoss()
         }
 
         // 3. 데이터 업데이트
-        // (LocationBottomSheetFragment 내부에 currentItems 변수가 있어서 뷰 생성 전이라도 데이터가 저장됩니다)
+        // LocationBottomSheetFragment 내부에 currentItems 변수가 있어서 뷰 생성 전이라도 데이터가 저장됨
         sheetFragment.updateData(items)
 
-        // 4. 바텀시트 설정 (여기가 높이 제한 푸는 핵심입니다)
-        bottomSheetBehavior.isHideable = false
-        bottomSheetBehavior.expandedOffset = 0  // ★ 0으로 설정해야 화면 끝까지 올라갑니다.
-        bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
+        // 4. 바텀시트 설정
+        bottomSheetBehavior.apply {
+            isHideable = false
+
+            val density = resources.displayMetrics.density
+            peekHeight = (130 * density).toInt()
+
+            expandedOffset = 0
+            state = BottomSheetBehavior.STATE_HALF_EXPANDED
+        }
     }
 
     private fun initBottomSheet() {
@@ -839,9 +857,12 @@ class RouteFragment : Fragment() {
         bottomSheetBehavior.apply { isFitToContents = false; state = BottomSheetBehavior.STATE_HALF_EXPANDED }
 
         bottomSheetBehavior.apply {
+            val density = resources.displayMetrics.density
+            peekHeight = (130 * density).toInt()
             isFitToContents = false
             halfExpandedRatio = 0.5f
             expandedOffset = (resources.displayMetrics.heightPixels * 0.5).toInt()
+            isHideable = false
             state = BottomSheetBehavior.STATE_HALF_EXPANDED
         }
 

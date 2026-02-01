@@ -146,11 +146,23 @@
             android:id="@+id/btn_swap_location"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
             android:src="@drawable/ic_arrow_twoway"
             android:padding="10dp"
 
             app:layout_constraintTop_toTopOf="@id/layout_inputs"
+            app:layout_constraintBottom_toTopOf="@id/btn_save_route"
+
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/layout_inputs"/>
+
+        <ImageView
+            android:id="@+id/btn_save_route"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_favorites"
+            android:padding="10dp"
+
+            app:layout_constraintTop_toBottomOf="@id/btn_swap_location"
             app:layout_constraintBottom_toBottomOf="@id/layout_inputs"
 
             app:layout_constraintEnd_toEndOf="parent"

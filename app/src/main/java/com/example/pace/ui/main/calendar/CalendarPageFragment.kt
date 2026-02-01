@@ -7,6 +7,7 @@ import android.animation.ValueAnimator
 import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.os.StrictMode
 import android.view.LayoutInflater
@@ -176,6 +177,10 @@ class CalendarPageFragment: Fragment() {
         val monthDayBinder = object : MonthDayBinder<DayViewContainer> {
             override fun create(view: View) = DayViewContainer(view)
             override fun bind(container: DayViewContainer, day: CalendarDay) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    container.rootLayout.isDrawingCacheEnabled = false
+                    container.textView.isDrawingCacheEnabled = false
+                }
                 container.day = day
                 val textView = container.textView
                 val rootLayout = container.rootLayout
