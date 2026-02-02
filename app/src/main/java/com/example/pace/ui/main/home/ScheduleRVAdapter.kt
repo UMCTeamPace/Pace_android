@@ -23,8 +23,6 @@ class ScheduleRVAdapter(
 
     // 임시 리스트 추후 상태 프로퍼티로 수정
     var swipedList = arrayListOf(false, false, false)
-
-    var isJustClosed = false
     var closedPos = -1
 
     interface MyOnClickListener{
@@ -51,29 +49,15 @@ class ScheduleRVAdapter(
             deleteScheduleDialog.show()
         }
 
-        @SuppressLint("ClickableViewAccessibility")
-        holder.binding.scheduleViewTop.setOnTouchListener { v, event ->
-            when(event.action){
-                MotionEvent.ACTION_DOWN -> {
-                    isJustClosed = false
-                }
-            }
-            false
-        }
         holder.binding.scheduleViewTop.setOnClickListener {
-
             if (swipedList[position]) {
                 scheduleTouchHelper.closeSwipedMenu()
+                scheduleTouchHelper.swipedPos = -1
                 swipedList[position] = false
-                isJustClosed = true
                 closedPos = position
             } else {
-                if(closedPos != position){
-                    closedPos = -1
-                }else{
-                    showModalCase(position)
-                    closedPos = -1
-                }
+                closedPos = -1
+                showModalCase(position)
             }
         }
     }
