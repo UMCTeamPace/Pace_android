@@ -3,7 +3,6 @@ package com.example.pace.ui.main.home
 import android.content.res.Resources
 import android.graphics.Canvas
 import android.util.DisplayMetrics
-import android.util.Log
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
@@ -11,14 +10,29 @@ import com.example.pace.R
 
 class ScheduleTouchHelper(
     private val adapter: ScheduleRVAdapter
-): ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
+): ItemTouchHelper.Callback() {
     // 스와이프 범위
     private val leftWidth = dpToPx(70)
     private val rightWidth = dpToPx(120)
     // 스와이프된 상태 저장 변수
     private var currentScrollX = 0f
-    var isSwiping = false
     private var swipedViewHolder: RecyclerView.ViewHolder? = null
+
+    // 스와이프된 위치
+    var swipedPos = -1
+
+    override fun getMovementFlags(
+        recyclerView: RecyclerView,
+        viewHolder: RecyclerView.ViewHolder
+    ): Int {
+        val currentPos = viewHolder.bindingAdapterPosition
+        // 이미 다른 곳에서 스와이프가 됐을 때 스와이프 X
+        return if(swipedPos != -1 && swipedPos != currentPos){
+            makeMovementFlags(0, 0)
+        }else{
+            makeMovementFlags(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT)
+        }
+    }
 
     override fun onMove(
         recyclerView: RecyclerView,
@@ -32,11 +46,7 @@ class ScheduleTouchHelper(
         viewHolder: RecyclerView.ViewHolder,
         direction: Int
     ) {
-        if (direction == ItemTouchHelper.LEFT) {
-            Log.d("Swipe", "Left")
-        } else {
-            Log.d("Swipe", "Right")
-        }
+
     }
 
     // 스와이프 코드 구현
@@ -49,7 +59,6 @@ class ScheduleTouchHelper(
         actionState: Int,
         isCurrentlyActive: Boolean
     ) {
-        isSwiping = isCurrentlyActive
         if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE) {
             // 상단 뷰 찾기
             val viewTop = viewHolder.itemView.findViewById<ConstraintLayout>(R.id.schedule_view_top)
@@ -86,24 +95,27 @@ class ScheduleTouchHelper(
 
                     when(dX){
                         0f -> {
+                            swipedPos = -1
                             super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
                         }
                         else -> {
-                            // 왼쪽 스크롤 및 임계점 도달
                             if(dX < 0 && currentScrollX == -rightWidth){
                                 schedule.isSwiped = true
                                 swipedViewHolder = viewHolder
                                 translationX = -rightWidth
+                                swipedPos = viewHolder.bindingAdapterPosition
                             }
                             // 우측 스크롤 및 임계점 도달
                             else if(dX > 0 && currentScrollX == leftWidth){
                                 schedule.isSwiped = true
                                 swipedViewHolder = viewHolder
                                 translationX = leftWidth
+                                swipedPos = viewHolder.bindingAdapterPosition
                             }
                             else{
                                 schedule.isSwiped = false
                                 translationX = 0f
+                                swipedPos = -1
                             }
                             // 상단 뷰 가로 위치 고정
                             viewTop.translationX = translationX

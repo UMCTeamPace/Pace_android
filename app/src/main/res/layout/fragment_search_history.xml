@@ -76,7 +76,7 @@
             </LinearLayout>
         </FrameLayout>
     </LinearLayout>
-    
+
     <HorizontalScrollView
         android:id="@+id/search_chip_scroll_view"
         android:layout_width="match_parent"
@@ -84,6 +84,8 @@
         android:scrollbars="none"
         android:paddingStart="20dp"
         android:paddingEnd="20dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
         android:clipToPadding="false"
         app:layout_constraintTop_toBottomOf="@id/layout_route_options">
 
@@ -93,6 +95,43 @@
             android:layout_height="wrap_content"
             app:singleSelection="true"
             app:selectionRequired="true">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_home"
+                style="@style/Widget.MaterialComponents.Chip.Choice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:chipMinHeight="36dp"
+                app:chipCornerRadius="18dp"
+                app:chipIcon="@drawable/ic_home"
+                app:chipIconSize="20dp"
+                app:chipIconVisible="true"
+                app:iconStartPadding="8dp"
+                app:iconEndPadding="-8dp"
+                app:chipBackgroundColor="@color/white"
+                app:chipStrokeWidth="1dp"
+                app:chipStrokeColor="@color/selector_chip_text"
+                android:checkable="true"
+                app:checkedIconVisible="false" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_company"
+                style="@style/Widget.MaterialComponents.Chip.Choice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:chipMinHeight="36dp"
+                app:chipCornerRadius="18dp"
+                app:chipIcon="@drawable/ic_company"
+                app:chipIconSize="20dp"
+                app:chipIconVisible="true"
+                app:iconStartPadding="8dp"
+                app:iconEndPadding="-8dp"
+                app:chipBackgroundColor="@color/white"
+                app:chipStrokeWidth="1dp"
+                app:chipStrokeColor="@color/selector_chip_text"
+                android:checkable="true"
+                app:checkedIconVisible="false" />
+
             <com.google.android.material.chip.Chip
                 android:id="@+id/chip_recent_search"
                 android:layout_width="wrap_content"
@@ -137,7 +176,7 @@
                 android:id="@+id/chip_saved"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="저장됨"
+                android:text="저장된 장소"
                 app:chipMinHeight="36dp"
                 app:chipCornerRadius="18dp"
                 android:checkable="true"
@@ -150,7 +189,7 @@
                 android:id="@+id/chip_route_history"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="경로히스토리"
+                android:text="저장된 경로"
                 app:chipMinHeight="36dp"
                 app:chipCornerRadius="18dp"
                 android:checkable="true"
@@ -158,11 +197,27 @@
                 app:chipBackgroundColor="@color/selector_chip_background"
                 android:textColor="@color/selector_chip_text"
                 app:chipStrokeColor="@color/selector_chip_text"/>
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_setting"
+                style="@style/Widget.MaterialComponents.Chip.Choice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:chipMinHeight="36dp"
+                app:chipCornerRadius="18dp"
+                app:chipIcon="@drawable/ic_setting"
+                app:chipIconSize="20dp"
+                app:chipIconVisible="true"
+                app:iconStartPadding="8dp"
+                app:iconEndPadding="0dp"
+                app:chipBackgroundColor="@color/white"
+                android:checkable="true"
+                app:checkedIconVisible="false" />
         </com.google.android.material.chip.ChipGroup>
     </HorizontalScrollView>
-    
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/search_location_rv"
+
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/search_history_fcv"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_marginTop="10dp"

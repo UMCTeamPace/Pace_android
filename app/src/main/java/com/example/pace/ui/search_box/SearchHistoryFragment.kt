@@ -27,6 +27,22 @@ class SearchHistoryFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        if (savedInstanceState == null) {
+            replaceChildFragment(RecentSearchFragment())
+            binding.chipRecentSearch.isChecked = true
+        }
+
+        binding.chipGroup.setOnCheckedStateChangeListener { group, checkedIds ->
+            when (checkedIds.firstOrNull()) {
+                R.id.chip_recent_search -> replaceChildFragment(RecentSearchFragment())
+                R.id.chip_recent_place -> replaceChildFragment(RecentPlaceFragment())
+                R.id.chip_recent_route -> { /* 최근 경로 프래그먼트 */ }
+                R.id.chip_saved -> { /* 저장됨 프래그먼트 */ }
+                R.id.chip_route_history -> { /* 경로 히스토리 프래그먼트 */ }
+                R.id.chip_setting -> {}
+            }
+        }
+
         binding.btnMyLocation.setOnClickListener {
             onRouteOptionClick?.invoke(true)
         }
@@ -35,6 +51,30 @@ class SearchHistoryFragment : Fragment() {
             val parent = parentFragment as? RouteFragment
             parent?.onSelectOnMapSelected()
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        binding.chipRecentSearch.isChecked = true
+
+        refreshToRecentSearch()
+    }
+
+    override fun onHiddenChanged(hidden: Boolean) {
+        super.onHiddenChanged(hidden)
+        if (!hidden) {
+            refreshToRecentSearch()
+        }
+    }
+
+    private fun refreshToRecentSearch() {
+        replaceChildFragment(RecentSearchFragment())
+    }
+
+    private fun replaceChildFragment(fragment: Fragment) {
+        childFragmentManager.beginTransaction()
+            .replace(R.id.search_history_fcv, fragment)
+            .commitAllowingStateLoss()
     }
 
     fun setRouteOptionsVisible(isVisible: Boolean) {
