@@ -8,55 +8,69 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.LinearSmoothScroller
 import androidx.recyclerview.widget.LinearSnapHelper
 import androidx.recyclerview.widget.RecyclerView
+import com.example.pace.data.model.Schedule
 import com.example.pace.databinding.FragmentHomeBinding
 import com.example.pace.ui.add_schedule.AddScheduleActivity
+import com.example.pace.ui.main.MainActivity
+import com.example.pace.ui.main.calendar.ScheduleViewModel
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.launch
 
 class HomeFragment: Fragment() {
     lateinit var binding: FragmentHomeBinding
+
+    private val viewModel: ScheduleViewModel by lazy {
+        (requireActivity() as MainActivity).getSharedViewModel()
+    }
+    private lateinit var scheduleAdapter: ScheduleRVAdapter
+    private var selectedDate: LocalDate = LocalDate.now()
+    private var allSchedules: List<Schedule> = emptyList()
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-
         binding = FragmentHomeBinding.inflate(inflater, container, false)
 
-        // 일정 추가
+        setupRecyclerView()
+        setupCalendar()
+        setupObservers()
+
         binding.homeAddScheduleIv.setOnClickListener {
             startActivity(Intent(context, AddScheduleActivity::class.java))
         }
 
-        // 일정뷰
-        val exampleList = listOf<String>("Example 1", "Example 2", "Example 3")
-        // 일정 개수에 따라 뷰 변환하기
-        if(exampleList.size == 0){
-            binding.homeNoSchedule.visibility = View.VISIBLE
-            binding.homeScheduleRv.visibility = View.GONE
-        }else{
-            binding.homeNoSchedule.visibility = View.GONE
-            binding.homeScheduleRv.visibility = View.VISIBLE
-        }
+        return binding.root
+    }
 
-        val scheduleAdapter = ScheduleRVAdapter(exampleList, requireContext())
+    private fun setupRecyclerView() {
+        scheduleAdapter = ScheduleRVAdapter(mutableListOf(), requireContext())
         val scheduleTouchHelper = ScheduleTouchHelper(scheduleAdapter)
         val itemTouchHelper = ItemTouchHelper(scheduleTouchHelper)
 
         binding.homeScheduleRv.adapter = scheduleAdapter
         scheduleAdapter.setMyOnClickListener(object: ScheduleRVAdapter.MyOnClickListener{
-            override fun showModalCase(position: Int) {
-                scheduleAdapter.showModalCase(position)
+            override fun showModalCase(scheduleList: List<Schedule>, position: Int) {
+                val modalCaseDialog = ModalCaseDialog(requireContext(), scheduleList, position)
+                modalCaseDialog.show()
             }
         })
         scheduleAdapter.scheduleTouchHelper = scheduleTouchHelper
         itemTouchHelper.attachToRecyclerView(binding.homeScheduleRv)
+    }
 
-        // 하단 캘린더
+    private fun setupCalendar() {
         val calendarSize = 1000000
         val today = LocalDate.now()
         val layoutManager = binding.homeHorizontalCalendarRv.layoutManager as LinearLayoutManager
@@ -68,7 +82,7 @@ class HomeFragment: Fragment() {
 
         val snapHelper = LinearSnapHelper()
         snapHelper.attachToRecyclerView(binding.homeHorizontalCalendarRv)
-        // 오늘 날짜를 RV의 가운데로 이동
+
         binding.homeHorizontalCalendarRv.post{
             val screenWidth = binding.homeHorizontalCalendarRv.width
             val itemWidth = screenWidth / 7
@@ -77,7 +91,6 @@ class HomeFragment: Fragment() {
             horizontalCalendarAdapter.changeSelectedDate(todayPos)
         }
 
-        // 날짜 클릭 시 해당 날짜 선택 및 RV의 중앙으로 이동
         binding.homeHorizontalCalendarTv.text = calendarText
         horizontalCalendarAdapter.setMyOnclickListener(object: HorizontalCalendarRVAdapter.MyItemOnClickListener{
             override fun changeSelectedDate(position: Int) {
@@ -94,10 +107,19 @@ class HomeFragment: Fragment() {
                 smoothScroller.targetPosition = position
                 binding.homeHorizontalCalendarRv.layoutManager?.startSmoothScroll(smoothScroller)
                 horizontalCalendarAdapter.changeSelectedDate(position)
+
+                // 날짜가 클릭으로 변경되었을 때도 필터링
+                val centerDate = if(position > todayPos){
+                    today.plusDays((position - todayPos).toLong())
+                } else{
+                    val diff = (todayPos - position).toLong()
+                    today.minusDays(diff)
+                }
+                selectedDate = centerDate
+                filterAndDisplaySchedules()
             }
         })
 
-        // 스크롤 후 선택된 날짜 변환
         binding.homeHorizontalCalendarRv.addOnScrollListener(object :
             RecyclerView.OnScrollListener() {
             override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
@@ -116,13 +138,40 @@ class HomeFragment: Fragment() {
 
                         calendarText = centerDate.year.toString() + "년 " + centerDate.monthValue.toString() + "월"
                         binding.homeHorizontalCalendarTv.text = calendarText
-                        Log.d("selected", centerDate.year.toString() + centerDate.monthValue.toString() + centerDate.dayOfMonth.toString())
-                        // Todo: centerDate에 적힌 일정 가져오기
+                        
+                        selectedDate = centerDate
+                        filterAndDisplaySchedules()
                     }
                 }
             }
         })
+    }
 
-        return binding.root
+    private fun setupObservers() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.allSchedules.collect { schedules ->
+                    allSchedules = schedules
+                    filterAndDisplaySchedules()
+                }
+            }
+        }
+    }
+
+    private fun filterAndDisplaySchedules() {
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+        val selectedDateStr = selectedDate.format(formatter)
+
+        val filteredList = allSchedules.filter { it.startDate == selectedDateStr }
+        
+        scheduleAdapter.updateData(filteredList)
+
+        if(filteredList.isEmpty()){
+            binding.homeNoSchedule.visibility = View.VISIBLE
+            binding.homeScheduleRv.visibility = View.GONE
+        }else{
+            binding.homeNoSchedule.visibility = View.GONE
+            binding.homeScheduleRv.visibility = View.VISIBLE
+        }
     }
 }

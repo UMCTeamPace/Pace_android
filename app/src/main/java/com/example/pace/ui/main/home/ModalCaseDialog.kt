@@ -5,11 +5,12 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
+import com.example.pace.data.model.Schedule
 import com.example.pace.databinding.DialogModalCaseBinding
 
 class ModalCaseDialog(
     context: Context,
-    private val scheduleList: List<String>,
+    private val scheduleList: List<Schedule>,
     private val position: Int
 ): Dialog(context) {
     lateinit var binding: DialogModalCaseBinding
