@@ -27,10 +27,25 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.material.bottomsheet.BottomSheetBehavior
+import androidx.activity.viewModels
+import com.example.pace.PaceApplication
+import com.example.pace.data.db.ScheduleDatabase
+import com.example.pace.data.datasource.NormalScheduleRemoteDataSource
+import com.example.pace.data.repository.ScheduleRepository
+import com.example.pace.ui.main.calendar.ScheduleViewModel
+import com.example.pace.ui.main.calendar.ScheduleViewModelFactory
 
 class MainActivity : AppCompatActivity() {
     lateinit var binding: ActivityMainBinding
     private lateinit var fusedLocationClient: FusedLocationProviderClient
+
+    // ViewModel injection
+    private val repository by lazy { (application as PaceApplication).repository }
+    private val viewModel: ScheduleViewModel by viewModels {
+        ScheduleViewModelFactory((application as PaceApplication).repository)
+    }
+
+    fun getSharedViewModel(): ScheduleViewModel = viewModel
 
     // 내 위치 저장
     var myLocation: android.location.Location? = null
@@ -118,9 +133,13 @@ class MainActivity : AppCompatActivity() {
     // ★ [위치] 화면이 보일 때 업데이트 재개
     override fun onResume() {
         super.onResume()
+        // Resume location updates
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             startLocationUpdates()
         }
+        // Refresh schedule data
+        Log.d("D", "뷰모델 리프레쉬 시점")
+        viewModel.refreshSchedules()
     }
 
     // ★ [위치] 화면이 안 보일 때 배터리 절약을 위해 중지

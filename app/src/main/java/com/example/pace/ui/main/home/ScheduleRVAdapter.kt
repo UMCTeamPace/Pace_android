@@ -2,37 +2,37 @@ package com.example.pace.ui.main.home
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
-import android.util.Log
-import android.view.DragEvent
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.R
+import com.example.pace.data.model.Schedule
 import com.example.pace.databinding.ItemScheduleBinding
 
 class ScheduleRVAdapter(
-    private val scheduleList:List<String>,
+    private var scheduleList: MutableList<Schedule>,
     private val context: Context
 ): RecyclerView.Adapter<ScheduleRVAdapter.ViewHolder>() {
     lateinit var mOnClickListener: MyOnClickListener
     lateinit var scheduleTouchHelper: ScheduleTouchHelper
 
-    // 임시 리스트 추후 상태 프로퍼티로 수정
-    var swipedList = arrayListOf(false, false, false)
-
-    var isJustClosed = false
-    var closedPos = -1
-
     interface MyOnClickListener{
-        fun showModalCase(position: Int)
+        fun showModalCase(scheduleList: List<Schedule>, position: Int)
     }
+
     fun setMyOnClickListener(myOnClickListener: MyOnClickListener){
         mOnClickListener = myOnClickListener
     }
+
+    @SuppressLint("NotifyDataSetChanged")
+    fun updateData(newSchedules: List<Schedule>) {
+        scheduleList.clear()
+        scheduleList.addAll(newSchedules)
+        notifyDataSetChanged()
+    }
+
     override fun onCreateViewHolder(
         parent: ViewGroup,
         viewType: Int
@@ -42,8 +42,11 @@ class ScheduleRVAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.bind(scheduleList[position])
+        val schedule = scheduleList[position]
+        holder.bind(schedule)
+
         holder.binding.schedulePinIv.setOnClickListener {
+            // TODO: Handle pin logic
             holder.binding.schedulePinnedIv.visibility = View.VISIBLE
         }
         holder.binding.scheduleDeleteIv.setOnClickListener {
@@ -51,49 +54,47 @@ class ScheduleRVAdapter(
             deleteScheduleDialog.show()
         }
 
-        @SuppressLint("ClickableViewAccessibility")
-        holder.binding.scheduleViewTop.setOnTouchListener { v, event ->
-            when(event.action){
-                MotionEvent.ACTION_DOWN -> {
-                    isJustClosed = false
-                }
-            }
-            false
-        }
         holder.binding.scheduleViewTop.setOnClickListener {
-
-            if (swipedList[position]) {
+            if (scheduleTouchHelper.hasSwipedItem()) {
                 scheduleTouchHelper.closeSwipedMenu()
-                swipedList[position] = false
-                isJustClosed = true
-                closedPos = position
             } else {
-                if(closedPos != position){
-                    closedPos = -1
-                }else{
-                    showModalCase(position)
-                    closedPos = -1
-                }
+                mOnClickListener.showModalCase(scheduleList, position)
             }
         }
     }
 
     override fun getItemCount(): Int = scheduleList.size
 
-    fun showModalCase(position: Int){
-        val modalCaseDialog = ModalCaseDialog(context, scheduleList, position)
-        modalCaseDialog.show()
+    fun getScheduleAt(position: Int): Schedule {
+        return scheduleList[position]
     }
 
-    inner class ViewHolder(val binding: ItemScheduleBinding):RecyclerView.ViewHolder(binding.root){
-        fun bind(text:String){
-            binding.scheduleCategoryIv.setImageResource(R.drawable.ic_schedule_orange)
-            binding.scheduleTitleTv.text = text
-            binding.scheduleTimeTv.text = "하루 종일"
-            binding.scheduleNormalLocationTv.text = "장소"
-            binding.schedulePinnedIv.visibility = View.GONE
+    fun showModalCase(scheduleList: List<Schedule>, position: Int){
+        mOnClickListener.showModalCase(scheduleList, position)
+    }
+
+    inner class ViewHolder(val binding: ItemScheduleBinding): RecyclerView.ViewHolder(binding.root){
+        fun bind(schedule: Schedule){
+            binding.scheduleTitleTv.text = schedule.title ?: "제목 없음"
+
+            if (schedule.isAllDay) {
+                binding.scheduleTimeTv.text = "하루 종일"
+            } else {
+                binding.scheduleTimeTv.text = "${schedule.startTime} - ${schedule.endTime}"
+            }
+
+            if (schedule.location.isNullOrEmpty()) {
+                binding.scheduleNormalLocationLl.visibility = View.GONE
+            } else {
+                binding.scheduleNormalLocationLl.visibility = View.VISIBLE
+                binding.scheduleNormalLocationTv.text = schedule.location
+            }
+
+            binding.schedulePinnedIv.visibility = if (schedule.isPinned) View.VISIBLE else View.GONE
+
+            // Hide unused elements for now
             binding.scheduleAlertTv.visibility = View.GONE
-            binding.scheduleCheckbox.visibility = View.GONE
+            binding.scheduleCheckbox.visibility = View.VISIBLE // Assuming it's always visible
             binding.scheduleRouteLocationLl.visibility = View.GONE
         }
     }

@@ -1,6 +1,7 @@
 package com.example.pace.ui.main.calendar
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.R
@@ -69,7 +70,17 @@ class ScheduleAdapter(
         fun bind(item: ScheduleListItem.ScheduleItem) {
             val schedule = item.schedule
             binding.scheduleTitleTv.text = schedule.title ?: "제목 없음"
+            
+            val color = when {
+                schedule.eventColor != 0 && schedule.eventColor != null -> schedule.eventColor
+                schedule.calendarColor != 0 && schedule.calendarColor != null -> schedule.calendarColor
+                else -> android.graphics.Color.parseColor("#A2BD3B")
+            }
+            binding.scheduleCategoryIv.imageTintList = android.content.res.ColorStateList.valueOf(color)
 
+            binding.schedulePinnedIv.visibility = View.GONE
+            binding.scheduleAlertTv.visibility = View.GONE
+            binding.scheduleCheckbox.visibility = View.GONE
             // Pin 아이콘 리스너 및 상태 변경
             binding.schedulePinIv.setOnClickListener { onPinClick(schedule) }
             // isPinned 상태에 따라 pin 아이콘의 src를 변경할 수 있습니다.
@@ -90,8 +101,6 @@ class ScheduleAdapter(
                 binding.scheduleNormalLocationLl.visibility = ViewGroup.GONE
                 binding.scheduleRouteLocationLl.visibility = if (schedule.withRoute) ViewGroup.VISIBLE else ViewGroup.GONE
             }
-            
-
         }
     }
 }
