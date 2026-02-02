@@ -46,7 +46,7 @@ class ScheduleRVAdapter(
         holder.bind(schedule)
 
         holder.binding.schedulePinIv.setOnClickListener {
-            // TODO: Handle pin logic
+            // 핀 로직 작성하기
             holder.binding.schedulePinnedIv.visibility = View.VISIBLE
         }
         holder.binding.scheduleDeleteIv.setOnClickListener {
@@ -92,9 +92,8 @@ class ScheduleRVAdapter(
 
             binding.schedulePinnedIv.visibility = if (schedule.isPinned) View.VISIBLE else View.GONE
 
-            // Hide unused elements for now
             binding.scheduleAlertTv.visibility = View.GONE
-            binding.scheduleCheckbox.visibility = View.VISIBLE // Assuming it's always visible
+            binding.scheduleCheckbox.visibility = View.VISIBLE
             binding.scheduleRouteLocationLl.visibility = View.GONE
         }
     }
