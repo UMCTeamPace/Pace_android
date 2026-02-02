@@ -129,8 +129,10 @@ class LocationDetailFragment : Fragment() {
 
             if (metadataList.isNullOrEmpty()) {
                 binding.svPhotos.visibility = View.GONE
+                (parentFragment as? RouteFragment)?.setBottomSheetFixed(true)
             }else {
                 binding.svPhotos.visibility = View.VISIBLE
+                (parentFragment as? RouteFragment)?.setBottomSheetFixed(false)
                 binding.photoContainer.removeAllViews()
 
                 val count = minOf(metadataList.size, 3)
@@ -150,6 +152,7 @@ class LocationDetailFragment : Fragment() {
             }
         }.addOnFailureListener {
             binding.svPhotos.visibility = View.GONE
+            (parentFragment as? RouteFragment)?.setBottomSheetFixed(true)
         }
     }
 

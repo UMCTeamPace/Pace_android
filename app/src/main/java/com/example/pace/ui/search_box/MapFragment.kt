@@ -10,15 +10,11 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
-import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.example.pace.R
 import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.main.route.RouteFragment
-import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
@@ -34,7 +30,6 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     private var googleMap: GoogleMap? = null
     private val currentMarkers = mutableListOf<Marker>()
     var onMapTouched: (() -> Unit)? = null
-    var onMarkerClicked: ((SearchItem) -> Unit)? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -80,7 +75,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         checkLocationPermission(isAnimate = false)
     }
 
-    fun showMultipleMarkers(items: List<SearchItem>){
+    fun showMultipleMarkers(items: List<SearchItem>, onMarkerClick: (SearchItem) -> Unit){
         val map = googleMap ?: return
 
         currentMarkers.forEach { it.remove() }
@@ -101,9 +96,11 @@ class MapFragment : Fragment(), OnMapReadyCallback {
                     .icon(bitmapDescriptorFromVector(requireContext(), R.drawable.ic_search_location_pin))
 
                 val marker = map.addMarker(markerOptions)
-                if (marker != null) currentMarkers.add(marker)
+                if (marker != null) {
+                    marker.tag = item
+                    currentMarkers.add(marker)
+                }
 
-                // 범위를 늘림
                 boundsBuilder.include(position)
                 validCount++
             }
@@ -117,7 +114,34 @@ class MapFragment : Fragment(), OnMapReadyCallback {
                     map.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(items[0].lat, items[0].lng), 14f))
                 }
             }
+
+            map.setOnMarkerClickListener { clickedMarker ->
+                val item = clickedMarker.tag as? SearchItem
+                if (item != null) {
+                    hideOtherMarkers(clickedMarker)
+                    onMarkerClick(item)
+                }
+
+                true
+            }
         }
+    }
+
+    fun showOnlySelectedMarker(selectedItem: SearchItem) {
+        currentMarkers.forEach { marker ->
+            val item = marker.tag as? SearchItem
+            marker.isVisible = (item?.placeId == selectedItem.placeId)
+        }
+    }
+
+    private fun hideOtherMarkers(selectedMarker: Marker) {
+        currentMarkers.forEach { marker ->
+            marker.isVisible = (marker == selectedMarker)
+        }
+    }
+
+    fun restoreAllMarkers() {
+        currentMarkers.forEach { it.isVisible = true }
     }
 
     fun moveCameraToSinglePosition(lat: Double, lng: Double) {
@@ -195,6 +219,10 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         }
     }
 
+    fun setMyLocationButtonVisibility(isVisible: Boolean) {
+        view?.findViewById<View>(R.id.btn_go_my_location)?.visibility =
+            if (isVisible) View.VISIBLE else View.GONE
+    }
     fun clearMarkers() {
         currentMarkers.forEach { it.remove() }
         currentMarkers.clear()
