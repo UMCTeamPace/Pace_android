@@ -183,6 +183,13 @@
         <item name="android:letterSpacing">-0.03</item>
     </style>
 
+    <style name="TextAppearance.App.Num.CaptionLg.Semibold" parent="TextAppearance.App.Roboto">
+        <item name="android:textSize">12sp</item>
+        <item name="android:fontFamily">@font/roboto_semibold</item>
+        <item name="lineHeight">24sp</item>
+        <item name="android:letterSpacing">-0.01</item>
+    </style>
+
     <style name="TextAppearance.App.Num.CaptionLg.Regular" parent="TextAppearance.App.Roboto">
         <item name="android:textSize">12sp</item>
         <item name="android:fontFamily">@font/roboto_regular</item>

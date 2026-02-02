@@ -48,6 +48,7 @@ class ScheduleRVAdapter(
         holder.binding.schedulePinIv.setOnClickListener {
             // 핀 로직 작성하기
             holder.binding.schedulePinnedIv.visibility = View.VISIBLE
+            scheduleTouchHelper.closeSwipedMenu()
         }
         holder.binding.scheduleDeleteIv.setOnClickListener {
             val deleteScheduleDialog = DeleteScheduleDialog(context)
@@ -55,9 +56,12 @@ class ScheduleRVAdapter(
         }
 
         holder.binding.scheduleViewTop.setOnClickListener {
-            if (scheduleTouchHelper.hasSwipedItem()) {
+            // 스와이프된 상태에서 클릭 시 닫음
+            if (schedule.isSwiped && scheduleTouchHelper.hasSwipedItem()) {
                 scheduleTouchHelper.closeSwipedMenu()
+                schedule.isSwiped = false
             } else {
+                // 아니면 다이얼로그 띄우기
                 mOnClickListener.showModalCase(scheduleList, position)
             }
         }
@@ -67,10 +71,6 @@ class ScheduleRVAdapter(
 
     fun getScheduleAt(position: Int): Schedule {
         return scheduleList[position]
-    }
-
-    fun showModalCase(scheduleList: List<Schedule>, position: Int){
-        mOnClickListener.showModalCase(scheduleList, position)
     }
 
     inner class ViewHolder(val binding: ItemScheduleBinding): RecyclerView.ViewHolder(binding.root){
