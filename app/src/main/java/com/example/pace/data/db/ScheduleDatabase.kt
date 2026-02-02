@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.example.pace.data.model.Schedule
 
-@Database(entities = [Schedule::class], version = 1, exportSchema = false)
+@Database(entities = [Schedule::class], version = 6, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class ScheduleDatabase : RoomDatabase() {
 
@@ -24,7 +24,8 @@ abstract class ScheduleDatabase : RoomDatabase() {
                     context.applicationContext,
                     ScheduleDatabase::class.java,
                     "schedule_database"
-                ).build()
+                ).fallbackToDestructiveMigration()
+                .build()
                 INSTANCE = instance
                 instance
             }

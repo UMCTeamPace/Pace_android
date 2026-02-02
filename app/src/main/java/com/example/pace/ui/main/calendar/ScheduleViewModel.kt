@@ -11,13 +11,9 @@ class ScheduleViewModel(private val repository: ScheduleRepository) : ViewModel(
     val allSchedules = repository.allSchedules
     val calendarEvents = repository.calendarEvents
 
-    private var isInitialLoad = true
-
-    fun onFragmentViewCreated() {
-        if (isInitialLoad) {
-            refreshSchedules()
-            isInitialLoad = false
-        }
+    init {
+        // Trigger initial data refresh when the ViewModel is created
+        refreshSchedules()
     }
 
     fun refreshSchedules() {

@@ -86,6 +86,13 @@ class ScheduleTouchHelper(
                 }
                 // 스와이프 중이 아닐 때, 스와이프 고정
                 false -> {
+                    val position = viewHolder.bindingAdapterPosition
+                    if (position == RecyclerView.NO_POSITION || position >= adapter.itemCount) {
+                        super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+                        return
+                    }
+                    val schedule = adapter.getScheduleAt(position)
+
                     when(dX){
                         0f -> {
                             swipedPos = -1
@@ -93,20 +100,20 @@ class ScheduleTouchHelper(
                         }
                         else -> {
                             if(dX < 0 && currentScrollX == -rightWidth){
-                                adapter.swipedList[viewHolder.bindingAdapterPosition] = true
+                                schedule.isSwiped = true
                                 swipedViewHolder = viewHolder
                                 translationX = -rightWidth
                                 swipedPos = viewHolder.bindingAdapterPosition
                             }
                             // 우측 스크롤 및 임계점 도달
                             else if(dX > 0 && currentScrollX == leftWidth){
-                                adapter.swipedList[viewHolder.bindingAdapterPosition] = true
+                                schedule.isSwiped = true
                                 swipedViewHolder = viewHolder
                                 translationX = leftWidth
                                 swipedPos = viewHolder.bindingAdapterPosition
                             }
                             else{
-                                adapter.swipedList[viewHolder.bindingAdapterPosition] = false
+                                schedule.isSwiped = false
                                 translationX = 0f
                                 swipedPos = -1
                             }
@@ -125,8 +132,18 @@ class ScheduleTouchHelper(
     fun closeSwipedMenu(){
         val viewTop = swipedViewHolder?.itemView?.findViewById<ConstraintLayout>(R.id.schedule_view_top)
         viewTop?.translationX = 0f
+        if (swipedViewHolder != null) {
+            val position = swipedViewHolder!!.bindingAdapterPosition
+            if (position != RecyclerView.NO_POSITION && position < adapter.itemCount) {
+                adapter.getScheduleAt(position).isSwiped = false
+            }
+        }
         currentScrollX = 0f
         swipedViewHolder = null
+    }
+
+    fun hasSwipedItem(): Boolean {
+        return swipedViewHolder != null
     }
 
     private fun dpToPx(int: Int): Float {
