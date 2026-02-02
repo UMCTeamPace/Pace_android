@@ -55,7 +55,6 @@ class RouteFragment : Fragment() {
     private lateinit var repository: SearchRepository
 
     private lateinit var placesClient: PlacesClient
-//    private val fusedLocationClient by lazy { LocationServices.getFusedLocationProviderClient(requireActivity()) }
 
     private val historyFragment = SearchHistoryFragment()
     private val recommendFragment = SearchRecommendFragment()
@@ -128,7 +127,6 @@ class RouteFragment : Fragment() {
         setupRouteHeaderListeners()
         setupMapSelectListeners()
         setupMyLocationButton()
-        binding.btnGoMyLocation.bringToFront()
     }
 
     private fun setupMainActivityListeners() {
@@ -210,12 +208,16 @@ class RouteFragment : Fragment() {
             onLocationSelected(tempName, tempId, isSelectingStart)
 
             binding.layoutMapSelectOverlay.visibility = View.GONE
+            val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+            mapFrag?.setMyLocationButtonVisibility(true)
 
             selectedCalendarPlace = null
         }
 
         binding.layoutMapSelectHeader.btnMapSelectBack.setOnClickListener {
             binding.layoutMapSelectOverlay.visibility = View.GONE
+            val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+            mapFrag?.setMyLocationButtonVisibility(true)
             enterSearchMode()
         }
     }
@@ -510,7 +512,7 @@ private fun selectCurrentLocation() {
                 lat = lat,
                 lng = lng
             )
-            mapFrag.showMultipleMarkers(listOf(tempItem))
+            mapFrag.showMultipleMarkers(listOf(tempItem)){}
         }
 
         mapFrag.moveCameraToSinglePosition(lat, lng)
@@ -636,6 +638,11 @@ private fun selectCurrentLocation() {
             return
         }
 
+        if (binding.layoutRouteInputHeader.root.visibility == View.VISIBLE) {
+            exitSearchMode()
+            return // 앱 종료 방지
+        }
+
         // 2. 지도 선택 오버레이
         if (binding.layoutMapSelectOverlay.visibility == View.VISIBLE) {
             binding.layoutMapSelectOverlay.visibility = View.GONE
@@ -648,6 +655,7 @@ private fun selectCurrentLocation() {
         val detailFrag = childFragmentManager.findFragmentByTag("DETAIL")
         if (detailFrag != null && detailFrag.isVisible) {
             childFragmentManager.popBackStack()
+            bottomSheetBehavior.isDraggable = true
             if (isDetailFromRecommend) {
                 bottomSheetBehavior.isHideable = true
                 bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
@@ -662,6 +670,8 @@ private fun selectCurrentLocation() {
 
                 setMapPaddingToBottomSheetHeight()
             }
+            val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+            mapFrag?.restoreAllMarkers()
             return
         }
 
@@ -715,12 +725,12 @@ private fun selectCurrentLocation() {
 
         val geocoder = android.location.Geocoder(requireContext(), java.util.Locale.KOREAN)
 
-        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1)
                 val fullAddress = addresses?.firstOrNull()?.getAddressLine(0)?.replace("대한민국 ", "") ?: ""
 
-                launch(kotlinx.coroutines.Dispatchers.Main) {
+                launch(Dispatchers.Main) {
                     val placeFields = listOf(Place.Field.NAME, Place.Field.TYPES, Place.Field.ADDRESS, Place.Field.ID)
 
                     val circle = com.google.android.libraries.places.api.model.CircularBounds.newInstance(latLng, 50.0)
@@ -845,7 +855,10 @@ private fun selectCurrentLocation() {
 
                     val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
                     setMapPaddingToBottomSheetHeight()
-                    mapFrag?.showMultipleMarkers(resultList)
+                    mapFrag?.showMultipleMarkers(resultList) { clickedItem ->
+                        isDetailFromRecommend = false
+                        showLocationDetail(clickedItem)
+                    }
                 }
                 .addOnFailureListener {
                     it.printStackTrace()
@@ -948,6 +961,23 @@ private fun selectCurrentLocation() {
             }, LocationBottomSheetFragment.TAG).commit()
     }
 
+    fun setBottomSheetFixed(isFixed: Boolean) {
+        if (!::bottomSheetBehavior.isInitialized) return
+
+        if (isFixed) {
+            bottomSheetBehavior.apply {
+                isDraggable = false
+                state = BottomSheetBehavior.STATE_COLLAPSED
+                peekHeight = (130 * resources.displayMetrics.density).toInt()
+            }
+        } else {
+            bottomSheetBehavior.apply {
+                isDraggable = true
+                state = BottomSheetBehavior.STATE_HALF_EXPANDED
+            }
+        }
+    }
+
     private fun showLocationDetail(item: SearchItem) {
         saveRecentPlace(item)
         val isCalendarMode = currentEntryMode == EntryMode.CALENDAR
@@ -973,6 +1003,7 @@ private fun selectCurrentLocation() {
         setMapPaddingToBottomSheetHeight()
 
         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+        mapFrag?.showOnlySelectedMarker(item)
 
         if (item.lat != 0.0 && item.lng != 0.0) {
             mapFrag?.moveCameraToSinglePosition(item.lat, item.lng)
@@ -1019,8 +1050,6 @@ private fun selectCurrentLocation() {
                         }
                     }
                     else -> {
-                        isDetailFromRecommend = true
-
                         val searchItem = SearchItem(
                             placeId = place.placeId,
                             name = place.name,
@@ -1032,11 +1061,11 @@ private fun selectCurrentLocation() {
                             distance = ""
                         )
                         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
-                        mapFrag?.clearMarkers()
-                        mapFrag?.showMultipleMarkers(listOf(searchItem))
-
                         exitSearchMode()
+                        isDetailFromRecommend = true
                         showLocationDetail(searchItem)
+                        mapFrag?.clearMarkers()
+                        mapFrag?.showMultipleMarkers(listOf(searchItem)){}
                     }
                 }
             }
@@ -1055,7 +1084,7 @@ private fun selectCurrentLocation() {
     }
 
 private fun setupMyLocationButton() {
-    binding.btnGoMyLocation.setOnClickListener {
+    binding.btnGoMyLocationOverlay.setOnClickListener {
         if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             mainActivity?.checkPermissionAndStart()
             return@setOnClickListener
