@@ -14,7 +14,6 @@ class ScheduleTouchHelper(
     // 스와이프 범위
     private val leftWidth = dpToPx(70)
     private val rightWidth = dpToPx(120)
-    // 스와이프된 상태 저장 변수
     private var currentScrollX = 0f
     private var swipedViewHolder: RecyclerView.ViewHolder? = null
 
@@ -125,13 +124,12 @@ class ScheduleTouchHelper(
 
     // 다른 거 스와이프 시 기존 것이 자동으로 닫히도록
     override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
-        super.onSelectedChanged(viewHolder, actionState)
-
         if(actionState == ItemTouchHelper.ACTION_STATE_SWIPE){
             if(hasSwipedItem() && swipedViewHolder != viewHolder){
                 closeSwipedMenu()
             }
         }
+        super.onSelectedChanged(viewHolder, actionState)
     }
 
     fun hasSwipedItem(): Boolean {
