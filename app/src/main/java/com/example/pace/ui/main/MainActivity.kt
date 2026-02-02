@@ -142,7 +142,7 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("MissingPermission")
     fun startLocationUpdates() {
         // 10초마다, 혹은 10m 이동 시 갱신
-        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000)
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 2000)
             .setMinUpdateDistanceMeters(2f)
             .build()
         fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
