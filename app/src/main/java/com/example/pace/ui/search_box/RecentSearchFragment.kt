@@ -13,6 +13,7 @@ import com.example.pace.data.db.SearchDatabase
 import com.example.pace.data.model.RecentHistoryItem
 import com.example.pace.data.repository.SearchRepository
 import com.example.pace.databinding.FragmentRecentSearchBinding
+import com.example.pace.ui.main.route.RouteFragment
 import kotlinx.coroutines.launch
 
 class RecentSearchFragment : Fragment() {
@@ -41,7 +42,7 @@ class RecentSearchFragment : Fragment() {
         // 어댑터 생성 (삭제 버튼은 아직 없으므로 빈 람다 전달)
         historyAdapter = RecentHistoryAdapter(
             onItemClick = { item ->
-                // 클릭 시 메인 검색창에 검색어 입력 로직 호출 (필요시 RouteFragment와 연동)
+                (parentFragment?.parentFragment as? RouteFragment)?.handleHistoryItemClick(item)
             },
             onDeleteClick = { /* 삭제 로직 미구현 */ }
         )

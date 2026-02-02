@@ -13,6 +13,7 @@ import com.example.pace.data.db.SearchDatabase
 import com.example.pace.data.model.RecentHistoryItem
 import com.example.pace.data.repository.SearchRepository
 import com.example.pace.databinding.FragmentRecentPlaceBinding
+import com.example.pace.ui.main.route.RouteFragment
 import kotlinx.coroutines.launch
 
 class RecentPlaceFragment : Fragment() {
@@ -39,7 +40,7 @@ class RecentPlaceFragment : Fragment() {
     private fun setupRecyclerView() {
         historyAdapter = RecentHistoryAdapter(
             onItemClick = { item ->
-                // 장소 클릭 시 지도로 이동 등의 로직 처리
+                (parentFragment?.parentFragment as? RouteFragment)?.handleHistoryItemClick(item)
             },
             onDeleteClick = { /* 삭제 로직 미구현 */ }
         )

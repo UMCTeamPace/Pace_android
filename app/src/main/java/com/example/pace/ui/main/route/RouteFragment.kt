@@ -1008,11 +1008,19 @@ private fun selectCurrentLocation() {
 
                 when (currentEntryMode) {
                     EntryMode.ROUTE_PLAN -> {
-                        // [상태 A] 경로 계획 모드(출발/도착지 설정 중)인 경우
-                        // 현재 선택 중인 칸(isSelectingStart 여부)에 따라 자동 입력
-                        onLocationSelected(place.name, place.placeId, isSelectingStart)
+                        val isStartEmpty = selectedStartPlace == null
+                        val isEndEmpty = selectedEndPlace == null
+                        if (isStartEmpty) {
+                            onLocationSelected(place.name, place.placeId, isStart = true)
+                        } else if (isEndEmpty) {
+                            onLocationSelected(place.name, place.placeId, isStart = false)
+                        }else{
+                            onLocationSelected(place.name, place.placeId, isSelectingStart)
+                        }
                     }
                     else -> {
+                        isDetailFromRecommend = true
+
                         val searchItem = SearchItem(
                             placeId = place.placeId,
                             name = place.name,
@@ -1023,6 +1031,9 @@ private fun selectCurrentLocation() {
                             lng = place.lng,
                             distance = ""
                         )
+                        val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+                        mapFrag?.clearMarkers()
+                        mapFrag?.showMultipleMarkers(listOf(searchItem))
 
                         exitSearchMode()
                         showLocationDetail(searchItem)
