@@ -1,6 +1,7 @@
 package com.example.pace.ui.search_box
 
 import android.graphics.Bitmap
+import android.location.Location
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -11,6 +12,7 @@ import androidx.fragment.app.Fragment
 import com.example.pace.databinding.FragmentLocationDetailBinding
 import com.example.pace.R
 import com.example.pace.ui.main.route.RouteFragment
+import com.google.android.gms.maps.model.LatLng
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.net.FetchPhotoRequest
@@ -36,13 +38,16 @@ class LocationDetailFragment : Fragment() {
         placesClient = Places.createClient(requireContext())
 
         val name = arguments?.getString("name") ?: ""
-        val info = arguments?.getString("info") ?: ""
+        val category = arguments?.getString("category") ?: ""
+        val address = arguments?.getString("address") ?: ""
+        val defaultDistance = arguments?.getString("distance") ?: ""
         val placeId = arguments?.getString("placeId") ?: ""
         val openStatus = arguments?.getString("openStatus") ?: ""
-        val isCalendarMode = arguments?.getBoolean("isCalendarMode") ?: false
+        val isScheduleMode = arguments?.getBoolean("isScheduleMode") ?: false
+        val argLat = arguments?.getDouble("lat", 0.0) ?: 0.0
+        val argLng = arguments?.getDouble("lng", 0.0) ?: 0.0
 
         binding.tvTitle.text = name
-        binding.tvMetaInfo.text = info
         binding.tvOpenStatus.text = openStatus
 
         val context = requireContext()
@@ -53,13 +58,30 @@ class LocationDetailFragment : Fragment() {
         }
         binding.tvOpenStatus.setTextColor(androidx.core.content.ContextCompat.getColor(context, colorResId))
 
+        val parent = parentFragment as? RouteFragment
+        var displayDistance = defaultDistance
+
+        if (argLat != 0.0 && argLng != 0.0) {
+            // 부모의 지도 업데이트 (마커 이동 등)
+            parent?.updateMapFromDetail(name, placeId, argLat, argLng)
+
+            // 내 위치와 타겟 좌표 사이의 거리 실시간 계산
+            val targetLatLng = LatLng(argLat, argLng)
+            val calculatedDist = parent?.calculateDistance(targetLatLng)
+
+            if (!calculatedDist.isNullOrEmpty()) {
+                displayDistance = calculatedDist
+            }
+        }
+        updateMetaInfoText(category, displayDistance, address)
+
         if (placeId.isNotEmpty()) {
             fetchPlacePhotos(placeId)
         } else {
             binding.svPhotos.visibility = View.GONE
         }
 
-        if (isCalendarMode) {
+        if (isScheduleMode) {
             binding.icStart.visibility = View.GONE
             binding.icArrive.visibility = View.GONE
             binding.icSelectLocation.visibility = View.VISIBLE
@@ -78,6 +100,15 @@ class LocationDetailFragment : Fragment() {
             val parent = parentFragment as? RouteFragment
             parent?.onLocationSelected(name, placeId, isStart = false)
         }
+    }
+
+    private fun updateMetaInfoText(category: String, distance: String, address: String) {
+        val result = if (distance.isNotEmpty()) {
+            "$category · $distance · $address"
+        } else {
+            "$category · $address"
+        }
+        binding.tvMetaInfo.text = result
     }
 
     private fun fetchPlacePhotos(placeId: String) {
@@ -164,15 +195,18 @@ class LocationDetailFragment : Fragment() {
     }
 
     companion object {
-        fun newInstance(item: SearchItem, isCalendarMode: Boolean): LocationDetailFragment {
+        fun newInstance(item: SearchItem, isScheduleMode: Boolean): LocationDetailFragment {
             val fragment = LocationDetailFragment()
             val bundle = Bundle().apply {
                 putString("name", item.name)
-                val infoString = "${item.category} · ${item.distance} · ${item.address}"
-                putString("info", infoString)
+                putString("category", item.category)
+                putString("address", item.address)
+                putString("distance", item.distance)
                 putString("placeId", item.placeId)
                 putString("openStatus", item.openStatus)
-                putBoolean("isCalendarMode", isCalendarMode)
+                putBoolean("isScheduleMode", isScheduleMode)
+                putDouble("lat", item.lat)
+                putDouble("lng", item.lng)
             }
             fragment.arguments = bundle
             return fragment

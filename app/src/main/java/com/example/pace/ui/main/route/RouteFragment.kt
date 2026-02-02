@@ -19,6 +19,10 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.example.pace.BuildConfig
 import com.example.pace.R
+import com.example.pace.data.db.SearchDatabase
+import com.example.pace.data.model.RecentHistoryItem
+import com.example.pace.data.model.RecentPlace
+import com.example.pace.data.repository.SearchRepository
 import com.example.pace.databinding.FragmentRouteBinding
 import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.search_box.*
@@ -33,10 +37,13 @@ import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRe
 import com.google.android.libraries.places.api.net.PlacesClient
 import com.google.android.libraries.places.api.net.SearchByTextRequest
 import com.google.android.material.bottomsheet.BottomSheetBehavior
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.ArrayList
+import java.util.Locale
 
 class RouteFragment : Fragment() {
     private var _binding: FragmentRouteBinding? = null
@@ -45,8 +52,10 @@ class RouteFragment : Fragment() {
     private val mainActivity: MainActivity? get() = activity as? MainActivity
     private val mainBinding get() = (activity as? MainActivity)?.binding
 
+    private lateinit var repository: SearchRepository
+
     private lateinit var placesClient: PlacesClient
-    private val fusedLocationClient by lazy { LocationServices.getFusedLocationProviderClient(requireActivity()) }
+//    private val fusedLocationClient by lazy { LocationServices.getFusedLocationProviderClient(requireActivity()) }
 
     private val historyFragment = SearchHistoryFragment()
     private val recommendFragment = SearchRecommendFragment()
@@ -66,8 +75,12 @@ class RouteFragment : Fragment() {
     private var isDetailFromRecommend = false
     private var isSelectingStart = true
 
-    private var currentRankPreference = SearchByTextRequest.RankPreference.RELEVANCE
+    private var currentRankPreference = SearchByTextRequest.RankPreference.RELEVANCE // 검색 필터
     private var lastQuery: String = ""
+
+    //백엔드 경로 탐색을 위해 여기다가 placeId를 좌표로 api 검색해서 주기
+    private var startLatLng: LatLng? = null
+    private var endLatLng: LatLng? = null
     private lateinit var bottomSheetBehavior: BottomSheetBehavior<View>
     private var searchJob: Job? = null
     private var sessionToken: AutocompleteSessionToken? = null
@@ -81,6 +94,13 @@ class RouteFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        val db = SearchDatabase.getDatabase(requireContext())
+        repository = SearchRepository(db.searchDao())
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            repository.deleteExpiredData()
+        }
 
         initPlacesClient()
         initBottomSheet()
@@ -124,6 +144,9 @@ class RouteFragment : Fragment() {
                 if (query.isNotEmpty()) {
                     hideKeyboard()
                     mainBinding?.searchEt?.clearFocus()
+
+                    saveRecentSearch(query)
+
                     currentRankPreference = SearchByTextRequest.RankPreference.RELEVANCE
                     val sheet = childFragmentManager.findFragmentByTag(LocationBottomSheetFragment.TAG) as? LocationBottomSheetFragment
                     sheet?.resetFilter()
@@ -134,17 +157,6 @@ class RouteFragment : Fragment() {
         }
 
         mainBinding?.mainBackIv?.setOnClickListener {
-//            val detailFrag = childFragmentManager.findFragmentByTag("DETAIL")
-//            if (detailFrag != null && detailFrag.isVisible) {
-//                // 상세 페이지라면 시스템 뒤로가기와 동일하게 작동
-//                handleCustomBackClick()
-//            } else if (isBottomSheetVisible()) {
-//                // 리스트라면 검색 모드로 복귀
-//                enterSearchMode()
-//            } else {
-//                // 검색 모드라면 키보드 유무 상관없이 즉시 초기화 및 종료
-//                exitSearchMode()
-//            }
             handleCustomBackClick()
         }
 
@@ -250,6 +262,7 @@ class RouteFragment : Fragment() {
 
         mainBinding?.mainToolbar?.visibility = View.VISIBLE
         mainBinding?.mainBackIv?.visibility = View.VISIBLE
+        mainBinding?.mainBnv?.visibility = View.GONE
 
         if (::bottomSheetBehavior.isInitialized) {
             bottomSheetBehavior.isHideable = true
@@ -257,9 +270,6 @@ class RouteFragment : Fragment() {
 
             childFragmentManager.popBackStackImmediate("DETAIL", androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
             isDetailFromRecommend = false
-
-            bottomSheetBehavior.isHideable = true
-            bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
         }
 
         val routeResultFrag = childFragmentManager.findFragmentByTag("ROUTE_RESULT")
@@ -278,6 +288,12 @@ class RouteFragment : Fragment() {
         if (targetFragment is SearchHistoryFragment) {
             val isRoutePlan = (currentEntryMode == EntryMode.ROUTE_PLAN)
             targetFragment.setRouteOptionsVisible(isRoutePlan)
+
+            targetFragment.onRouteOptionClick = { isMyLocation ->
+                if (isMyLocation) {
+                    selectCurrentLocation()
+                }
+            }
         }
 
         showSearchFragment(targetFragment)
@@ -299,6 +315,8 @@ class RouteFragment : Fragment() {
         currentEntryMode = EntryMode.MAIN
         isDetailFromRecommend = false
         sessionToken = null
+        startLatLng = null
+        endLatLng = null
 
         binding.layoutRouteInputHeader.tvRouteStart.setText("")
         binding.layoutRouteInputHeader.tvRouteEnd.setText("")
@@ -318,6 +336,7 @@ class RouteFragment : Fragment() {
 
         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
         mapFrag?.clearMarkers()
+        mapFrag?.setMapPadding(0)
 
         if (::bottomSheetBehavior.isInitialized) {
             bottomSheetBehavior.isHideable = true
@@ -352,6 +371,71 @@ class RouteFragment : Fragment() {
 
         binding.routeSearchFcv.visibility = View.VISIBLE
         transaction.commitAllowingStateLoss()
+    }
+
+private fun selectCurrentLocation() {
+    if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        mainActivity?.checkPermissionAndStart()
+        return
+    }
+
+    val location = mainActivity?.myLocation
+
+    if (location == null) {
+        mainActivity?.startLocationUpdates()
+        return
+    }
+
+    val latLng = LatLng(location.latitude, location.longitude)
+    val geocoder = android.location.Geocoder(requireContext(), Locale.KOREAN)
+
+    lifecycleScope.launch(Dispatchers.IO) {
+        try {
+            @Suppress("DEPRECATION")
+            val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+            val fullAddress = addresses?.firstOrNull()?.getAddressLine(0)?.replace("대한민국 ", "") ?: "주소 미상"
+
+            withContext(Dispatchers.Main) {
+                applyCurrentLocationSelection(fullAddress, latLng)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            withContext(Dispatchers.Main) {
+                applyCurrentLocationSelection("현재 위치", latLng)
+            }
+        }
+    }
+}
+
+    private fun applyCurrentLocationSelection(address: String, latLng: LatLng) {
+        if (isSelectingStart) {
+            selectedStartPlace = Pair(address, "내 위치")
+            startLatLng = latLng
+            binding.layoutRouteInputHeader.tvRouteStart.text = address
+            updateClearButtonVisibility()
+        } else {
+            selectedEndPlace = Pair(address, "내 위치")
+            endLatLng = latLng
+            binding.layoutRouteInputHeader.tvRouteEnd.text = address
+            updateClearButtonVisibility()
+        }
+
+        hideKeyboard()
+        mainBinding?.searchEt?.clearFocus()
+        mainBinding?.searchEt?.setText("")
+
+        val transaction = childFragmentManager.beginTransaction()
+        if (historyFragment.isAdded) transaction.hide(historyFragment)
+        if (recommendFragment.isAdded) transaction.hide(recommendFragment)
+        transaction.commitAllowingStateLoss()
+
+        binding.routeSearchFcv.visibility = View.GONE
+
+        currentEntryMode = EntryMode.ROUTE_PLAN
+        binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
+        mainBinding?.mainToolbar?.visibility = View.GONE
+
+        showSearchRouteFragment()
     }
 
     private fun setupSearchTextWatcher() {
@@ -482,14 +566,37 @@ class RouteFragment : Fragment() {
 
         binding.layoutRouteInputHeader.btnStartClear.setOnClickListener {
             selectedStartPlace = null
+            startLatLng = null
             binding.layoutRouteInputHeader.tvRouteStart.text = ""
             updateClearButtonVisibility()
+
+            showSearchRouteFragment()
         }
 
         binding.layoutRouteInputHeader.btnEndClear.setOnClickListener {
             selectedEndPlace = null
+            endLatLng = null
             binding.layoutRouteInputHeader.tvRouteEnd.text = ""
             updateClearButtonVisibility()
+
+            showSearchRouteFragment()
+        }
+
+        binding.layoutRouteInputHeader.btnSwapLocation.setOnClickListener {
+            val tempPlace = selectedStartPlace
+            selectedStartPlace = selectedEndPlace
+            selectedEndPlace = tempPlace
+
+            val tempLatLng = startLatLng
+            startLatLng = endLatLng
+            endLatLng = tempLatLng
+
+            binding.layoutRouteInputHeader.tvRouteStart.text = selectedStartPlace?.first ?: ""
+            binding.layoutRouteInputHeader.tvRouteEnd.text = selectedEndPlace?.first ?: ""
+
+            updateClearButtonVisibility()
+
+            showSearchRouteFragment()
         }
 
         binding.layoutRouteInputHeader.btnRouteBack.setOnClickListener {
@@ -514,12 +621,12 @@ class RouteFragment : Fragment() {
     }
 
     private fun setupOnBackPressed() {
-        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, object : OnBackPressedCallback(true) {
+        backPressedCallback = object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                // 상단 버튼 클릭과 동일한 로직 실행
                 handleCustomBackClick()
             }
-        })
+        }
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backPressedCallback)
     }
 
     private fun handleCustomBackClick() {
@@ -592,9 +699,14 @@ class RouteFragment : Fragment() {
         }
 
         // 7. 앱 종료
-        backPressedCallback.isEnabled = false
-        requireActivity().onBackPressedDispatcher.onBackPressed()
-        backPressedCallback.isEnabled = true
+        if (::backPressedCallback.isInitialized) {
+            backPressedCallback.isEnabled = false
+            requireActivity().onBackPressedDispatcher.onBackPressed()
+            backPressedCallback.isEnabled = true
+        } else {
+            // 콜백이 혹시 초기화 안 됐다면 그냥 기본 뒤로가기 수행
+            requireActivity().onBackPressedDispatcher.onBackPressed()
+        }
     }
 
     @Suppress("DEPRECATION")
@@ -675,14 +787,15 @@ class RouteFragment : Fragment() {
             }
         }
 
-        val context = context ?: return
-        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             performSearch(LatLng(37.5665, 126.9780))
             return
         }
-        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-            if (isAdded) performSearch(location?.let { LatLng(it.latitude, it.longitude) } ?: LatLng(37.5665, 126.9780))
-        }
+
+        val myLocation = mainActivity?.myLocation
+        val origin = if (myLocation != null) LatLng(myLocation.latitude, myLocation.longitude) else LatLng(37.5665, 126.9780)
+
+        performSearch(origin)
     }
 
     @Suppress("DEPRECATION")
@@ -743,17 +856,7 @@ class RouteFragment : Fragment() {
         if (savedLocation != null) {
             requestSearch(LatLng(savedLocation.latitude, savedLocation.longitude))
         } else {
-            if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-                    if (location != null) {
-                        requestSearch(LatLng(location.latitude, location.longitude))
-                    } else {
-                        requestSearch(LatLng(37.5665, 126.9780))
-                    }
-                }
-            } else {
-                requestSearch(LatLng(37.5665, 126.9780))
-            }
+            requestSearch(LatLng(37.5665, 126.9780))
         }
     }
 
@@ -846,6 +949,7 @@ class RouteFragment : Fragment() {
     }
 
     private fun showLocationDetail(item: SearchItem) {
+        saveRecentPlace(item)
         val isCalendarMode = currentEntryMode == EntryMode.CALENDAR
 
         val detailFragment = LocationDetailFragment.newInstance(item, isCalendarMode)
@@ -875,6 +979,59 @@ class RouteFragment : Fragment() {
         }
     }
 
+    fun handleHistoryItemClick(item: RecentHistoryItem){
+        when (item.type) {
+            RecentHistoryItem.TYPE_SEARCH_TEXT -> {
+                // [CASE 1] 최근 검색어 아이템 클릭 시
+                // 1. 검색창 텍스트 설정 및 키보드 숨기기
+                mainBinding?.searchEt?.setText(item.mainText)
+                hideKeyboard()
+                mainBinding?.searchEt?.clearFocus()
+
+                // 2. 해당 검색어로 즉시 결과 조회
+                currentRankPreference = SearchByTextRequest.RankPreference.RELEVANCE
+                searchFinalResults(item.mainText)
+            }
+
+            RecentHistoryItem.TYPE_PLACE -> {
+                val place = item.placeEntity ?: return
+
+                saveRecentPlace(SearchItem(
+                    placeId = place.placeId,
+                    name = place.name,
+                    address = place.address,
+                    category = place.category,
+                    lat = place.lat,
+                    lng = place.lng,
+                    distance = ""
+                ))
+
+                when (currentEntryMode) {
+                    EntryMode.ROUTE_PLAN -> {
+                        // [상태 A] 경로 계획 모드(출발/도착지 설정 중)인 경우
+                        // 현재 선택 중인 칸(isSelectingStart 여부)에 따라 자동 입력
+                        onLocationSelected(place.name, place.placeId, isSelectingStart)
+                    }
+                    else -> {
+                        val searchItem = SearchItem(
+                            placeId = place.placeId,
+                            name = place.name,
+                            address = place.address,
+                            category = place.category,
+                            openStatus = place.openStatus,
+                            lat = place.lat,
+                            lng = place.lng,
+                            distance = ""
+                        )
+
+                        exitSearchMode()
+                        showLocationDetail(searchItem)
+                    }
+                }
+            }
+        }
+    }
+
     private fun setMapPaddingToBottomSheetHeight() {
         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment ?: return
 
@@ -886,35 +1043,47 @@ class RouteFragment : Fragment() {
         mapFrag.setMapPadding(halfHeight)
     }
 
-    private fun setupMyLocationButton() {
-        binding.btnGoMyLocation.setOnClickListener {
-            // 1. 권한 체크
-            if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED) {
-                mainActivity?.checkPermissionAndStart()
-                return@setOnClickListener
-            }
+private fun setupMyLocationButton() {
+    binding.btnGoMyLocation.setOnClickListener {
+        if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            mainActivity?.checkPermissionAndStart()
+            return@setOnClickListener
+        }
 
-            // 2. 위치 가져오기
-            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-                if (location == null) {
-                    mainActivity?.startLocationUpdates()
-                    return@addOnSuccessListener
-                }
+        val location = mainActivity?.myLocation
 
-                val targetLocation = LatLng(location.latitude, location.longitude)
+        if (location == null) {
+            mainActivity?.startLocationUpdates()
+            return@setOnClickListener
+        }
 
-                // 3. MapFragment 내부의 구글 맵 객체에 직접 접근
-                // route_map_fcv에 replace된 것은 MapFragment입니다.
-                val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+        val targetLocation = LatLng(location.latitude, location.longitude)
+        val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+        val supportMapFrag = mapFrag?.childFragmentManager?.findFragmentById(R.id.google_map_container) as? SupportMapFragment
+        supportMapFrag?.getMapAsync { googleMap ->
+            googleMap.animateCamera(com.google.android.gms.maps.CameraUpdateFactory.newLatLngZoom(targetLocation, 15f))
+        }
+    }
+}
+    private fun saveRecentSearch(query: String){
+        lifecycleScope.launch(Dispatchers.IO) {
+            repository.insertSearch(query)
+        }
+    }
+    private fun saveRecentPlace(item: SearchItem) {
+        val recentPlace = RecentPlace(
+            placeId = item.placeId,
+            name = item.name,
+            address = item.address,
+            category = item.category,
+            openStatus = item.openStatus ?: "",
+            lat = item.lat,
+            lng = item.lng,
+            timestamp = System.currentTimeMillis()
+        )
 
-                // MapFragment의 childFragmentManager에서 진짜 SupportMapFragment를 찾음
-                val supportMapFrag = mapFrag?.childFragmentManager?.findFragmentById(R.id.google_map_container) as? SupportMapFragment
-
-                supportMapFrag?.getMapAsync { googleMap ->
-                    googleMap.animateCamera(com.google.android.gms.maps.CameraUpdateFactory.newLatLngZoom(targetLocation, 15f))
-                }
-            }
+        lifecycleScope.launch(Dispatchers.IO) {
+            repository.insertPlace(recentPlace)
         }
     }
 
@@ -935,23 +1104,59 @@ class RouteFragment : Fragment() {
     private fun convertTypeToKorean(types: List<String>): String {
         return when {
             types.contains("subway_station") -> "지하철역"
-            types.contains("restaurant") || types.contains("food") -> "음식점"
-            types.contains("cafe") -> "카페"
+            types.contains("train_station") -> "기차역"
+            types.contains("bus_station") -> "버스정류장"
+            types.contains("transit_station") -> "교통/역"
+
+            types.contains("lodging") || types.contains("hotel") -> "숙박"
+            types.contains("hospital") -> "병원"
+            types.contains("university") -> "대학교"
+            types.contains("school") -> "학교"
+            types.contains("gym") || types.contains("health") -> "운동/헬스"
+            types.contains("bank") || types.contains("atm") -> "은행/ATM"
             types.contains("park") -> "공원"
+
+            types.contains("pharmacy") -> "약국"
+            types.contains("bakery") -> "제과점"
+            types.contains("cafe") -> "카페"
+            types.contains("bar") -> "술집"
+
+            types.contains("restaurant") || types.contains("food") -> "음식점"
+
+            types.contains("convenience_store") -> "편의점"
+            types.contains("clothing_store") -> "의류"
+
+            types.contains("store") || types.contains("shopping_mall") -> "상점/쇼핑"
+
             else -> "기타장소"
         }
     }
 
-    private fun calculateDistance(dest: LatLng?): String {
+    fun calculateDistance(dest: LatLng?): String {
         val myLoc = mainActivity?.myLocation ?: return ""
         val destLoc = android.location.Location("dest").apply { latitude = dest?.latitude ?: 0.0; longitude = dest?.longitude ?: 0.0 }
         val dist = myLoc.distanceTo(destLoc)
         return if (dist >= 1000) String.format("%.1fkm", dist / 1000.0) else "${dist.toInt()}m"
     }
 
-    private fun getPlaceStatus(place: Place): String {
+    fun getPlaceStatus(place: Place): String {
         if (place.businessStatus == Place.BusinessStatus.CLOSED_PERMANENTLY) return "운영 중단"
-        return if (place.isOpen(System.currentTimeMillis()) == true) "영업 중" else "영업 종료"
+        return try {
+            // 현재 시간을 기준으로 영업 여부 확인
+            if (place.isOpen(System.currentTimeMillis()) == true) {
+                "영업 중"
+            } else {
+                "영업 종료"
+            }
+        } catch (e: Exception) {
+            // SDK 내부에서 Invalid range 에러가 발생할 경우 기본값 반환
+            e.printStackTrace()
+            "정보 없음"
+        }
+    }
+
+    fun getCurrentLocation(): android.location.Location? {
+        return (activity as? MainActivity)?.myLocation
     }
 
     override fun onPause() {
