@@ -15,6 +15,7 @@ class SearchHistoryFragment : Fragment() {
     private val binding get() = _binding!!
 
     var onRouteOptionClick: ((isMyLocation: Boolean) -> Unit)? = null
+    private var lastRouteHeaderState: Boolean = false
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -38,7 +39,6 @@ class SearchHistoryFragment : Fragment() {
                 R.id.chip_recent_place -> replaceChildFragment(RecentPlaceFragment())
                 R.id.chip_recent_route -> { /* 최근 경로 프래그먼트 */ }
                 R.id.chip_saved -> { /* 저장됨 프래그먼트 */ }
-                R.id.chip_route_history -> { /* 경로 히스토리 프래그먼트 */ }
                 R.id.chip_setting -> {}
             }
         }
@@ -51,6 +51,8 @@ class SearchHistoryFragment : Fragment() {
             val parent = parentFragment as? RouteFragment
             parent?.onSelectOnMapSelected()
         }
+
+        updateChipsForScheduleMode(lastRouteHeaderState)
     }
 
     override fun onResume() {
@@ -86,8 +88,31 @@ class SearchHistoryFragment : Fragment() {
         }
     }
 
+    fun updateChipsForScheduleMode(isRouteHeaderVisible: Boolean) {
+        this.lastRouteHeaderState = isRouteHeaderVisible
+        if (_binding == null) return
+
+        if (isRouteHeaderVisible) {
+            binding.chipRecentSearch.visibility = View.GONE
+            binding.chipRecentRoute.visibility = View.VISIBLE
+
+            if (binding.chipRecentSearch.isChecked) {
+                binding.chipRecentPlace.isChecked = true
+                replaceChildFragment(RecentPlaceFragment())
+            }
+        } else {
+            binding.chipRecentSearch.visibility = View.VISIBLE
+            binding.chipRecentRoute.visibility = View.GONE
+
+            if (binding.chipRecentRoute.isChecked) {
+                binding.chipRecentSearch.isChecked = true
+                replaceChildFragment(RecentSearchFragment())
+            }
+        }
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
-        _binding = null // 메모리 누수 방지
+        _binding = null
     }
 }

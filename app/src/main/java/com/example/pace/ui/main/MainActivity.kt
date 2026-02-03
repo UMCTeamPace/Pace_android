@@ -74,6 +74,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIntent(intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -115,6 +121,8 @@ class MainActivity : AppCompatActivity() {
         binding.mainSettingsIv.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
+
+        handleIntent(intent)
     }
 
     private fun checkCalendarPermissions() {
@@ -130,7 +138,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ★ [위치] 화면이 보일 때 업데이트 재개
     override fun onResume() {
         super.onResume()
         // Resume location updates
@@ -142,13 +149,11 @@ class MainActivity : AppCompatActivity() {
         viewModel.refreshSchedules()
     }
 
-    // ★ [위치] 화면이 안 보일 때 배터리 절약을 위해 중지
     override fun onPause() {
         super.onPause()
         fusedLocationClient.removeLocationUpdates(locationCallback)
     }
 
-    // ★ [위치] 권한 체크 및 업데이트 시작 요청 (MapFragment 등에서 호출)
     fun checkPermissionAndStart() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             startLocationUpdates()
@@ -157,14 +162,19 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ★ [위치] 실제 업데이트 시작 함수
     @SuppressLint("MissingPermission")
     fun startLocationUpdates() {
-        // 10초마다, 혹은 10m 이동 시 갱신
+        // 2초마다, 혹은 2m 이동 시 갱신
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 2000)
             .setMinUpdateDistanceMeters(2f)
             .build()
         fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        if (intent?.getStringExtra("ACTION_MODE") == "SCHEDULE") {
+            binding.mainBnv.selectedItemId = R.id.route
+        }
     }
 
 
