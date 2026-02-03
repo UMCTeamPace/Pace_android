@@ -201,7 +201,7 @@ class GeneralScheduleFragment : Fragment() {
     }
 
     private fun initTimePickers() {
-        // (00 ~ 23)
+
         binding.pickerHour.apply {
             minValue = 0
             maxValue = 23
@@ -211,7 +211,6 @@ class GeneralScheduleFragment : Fragment() {
             wrapSelectorWheel = true
         }
 
-        // (00 ~ 59)
         binding.pickerMinute.apply {
             minValue = 0
             maxValue = 59
