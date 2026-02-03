@@ -26,6 +26,17 @@ class GeneralScheduleFragment : Fragment() {
 
     private var isAllDay = true
 
+    private val routeSearchLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val data = result.data
+            val name = data?.getStringExtra("placeName")
+            val id = data?.getStringExtra("placeId")
+            Toast.makeText(context, "선택된 장소: $name, 선택된 아이디: $id", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setFragmentResultListener("repeatKey") { _, bundle ->
@@ -190,6 +201,13 @@ class GeneralScheduleFragment : Fragment() {
             }
 
             updateTimeVisibility()
+        }
+
+        binding.btnRoute.setOnClickListener {
+            val intent = android.content.Intent(requireContext(), com.example.pace.ui.main.MainActivity::class.java).apply {
+                putExtra("ACTION_MODE", "SCHEDULE")
+            }
+            routeSearchLauncher.launch(intent)
         }
 
     }

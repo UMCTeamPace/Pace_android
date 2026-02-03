@@ -100,6 +100,11 @@ class LocationDetailFragment : Fragment() {
             val parent = parentFragment as? RouteFragment
             parent?.onLocationSelected(name, placeId, isStart = false)
         }
+
+        binding.icSelectLocation.setOnClickListener {
+            val parent = parentFragment as? RouteFragment
+            parent?.onScheduleLocationSelected(name, placeId)
+        }
     }
 
     private fun updateMetaInfoText(category: String, distance: String, address: String) {

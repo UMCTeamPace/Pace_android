@@ -62,8 +62,9 @@ class RouteFragment : Fragment() {
 
     enum class EntryMode {
         MAIN,
-        CALENDAR,
-        ROUTE_PLAN
+        ROUTE_PLAN,
+        SCHEDULE,
+        SCHEDULE_ROUTE
     }
     private var currentEntryMode = EntryMode.MAIN
 
@@ -127,6 +128,12 @@ class RouteFragment : Fragment() {
         setupRouteHeaderListeners()
         setupMapSelectListeners()
         setupMyLocationButton()
+
+        val activityIntent = requireActivity().intent
+        if (activityIntent?.getStringExtra("ACTION_MODE") == "SCHEDULE") {
+            startScheduleMode()
+            activityIntent.removeExtra("ACTION_MODE")
+        }
     }
 
     private fun setupMainActivityListeners() {
@@ -163,6 +170,15 @@ class RouteFragment : Fragment() {
         }
     }
 
+    fun startScheduleMode() {
+        if (_binding == null || !isAdded || view == null) return
+
+        currentEntryMode = EntryMode.SCHEDULE
+
+        enterSearchMode()
+
+    }
+
     // 출발/도착 눌렀을 때 (디테일에서)
     fun onLocationSelected(itemName: String, placeId: String, isStart: Boolean) {
         val detailFrag = childFragmentManager.findFragmentByTag("DETAIL")
@@ -190,13 +206,28 @@ class RouteFragment : Fragment() {
         }
 
         // 2. 경로 탐색 모드 헤더
-        currentEntryMode = EntryMode.ROUTE_PLAN
+        if(currentEntryMode == EntryMode.MAIN){
+            currentEntryMode = EntryMode.ROUTE_PLAN
+        }
         binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
         binding.layoutRouteInputHeader.root.bringToFront()
         mainBinding?.mainToolbar?.visibility = View.GONE
         mainBinding?.searchEt?.setText("")
 
         showSearchRouteFragment()
+    }
+
+    fun onScheduleLocationSelected(name: String, placeId: String) {
+        val resultIntent = android.content.Intent().apply {
+            putExtra("placeName", name)
+            putExtra("placeId", placeId)
+        }
+
+        // 2. 결과 설정 (RESULT_OK)
+        requireActivity().setResult(android.app.Activity.RESULT_OK, resultIntent)
+
+        binding.routeMapFcv.visibility = View.GONE
+        requireActivity().finish()
     }
 
     private fun setupMapSelectListeners() {
@@ -288,7 +319,7 @@ class RouteFragment : Fragment() {
         val targetFragment = if (query.isNotEmpty()) recommendFragment else historyFragment
 
         if (targetFragment is SearchHistoryFragment) {
-            val isRoutePlan = (currentEntryMode == EntryMode.ROUTE_PLAN)
+            val isRoutePlan = (currentEntryMode == EntryMode.ROUTE_PLAN || currentEntryMode==EntryMode.SCHEDULE_ROUTE)
             targetFragment.setRouteOptionsVisible(isRoutePlan)
 
             targetFragment.onRouteOptionClick = { isMyLocation ->
@@ -296,6 +327,8 @@ class RouteFragment : Fragment() {
                     selectCurrentLocation()
                 }
             }
+
+            targetFragment.updateChipsForScheduleMode(isRouteHeaderVisible = false)
         }
 
         showSearchFragment(targetFragment)
@@ -314,7 +347,9 @@ class RouteFragment : Fragment() {
         selectedStartPlace = null
         selectedEndPlace = null
         selectedCalendarPlace = null
-        currentEntryMode = EntryMode.MAIN
+        if(currentEntryMode == EntryMode.ROUTE_PLAN){
+            currentEntryMode = EntryMode.MAIN
+        }
         isDetailFromRecommend = false
         sessionToken = null
         startLatLng = null
@@ -433,7 +468,9 @@ private fun selectCurrentLocation() {
 
         binding.routeSearchFcv.visibility = View.GONE
 
-        currentEntryMode = EntryMode.ROUTE_PLAN
+        if (currentEntryMode == EntryMode.MAIN) {
+                currentEntryMode = EntryMode.ROUTE_PLAN
+        }
         binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
         mainBinding?.mainToolbar?.visibility = View.GONE
 
@@ -476,7 +513,7 @@ private fun selectCurrentLocation() {
         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
         mapFrag?.clearMarkers()
 
-        if(currentEntryMode == EntryMode.ROUTE_PLAN){
+        if(currentEntryMode == EntryMode.ROUTE_PLAN || currentEntryMode == EntryMode.SCHEDULE_ROUTE){
             onLocationSelected(item.name, item.placeId, isSelectingStart)
 
             val transaction = childFragmentManager.beginTransaction()
@@ -541,10 +578,11 @@ private fun selectCurrentLocation() {
                 transaction.show(historyFragment)
             }
 
+            historyFragment.updateChipsForScheduleMode(isRouteHeaderVisible = true)
+
             if (recommendFragment.isAdded) transaction.hide(recommendFragment)
         }
 
-        // 트랜잭션 실행
         transaction.commitAllowingStateLoss()
 
         binding.routeSearchFcv.visibility = View.VISIBLE
@@ -603,8 +641,8 @@ private fun selectCurrentLocation() {
 
         binding.layoutRouteInputHeader.btnRouteBack.setOnClickListener {
 
-            if (currentEntryMode == EntryMode.CALENDAR) {
-                // 캘린더로 돌아가기? 아니면 장소검색으로?
+            if(currentEntryMode == EntryMode.SCHEDULE_ROUTE){
+
             }
             else{
                 exitSearchMode()
@@ -631,13 +669,19 @@ private fun selectCurrentLocation() {
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backPressedCallback)
     }
 
-    private fun handleCustomBackClick() {
-        // 1. 키보드
+    private fun handleCustomBackClick(){
         if (isKeyboardVisible()) {
             hideKeyboard()
             return
         }
+        if (currentEntryMode == EntryMode.SCHEDULE || currentEntryMode == EntryMode.SCHEDULE_ROUTE) {
+            handleScheduleBackClick()
+        } else {
+            handleMainBackClick()
+        }
+    }
 
+    private fun handleMainBackClick() {
         if (binding.layoutRouteInputHeader.root.visibility == View.VISIBLE) {
             exitSearchMode()
             return // 앱 종료 방지
@@ -717,6 +761,82 @@ private fun selectCurrentLocation() {
             // 콜백이 혹시 초기화 안 됐다면 그냥 기본 뒤로가기 수행
             requireActivity().onBackPressedDispatcher.onBackPressed()
         }
+    }
+
+    private fun handleScheduleBackClick(){
+        if (binding.layoutMapSelectOverlay.visibility == View.VISIBLE) {
+            binding.layoutMapSelectOverlay.visibility = View.GONE
+            selectedCalendarPlace = null
+            enterSearchMode()
+            return
+        }
+
+        // 3. 상세 정보(Detail) 바텀시트
+        val detailFrag = childFragmentManager.findFragmentByTag("DETAIL")
+        if (detailFrag != null && detailFrag.isVisible) {
+            childFragmentManager.popBackStack()
+            bottomSheetBehavior.isDraggable = true
+            if (isDetailFromRecommend) {
+                bottomSheetBehavior.isHideable = true
+                bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+                enterSearchMode()
+            } else {
+                bottomSheetBehavior.isHideable = false
+                val density = resources.displayMetrics.density
+                bottomSheetBehavior.peekHeight = (130 * density).toInt()
+                bottomSheetBehavior.expandedOffset = 0
+                bottomSheetBehavior.isFitToContents = false
+                bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
+
+                setMapPaddingToBottomSheetHeight()
+            }
+            val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+            mapFrag?.restoreAllMarkers()
+            return
+        }
+
+        if (isBottomSheetVisible()) {
+            bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+            enterSearchMode()
+            return
+        }
+
+        val isRouteHeaderVisible = binding.layoutRouteInputHeader.root.visibility == View.VISIBLE
+
+        if (isRouteHeaderVisible) {
+            activity?.finish()
+            return
+        }
+
+        if (isSearchMode()) {
+
+            if (currentEntryMode == EntryMode.SCHEDULE_ROUTE) {
+
+                if (selectedStartPlace == null && selectedEndPlace == null) {
+                    exitSearchMode()
+                }
+                else {
+                    hideKeyboard()
+                    mainBinding?.searchEt?.clearFocus()
+                    mainBinding?.searchEt?.setText("")
+
+                    showSearchRouteFragment()
+
+                    binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
+                    mainBinding?.mainToolbar?.visibility = View.GONE
+
+                    historyFragment.setRouteOptionsVisible(false)
+                }
+                return
+            }
+
+            exitSearchMode()
+            binding.routeMapFcv.visibility = View.GONE
+            activity?.finish()
+            return
+        }
+
+        activity?.finish()
     }
 
     @Suppress("DEPRECATION")
@@ -980,9 +1100,9 @@ private fun selectCurrentLocation() {
 
     private fun showLocationDetail(item: SearchItem) {
         saveRecentPlace(item)
-        val isCalendarMode = currentEntryMode == EntryMode.CALENDAR
+        val isSchedule = currentEntryMode == EntryMode.SCHEDULE
 
-        val detailFragment = LocationDetailFragment.newInstance(item, isCalendarMode)
+        val detailFragment = LocationDetailFragment.newInstance(item, isSchedule)
 
         childFragmentManager.beginTransaction()
             .replace(R.id.bottom_sheet_container, detailFragment, "DETAIL")
@@ -1013,13 +1133,10 @@ private fun selectCurrentLocation() {
     fun handleHistoryItemClick(item: RecentHistoryItem){
         when (item.type) {
             RecentHistoryItem.TYPE_SEARCH_TEXT -> {
-                // [CASE 1] 최근 검색어 아이템 클릭 시
-                // 1. 검색창 텍스트 설정 및 키보드 숨기기
                 mainBinding?.searchEt?.setText(item.mainText)
                 hideKeyboard()
                 mainBinding?.searchEt?.clearFocus()
-
-                // 2. 해당 검색어로 즉시 결과 조회
+                saveRecentSearch(item.mainText)
                 currentRankPreference = SearchByTextRequest.RankPreference.RELEVANCE
                 searchFinalResults(item.mainText)
             }
