@@ -174,12 +174,6 @@ class MainActivity : AppCompatActivity() {
     private fun handleIntent(intent: Intent?) {
         if (intent?.getStringExtra("ACTION_MODE") == "SCHEDULE") {
             binding.mainBnv.selectedItemId = R.id.route
-
-            val currentFragment = supportFragmentManager.findFragmentById(R.id.main_fcv)
-            if (currentFragment is RouteFragment && currentFragment.isResumed) {
-                currentFragment.startScheduleMode()
-                intent.removeExtra("ACTION_MODE")
-            }
         }
     }
 

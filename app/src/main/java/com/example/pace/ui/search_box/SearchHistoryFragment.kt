@@ -107,9 +107,6 @@ class SearchHistoryFragment : Fragment() {
             if (binding.chipRecentRoute.isChecked) {
                 binding.chipRecentSearch.isChecked = true
                 replaceChildFragment(RecentSearchFragment())
-            } else{
-                binding.chipRecentSearch.isChecked = true
-                replaceChildFragment(RecentSearchFragment())
             }
         }
     }
