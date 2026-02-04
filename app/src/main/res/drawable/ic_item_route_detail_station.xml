@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/ic_item_route_detail_station"
+    android:shape="oval">
+    <solid android:color="@color/route_metropolitan_bus"/>
+</shape>
