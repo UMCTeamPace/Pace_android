@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal">
+    <ImageView
+        android:id="@+id/item_route_detail_station_iv"
+        android:layout_width="8dp"
+        android:layout_height="8dp"
+        android:src="@drawable/ic_item_route_detail_station"
+        android:layout_marginTop="20dp"/>
+    <TextView
+        android:id="@+id/item_route_detail_station_tv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="성안길입구"
+        android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
+        style="@style/TextColor.Secondary"
+        android:layout_marginTop="12dp"
+        android:layout_marginStart="22.07dp"/>
+</LinearLayout>
