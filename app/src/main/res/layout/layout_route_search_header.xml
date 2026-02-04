@@ -166,4 +166,47 @@
             app:layout_constraintBottom_toBottomOf="@id/layout_end_input" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_filter_options"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="20dp"
+        android:layout_marginTop="16dp">
+
+        <TextView
+            android:id="@+id/tv_time_filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="오늘 13시 도착"
+            android:textColor="@color/primary_500"
+            android:textSize="14sp"
+            android:fontFamily="@font/pretendard_semibold"
+            android:drawableEnd="@drawable/ic_arrow_down"
+            android:drawablePadding="4dp"
+            android:background="?attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            app:drawableTint="#A2BD3B"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"/>
+
+        <TextView
+            android:id="@+id/tv_sort_filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="최적 경로순"
+            android:textColor="@color/gray_600"
+            android:textSize="14sp"
+            android:fontFamily="@font/pretendard_medium"
+            android:drawableEnd="@drawable/ic_arrow_down"
+            android:drawablePadding="4dp"
+            android:background="?attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            app:drawableTint="@color/gray_600"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"/>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 </LinearLayout>
