@@ -13,6 +13,7 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"/>
     <View
+        android:id="@+id/item_route_detail_vehicle_view"
         android:layout_width="2dp"
         android:layout_height="0dp"
         android:background="@color/route_metropolitan_bus"
