@@ -1320,7 +1320,7 @@ private fun selectCurrentLocation() {
                 && bottomSheetBehavior.state != BottomSheetBehavior.STATE_COLLAPSED) {
 
                 bottomSheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
-                mapFrag.setMapPadding(bottomSheetBehavior.peekHeight)
+                mapFrag!!.setMapPadding(bottomSheetBehavior.peekHeight)
             }
         }
 
