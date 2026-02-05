@@ -12,7 +12,11 @@ class PaceApplication : Application() {
     lateinit var repository: ScheduleRepository
 
     val searchDatabase by lazy { SearchDatabase.getDatabase(this) }
-    val searchRepository by lazy { SearchRepository(searchDatabase.searchDao()) }
+    val searchRepository by lazy {
+        SearchRepository(searchDatabase.searchDao(),
+            searchDatabase.recentRouteDao()
+        )
+    }
 
     override fun onCreate() {
         super.onCreate()

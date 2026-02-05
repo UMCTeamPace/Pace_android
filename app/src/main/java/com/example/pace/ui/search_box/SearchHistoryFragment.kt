@@ -33,7 +33,7 @@ class SearchHistoryFragment : Fragment() {
             when (checkedIds.firstOrNull()) {
                 R.id.chip_recent_search -> replaceChildFragment(RecentSearchFragment())
                 R.id.chip_recent_place -> replaceChildFragment(RecentPlaceFragment())
-                R.id.chip_recent_route -> { /* 최근 경로 프래그먼트 */ }
+                R.id.chip_recent_route -> replaceChildFragment(RecentRouteFragment())
                 R.id.chip_saved -> { /* 저장됨 프래그먼트 */ }
                 R.id.chip_setting -> {}
             }
