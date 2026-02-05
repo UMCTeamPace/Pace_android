@@ -209,7 +209,14 @@ class RouteFragment : Fragment() {
         scheduleColor = intent.getStringExtra("SCHEDULE_COLOR") ?: "#DC354B"
         scheduleTime = intent.getStringExtra("SCHEDULE_TIME") ?: "00:00"
         earlyArriveTime = intent.getIntExtra("EARLY_ARRIVE_TIME", 10)
-        val sortString = intent.getStringExtra("SORT_OPTION") ?: "최적 경로순"
+        val sortNum = intent.getIntExtra("SORT_OPTION", 0)
+        val sortString = when (sortNum) {
+            0 -> "최적 경로순"
+            1 -> "최소 시간순"
+            2 -> "최소 환승순"
+            3 -> "최소 도보순"
+            else -> "최적 경로순"
+        }
         currentSortOption = RouteSortOption.values().find { it.uiText == sortString }
             ?: RouteSortOption.BEST
         searchTime = intent.getStringExtra("SEARCH_TIME") ?: ""
@@ -398,7 +405,14 @@ class RouteFragment : Fragment() {
                 putExtra("endPlaceName", selectedEndPlace?.first)
                 putExtra("endPlaceId", selectedEndPlace?.second)
                 putExtra("earlyArriveTime", earlyArriveTime)
-                putExtra("sortOption", currentSortOption.uiText)
+                val sortNum = when (currentSortOption) {
+                    RouteSortOption.BEST -> 0
+                    RouteSortOption.TIME -> 1
+                    RouteSortOption.TRANSFER -> 2
+                    RouteSortOption.WALK -> 3
+                    else -> 1
+                }
+                putExtra("sortOption", sortNum)
                 putExtra("routeData", Gson().toJson(item))
             }
 
@@ -1600,8 +1614,8 @@ private fun setupMyLocationButton() {
 }
 
 enum class RouteSortOption(val uiText: String, val apiValue: String) {
-    BEST("최적 경로순", "BEST"),
-    TIME("최소 시간순", "TIME"),
-    TRANSFER("최소 환승순", "TRANSFER"),
-    WALK("최소 도보순", "WALK")
+    BEST("최적 경로순", "EFFICIENT"),
+    TIME("최소 시간순", "MIN_TIME"),
+    TRANSFER("최소 환승순", "MIN_TRANSFER"),
+    WALK("최소 도보순", "MIN_WALK")
 }
