@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.ksp)
     id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
+    id("com.google.dagger.hilt.android")
 }
 
 android {
@@ -94,4 +95,19 @@ dependencies {
     // Navigation
     implementation("androidx.navigation:navigation-fragment-ktx:2.7.7")
     implementation("androidx.navigation:navigation-ui-ktx:2.7.7")
+
+    //splash
+    implementation("com.airbnb.android:lottie:6.4.0")
+
+    // Dots Indicator
+    implementation("com.tbuonomo:dotsindicator:4.3")
+
+    //Hilt
+    implementation("com.google.dagger:hilt-android:2.50")
+    ksp("com.google.dagger:hilt-compiler:2.50")
+
+    // Retrofit 라이브러리
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    // JSON 변환을 위한 Gson 컨버터
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 }
