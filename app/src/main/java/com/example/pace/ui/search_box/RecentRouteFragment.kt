@@ -10,20 +10,20 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.pace.data.db.SearchDatabase
-import com.example.pace.data.model.RecentHistoryItem
 import com.example.pace.data.repository.SearchRepository
-import com.example.pace.databinding.FragmentRecentSearchBinding
+import com.example.pace.databinding.FragmentRecentRouteBinding
 import com.example.pace.ui.main.route.RouteFragment
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-class RecentSearchFragment : Fragment() {
-    private var _binding: FragmentRecentSearchBinding? = null
+class RecentRouteFragment : Fragment() {
+    private var _binding: FragmentRecentRouteBinding? = null
     private val binding get() = _binding!!
     private lateinit var repository: SearchRepository
-    private lateinit var historyAdapter: RecentHistoryAdapter
+    private lateinit var routeAdapter: RecentRouteAdapter
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
-        _binding = FragmentRecentSearchBinding.inflate(inflater, container, false)
+        _binding = FragmentRecentRouteBinding.inflate(inflater, container, false)
         return binding.root
     }
 
@@ -42,15 +42,18 @@ class RecentSearchFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        // 어댑터 생성 (삭제 버튼은 아직 없으므로 빈 람다 전달)
-        historyAdapter = RecentHistoryAdapter(
-            onItemClick = { item ->
-                (parentFragment?.parentFragment as? RouteFragment)?.handleHistoryItemClick(item)
+        routeAdapter = RecentRouteAdapter(
+            onItemClick = { route ->
+                // RouteFragment 출발지 채우는 로직
             },
-            onDeleteClick = { /* 삭제 로직 미구현 */ }
+            onDeleteClick = { route ->
+//                viewLifecycleOwner.lifecycleScope.launch {
+//                    SearchDatabase.getDatabase(requireContext()).recentRouteDao().deleteRecentRoute(route)
+//                }
+            }
         )
-        binding.rvRecentSearch.apply {
-            adapter = historyAdapter
+        binding.rvRecentRoute.apply {
+            adapter = routeAdapter
             layoutManager = LinearLayoutManager(context)
         }
     }
@@ -58,10 +61,19 @@ class RecentSearchFragment : Fragment() {
     private fun observeData() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                repository.allHistory.collect { historyList ->
-                    historyAdapter.submitList(historyList) // DB 변경 시 자동 호출됨
+                SearchDatabase.getDatabase(requireContext()).recentRouteDao().getRecentRoutes().collect { routes ->
+                    routeAdapter.submitList(routes)
                 }
             }
+        }
+    }
+
+    private fun cleanUpOldRoutes() {
+        val thirtyDaysInMillis = 30L * 24 * 60 * 60 * 1000
+        val threshold = System.currentTimeMillis() - thirtyDaysInMillis
+
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            SearchDatabase.getDatabase(requireContext()).recentRouteDao().deleteOldRoutes(threshold)
         }
     }
 

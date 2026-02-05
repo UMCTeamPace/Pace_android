@@ -1,5 +1,6 @@
 package com.example.pace.data.repository
 
+import com.example.pace.data.db.RecentRouteDao
 import com.example.pace.data.db.SearchDao
 import com.example.pace.data.model.RecentHistoryItem
 import com.example.pace.data.model.RecentPlace
@@ -7,7 +8,10 @@ import com.example.pace.data.model.RecentSearch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
-class SearchRepository(private val searchDao: SearchDao) {
+class SearchRepository(
+    private val searchDao: SearchDao,
+    private val recentRouteDao: RecentRouteDao
+) {
     val recentSearches: Flow<List<RecentSearch>> = searchDao.getRecentSearches()
 
     suspend fun insertSearch(query: String) {
@@ -53,5 +57,7 @@ class SearchRepository(private val searchDao: SearchDao) {
         val threshold = System.currentTimeMillis() - thirtyDaysInMillis
 
         searchDao.deleteOldPlaces(threshold)
+        searchDao.deleteOldSearches(threshold)
+        recentRouteDao.deleteOldRoutes(threshold)
     }
 }
