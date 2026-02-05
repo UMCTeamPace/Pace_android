@@ -16,7 +16,6 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.NumberPicker
 import android.widget.RadioGroup
-import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.core.app.ActivityCompat
 import androidx.core.view.ViewCompat
@@ -25,7 +24,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.example.pace.BuildConfig
 import com.example.pace.R
-import com.example.pace.data.db.RouteResponse
+import com.example.pace.data.model.RouteResponse
 import com.example.pace.data.db.SearchDatabase
 import com.example.pace.data.model.RecentHistoryItem
 import com.example.pace.data.model.RecentPlace
@@ -44,6 +43,7 @@ import com.google.android.libraries.places.api.net.PlacesClient
 import com.google.android.libraries.places.api.net.SearchByTextRequest
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -78,6 +78,8 @@ class RouteFragment : Fragment() {
     private var selectedStartPlace: Pair<String, String>? = null
     private var selectedEndPlace: Pair<String, String>? = null
     private var selectedCalendarPlace: Pair<String, String>? = null
+    private var earlyArriveTime: Int = 0
+    private var currentSortOption: RouteSortOption = RouteSortOption.BEST
 
     private var isDetailFromRecommend = false
     private var isSelectingStart = true
@@ -91,6 +93,7 @@ class RouteFragment : Fragment() {
     private var scheduleColor: String = "#DC354B"
     private var scheduleName: String = ""
     private var scheduleTime: String = "00:00"
+    private var searchTime: String = ""
     private lateinit var bottomSheetBehavior: BottomSheetBehavior<View>
     private var searchJob: Job? = null
     private var sessionToken: AutocompleteSessionToken? = null
@@ -204,6 +207,11 @@ class RouteFragment : Fragment() {
         scheduleName = if(nameExtra.isNullOrBlank()) "일정명" else nameExtra
         scheduleColor = intent.getStringExtra("SCHEDULE_COLOR") ?: "#DC354B"
         scheduleTime = intent.getStringExtra("SCHEDULE_TIME") ?: "00:00"
+        earlyArriveTime = intent.getIntExtra("EARLY_ARRIVE_TIME", 10)
+        val sortString = intent.getStringExtra("SORT_OPTION") ?: "최적 경로순"
+        currentSortOption = RouteSortOption.values().find { it.uiText == sortString }
+            ?: RouteSortOption.BEST
+        searchTime = intent.getStringExtra("SEARCH_TIME") ?: ""
 
         binding.layoutMapSelectOverlay.root.visibility = View.GONE
         if (::bottomSheetBehavior.isInitialized) {
@@ -379,6 +387,25 @@ class RouteFragment : Fragment() {
 
         }
 
+    }
+
+    fun onRouteSelectedFinal(item: RouteResponse){
+        if(currentEntryMode == EntryMode.SCHEDULE_ROUTE){
+            val resultIntent = android.content.Intent().apply {
+                putExtra("startPlaceName", selectedStartPlace?.first)
+                putExtra("startPlaceId", selectedStartPlace?.second)
+                putExtra("endPlaceName", selectedEndPlace?.first)
+                putExtra("endPlaceId", selectedEndPlace?.second)
+                putExtra("earlyArriveTime", earlyArriveTime)
+                putExtra("sortOption", currentSortOption.uiText)
+                putExtra("routeData", Gson().toJson(item))
+            }
+
+            requireActivity().setResult(android.app.Activity.RESULT_OK, resultIntent)
+            requireActivity().finish()
+        }else {
+            // 일반 경로 탐색이면 일정 activity 띄우기;;
+        }
     }
 
     private fun enterSearchMode() {
@@ -670,10 +697,10 @@ private fun selectCurrentLocation() {
             binding.layoutRouteInputHeader.layoutFilterOptions.visibility = View.VISIBLE
 
             if (currentEntryMode == EntryMode.SCHEDULE_ROUTE) {
-                binding.layoutRouteInputHeader.tvTimeFilter.text = "오늘 ${scheduleTime}시 도착"
-            } else {
-                binding.layoutRouteInputHeader.tvTimeFilter.text = "지금 출발"
+                binding.layoutRouteInputHeader.tvTimeFilter.text = "${earlyArriveTime}분 전 도착"
+                binding.layoutRouteInputHeader.tvSortFilter.text = currentSortOption.uiText
             }
+
         } else {
             binding.layoutRouteInputHeader.layoutFilterOptions.visibility = View.GONE
 
@@ -1058,7 +1085,7 @@ private fun selectCurrentLocation() {
 
         npMinute.minValue = 0
         npMinute.maxValue = 60
-        npMinute.value = 10
+        npMinute.value = earlyArriveTime
         npMinute.wrapSelectorWheel = true
 
         btnCancel.setOnClickListener {
@@ -1067,6 +1094,7 @@ private fun selectCurrentLocation() {
 
         btnSave.setOnClickListener {
             val selectedMinute = npMinute.value
+            earlyArriveTime = selectedMinute
 
             binding.layoutRouteInputHeader.tvTimeFilter.text = "${selectedMinute}분 전 도착"
 
@@ -1086,20 +1114,29 @@ private fun selectCurrentLocation() {
         val btnCancel = view.findViewById<Button>(R.id.btn_cancel_sort_filter)
         val btnSave = view.findViewById<Button>(R.id.btn_save_sort_filter)
 
+        val idToCheck = when(currentSortOption) {
+            RouteSortOption.BEST -> R.id.rb_best_route
+            RouteSortOption.TIME -> R.id.rb_min_time
+            RouteSortOption.TRANSFER -> R.id.rb_min_transfer
+            RouteSortOption.WALK -> R.id.rb_min_walk
+        }
+        rgSort.check(idToCheck)
+
         btnCancel.setOnClickListener {
             bottomSheetDialog.dismiss()
         }
 
         btnSave.setOnClickListener {
-            val selectedText = when (rgSort.checkedRadioButtonId) {
-                R.id.rb_best_route -> "최적 경로순"
-                R.id.rb_min_time -> "최소 시간순"
-                R.id.rb_min_transfer -> "최소 환승순"
-                R.id.rb_min_walk -> "최소 도보순"
-                else -> "최적 경로순"
+            val selectedOption = when (rgSort.checkedRadioButtonId) {
+                R.id.rb_best_route -> RouteSortOption.BEST
+                R.id.rb_min_time -> RouteSortOption.TIME
+                R.id.rb_min_transfer -> RouteSortOption.TRANSFER
+                R.id.rb_min_walk -> RouteSortOption.WALK
+                else -> RouteSortOption.BEST
             }
 
-            binding.layoutRouteInputHeader.tvSortFilter.text = selectedText
+            currentSortOption = selectedOption
+            binding.layoutRouteInputHeader.tvSortFilter.text = selectedOption.uiText
 
             // 실제 정렬 로직 추가
 
@@ -1559,4 +1596,11 @@ private fun setupMyLocationButton() {
         super.onDestroyView()
         _binding = null
     }
+}
+
+enum class RouteSortOption(val uiText: String, val apiValue: String) {
+    BEST("최적 경로순", "BEST"),
+    TIME("최소 시간순", "TIME"),
+    TRANSFER("최소 환승순", "TRANSFER"),
+    WALK("최소 도보순", "WALK")
 }

@@ -27,17 +27,27 @@ class RouteScheduleFragment : Fragment() {
     // 경로탐색으로 전환될 때 같이 보낼 색깔(선택된 일정 색)
     private var selectedColor: String = "#DC354B"
 
+    // 경로 탐색에서 받아온 데이터
+    private var routeJson: String? = null
+    private var earlyArriveTime: Int = 0
+    private var sortOption: String = "최적 경로순"
     private val routeSearchLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
-            val data = result.data
-            val placeName = data?.getStringExtra("placeName")
-            val placeId = data?.getStringExtra("placeId")
+            val data = result.data ?: return@registerForActivityResult
 
-            // TODO: 받아온 경로 데이터로 UI 업데이트
-            // 예: binding.tvRouteName.text = placeName
-            // Toast.makeText(context, "선택된 경로: $placeName", Toast.LENGTH_SHORT).show()
+            val startName = data.getStringExtra("startPlaceName")
+            val startId = data.getStringExtra("startPlaceId")
+            val endName = data.getStringExtra("endPlaceName")
+            val endId = data.getStringExtra("endPlaceId")
+
+            val routeJson = data.getStringExtra("routeData")
+            val earlyTime = data.getIntExtra("earlyArriveTime", 10)
+            val sortOpt = data.getStringExtra("sortOption") ?: "최적 경로순"
+
+//            Toast.makeText(context, "출발 장소: $startName - $startId", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "정렬: $sortOpt", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -223,6 +233,10 @@ class RouteScheduleFragment : Fragment() {
                 putExtra("SCHEDULE_NAME", scheduleName)
                 putExtra("SCHEDULE_COLOR", selectedColor)
                 putExtra("SCHEDULE_TIME", startTime)
+                //여기부터 저장되어 있는 값으로 수정 필요
+                putExtra("SEARCH_TIME", "") // 년도까지 반영된  구글 Directions API는 Unix Timestamp 형식(String)
+                putExtra("EARLY_ARRIVE_TIME", 10) // db에 저장안되어 있으면 디폴트 온보딩값
+                putExtra("SORT_OPTION", "최소 시간순")
             }
             routeSearchLauncher.launch(intent)
         }
