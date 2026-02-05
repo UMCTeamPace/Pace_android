@@ -16,6 +16,7 @@ class SearchHistoryFragment : Fragment() {
 
     var onRouteOptionClick: ((isMyLocation: Boolean) -> Unit)? = null
     private var lastRouteHeaderState: Boolean = false
+    private var lastIsScheduleMode: Boolean = false
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -27,11 +28,6 @@ class SearchHistoryFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        if (savedInstanceState == null) {
-            replaceChildFragment(RecentSearchFragment())
-            binding.chipRecentSearch.isChecked = true
-        }
 
         binding.chipGroup.setOnCheckedStateChangeListener { group, checkedIds ->
             when (checkedIds.firstOrNull()) {
@@ -52,27 +48,20 @@ class SearchHistoryFragment : Fragment() {
             parent?.onSelectOnMapSelected()
         }
 
-        updateChipsForScheduleMode(lastRouteHeaderState)
+        updateChipsForScheduleMode(lastRouteHeaderState, lastIsScheduleMode)
     }
 
     override fun onResume() {
         super.onResume()
-        binding.chipRecentSearch.isChecked = true
-
-        refreshToRecentSearch()
+        updateChipsForScheduleMode(lastRouteHeaderState, lastIsScheduleMode)
     }
 
     override fun onHiddenChanged(hidden: Boolean) {
         super.onHiddenChanged(hidden)
         if (!hidden) {
-            refreshToRecentSearch()
+            updateChipsForScheduleMode(lastRouteHeaderState, lastIsScheduleMode)
         }
     }
-
-    private fun refreshToRecentSearch() {
-        replaceChildFragment(RecentSearchFragment())
-    }
-
     private fun replaceChildFragment(fragment: Fragment) {
         childFragmentManager.beginTransaction()
             .replace(R.id.search_history_fcv, fragment)
@@ -88,27 +77,30 @@ class SearchHistoryFragment : Fragment() {
         }
     }
 
-    fun updateChipsForScheduleMode(isRouteHeaderVisible: Boolean) {
+    fun updateChipsForScheduleMode(isRouteHeaderVisible: Boolean, isScheduleMode: Boolean = false) {
         this.lastRouteHeaderState = isRouteHeaderVisible
+        this.lastIsScheduleMode = isScheduleMode
         if (_binding == null) return
 
-        if (isRouteHeaderVisible) {
-            binding.chipRecentSearch.visibility = View.GONE
+        if(isScheduleMode){
+            binding.chipRecentRoute.visibility = View.GONE
+            binding.chipRecentPlace.isChecked = true
+            replaceChildFragment(RecentPlaceFragment())
+        }else{
             binding.chipRecentRoute.visibility = View.VISIBLE
+            if (isRouteHeaderVisible) {
+                binding.chipRecentSearch.visibility = View.GONE
 
-            if (binding.chipRecentSearch.isChecked) {
                 binding.chipRecentPlace.isChecked = true
                 replaceChildFragment(RecentPlaceFragment())
-            }
-        } else {
-            binding.chipRecentSearch.visibility = View.VISIBLE
-            binding.chipRecentRoute.visibility = View.GONE
+            } else {
+                binding.chipRecentSearch.visibility = View.VISIBLE
 
-            if (binding.chipRecentRoute.isChecked) {
                 binding.chipRecentSearch.isChecked = true
                 replaceChildFragment(RecentSearchFragment())
             }
         }
+
     }
 
     override fun onDestroyView() {

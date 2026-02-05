@@ -24,6 +24,22 @@ class RouteScheduleFragment : Fragment() {
     private val binding get() = _binding!!
 
     private var isEditingStartTime: Boolean = true
+    // 경로탐색으로 전환될 때 같이 보낼 색깔(선택된 일정 색)
+    private var selectedColor: String = "#DC354B"
+
+    private val routeSearchLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val data = result.data
+            val placeName = data?.getStringExtra("placeName")
+            val placeId = data?.getStringExtra("placeId")
+
+            // TODO: 받아온 경로 데이터로 UI 업데이트
+            // 예: binding.tvRouteName.text = placeName
+            // Toast.makeText(context, "선택된 경로: $placeName", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -198,6 +214,18 @@ class RouteScheduleFragment : Fragment() {
 
         updateTimeVisibility()
 
+        binding.btnRoute.setOnClickListener {
+            val scheduleName = binding.etScheduleName.text.toString()
+            val startTime = binding.tvStartTime.text.toString()
+            val intent = android.content.Intent(requireContext(), com.example.pace.ui.main.MainActivity::class.java).apply {
+                putExtra("ACTION_MODE", "SCHEDULE_ROUTE")
+
+                putExtra("SCHEDULE_NAME", scheduleName)
+                putExtra("SCHEDULE_COLOR", selectedColor)
+                putExtra("SCHEDULE_TIME", startTime)
+            }
+            routeSearchLauncher.launch(intent)
+        }
 
     }
 
@@ -213,6 +241,7 @@ class RouteScheduleFragment : Fragment() {
 
     private fun changeSelectedColor(colorStr: String) {
         val color = Color.parseColor(colorStr)
+        selectedColor = colorStr
         binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(color)
         binding.layoutColorSelector.visibility = View.GONE
     }
