@@ -84,6 +84,8 @@ class SearchHistoryFragment : Fragment() {
 
         if(isScheduleMode){
             binding.chipRecentRoute.visibility = View.GONE
+            binding.chipRecentPlace.isChecked = true
+            replaceChildFragment(RecentPlaceFragment())
         }else{
             binding.chipRecentRoute.visibility = View.VISIBLE
             if (isRouteHeaderVisible) {

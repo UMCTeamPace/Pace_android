@@ -5,8 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:visibility="visible"
-    android:elevation="20dp">
-
+    android:elevation="0dp">
 
     <LinearLayout
         android:id="@+id/layout_route_detail_header_container"
@@ -14,9 +13,10 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:background="@color/transparent"
+        android:background="@android:color/transparent"
         android:layout_marginTop="16dp"
         android:paddingHorizontal="20dp"
+        android:elevation="10dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -70,70 +70,22 @@
                 android:textColor="@color/gray_600"
                 android:textSize="10sp" />
         </LinearLayout>
-
     </LinearLayout>
 
-
-    <ImageButton
-        android:id="@+id/btn_my_location__route_detail"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="16dp"
-        android:background="@android:color/transparent"
-        android:elevation="6dp"
-        android:src="@drawable/ic_my_location"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/layout_route_detail_bottom_sheet_frame" />
-
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/layout_route_detail_bottom_sheet_frame"
+    <androidx.coordinatorlayout.widget.CoordinatorLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@drawable/bg_bottom_sheet_rounded"
-        android:paddingHorizontal="20dp"
-        android:paddingTop="24dp"
-        android:paddingBottom="20dp"
-        android:elevation="10dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:layout_height="match_parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent">
 
-        <View
-            android:id="@+id/view_handle_route_detail"
-            android:layout_width="40dp"
-            android:layout_height="4dp"
-            android:background="@color/gray_400"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-
-        <FrameLayout
-            android:id="@+id/fl_content_route_detail_container"
+        <include
+            android:id="@+id/sheet_route_detail"
+            layout="@layout/bottom_sheet_route_detail"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="16dp"
-            android:minHeight="100dp"
-            app:layout_constraintTop_toBottomOf="@id/view_handle_route_detail"
-            app:layout_constraintBottom_toTopOf="@id/btn_select_route_detail"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
-        </FrameLayout>
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_bottom_sheet_rounded"
+            app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior" />
 
-        <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/btn_select_route_detail"
-            android:layout_width="match_parent"
-            android:layout_height="32dp"
-            android:background="@drawable/btn_confirm_bg"
-            android:fontFamily="@font/pretendard_semibold"
-            android:text="경로 선택"
-            android:textColor="@android:color/white"
-            android:textSize="12sp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

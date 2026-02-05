@@ -16,6 +16,7 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.NumberPicker
 import android.widget.RadioGroup
+import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.core.app.ActivityCompat
 import androidx.core.view.ViewCompat
@@ -24,6 +25,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.example.pace.BuildConfig
 import com.example.pace.R
+import com.example.pace.data.db.RouteResponse
 import com.example.pace.data.db.SearchDatabase
 import com.example.pace.data.model.RecentHistoryItem
 import com.example.pace.data.model.RecentPlace
@@ -138,6 +140,7 @@ class RouteFragment : Fragment() {
         setupRouteHeaderListeners()
         setupMapSelectListeners()
         setupMyLocationButton()
+        setupRouteDetailListeners()
 
         val activityIntent = requireActivity().intent
         val actionMode = activityIntent?.getStringExtra("ACTION_MODE")
@@ -294,6 +297,12 @@ class RouteFragment : Fragment() {
         }
     }
 
+    private fun setupRouteDetailListeners() {
+        binding.layoutRouteDetailOverlay.btnRouteDetailBackDetail.setOnClickListener {
+            handleCustomBackClick()
+        }
+    }
+
     fun onSelectOnMapSelected() {
         hideKeyboard()
         val transaction = childFragmentManager.beginTransaction()
@@ -331,8 +340,8 @@ class RouteFragment : Fragment() {
         }
     }
 
-    fun showRouteDetailOverlay() {
-        if(currentEntryMode == EntryMode.SCHEDULE_ROUTE){
+    fun showRouteDetailOverlay(item: RouteResponse) {
+        if(currentEntryMode == EntryMode.SCHEDULE_ROUTE || currentEntryMode == EntryMode.ROUTE_PLAN){
             binding.routeSearchFcv.visibility = View.GONE
 
             binding.layoutRouteInputHeader.root.visibility = View.GONE
@@ -357,6 +366,17 @@ class RouteFragment : Fragment() {
             }
             binding.layoutRouteDetailOverlay.tvScheduleRouteDetailName.text = scheduleName
             binding.layoutRouteDetailOverlay.tvScheduleRouteDetailTime.text = scheduleTime
+
+            val bottomSheetView = binding.layoutRouteDetailOverlay.root.findViewById<View>(R.id.sheet_route_detail)
+            val behavior = BottomSheetBehavior.from(bottomSheetView)
+
+            behavior.isHideable = false
+            behavior.state = BottomSheetBehavior.STATE_COLLAPSED
+            behavior.peekHeight = (250 * resources.displayMetrics.density).toInt() // 지도 보일 정도 높이
+
+            RouteDetailHelper.setupData(bottomSheetView, item)
+
+
         }
 
     }
