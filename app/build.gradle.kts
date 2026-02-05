@@ -110,4 +110,8 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     // JSON 변환을 위한 Gson 컨버터
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+    //splash
+    implementation("com.airbnb.android:lottie:6.4.0")
+
 }
