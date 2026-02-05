@@ -6,46 +6,65 @@
     android:layout_height="match_parent"
     android:padding="24dp">
 
-    <ImageView
-        android:id="@+id/iv_onboarding_main"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:src="@drawable/img_onboarding_1"
-        android:scaleType="fitCenter"
-        app:layout_constraintDimensionRatio="1:1"
-        app:layout_constraintBottom_toTopOf="@+id/tv_onboarding_title"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_chainStyle="packed"
-        app:layout_widthPercent="0.8" />
-
-    <TextView
-        android:id="@+id/tv_onboarding_title"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
-        android:text="일정부터 출발까지"
-        android:textColor="#000000"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        app:layout_constraintBottom_toTopOf="@+id/tv_onboarding_sub"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/iv_onboarding_main" />
-
-    <TextView
-        android:id="@+id/tv_onboarding_sub"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="하루의 흐름을, 나의 페이스로"
-        android:textColor="#666666"
-        android:textSize="16sp"
-        android:gravity="center"
+    <View
+        android:id="@+id/centerLine"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:background="#D4E157"
         app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.5"
+
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginStart="-20dp"
+        android:layout_marginEnd="-20dp" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="bottom"
+        app:layout_constraintBottom_toTopOf="@+id/centerLine"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" >
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_onboarding_subway"
+            android:layout_marginRight="12dp"/>
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_onboarding_pin_calendar"
+
+            app:layout_constraintBottom_toTopOf="@+id/centerLine"
+            app:layout_constraintTop_toTopOf="@+id/centerLine"
+
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_marginBottom="-8dp"
+            android:layout_marginRight="12dp"/>
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_onboarding_bus"/>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tvDescription"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="30dp"
+        android:gravity="center"
+        android:text="하루의 일정과 이동 사이에서 \n당신의 페이스는 어땠나요?"
+        android:lineSpacingExtra="4dp"
+        android:alpha="1"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tv_onboarding_title" />
+        app:layout_constraintTop_toBottomOf="@+id/centerLine" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

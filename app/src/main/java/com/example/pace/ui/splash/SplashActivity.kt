@@ -19,6 +19,7 @@ class SplashActivity : AppCompatActivity() {
         lottieView.addAnimatorListener(object : Animator.AnimatorListener {
             override fun onAnimationEnd(animation: Animator) {
                 val intent = Intent(this@SplashActivity, OnboardingActivity::class.java)
+                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
                 startActivity(intent)
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {

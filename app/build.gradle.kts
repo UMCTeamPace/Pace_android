@@ -114,4 +114,7 @@ dependencies {
     //splash
     implementation("com.airbnb.android:lottie:6.4.0")
 
+    //kakao login SDK
+    implementation("com.kakao.sdk:v2-user:2.20.1")
+
 }

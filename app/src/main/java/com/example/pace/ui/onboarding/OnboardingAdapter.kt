@@ -1,25 +1,21 @@
 package com.example.pace.ui.onboarding
 
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentActivity
 import androidx.viewpager2.adapter.FragmentStateAdapter
-import com.example.pace.data.model.OnboardingItem
 
-class OnboardingAdapter(
-    fragmentActivity: FragmentActivity,
-    private val onboardingItems: List<OnboardingItem> // 데이터를 리스트로 받음
-) : FragmentStateAdapter(fragmentActivity) {
+// FragmentActivity 대신 Fragment를 인자로 받아도 됩니다 (OnboardingFragment 내에서 사용할 것이므로)
+class OnboardingAdapter(fragment: Fragment) : FragmentStateAdapter(fragment) {
 
-    // 리스트의 크기에 따라 페이지 개수 결정
+    // 보여줄 페이지는 총 4개
     override fun getItemCount(): Int = 4
 
     override fun createFragment(position: Int): Fragment {
         return when (position) {
-            0 -> Onboarding1Fragment()
-            1 -> Onboarding2Fragment()
-            2 -> Onboarding3Fragment()
-            3 -> Onboarding4Fragment()
-            else -> Onboarding1Fragment()
+            0 -> OnboardingFragment1()
+            1 -> OnboardingFragment2()
+            2 -> OnboardingFragment3()
+            3 -> OnboardingFragment4()
+            else -> OnboardingFragment1() // 예외 처리용
         }
     }
 }

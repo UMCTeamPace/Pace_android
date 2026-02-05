@@ -22,5 +22,9 @@ class PaceApplication : Application() {
             Log.e("PaceApplication", "Repository 초기화 실패", e)
             throw e  // 크래시로 디버깅
         }
+
+        KakaoSdk.init(this, "70cf21d08b571c33743e48d833815b7e")
     }
+
+
 }
