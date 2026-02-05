@@ -3,12 +3,13 @@ package com.example.pace.ui.search_box
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.example.pace.data.db.RouteResponse
+import com.example.pace.data.model.RouteResponse
 import com.example.pace.databinding.ItemRouteBinding
 
 class RouteAdapter(
     private val items: List<RouteResponse>,
-    private val onItemClick: (RouteResponse) -> Unit
+    private val onItemClick: (RouteResponse) -> Unit,
+    private val onSelectClick: (RouteResponse) -> Unit
 ) : RecyclerView.Adapter<RouteAdapter.RouteViewHolder>() {
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RouteViewHolder {
         val binding = ItemRouteBinding.inflate(LayoutInflater.from(parent.context), parent, false)
@@ -36,6 +37,10 @@ class RouteAdapter(
 
 
             binding.root.setOnClickListener { onItemClick(item) }
+
+            binding.routeDetailSelectBtn.setOnClickListener {
+                onSelectClick(item)
+            }
         }
     }
 }

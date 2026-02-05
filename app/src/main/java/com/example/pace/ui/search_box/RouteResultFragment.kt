@@ -6,9 +6,9 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.example.pace.data.db.RouteDetail
-import com.example.pace.data.db.RouteResponse
-import com.example.pace.data.db.TransitDetail
+import com.example.pace.data.model.RouteDetail
+import com.example.pace.data.model.RouteResponse
+import com.example.pace.data.model.TransitDetail
 import com.example.pace.databinding.FragmentRouteResultBinding
 import com.example.pace.ui.main.route.RouteFragment
 
@@ -29,9 +29,21 @@ class RouteResultFragment : Fragment(){
 
         val dummyData = createFullDummyData()
 
-        val adapter = RouteAdapter(dummyData) { item ->
-            (parentFragment as? RouteFragment)?.showRouteDetailOverlay(item)
-        }
+        val adapter = RouteAdapter(
+            items = dummyData,
+
+            onItemClick = { item ->
+                (parentFragment as? RouteFragment)?.showRouteDetailOverlay(item)
+            },
+
+            onSelectClick = { item ->
+                (parentFragment as? RouteFragment)?.onRouteSelectedFinal(item)
+
+            }
+        )
+//        val adapter = RouteAdapter(items = dummyData) { item ->
+//            (parentFragment as? RouteFragment)?.showRouteDetailOverlay(item)
+//        }
 
         binding.searchLocationRv.layoutManager = LinearLayoutManager(requireContext())
         binding.searchLocationRv.adapter = adapter
