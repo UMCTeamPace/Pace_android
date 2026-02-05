@@ -11,7 +11,7 @@ activity = "1.12.2"
 constraintlayout = "2.2.1"
 uiGraphics = "1.10.1"
 room = "2.6.1"
-ksp = "2.0.21-1.0.26"
+ksp = "1.9.22-1.0.17"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
