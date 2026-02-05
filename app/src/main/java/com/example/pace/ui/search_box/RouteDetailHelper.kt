@@ -1,7 +1,7 @@
 package com.example.pace.ui.search_box
 
 import android.view.View
-import com.example.pace.data.db.RouteResponse
+import com.example.pace.data.model.RouteResponse
 import com.example.pace.databinding.BottomSheetRouteDetailBinding
 
 object RouteDetailHelper {

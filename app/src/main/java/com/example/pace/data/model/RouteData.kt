@@ -1,4 +1,4 @@
-package com.example.pace.data.db
+package com.example.pace.data.model
 
 import java.io.Serializable
 
