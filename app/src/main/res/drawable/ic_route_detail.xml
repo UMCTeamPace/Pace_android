@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/ic_route_detail_color"
+        android:drawable="@drawable/bg_route_detail"
+        android:height="24.5dp" android:width="24.5dp"/>
+    <item
+        android:id="@+id/ic_route_detail_vehicle"
+        android:drawable="@drawable/ic_bus"
+        android:width="15.07dp" android:height="14.53dp"
+        android:gravity="center"
+        android:top="1.75dp"
+        android:left="1.75dp"
+        android:right="1.75dp"
+        android:bottom="1.75dp"/>
+</layer-list>

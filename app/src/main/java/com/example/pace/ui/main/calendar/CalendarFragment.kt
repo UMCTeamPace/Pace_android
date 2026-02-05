@@ -12,23 +12,20 @@ import com.example.pace.ui.main.calendar.CalendarFragmentAdapter
 import com.example.pace.data.db.ScheduleDatabase
 import com.example.pace.data.repository.ScheduleRepository
 import com.google.android.material.tabs.TabLayoutMediator
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
+import com.example.pace.PaceApplication
+import com.example.pace.data.datasource.NormalScheduleRemoteDataSource
 import com.example.pace.ui.main.calendar.ScheduleViewModel
 import com.example.pace.ui.main.calendar.ScheduleViewModelFactory
 
 class CalendarFragment: Fragment() {
     private var _binding: FragmentCalendarBinding? = null
     private val binding get() = _binding!!
-    val viewModel: ScheduleViewModel by viewModels{
-        ScheduleViewModelFactory(
-            ScheduleRepository(
-                ScheduleDatabase.getDatabase(requireContext()).scheduleDao(),
-                requireContext().applicationContext
-            )
-        )
-    }
-    fun getSharedViewModel(): ScheduleViewModel = viewModel
 
+    private val viewModel: ScheduleViewModel by lazy {
+        (requireActivity() as MainActivity).getSharedViewModel()
+    }
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,

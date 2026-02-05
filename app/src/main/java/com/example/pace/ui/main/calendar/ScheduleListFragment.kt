@@ -12,6 +12,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.pace.data.db.ScheduleDatabase
+import com.example.pace.data.datasource.NormalScheduleRemoteDataSource
 import com.example.pace.data.model.Schedule
 import com.example.pace.data.repository.ScheduleRepository
 import com.example.pace.databinding.FragmentScheduleListBinding
@@ -21,6 +22,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.fragment.app.activityViewModels
+import com.example.pace.ui.main.MainActivity
+import com.example.pace.ui.main.calendar.ScheduleViewModel
+import com.example.pace.ui.main.calendar.ScheduleViewModelFactory
 
 
 class ScheduleListFragment : Fragment() {
@@ -28,8 +33,11 @@ class ScheduleListFragment : Fragment() {
     private val binding get() = _binding!!
 
     private lateinit var scheduleAdapter: ScheduleAdapter
-    private val calendarFragment by lazy { requireParentFragment() as CalendarFragment }
-    private val viewModel by lazy { calendarFragment.viewModel }
+
+    private val viewModel: ScheduleViewModel by lazy {
+        (requireActivity() as MainActivity).getSharedViewModel()
+    }
+
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -45,9 +53,6 @@ class ScheduleListFragment : Fragment() {
 
         setupRecyclerView()
         observeSchedules()
-        observeCalendarChanges()
-
-        viewModel.onFragmentViewCreated()
     }
 
     private fun setupRecyclerView() {
@@ -65,14 +70,6 @@ class ScheduleListFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.allSchedules.collectLatest { schedules ->
                 processAndDisplaySchedules(schedules)
-            }
-        }
-    }
-
-    private fun observeCalendarChanges() {
-        viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.calendarEvents.collect {
-                viewModel.refreshSchedules()
             }
         }
     }

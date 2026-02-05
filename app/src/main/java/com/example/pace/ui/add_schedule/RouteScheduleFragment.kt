@@ -24,6 +24,32 @@ class RouteScheduleFragment : Fragment() {
     private val binding get() = _binding!!
 
     private var isEditingStartTime: Boolean = true
+    // 경로탐색으로 전환될 때 같이 보낼 색깔(선택된 일정 색)
+    private var selectedColor: String = "#DC354B"
+
+    // 경로 탐색에서 받아온 데이터
+    private var routeJson: String? = null
+    private var earlyArriveTime: Int = 0
+    private var sortOption: String = "최적 경로순"
+    private val routeSearchLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val data = result.data ?: return@registerForActivityResult
+
+            val startName = data.getStringExtra("startPlaceName")
+            val startId = data.getStringExtra("startPlaceId")
+            val endName = data.getStringExtra("endPlaceName")
+            val endId = data.getStringExtra("endPlaceId")
+
+            val routeJson = data.getStringExtra("routeData")
+            val earlyTime = data.getIntExtra("earlyArriveTime", 10)
+            val sortOpt = data.getStringExtra("sortOption") ?: "최적 경로순"
+
+//            Toast.makeText(context, "출발 장소: $startName - $startId", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "정렬: $sortOpt", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -198,6 +224,22 @@ class RouteScheduleFragment : Fragment() {
 
         updateTimeVisibility()
 
+        binding.btnRoute.setOnClickListener {
+            val scheduleName = binding.etScheduleName.text.toString()
+            val startTime = binding.tvStartTime.text.toString()
+            val intent = android.content.Intent(requireContext(), com.example.pace.ui.main.MainActivity::class.java).apply {
+                putExtra("ACTION_MODE", "SCHEDULE_ROUTE")
+
+                putExtra("SCHEDULE_NAME", scheduleName)
+                putExtra("SCHEDULE_COLOR", selectedColor)
+                putExtra("SCHEDULE_TIME", startTime)
+                //여기부터 저장되어 있는 값으로 수정 필요
+                putExtra("SEARCH_TIME", "") // 년도까지 반영된  구글 Directions API는 Unix Timestamp 형식(String)
+                putExtra("EARLY_ARRIVE_TIME", 10) // 디폴트는 온보딩값으로 넣어주세여
+                putExtra("SORT_OPTION", "최소 시간순") // "최적 경로순", "최소 시간순", "최소 환승순", "최소 도보순"
+            }
+            routeSearchLauncher.launch(intent)
+        }
 
     }
 
@@ -213,6 +255,7 @@ class RouteScheduleFragment : Fragment() {
 
     private fun changeSelectedColor(colorStr: String) {
         val color = Color.parseColor(colorStr)
+        selectedColor = colorStr
         binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(color)
         binding.layoutColorSelector.visibility = View.GONE
     }

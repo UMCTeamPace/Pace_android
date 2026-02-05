@@ -3,6 +3,8 @@ package com.example.pace.ui.main.route
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -11,6 +13,9 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
+import android.widget.Button
+import android.widget.NumberPicker
+import android.widget.RadioGroup
 import androidx.activity.OnBackPressedCallback
 import androidx.core.app.ActivityCompat
 import androidx.core.view.ViewCompat
@@ -19,6 +24,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.example.pace.BuildConfig
 import com.example.pace.R
+import com.example.pace.data.model.RouteResponse
 import com.example.pace.data.db.SearchDatabase
 import com.example.pace.data.model.RecentHistoryItem
 import com.example.pace.data.model.RecentPlace
@@ -26,7 +32,6 @@ import com.example.pace.data.repository.SearchRepository
 import com.example.pace.databinding.FragmentRouteBinding
 import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.search_box.*
-import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.libraries.places.api.net.SearchNearbyRequest
@@ -37,6 +42,8 @@ import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRe
 import com.google.android.libraries.places.api.net.PlacesClient
 import com.google.android.libraries.places.api.net.SearchByTextRequest
 import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -55,7 +62,6 @@ class RouteFragment : Fragment() {
     private lateinit var repository: SearchRepository
 
     private lateinit var placesClient: PlacesClient
-//    private val fusedLocationClient by lazy { LocationServices.getFusedLocationProviderClient(requireActivity()) }
 
     private val historyFragment = SearchHistoryFragment()
     private val recommendFragment = SearchRecommendFragment()
@@ -63,14 +69,17 @@ class RouteFragment : Fragment() {
 
     enum class EntryMode {
         MAIN,
-        CALENDAR,
-        ROUTE_PLAN
+        ROUTE_PLAN,
+        SCHEDULE,
+        SCHEDULE_ROUTE
     }
     private var currentEntryMode = EntryMode.MAIN
 
     private var selectedStartPlace: Pair<String, String>? = null
     private var selectedEndPlace: Pair<String, String>? = null
     private var selectedCalendarPlace: Pair<String, String>? = null
+    private var earlyArriveTime: Int = 0
+    private var currentSortOption: RouteSortOption = RouteSortOption.BEST
 
     private var isDetailFromRecommend = false
     private var isSelectingStart = true
@@ -81,6 +90,10 @@ class RouteFragment : Fragment() {
     //백엔드 경로 탐색을 위해 여기다가 placeId를 좌표로 api 검색해서 주기
     private var startLatLng: LatLng? = null
     private var endLatLng: LatLng? = null
+    private var scheduleColor: String = "#DC354B"
+    private var scheduleName: String = ""
+    private var scheduleTime: String = "00:00"
+    private var searchTime: String = ""
     private lateinit var bottomSheetBehavior: BottomSheetBehavior<View>
     private var searchJob: Job? = null
     private var sessionToken: AutocompleteSessionToken? = null
@@ -105,6 +118,8 @@ class RouteFragment : Fragment() {
         initPlacesClient()
         initBottomSheet()
 
+        binding.layoutRouteInputHeader.layoutFilterOptions.visibility = View.GONE
+
         val mapFragment = MapFragment()
 
         mapFragment.onMapTouched = {
@@ -128,7 +143,17 @@ class RouteFragment : Fragment() {
         setupRouteHeaderListeners()
         setupMapSelectListeners()
         setupMyLocationButton()
-        binding.btnGoMyLocation.bringToFront()
+        setupRouteDetailListeners()
+
+        val activityIntent = requireActivity().intent
+        val actionMode = activityIntent?.getStringExtra("ACTION_MODE")
+        if (actionMode == "SCHEDULE") {
+            startScheduleMode()
+            activityIntent.removeExtra("ACTION_MODE")
+        } else if(actionMode == "SCHEDULE_ROUTE") {
+            startScheduleRouteMode()
+            activityIntent.removeExtra("ACTION_MODE")
+        }
     }
 
     private fun setupMainActivityListeners() {
@@ -165,6 +190,46 @@ class RouteFragment : Fragment() {
         }
     }
 
+    fun startScheduleMode() {
+        if (_binding == null || !isAdded || view == null) return
+
+        currentEntryMode = EntryMode.SCHEDULE
+
+        enterSearchMode()
+    }
+
+    fun startScheduleRouteMode() {
+        if (_binding == null || !isAdded || view == null) return
+
+        currentEntryMode = EntryMode.SCHEDULE_ROUTE
+        val intent = requireActivity().intent
+        val nameExtra = intent.getStringExtra("SCHEDULE_NAME")
+        scheduleName = if(nameExtra.isNullOrBlank()) "일정명" else nameExtra
+        scheduleColor = intent.getStringExtra("SCHEDULE_COLOR") ?: "#DC354B"
+        scheduleTime = intent.getStringExtra("SCHEDULE_TIME") ?: "00:00"
+        earlyArriveTime = intent.getIntExtra("EARLY_ARRIVE_TIME", 10)
+        val sortString = intent.getStringExtra("SORT_OPTION") ?: "최적 경로순"
+        currentSortOption = RouteSortOption.values().find { it.uiText == sortString }
+            ?: RouteSortOption.BEST
+        searchTime = intent.getStringExtra("SEARCH_TIME") ?: ""
+
+        binding.layoutMapSelectOverlay.root.visibility = View.GONE
+        if (::bottomSheetBehavior.isInitialized) {
+            bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+        }
+        hideKeyboard()
+
+        mainBinding?.mainBnv?.visibility = View.GONE
+        mainBinding?.mainToolbar?.visibility = View.GONE
+        mainBinding?.mainBackIv?.visibility = View.GONE
+
+        binding.routeSearchFcv.visibility = View.VISIBLE
+        binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
+        binding.layoutRouteInputHeader.root.bringToFront()
+
+        showSearchRouteFragment()
+    }
+
     // 출발/도착 눌렀을 때 (디테일에서)
     fun onLocationSelected(itemName: String, placeId: String, isStart: Boolean) {
         val detailFrag = childFragmentManager.findFragmentByTag("DETAIL")
@@ -174,6 +239,7 @@ class RouteFragment : Fragment() {
 
         isDetailFromRecommend = false
         historyFragment.setRouteOptionsVisible(false)
+        mainBinding?.mainBnv?.visibility = View.GONE
 
         if (isStart) {
             selectedStartPlace = Pair(itemName, placeId)
@@ -192,7 +258,9 @@ class RouteFragment : Fragment() {
         }
 
         // 2. 경로 탐색 모드 헤더
-        currentEntryMode = EntryMode.ROUTE_PLAN
+        if(currentEntryMode == EntryMode.MAIN){
+            currentEntryMode = EntryMode.ROUTE_PLAN
+        }
         binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
         binding.layoutRouteInputHeader.root.bringToFront()
         mainBinding?.mainToolbar?.visibility = View.GONE
@@ -201,22 +269,45 @@ class RouteFragment : Fragment() {
         showSearchRouteFragment()
     }
 
+    fun onScheduleLocationSelected(name: String, placeId: String) {
+        val resultIntent = android.content.Intent().apply {
+            putExtra("placeName", name)
+            putExtra("placeId", placeId)
+        }
+
+        // 2. 결과 설정 (RESULT_OK)
+        requireActivity().setResult(android.app.Activity.RESULT_OK, resultIntent)
+
+        binding.routeMapFcv.visibility = View.GONE
+        requireActivity().finish()
+    }
+
     private fun setupMapSelectListeners() {
         // 확인 버튼 클릭 시
-        binding.btnMapSelectConfirm.setOnClickListener {
-            val tempName = selectedCalendarPlace?.first ?: binding.tvMapSelectName.text.toString()
+        binding.layoutMapSelectOverlay.btnMapSelectConfirm.setOnClickListener {
+            val tempName = selectedCalendarPlace?.first ?: binding.layoutMapSelectOverlay.tvMapSelectName.text.toString()
             val tempId = selectedCalendarPlace?.second ?: ""
 
             onLocationSelected(tempName, tempId, isSelectingStart)
 
-            binding.layoutMapSelectOverlay.visibility = View.GONE
+            binding.layoutMapSelectOverlay.root.visibility = View.GONE
+            val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+            mapFrag?.setMyLocationButtonVisibility(true)
 
             selectedCalendarPlace = null
         }
 
-        binding.layoutMapSelectHeader.btnMapSelectBack.setOnClickListener {
-            binding.layoutMapSelectOverlay.visibility = View.GONE
+        binding.layoutMapSelectOverlay.layoutMapSelectHeader.btnMapSelectBack.setOnClickListener {
+            binding.layoutMapSelectOverlay.root.visibility = View.GONE
+            val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+            mapFrag?.setMyLocationButtonVisibility(true)
             enterSearchMode()
+        }
+    }
+
+    private fun setupRouteDetailListeners() {
+        binding.layoutRouteDetailOverlay.btnRouteDetailBackDetail.setOnClickListener {
+            handleCustomBackClick()
         }
     }
 
@@ -242,8 +333,8 @@ class RouteFragment : Fragment() {
             bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
         }
 
-        binding.layoutMapSelectOverlay.visibility = View.VISIBLE
-        binding.layoutMapSelectOverlay.bringToFront()
+        binding.layoutMapSelectOverlay.root.visibility = View.VISIBLE
+        binding.layoutMapSelectOverlay.root.bringToFront()
 
         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
         mapFrag?.initMapSelectionMode()
@@ -257,7 +348,68 @@ class RouteFragment : Fragment() {
         }
     }
 
+    fun showRouteDetailOverlay(item: RouteResponse) {
+        if(currentEntryMode == EntryMode.SCHEDULE_ROUTE || currentEntryMode == EntryMode.ROUTE_PLAN){
+            binding.routeSearchFcv.visibility = View.GONE
+
+            binding.layoutRouteInputHeader.root.visibility = View.GONE
+
+            mainBinding?.mainBnv?.visibility = View.GONE
+            mainBinding?.mainToolbar?.visibility = View.GONE
+
+            if (::bottomSheetBehavior.isInitialized) {
+                bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+            }
+
+            binding.layoutRouteDetailOverlay.root.visibility = View.VISIBLE
+            binding.layoutRouteDetailOverlay.root.bringToFront()
+            try {
+                val colorInt = Color.parseColor(scheduleColor)
+
+                binding.layoutRouteDetailOverlay.viewColorDotRouteDetail.backgroundTintList = ColorStateList.valueOf(colorInt)
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+                binding.layoutRouteDetailOverlay.viewColorDotRouteDetail.backgroundTintList = ColorStateList.valueOf(Color.RED)
+            }
+            binding.layoutRouteDetailOverlay.tvScheduleRouteDetailName.text = scheduleName
+            binding.layoutRouteDetailOverlay.tvScheduleRouteDetailTime.text = scheduleTime
+
+            val bottomSheetView = binding.layoutRouteDetailOverlay.root.findViewById<View>(R.id.sheet_route_detail)
+            val behavior = BottomSheetBehavior.from(bottomSheetView)
+
+            behavior.isHideable = false
+            behavior.state = BottomSheetBehavior.STATE_COLLAPSED
+            behavior.peekHeight = (250 * resources.displayMetrics.density).toInt() // 지도 보일 정도 높이
+
+            RouteDetailHelper.setupData(bottomSheetView, item)
+
+
+        }
+
+    }
+
+    fun onRouteSelectedFinal(item: RouteResponse){
+        if(currentEntryMode == EntryMode.SCHEDULE_ROUTE){
+            val resultIntent = android.content.Intent().apply {
+                putExtra("startPlaceName", selectedStartPlace?.first)
+                putExtra("startPlaceId", selectedStartPlace?.second)
+                putExtra("endPlaceName", selectedEndPlace?.first)
+                putExtra("endPlaceId", selectedEndPlace?.second)
+                putExtra("earlyArriveTime", earlyArriveTime)
+                putExtra("sortOption", currentSortOption.uiText)
+                putExtra("routeData", Gson().toJson(item))
+            }
+
+            requireActivity().setResult(android.app.Activity.RESULT_OK, resultIntent)
+            requireActivity().finish()
+        }else {
+            // 일반 경로 탐색이면 일정 activity 띄우기;;
+        }
+    }
+
     private fun enterSearchMode() {
+        binding.layoutRouteInputHeader.layoutFilterOptions.visibility = View.GONE
         binding.layoutRouteInputHeader.root.visibility = View.GONE
 
         mainBinding?.mainToolbar?.visibility = View.VISIBLE
@@ -275,7 +427,7 @@ class RouteFragment : Fragment() {
         val routeResultFrag = childFragmentManager.findFragmentByTag("ROUTE_RESULT")
         if (routeResultFrag != null) {
             childFragmentManager.beginTransaction()
-                .remove(routeResultFrag)
+                .hide(routeResultFrag)
                 .commitAllowingStateLoss()
         }
 
@@ -286,7 +438,7 @@ class RouteFragment : Fragment() {
         val targetFragment = if (query.isNotEmpty()) recommendFragment else historyFragment
 
         if (targetFragment is SearchHistoryFragment) {
-            val isRoutePlan = (currentEntryMode == EntryMode.ROUTE_PLAN)
+            val isRoutePlan = (currentEntryMode == EntryMode.ROUTE_PLAN || currentEntryMode==EntryMode.SCHEDULE_ROUTE)
             targetFragment.setRouteOptionsVisible(isRoutePlan)
 
             targetFragment.onRouteOptionClick = { isMyLocation ->
@@ -294,6 +446,8 @@ class RouteFragment : Fragment() {
                     selectCurrentLocation()
                 }
             }
+
+            targetFragment.updateChipsForScheduleMode(isRouteHeaderVisible = false, isScheduleMode = currentEntryMode==EntryMode.SCHEDULE)
         }
 
         showSearchFragment(targetFragment)
@@ -312,7 +466,9 @@ class RouteFragment : Fragment() {
         selectedStartPlace = null
         selectedEndPlace = null
         selectedCalendarPlace = null
-        currentEntryMode = EntryMode.MAIN
+        if(currentEntryMode == EntryMode.ROUTE_PLAN){
+            currentEntryMode = EntryMode.MAIN
+        }
         isDetailFromRecommend = false
         sessionToken = null
         startLatLng = null
@@ -431,7 +587,9 @@ private fun selectCurrentLocation() {
 
         binding.routeSearchFcv.visibility = View.GONE
 
-        currentEntryMode = EntryMode.ROUTE_PLAN
+        if (currentEntryMode == EntryMode.MAIN) {
+                currentEntryMode = EntryMode.ROUTE_PLAN
+        }
         binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
         mainBinding?.mainToolbar?.visibility = View.GONE
 
@@ -474,7 +632,7 @@ private fun selectCurrentLocation() {
         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
         mapFrag?.clearMarkers()
 
-        if(currentEntryMode == EntryMode.ROUTE_PLAN){
+        if(currentEntryMode == EntryMode.ROUTE_PLAN || currentEntryMode == EntryMode.SCHEDULE_ROUTE){
             onLocationSelected(item.name, item.placeId, isSelectingStart)
 
             val transaction = childFragmentManager.beginTransaction()
@@ -510,7 +668,7 @@ private fun selectCurrentLocation() {
                 lat = lat,
                 lng = lng
             )
-            mapFrag.showMultipleMarkers(listOf(tempItem))
+            mapFrag.showMultipleMarkers(listOf(tempItem)){}
         }
 
         mapFrag.moveCameraToSinglePosition(lat, lng)
@@ -519,18 +677,36 @@ private fun selectCurrentLocation() {
     private fun showSearchRouteFragment() {
         val transaction = childFragmentManager.beginTransaction()
 
+        mainBinding?.mainBnv?.visibility = View.GONE
+        mainBinding?.mainToolbar?.visibility = View.GONE
+
+        val existingRouteFrag = childFragmentManager.findFragmentByTag("ROUTE_RESULT")
+
         if (selectedStartPlace != null && selectedEndPlace != null) {
 
             if (historyFragment.isAdded) transaction.hide(historyFragment)
             if (recommendFragment.isAdded) transaction.hide(recommendFragment)
 
-            val routeResultFrag = RouteResultFragment()
-            transaction.replace(R.id.route_search_fcv, routeResultFrag, "ROUTE_RESULT")
+            if (existingRouteFrag != null) {
+                transaction.show(existingRouteFrag)
+            } else {
+                val newRouteFrag = RouteResultFragment()
+                transaction.add(R.id.route_search_fcv, newRouteFrag, "ROUTE_RESULT")
+            }
+
+            binding.layoutRouteInputHeader.layoutFilterOptions.visibility = View.VISIBLE
+
+            if (currentEntryMode == EntryMode.SCHEDULE_ROUTE) {
+                binding.layoutRouteInputHeader.tvTimeFilter.text = "${earlyArriveTime}분 전 도착"
+                binding.layoutRouteInputHeader.tvSortFilter.text = currentSortOption.uiText
+            }
 
         } else {
-            val existingRouteFrag = childFragmentManager.findFragmentByTag("ROUTE_RESULT")
+            binding.layoutRouteInputHeader.layoutFilterOptions.visibility = View.GONE
+
+//            val existingRouteFrag = childFragmentManager.findFragmentByTag("ROUTE_RESULT")
             if (existingRouteFrag != null) {
-                transaction.remove(existingRouteFrag)
+                transaction.hide(existingRouteFrag)
             }
 
             if (!historyFragment.isAdded) {
@@ -539,13 +715,15 @@ private fun selectCurrentLocation() {
                 transaction.show(historyFragment)
             }
 
+            historyFragment.updateChipsForScheduleMode(isRouteHeaderVisible = true, isScheduleMode = currentEntryMode==EntryMode.SCHEDULE)
+
             if (recommendFragment.isAdded) transaction.hide(recommendFragment)
         }
 
-        // 트랜잭션 실행
         transaction.commitAllowingStateLoss()
 
         binding.routeSearchFcv.visibility = View.VISIBLE
+        binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
         hideKeyboard()
 
         if (::bottomSheetBehavior.isInitialized) {
@@ -601,12 +779,25 @@ private fun selectCurrentLocation() {
 
         binding.layoutRouteInputHeader.btnRouteBack.setOnClickListener {
 
-            if (currentEntryMode == EntryMode.CALENDAR) {
-                // 캘린더로 돌아가기? 아니면 장소검색으로?
+            if(currentEntryMode == EntryMode.SCHEDULE_ROUTE){
+                binding.routeMapFcv.visibility = View.GONE
+                activity?.finish()
             }
             else{
                 exitSearchMode()
             }
+        }
+
+        binding.layoutRouteInputHeader.tvTimeFilter.setOnClickListener {
+            if (currentEntryMode == EntryMode.SCHEDULE_ROUTE) {
+                showScheduleRouteDialog()
+            } else {
+//                showRoutePlanDialog()
+            }
+        }
+
+        binding.layoutRouteInputHeader.tvSortFilter.setOnClickListener {
+            showSortOptionBottomSheet()
         }
     }
 
@@ -629,16 +820,38 @@ private fun selectCurrentLocation() {
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backPressedCallback)
     }
 
-    private fun handleCustomBackClick() {
-        // 1. 키보드
+    private fun handleCustomBackClick(){
         if (isKeyboardVisible()) {
             hideKeyboard()
             return
         }
+        if (currentEntryMode == EntryMode.SCHEDULE || currentEntryMode == EntryMode.SCHEDULE_ROUTE) {
+            handleScheduleBackClick()
+        } else {
+            handleMainBackClick()
+        }
+    }
+
+    private fun handleMainBackClick() {
+        if (binding.layoutRouteInputHeader.root.visibility == View.VISIBLE) {
+            exitSearchMode()
+            return // 앱 종료 방지
+        }
+
+        if (binding.layoutRouteDetailOverlay.root.visibility == View.VISIBLE) {
+            binding.layoutRouteDetailOverlay.root.visibility = View.GONE
+
+            binding.routeSearchFcv.visibility = View.VISIBLE
+            binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
+
+            mainBinding?.mainBnv?.visibility = View.GONE
+            mainBinding?.mainToolbar?.visibility = View.GONE
+            return
+        }
 
         // 2. 지도 선택 오버레이
-        if (binding.layoutMapSelectOverlay.visibility == View.VISIBLE) {
-            binding.layoutMapSelectOverlay.visibility = View.GONE
+        if (binding.layoutMapSelectOverlay.root.visibility == View.VISIBLE) {
+            binding.layoutMapSelectOverlay.root.visibility = View.GONE
             selectedCalendarPlace = null
             enterSearchMode()
             return
@@ -648,6 +861,7 @@ private fun selectCurrentLocation() {
         val detailFrag = childFragmentManager.findFragmentByTag("DETAIL")
         if (detailFrag != null && detailFrag.isVisible) {
             childFragmentManager.popBackStack()
+            bottomSheetBehavior.isDraggable = true
             if (isDetailFromRecommend) {
                 bottomSheetBehavior.isHideable = true
                 bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
@@ -662,6 +876,8 @@ private fun selectCurrentLocation() {
 
                 setMapPaddingToBottomSheetHeight()
             }
+            val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+            mapFrag?.restoreAllMarkers()
             return
         }
 
@@ -704,23 +920,123 @@ private fun selectCurrentLocation() {
             requireActivity().onBackPressedDispatcher.onBackPressed()
             backPressedCallback.isEnabled = true
         } else {
-            // 콜백이 혹시 초기화 안 됐다면 그냥 기본 뒤로가기 수행
             requireActivity().onBackPressedDispatcher.onBackPressed()
         }
     }
 
+    private fun handleScheduleBackClick(){
+        if (binding.layoutRouteDetailOverlay.root.visibility == View.VISIBLE) {
+            binding.layoutRouteDetailOverlay.root.visibility = View.GONE
+
+            binding.routeSearchFcv.visibility = View.VISIBLE
+            binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
+
+            return
+        }
+
+        if (binding.layoutMapSelectOverlay.root.visibility == View.VISIBLE) {
+            binding.layoutMapSelectOverlay.root.visibility = View.GONE
+            selectedCalendarPlace = null
+            enterSearchMode()
+            return
+        }
+
+        // 3. 상세 정보(Detail) 바텀시트
+        val detailFrag = childFragmentManager.findFragmentByTag("DETAIL")
+        if (detailFrag != null && detailFrag.isVisible) {
+            childFragmentManager.popBackStack()
+            bottomSheetBehavior.isDraggable = true
+            if (isDetailFromRecommend) {
+                bottomSheetBehavior.isHideable = true
+                bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+                enterSearchMode()
+            } else {
+                bottomSheetBehavior.isHideable = false
+                val density = resources.displayMetrics.density
+                bottomSheetBehavior.peekHeight = (130 * density).toInt()
+                bottomSheetBehavior.expandedOffset = 0
+                bottomSheetBehavior.isFitToContents = false
+                bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
+
+                setMapPaddingToBottomSheetHeight()
+            }
+            val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+            mapFrag?.restoreAllMarkers()
+            return
+        }
+
+        if (isBottomSheetVisible()) {
+            bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+            enterSearchMode()
+            return
+        }
+
+        val isRouteHeaderVisible = binding.layoutRouteInputHeader.root.visibility == View.VISIBLE
+
+        if (isRouteHeaderVisible) {
+            binding.routeMapFcv.visibility = View.GONE
+            activity?.finish()
+            return
+        }
+
+        if (isSearchMode()) {
+
+            if (currentEntryMode == EntryMode.SCHEDULE_ROUTE) {
+                hideKeyboard()
+                mainBinding?.searchEt?.clearFocus()
+                mainBinding?.searchEt?.setText("")
+
+                mainBinding?.mainToolbar?.visibility = View.GONE
+                binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
+
+                binding.layoutRouteInputHeader.tvRouteStart.text = selectedStartPlace?.first ?: ""
+                binding.layoutRouteInputHeader.tvRouteEnd.text = selectedEndPlace?.first ?: ""
+                updateClearButtonVisibility()
+
+                showSearchRouteFragment()
+
+                return
+
+//                if (selectedStartPlace == null && selectedEndPlace == null) {
+//                    exitSearchMode()
+//                }
+//                else {
+//                    hideKeyboard()
+//                    mainBinding?.searchEt?.clearFocus()
+//                    mainBinding?.searchEt?.setText("")
+//
+//                    showSearchRouteFragment()
+//
+//                    binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
+//                    mainBinding?.mainToolbar?.visibility = View.GONE
+//
+//                    historyFragment.setRouteOptionsVisible(false)
+//                }
+//                return
+            }
+
+            exitSearchMode()
+            binding.routeMapFcv.visibility = View.GONE
+            activity?.finish()
+            return
+        }
+
+        binding.routeMapFcv.visibility = View.GONE
+        activity?.finish()
+    }
+
     @Suppress("DEPRECATION")
     fun updateAddressFromMapCenter(latLng: LatLng) {
-        if (binding.layoutMapSelectOverlay.visibility != View.VISIBLE) return
+        if (binding.layoutMapSelectOverlay.root.visibility != View.VISIBLE) return
 
         val geocoder = android.location.Geocoder(requireContext(), java.util.Locale.KOREAN)
 
-        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1)
                 val fullAddress = addresses?.firstOrNull()?.getAddressLine(0)?.replace("대한민국 ", "") ?: ""
 
-                launch(kotlinx.coroutines.Dispatchers.Main) {
+                launch(Dispatchers.Main) {
                     val placeFields = listOf(Place.Field.NAME, Place.Field.TYPES, Place.Field.ADDRESS, Place.Field.ID)
 
                     val circle = com.google.android.libraries.places.api.model.CircularBounds.newInstance(latLng, 50.0)
@@ -740,11 +1056,11 @@ private fun selectCurrentLocation() {
 
                             if (place != null) {
                                 val category = convertTypeToKorean(place.types?.map { it.toString().lowercase() } ?: emptyList())
-                                binding.tvMapSelectName.text = place.name
-                                binding.tvMapSelectInfo.text = "$category · ${calculateDistance(latLng)} · ${place.address?.replace("대한민국 ", "")}"
+                                binding.layoutMapSelectOverlay.tvMapSelectName.text = place.name
+                                binding.layoutMapSelectOverlay.tvMapSelectInfo.text = "$category · ${calculateDistance(latLng)} · ${place.address?.replace("대한민국 ", "")}"
                             } else {
-                                binding.tvMapSelectName.text = addresses?.firstOrNull()?.featureName ?: "지정된 위치"
-                                binding.tvMapSelectInfo.text = "지정된 위치 · ${calculateDistance(latLng)} · $fullAddress"
+                                binding.layoutMapSelectOverlay.tvMapSelectName.text = addresses?.firstOrNull()?.featureName ?: "지정된 위치"
+                                binding.layoutMapSelectOverlay.tvMapSelectInfo.text = "지정된 위치 · ${calculateDistance(latLng)} · $fullAddress"
                             }
                         }
                         .addOnFailureListener {
@@ -757,6 +1073,78 @@ private fun selectCurrentLocation() {
         }
     }
 
+    private fun showScheduleRouteDialog(){
+        val view = layoutInflater.inflate(R.layout.dialog_schedule_route_filter, null)
+
+        val bottomSheetDialog = BottomSheetDialog(requireContext())
+        bottomSheetDialog.setContentView(view)
+
+        val npMinute = view.findViewById<NumberPicker>(R.id.np_minute)
+        val btnCancel = view.findViewById<Button>(R.id.btn_cancel_schedule_route_filter)
+        val btnSave = view.findViewById<Button>(R.id.btn_save_schedule_route_filter)
+
+        npMinute.minValue = 0
+        npMinute.maxValue = 60
+        npMinute.value = earlyArriveTime
+        npMinute.wrapSelectorWheel = true
+
+        btnCancel.setOnClickListener {
+            bottomSheetDialog.dismiss()
+        }
+
+        btnSave.setOnClickListener {
+            val selectedMinute = npMinute.value
+            earlyArriveTime = selectedMinute
+
+            binding.layoutRouteInputHeader.tvTimeFilter.text = "${selectedMinute}분 전 도착"
+
+            bottomSheetDialog.dismiss()
+        }
+
+        bottomSheetDialog.show()
+    }
+
+    private fun showSortOptionBottomSheet(){
+        val view = layoutInflater.inflate(R.layout.dialog_route_sort_filter, null)
+
+        val bottomSheetDialog = BottomSheetDialog(requireContext())
+        bottomSheetDialog.setContentView(view)
+
+        val rgSort = view.findViewById<RadioGroup>(R.id.rg_sort_options_sort_filter)
+        val btnCancel = view.findViewById<Button>(R.id.btn_cancel_sort_filter)
+        val btnSave = view.findViewById<Button>(R.id.btn_save_sort_filter)
+
+        val idToCheck = when(currentSortOption) {
+            RouteSortOption.BEST -> R.id.rb_best_route
+            RouteSortOption.TIME -> R.id.rb_min_time
+            RouteSortOption.TRANSFER -> R.id.rb_min_transfer
+            RouteSortOption.WALK -> R.id.rb_min_walk
+        }
+        rgSort.check(idToCheck)
+
+        btnCancel.setOnClickListener {
+            bottomSheetDialog.dismiss()
+        }
+
+        btnSave.setOnClickListener {
+            val selectedOption = when (rgSort.checkedRadioButtonId) {
+                R.id.rb_best_route -> RouteSortOption.BEST
+                R.id.rb_min_time -> RouteSortOption.TIME
+                R.id.rb_min_transfer -> RouteSortOption.TRANSFER
+                R.id.rb_min_walk -> RouteSortOption.WALK
+                else -> RouteSortOption.BEST
+            }
+
+            currentSortOption = selectedOption
+            binding.layoutRouteInputHeader.tvSortFilter.text = selectedOption.uiText
+
+            // 실제 정렬 로직 추가
+
+            bottomSheetDialog.dismiss()
+        }
+
+        bottomSheetDialog.show()
+    }
     @Suppress("DEPRECATION")
     private fun searchPlaces(query: String) {
         if (!::placesClient.isInitialized || query.isBlank()) return
@@ -845,7 +1233,11 @@ private fun selectCurrentLocation() {
 
                     val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
                     setMapPaddingToBottomSheetHeight()
-                    mapFrag?.showMultipleMarkers(resultList)
+                    binding.routeMapFcv.visibility = View.VISIBLE
+                    mapFrag?.showMultipleMarkers(resultList) { clickedItem ->
+                        isDetailFromRecommend = false
+                        showLocationDetail(clickedItem)
+                    }
                 }
                 .addOnFailureListener {
                     it.printStackTrace()
@@ -948,11 +1340,28 @@ private fun selectCurrentLocation() {
             }, LocationBottomSheetFragment.TAG).commit()
     }
 
+    fun setBottomSheetFixed(isFixed: Boolean) {
+        if (!::bottomSheetBehavior.isInitialized) return
+
+        if (isFixed) {
+            bottomSheetBehavior.apply {
+                isDraggable = false
+                state = BottomSheetBehavior.STATE_COLLAPSED
+                peekHeight = (130 * resources.displayMetrics.density).toInt()
+            }
+        } else {
+            bottomSheetBehavior.apply {
+                isDraggable = true
+                state = BottomSheetBehavior.STATE_HALF_EXPANDED
+            }
+        }
+    }
+
     private fun showLocationDetail(item: SearchItem) {
         saveRecentPlace(item)
-        val isCalendarMode = currentEntryMode == EntryMode.CALENDAR
+        val isSchedule = currentEntryMode == EntryMode.SCHEDULE
 
-        val detailFragment = LocationDetailFragment.newInstance(item, isCalendarMode)
+        val detailFragment = LocationDetailFragment.newInstance(item, isSchedule)
 
         childFragmentManager.beginTransaction()
             .replace(R.id.bottom_sheet_container, detailFragment, "DETAIL")
@@ -973,6 +1382,7 @@ private fun selectCurrentLocation() {
         setMapPaddingToBottomSheetHeight()
 
         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+        mapFrag?.showOnlySelectedMarker(item)
 
         if (item.lat != 0.0 && item.lng != 0.0) {
             mapFrag?.moveCameraToSinglePosition(item.lat, item.lng)
@@ -982,13 +1392,10 @@ private fun selectCurrentLocation() {
     fun handleHistoryItemClick(item: RecentHistoryItem){
         when (item.type) {
             RecentHistoryItem.TYPE_SEARCH_TEXT -> {
-                // [CASE 1] 최근 검색어 아이템 클릭 시
-                // 1. 검색창 텍스트 설정 및 키보드 숨기기
                 mainBinding?.searchEt?.setText(item.mainText)
                 hideKeyboard()
                 mainBinding?.searchEt?.clearFocus()
-
-                // 2. 해당 검색어로 즉시 결과 조회
+                saveRecentSearch(item.mainText)
                 currentRankPreference = SearchByTextRequest.RankPreference.RELEVANCE
                 searchFinalResults(item.mainText)
             }
@@ -1007,20 +1414,20 @@ private fun selectCurrentLocation() {
                 ))
 
                 when (currentEntryMode) {
-                    EntryMode.ROUTE_PLAN -> {
-                        val isStartEmpty = selectedStartPlace == null
-                        val isEndEmpty = selectedEndPlace == null
-                        if (isStartEmpty) {
-                            onLocationSelected(place.name, place.placeId, isStart = true)
-                        } else if (isEndEmpty) {
-                            onLocationSelected(place.name, place.placeId, isStart = false)
+                    EntryMode.ROUTE_PLAN, EntryMode.SCHEDULE_ROUTE -> {
+                        val isHeaderVisible = binding.layoutRouteInputHeader.root.visibility == View.VISIBLE
+
+                        if (isHeaderVisible) {
+                            if (selectedStartPlace == null) {
+                                onLocationSelected(place.name, place.placeId, isStart = true)
+                            } else {
+                                onLocationSelected(place.name, place.placeId, isStart = false)
+                            }
                         }else{
                             onLocationSelected(place.name, place.placeId, isSelectingStart)
                         }
                     }
                     else -> {
-                        isDetailFromRecommend = true
-
                         val searchItem = SearchItem(
                             placeId = place.placeId,
                             name = place.name,
@@ -1032,11 +1439,11 @@ private fun selectCurrentLocation() {
                             distance = ""
                         )
                         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
-                        mapFrag?.clearMarkers()
-                        mapFrag?.showMultipleMarkers(listOf(searchItem))
-
                         exitSearchMode()
+                        isDetailFromRecommend = true
                         showLocationDetail(searchItem)
+                        mapFrag?.clearMarkers()
+                        mapFrag?.showMultipleMarkers(listOf(searchItem)){}
                     }
                 }
             }
@@ -1055,7 +1462,7 @@ private fun selectCurrentLocation() {
     }
 
 private fun setupMyLocationButton() {
-    binding.btnGoMyLocation.setOnClickListener {
+    binding.layoutMapSelectOverlay.btnGoMyLocationOverlay.setOnClickListener {
         if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             mainActivity?.checkPermissionAndStart()
             return@setOnClickListener
@@ -1189,4 +1596,11 @@ private fun setupMyLocationButton() {
         super.onDestroyView()
         _binding = null
     }
+}
+
+enum class RouteSortOption(val uiText: String, val apiValue: String) {
+    BEST("최적 경로순", "BEST"),
+    TIME("최소 시간순", "TIME"),
+    TRANSFER("최소 환승순", "TRANSFER"),
+    WALK("최소 도보순", "WALK")
 }

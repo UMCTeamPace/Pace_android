@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/layout_repeat_interval"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="24dp"
+    android:orientation="vertical">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="반복 주기"
+        android:textColor="@color/text_secondary"
+        android:textSize="14sp"
+        android:layout_marginBottom="8dp"/>
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:cardBackgroundColor="@color/white"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="0dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingVertical="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="16dp">
+
+                <EditText
+                    android:id="@+id/et_week_interval"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="24dp"
+                    android:inputType="number"
+                    android:text="1"
+                    android:minWidth="30dp"
+                    android:textAlignment="center"
+                    android:selectAllOnFocus="true"
+
+                    android:background="@null"
+                    android:textCursorDrawable="@null"
+                    android:textColorHighlight="@android:color/transparent"
+                    android:textSelectHandle="@android:color/transparent"
+                    android:textSelectHandleLeft="@android:color/transparent"
+                    android:textSelectHandleRight="@android:color/transparent"/>
+
+                <TextView
+                    android:id="@+id/tv_week_interval_unit"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="일마다"
+                    android:textColor="@color/black" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/layout_day_of_week"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:layout_marginTop="16dp"
+                android:visibility="gone">
+
+                <CheckBox
+                    android:id="@+id/cb_sun"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:button="@null"
+                    android:background="@drawable/btn_day_button"
+                    style="@style/TextAppearance.App.CaptionMd.Medium"
+                    android:text="일"
+                    android:gravity="center"
+                    android:textColor="@color/semantic_warning" />
+
+                <CheckBox
+                    android:id="@+id/cb_mon"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="8dp"
+                    android:button="@null"
+                    android:background="@drawable/btn_day_button"
+                    style="@style/TextAppearance.App.CaptionMd.Medium"
+                    android:text="월"
+                    android:gravity="center"
+                    android:textColor="@color/selector_day_text" />
+
+                <CheckBox
+                    android:id="@+id/cb_tue"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="8dp"
+                    android:button="@null"
+                    android:background="@drawable/btn_day_button"
+                    style="@style/TextAppearance.App.CaptionMd.Medium"
+                    android:text="화"
+                    android:gravity="center"
+                    android:textColor="@color/selector_day_text" />
+
+                <CheckBox
+                    android:id="@+id/cb_wed"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="8dp"
+                    android:button="@null"
+                    android:background="@drawable/btn_day_button"
+                    style="@style/TextAppearance.App.CaptionMd.Medium"
+                    android:text="수"
+                    android:gravity="center"
+                    android:textColor="@color/selector_day_text" />
+
+                <CheckBox
+                    android:id="@+id/cb_thu"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="8dp"
+                    android:button="@null"
+                    android:background="@drawable/btn_day_button"
+                    style="@style/TextAppearance.App.CaptionMd.Medium"
+                    android:text="목"
+                    android:gravity="center"
+                    android:textColor="@color/selector_day_text" />
+
+                <CheckBox
+                    android:id="@+id/cb_fri"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="8dp"
+                    android:button="@null"
+                    android:background="@drawable/btn_day_button"
+                    style="@style/TextAppearance.App.CaptionMd.Medium"
+                    android:text="금"
+                    android:gravity="center"
+                    android:textColor="@color/selector_day_text" />
+
+                <CheckBox
+                    android:id="@+id/cb_sat"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="8dp"
+                    android:button="@null"
+                    android:background="@drawable/btn_day_button"
+                    style="@style/TextAppearance.App.CaptionMd.Medium"
+                    android:text="토"
+                    android:gravity="center"
+                    android:textColor="@color/semantic_success" />
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+</LinearLayout>

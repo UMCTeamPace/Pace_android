@@ -10,29 +10,12 @@ import com.example.pace.R
 
 class ScheduleTouchHelper(
     private val adapter: ScheduleRVAdapter
-): ItemTouchHelper.Callback() {
+): ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
     // 스와이프 범위
     private val leftWidth = dpToPx(70)
     private val rightWidth = dpToPx(120)
-    // 스와이프된 상태 저장 변수
     private var currentScrollX = 0f
     private var swipedViewHolder: RecyclerView.ViewHolder? = null
-
-    // 스와이프된 위치
-    var swipedPos = -1
-
-    override fun getMovementFlags(
-        recyclerView: RecyclerView,
-        viewHolder: RecyclerView.ViewHolder
-    ): Int {
-        val currentPos = viewHolder.bindingAdapterPosition
-        // 이미 다른 곳에서 스와이프가 됐을 때 스와이프 X
-        return if(swipedPos != -1 && swipedPos != currentPos){
-            makeMovementFlags(0, 0)
-        }else{
-            makeMovementFlags(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT)
-        }
-    }
 
     override fun onMove(
         recyclerView: RecyclerView,
@@ -86,29 +69,33 @@ class ScheduleTouchHelper(
                 }
                 // 스와이프 중이 아닐 때, 스와이프 고정
                 false -> {
+                    val position = viewHolder.bindingAdapterPosition
+                    if (position == RecyclerView.NO_POSITION || position >= adapter.itemCount) {
+                        super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+                        return
+                    }
+                    val schedule = adapter.getScheduleAt(position)
+
                     when(dX){
                         0f -> {
-                            swipedPos = -1
                             super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
                         }
                         else -> {
                             if(dX < 0 && currentScrollX == -rightWidth){
-                                adapter.swipedList[viewHolder.bindingAdapterPosition] = true
+                                schedule.isSwiped = true
                                 swipedViewHolder = viewHolder
                                 translationX = -rightWidth
-                                swipedPos = viewHolder.bindingAdapterPosition
                             }
                             // 우측 스크롤 및 임계점 도달
                             else if(dX > 0 && currentScrollX == leftWidth){
-                                adapter.swipedList[viewHolder.bindingAdapterPosition] = true
+                                schedule.isSwiped = true
                                 swipedViewHolder = viewHolder
                                 translationX = leftWidth
-                                swipedPos = viewHolder.bindingAdapterPosition
                             }
                             else{
-                                adapter.swipedList[viewHolder.bindingAdapterPosition] = false
+                                schedule.isSwiped = false
                                 translationX = 0f
-                                swipedPos = -1
+                                //swipedPos = -1
                             }
                             // 상단 뷰 가로 위치 고정
                             viewTop.translationX = translationX
@@ -125,8 +112,28 @@ class ScheduleTouchHelper(
     fun closeSwipedMenu(){
         val viewTop = swipedViewHolder?.itemView?.findViewById<ConstraintLayout>(R.id.schedule_view_top)
         viewTop?.translationX = 0f
+        if (swipedViewHolder != null) {
+            val position = swipedViewHolder!!.bindingAdapterPosition
+            if (position != RecyclerView.NO_POSITION && position < adapter.itemCount) {
+                adapter.getScheduleAt(position).isSwiped = false
+            }
+        }
         currentScrollX = 0f
         swipedViewHolder = null
+    }
+
+    // 다른 거 스와이프 시 기존 것이 자동으로 닫히도록
+    override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+        if(actionState == ItemTouchHelper.ACTION_STATE_SWIPE){
+            if(hasSwipedItem() && swipedViewHolder != viewHolder){
+                closeSwipedMenu()
+            }
+        }
+        super.onSelectedChanged(viewHolder, actionState)
+    }
+
+    fun hasSwipedItem(): Boolean {
+        return swipedViewHolder != null
     }
 
     private fun dpToPx(int: Int): Float {

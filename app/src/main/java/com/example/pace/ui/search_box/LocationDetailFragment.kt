@@ -100,6 +100,11 @@ class LocationDetailFragment : Fragment() {
             val parent = parentFragment as? RouteFragment
             parent?.onLocationSelected(name, placeId, isStart = false)
         }
+
+        binding.icSelectLocation.setOnClickListener {
+            val parent = parentFragment as? RouteFragment
+            parent?.onScheduleLocationSelected(name, placeId)
+        }
     }
 
     private fun updateMetaInfoText(category: String, distance: String, address: String) {
@@ -129,8 +134,10 @@ class LocationDetailFragment : Fragment() {
 
             if (metadataList.isNullOrEmpty()) {
                 binding.svPhotos.visibility = View.GONE
+                (parentFragment as? RouteFragment)?.setBottomSheetFixed(true)
             }else {
                 binding.svPhotos.visibility = View.VISIBLE
+                (parentFragment as? RouteFragment)?.setBottomSheetFixed(false)
                 binding.photoContainer.removeAllViews()
 
                 val count = minOf(metadataList.size, 3)
@@ -150,6 +157,7 @@ class LocationDetailFragment : Fragment() {
             }
         }.addOnFailureListener {
             binding.svPhotos.visibility = View.GONE
+            (parentFragment as? RouteFragment)?.setBottomSheetFixed(true)
         }
     }
 

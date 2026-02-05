@@ -276,6 +276,9 @@
                 android:id="@+id/btn_route"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:clickable="true"
+                android:focusable="true"
+                android:focusableInTouchMode="false"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 

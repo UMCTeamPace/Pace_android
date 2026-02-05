@@ -9,16 +9,21 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.replace
+import androidx.fragment.app.setFragmentResultListener
 import com.example.pace.R
 import com.example.pace.databinding.FragmentSettingBinding
 
 class SettingFragment: Fragment() {
+    private var _binding: FragmentSettingBinding? = null
+    private val binding get() = _binding!!
+    private var selectedEarlyTime: String = "10분"
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        val binding = FragmentSettingBinding.inflate(inflater, container, false)
+        _binding = FragmentSettingBinding.inflate(inflater, container, false)
         val title = activity?.findViewById<TextView>(R.id.settings_tv)
         title?.text = "설정"
 
@@ -61,15 +66,47 @@ class SettingFragment: Fragment() {
             signoutDialog.show()
         }
 
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        val title = activity?.findViewById<TextView>(R.id.settings_tv)
+        title?.text = "설정"
+
+        binding.settingsRouteMinuteTv.text = selectedEarlyTime
+
+        setFragmentResultListener("earlyDepartureKey") { _, bundle ->
+            val resultText = bundle.getString("selectedMinutes") ?: "10분"
+            selectedEarlyTime = resultText
+
+            _binding?.let {
+                it.settingsRouteMinuteTv.text = resultText
+            }
+        }
+
         binding.settingsRouteLl.setOnClickListener {
-            val earlyDepartureFragment = SettingEarlyarrivedFragment()
-            requireActivity().supportFragmentManager.beginTransaction()
-                .replace(R.id.main_fcv, earlyDepartureFragment)
+            title?.text = "미리 도착"
+
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.settings_fcv, SettingEarlyarrivedFragment())
                 .addToBackStack(null)
                 .commit()
         }
 
+        parentFragmentManager.addOnBackStackChangedListener {
+            if (parentFragmentManager.backStackEntryCount == 0) {
+                val title = activity?.findViewById<TextView>(R.id.settings_tv)
+                title?.text = "설정"
+            }
+        }
 
-        return binding.root
+
+
+    }
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 }
