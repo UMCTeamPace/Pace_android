@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_bottom_sheet_rounded"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:id="@+id/tv_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:gravity="center"
+        android:text="정렬 옵션"
+        android:fontFamily="@font/pretendard_semibold"
+        android:textColor="@color/black"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <RadioGroup
+        android:id="@+id/rg_sort_options_sort_filter"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <RadioButton
+            android:id="@+id/rb_best_route"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@null"
+            android:backgroundTint="@android:color/transparent"
+            android:button="@null"
+            android:checked="true"
+            android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+            android:drawableTint="@color/selector_radio_button"
+            android:drawableTintMode="src_in"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp"
+            android:text="최적 경로순"
+            android:textColor="@color/selector_text_color"
+            android:fontFamily="@font/pretendard_medium"
+            android:textSize="16sp" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/gray_100" />
+
+        <RadioButton
+            android:id="@+id/rb_min_time"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@null"
+            android:backgroundTint="@android:color/transparent"
+            android:button="@null"
+            android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+            android:drawableTint="@color/selector_radio_button"
+            android:drawableTintMode="src_in"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp"
+            android:text="최소 시간순"
+            android:textColor="@color/selector_text_color"
+            android:fontFamily="@font/pretendard_medium"
+            android:textSize="16sp" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/gray_100" />
+
+        <RadioButton
+            android:id="@+id/rb_min_transfer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@null"
+            android:backgroundTint="@android:color/transparent"
+            android:button="@null"
+            android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+            android:drawableTint="@color/selector_radio_button"
+            android:drawableTintMode="src_in"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp"
+            android:text="최소 환승순"
+            android:textColor="@color/selector_text_color"
+            android:fontFamily="@font/pretendard_medium"
+            android:textSize="16sp" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/gray_100" />
+
+        <RadioButton
+            android:id="@+id/rb_min_walk"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@null"
+            android:backgroundTint="@android:color/transparent"
+            android:button="@null"
+            android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+            android:drawableTint="@color/selector_radio_button"
+            android:drawableTintMode="src_in"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp"
+            android:text="최소 도보순"
+            android:textColor="@color/selector_text_color"
+            android:fontFamily="@font/pretendard_medium"
+            android:textSize="16sp" />
+
+    </RadioGroup>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_cancel_sort_filter"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:background="@drawable/btn_cancel_bg"
+            android:backgroundTint="@null"
+            android:text="취소"
+            android:textColor="@color/text_secondary"/>
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_save_sort_filter"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:background="@drawable/btn_confirm_bg"
+            android:text="저장"
+            android:textColor="@android:color/white" />
+    </LinearLayout>
+
+</LinearLayout>

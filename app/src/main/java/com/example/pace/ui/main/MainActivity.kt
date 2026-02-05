@@ -172,7 +172,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
-        if (intent?.getStringExtra("ACTION_MODE") == "SCHEDULE") {
+        val actionMode = intent?.getStringExtra("ACTION_MODE")
+
+        if (actionMode == "SCHEDULE" || actionMode == "SCHEDULE_ROUTE") {
             binding.mainBnv.selectedItemId = R.id.route
         }
     }

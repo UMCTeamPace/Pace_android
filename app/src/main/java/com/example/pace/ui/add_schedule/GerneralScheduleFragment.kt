@@ -33,6 +33,7 @@ class GeneralScheduleFragment : Fragment() {
             val data = result.data
             val name = data?.getStringExtra("placeName")
             val id = data?.getStringExtra("placeId")
+            //여기서 업데이트! 받아온 정보 여기서 써요!
             Toast.makeText(context, "선택된 장소: $name, 선택된 아이디: $id", Toast.LENGTH_SHORT).show()
         }
     }
