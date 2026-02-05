@@ -30,8 +30,12 @@ class RecentPlaceFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val dao = SearchDatabase.getDatabase(requireContext()).searchDao()
-        repository = SearchRepository(dao)
+        val database = SearchDatabase.getDatabase(requireContext())
+
+        repository = SearchRepository(
+            database.searchDao(),
+            database.recentRouteDao()
+        )
 
         setupRecyclerView()
         observeData()

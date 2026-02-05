@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.afollestad.materialdialogs.color.colorChooser
 import com.example.pace.R
+import com.example.pace.data.util.RouteConstants
 import com.example.pace.databinding.FragmentRouteScheduleBinding
 
 class RouteScheduleFragment : Fragment() {
@@ -236,7 +237,9 @@ class RouteScheduleFragment : Fragment() {
                 //여기부터 저장되어 있는 값으로 수정 필요
                 putExtra("SEARCH_TIME", "") // 년도까지 반영된  구글 Directions API는 Unix Timestamp 형식(String)
                 putExtra("EARLY_ARRIVE_TIME", 20) // 디폴트는 온보딩값으로 넣어주세여
-                putExtra("SORT_OPTION", 2) // "최적 경로순" -> 0, "최소 시간순"->1, "최소 환승순"->2, "최소 도보순"->3
+                // "최적 경로순" -> 0, "최소 시간순"->1, "최소 환승순"->2, "최소 도보순"->3
+                // data/util/RouteConstants 에 상수로 저장해놨습니당
+                putExtra("SORT_OPTION", RouteConstants.SORT_OPTION_TRANSFER)
             }
             routeSearchLauncher.launch(intent)
         }

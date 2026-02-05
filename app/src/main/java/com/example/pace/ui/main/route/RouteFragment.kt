@@ -30,7 +30,9 @@ import com.example.pace.data.model.RouteResponse
 import com.example.pace.data.db.SearchDatabase
 import com.example.pace.data.model.RecentHistoryItem
 import com.example.pace.data.model.RecentPlace
+import com.example.pace.data.model.RecentRoute
 import com.example.pace.data.repository.SearchRepository
+import com.example.pace.data.util.RouteConstants
 import com.example.pace.data.viewmodel.SearchViewModel
 import com.example.pace.data.viewmodel.SearchViewModelFactory
 import com.example.pace.databinding.FragmentRouteBinding
@@ -211,10 +213,10 @@ class RouteFragment : Fragment() {
         earlyArriveTime = intent.getIntExtra("EARLY_ARRIVE_TIME", 10)
         val sortNum = intent.getIntExtra("SORT_OPTION", 0)
         val sortString = when (sortNum) {
-            0 -> "최적 경로순"
-            1 -> "최소 시간순"
-            2 -> "최소 환승순"
-            3 -> "최소 도보순"
+            RouteConstants.SORT_OPTION_BEST -> "최적 경로순"
+            RouteConstants.SORT_OPTION_TIME -> "최소 시간순"
+            RouteConstants.SORT_OPTION_TRANSFER -> "최소 환승순"
+            RouteConstants.SORT_OPTION_WALK -> "최소 도보순"
             else -> "최적 경로순"
         }
         currentSortOption = RouteSortOption.values().find { it.uiText == sortString }
@@ -406,11 +408,11 @@ class RouteFragment : Fragment() {
                 putExtra("endPlaceId", selectedEndPlace?.second)
                 putExtra("earlyArriveTime", earlyArriveTime)
                 val sortNum = when (currentSortOption) {
-                    RouteSortOption.BEST -> 0
-                    RouteSortOption.TIME -> 1
-                    RouteSortOption.TRANSFER -> 2
-                    RouteSortOption.WALK -> 3
-                    else -> 0
+                    RouteSortOption.BEST -> RouteConstants.SORT_OPTION_BEST
+                    RouteSortOption.TIME -> RouteConstants.SORT_OPTION_TIME
+                    RouteSortOption.TRANSFER -> RouteConstants.SORT_OPTION_TRANSFER
+                    RouteSortOption.WALK -> RouteConstants.SORT_OPTION_WALK
+                    else -> RouteConstants.SORT_OPTION_BEST
                 }
                 putExtra("sortOption", sortNum)
                 putExtra("routeData", Gson().toJson(item))
@@ -698,6 +700,7 @@ private fun selectCurrentLocation() {
         val existingRouteFrag = childFragmentManager.findFragmentByTag("ROUTE_RESULT")
 
         if (selectedStartPlace != null && selectedEndPlace != null) {
+            saveCurrentRoute()
 
             if (historyFragment.isAdded) transaction.hide(historyFragment)
             if (recommendFragment.isAdded) transaction.hide(recommendFragment)
@@ -744,6 +747,28 @@ private fun selectCurrentLocation() {
         if (::bottomSheetBehavior.isInitialized) {
             bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
         }
+    }
+
+    private fun saveCurrentRoute() {
+        val start = selectedStartPlace ?: return
+        val end = selectedEndPlace ?: return
+
+        val newRoute = RecentRoute(
+            startPlaceName = start.first,
+            startPlaceId = start.second,
+            endPlaceName = end.first,
+            endPlaceId = end.second
+        )
+
+        // 3. DB 저장 및 청소
+        lifecycleScope.launch(Dispatchers.IO) {
+            val database = SearchDatabase.getDatabase(requireContext())
+            database.recentRouteDao().insertRecentRoute(newRoute)
+
+            // 30일 지난 데이터 삭제
+            searchViewModel.deleteExpiredData()
+        }
+
     }
 
     private fun setupRouteHeaderListeners() {
