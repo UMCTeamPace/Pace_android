@@ -235,8 +235,8 @@ class RouteScheduleFragment : Fragment() {
                 putExtra("SCHEDULE_TIME", startTime)
                 //여기부터 저장되어 있는 값으로 수정 필요
                 putExtra("SEARCH_TIME", "") // 년도까지 반영된  구글 Directions API는 Unix Timestamp 형식(String)
-                putExtra("EARLY_ARRIVE_TIME", 10) // db에 저장안되어 있으면 디폴트 온보딩값
-                putExtra("SORT_OPTION", "최소 시간순")
+                putExtra("EARLY_ARRIVE_TIME", 10) // 디폴트는 온보딩값으로 넣어주세여
+                putExtra("SORT_OPTION", "최소 시간순") // "최적 경로순", "최소 시간순", "최소 환승순", "최소 도보순"
             }
             routeSearchLauncher.launch(intent)
         }
