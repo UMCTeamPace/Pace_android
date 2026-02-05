@@ -15,13 +15,13 @@ import com.example.pace.data.repository.repository.PlaceGroupRepository
 import com.example.pace.data.repository.repository.SavedPlaceRepository
 import com.example.pace.data.repository.repository.ScheduleRepository
 import com.example.pace.data.repository.repository.SettingsRepository
-import com.example.pace.data.repository.repositoryImpl.MemberControllerRepositoryImpl
+import com.example.pace.data.repository.repositoryImpl2.MemberControllerRepositoryImpl
 import com.example.pace.data.repository.repositoryImpl.OnboardingRepositoryImpl
 import com.example.pace.data.repository.repositoryImpl.PlaceGroupRepositoryImpl
 import com.example.pace.data.repository.repositoryImpl.SavedPlaceRepositoryImpl
 import com.example.pace.data.repository.repositoryImpl.ScheduleRepositoryImpl
 import com.example.pace.data.repository.repositoryImpl.SettingsRepositoryImpl
-import com.example.pace.data.repository.repositoryimpl.AuthControllerRepositoryImpl
+import com.example.pace.data.repository.repositoryImpl.AuthControllerRepositoryImpl
 import com.example.pace.module.ServiceModule.provideSettingsService
 import dagger.Module
 import dagger.Provides
@@ -75,7 +75,7 @@ object RepositoryModule {
     @ViewModelScoped
     @Provides
     fun providesMemberControllerRepository(
-        MemberControllerService: MemberControllerService
+        MemberControllerService: MemberControllerService,
         authDataStore: AuthDataStore,
     ) : MemberControllerRepository {
         return MemberControllerRepositoryImpl(MemberControllerService,authDataStore=authDataStore)
