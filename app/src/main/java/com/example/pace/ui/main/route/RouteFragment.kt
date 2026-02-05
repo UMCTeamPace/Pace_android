@@ -21,14 +21,18 @@ import androidx.core.app.ActivityCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.example.pace.BuildConfig
+import com.example.pace.PaceApplication
 import com.example.pace.R
 import com.example.pace.data.model.RouteResponse
 import com.example.pace.data.db.SearchDatabase
 import com.example.pace.data.model.RecentHistoryItem
 import com.example.pace.data.model.RecentPlace
 import com.example.pace.data.repository.SearchRepository
+import com.example.pace.data.viewmodel.SearchViewModel
+import com.example.pace.data.viewmodel.SearchViewModelFactory
 import com.example.pace.databinding.FragmentRouteBinding
 import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.search_box.*
@@ -59,7 +63,9 @@ class RouteFragment : Fragment() {
     private val mainActivity: MainActivity? get() = activity as? MainActivity
     private val mainBinding get() = (activity as? MainActivity)?.binding
 
-    private lateinit var repository: SearchRepository
+    private val searchViewModel: SearchViewModel by viewModels {
+        SearchViewModelFactory((requireActivity().application as PaceApplication).searchRepository)
+    }
 
     private lateinit var placesClient: PlacesClient
 
@@ -108,12 +114,7 @@ class RouteFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val db = SearchDatabase.getDatabase(requireContext())
-        repository = SearchRepository(db.searchDao())
-
-        lifecycleScope.launch(Dispatchers.IO) {
-            repository.deleteExpiredData()
-        }
+        searchViewModel.deleteExpiredData()
 
         initPlacesClient()
         initBottomSheet()
@@ -1485,7 +1486,7 @@ private fun setupMyLocationButton() {
 }
     private fun saveRecentSearch(query: String){
         lifecycleScope.launch(Dispatchers.IO) {
-            repository.insertSearch(query)
+            searchViewModel.insertSearch(query)
         }
     }
     private fun saveRecentPlace(item: SearchItem) {
@@ -1501,7 +1502,7 @@ private fun setupMyLocationButton() {
         )
 
         lifecycleScope.launch(Dispatchers.IO) {
-            repository.insertPlace(recentPlace)
+            searchViewModel.insertPlace(recentPlace)
         }
     }
 
