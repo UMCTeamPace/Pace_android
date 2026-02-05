@@ -410,7 +410,7 @@ class RouteFragment : Fragment() {
                     RouteSortOption.TIME -> 1
                     RouteSortOption.TRANSFER -> 2
                     RouteSortOption.WALK -> 3
-                    else -> 1
+                    else -> 0
                 }
                 putExtra("sortOption", sortNum)
                 putExtra("routeData", Gson().toJson(item))
@@ -1499,9 +1499,7 @@ private fun setupMyLocationButton() {
     }
 }
     private fun saveRecentSearch(query: String){
-        lifecycleScope.launch(Dispatchers.IO) {
-            searchViewModel.insertSearch(query)
-        }
+        searchViewModel.insertSearch(query)
     }
     private fun saveRecentPlace(item: SearchItem) {
         val recentPlace = RecentPlace(
@@ -1515,9 +1513,7 @@ private fun setupMyLocationButton() {
             timestamp = System.currentTimeMillis()
         )
 
-        lifecycleScope.launch(Dispatchers.IO) {
-            searchViewModel.insertPlace(recentPlace)
-        }
+        searchViewModel.insertPlace(recentPlace)
     }
 
     // 유틸리티 함수들
