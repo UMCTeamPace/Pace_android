@@ -13,6 +13,7 @@ import com.example.pace.ui.main.MainActivity
 import com.kakao.sdk.user.UserApiClient
 import com.kakao.sdk.common.model.ClientError
 import com.kakao.sdk.common.model.ClientErrorCause
+import com.kakao.sdk.common.util.Utility
 
 class OnboardingFragment : Fragment() {
     private var _binding: FragmentOnboardingBinding? = null
@@ -28,6 +29,9 @@ class OnboardingFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        val keyHash = Utility.getKeyHash(requireContext())
+        Log.d("KeyHash", keyHash)
 
         // 1. 로고가 위로 솟구치는 애니메이션
         binding.ivLargeLogo.animate()

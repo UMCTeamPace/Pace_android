@@ -5,6 +5,7 @@ import android.util.Log
 import com.example.pace.data.db.ScheduleDatabase
 import com.example.pace.data.datasource.NormalScheduleRemoteDataSource
 import com.example.pace.data.repository.ScheduleRepository
+import com.kakao.sdk.common.KakaoSdk
 
 class PaceApplication : Application() {
     lateinit var repository: ScheduleRepository
