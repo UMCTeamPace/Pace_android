@@ -70,7 +70,8 @@ class ScheduleAdapter(
         fun bind(item: ScheduleListItem.ScheduleItem) {
             val schedule = item.schedule
             binding.scheduleTitleTv.text = schedule.title ?: "제목 없음"
-            
+
+            // 색상 설정 로직 (기존 유지)
             val color = when {
                 schedule.eventColor != 0 && schedule.eventColor != null -> schedule.eventColor
                 schedule.calendarColor != 0 && schedule.calendarColor != null -> schedule.calendarColor
@@ -78,20 +79,53 @@ class ScheduleAdapter(
             }
             binding.scheduleCategoryIv.imageTintList = android.content.res.ColorStateList.valueOf(color)
 
+            // --- [추가 및 수정] 시간/기간 표시 로직 ---
+            val dateUpdateFormatter = java.time.format.DateTimeFormatter.ofPattern("M월 d일", java.util.Locale.KOREAN)
+            val timeFormatter = java.time.format.DateTimeFormatter.ofPattern("a hh:mm", java.util.Locale.KOREAN)
+
+            binding.scheduleTimeTv.text = try {
+                val startLocalDate = java.time.LocalDate.parse(schedule.startDate)
+                var endLocalDate = java.time.LocalDate.parse(schedule.endDate)
+
+                // [보정] 하루 종일 일정인데 종료일이 다음날로 잡혀있다면 하루를 뺌
+                if (schedule.isAllDay && endLocalDate.isAfter(startLocalDate)) {
+                    endLocalDate = endLocalDate.minusDays(1)
+                }
+
+                when {
+                    // CASE 1: 하루 종일 + 기간 (보정 후에도 날짜가 다를 때) -> "2월 9일 - 2월 11일"
+                    schedule.isAllDay && startLocalDate != endLocalDate -> {
+                        "${startLocalDate.format(dateUpdateFormatter)} - ${endLocalDate.format(dateUpdateFormatter)}"
+                    }
+
+                    // CASE 2: 하루 종일 + 당일 (보정 후 날짜가 같아짐) -> "하루 종일"
+                    schedule.isAllDay -> {
+                        "하루 종일"
+                    }
+
+                    // CASE 3: 일반 일정 + 기간 -> 시간 포함 표시
+                    startLocalDate != endLocalDate -> {
+                        val startTime = java.time.LocalTime.parse(schedule.startTime)
+                        val endTime = java.time.LocalTime.parse(schedule.endTime)
+                        "${startLocalDate.format(dateUpdateFormatter)} ${startTime.format(timeFormatter)} - ${endLocalDate.format(dateUpdateFormatter)} ${endTime.format(timeFormatter)}"
+                    }
+
+                    // CASE 4: 일반 일정 + 당일 -> 시간만 표시
+                    else -> {
+                        val startTime = java.time.LocalTime.parse(schedule.startTime)
+                        val endTime = java.time.LocalTime.parse(schedule.endTime)
+                        "${startTime.format(timeFormatter)} - ${endTime.format(timeFormatter)}"
+                    }
+                }
+            } catch (e: Exception) {
+                "${schedule.startDate} - ${schedule.endDate}"
+            }
             binding.schedulePinnedIv.visibility = View.GONE
             binding.scheduleAlertTv.visibility = View.GONE
             binding.scheduleCheckbox.visibility = View.GONE
             // Pin 아이콘 리스너 및 상태 변경
             binding.schedulePinIv.setOnClickListener { onPinClick(schedule) }
-            // isPinned 상태에 따라 pin 아이콘의 src를 변경할 수 있습니다.
-            // 예: binding.schedulePinIv.setImageResource(if (schedule.isPinned) R.drawable.ic_pin_filled else R.drawable.ic_pin)
-            // (ic_pin_filled 라는 drawable이 있다고 가정)
 
-            if (schedule.isAllDay) {
-                binding.scheduleTimeTv.text = "하루 종일"
-            } else {
-                binding.scheduleTimeTv.text = "${schedule.startTime} - ${schedule.endTime}"
-            }
 
             if (!schedule.location.isNullOrEmpty()) {
                 binding.scheduleNormalLocationLl.visibility = ViewGroup.VISIBLE

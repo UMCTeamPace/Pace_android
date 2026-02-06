@@ -94,7 +94,9 @@
         app:behavior_hideable="true"
         app:behavior_peekHeight="0dp">
 
-        <include layout="@layout/bottom_sheet_schedule" />
+        <include
+            android:id="@+id/schedule_list_container"
+            layout="@layout/bottom_sheet_schedule" />
 
     </FrameLayout>
 

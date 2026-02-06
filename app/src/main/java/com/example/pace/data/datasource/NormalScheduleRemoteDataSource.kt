@@ -13,44 +13,40 @@ import java.util.*
 class NormalScheduleRemoteDataSource(private val applicationContext: Context) {
 
     suspend fun getSchedules(): List<Schedule> = withContext(Dispatchers.IO) {
+        val scheduleList = mutableListOf<Schedule>()
 
-            val scheduleList = mutableListOf<Schedule>()
+        // 1. 조회 범위 설정 (예: 과거 1년 전부터 미래 1년 후까지)
+        val calendar = Calendar.getInstance()
+        calendar.add(Calendar.YEAR, -1) // 1년 전으로 설정
+        val startRange = calendar.timeInMillis
 
-            val projection = arrayOf(
+        calendar.add(Calendar.YEAR, 2) // 위에서 -1 했으므로 +2를 해야 미래 1년이 됨
+        val endRange = calendar.timeInMillis
 
-                CalendarContract.Events._ID,
+        // 2. 쿼리 조건 수정 (시작일과 종료일 사이의 이벤트를 가져옴)
+        // 과거 데이터도 가져오고 싶다면 단순히 >= 조건을 바꾸거나 범위를 지정합니다.
+        val selection = "${CalendarContract.Events.DTSTART} >= ? AND ${CalendarContract.Events.DTSTART} <= ?"
+        val selectionArgs = arrayOf(
+            startRange.toString(),
+            endRange.toString()
+        )
 
-                CalendarContract.Events.TITLE,
+        val projection = arrayOf(
+            CalendarContract.Events._ID,
+            CalendarContract.Events.TITLE,
+            CalendarContract.Events.DTSTART,
+            CalendarContract.Events.DTEND,
+            CalendarContract.Events.ALL_DAY,
+            CalendarContract.Events.DESCRIPTION,
+            CalendarContract.Events.EVENT_LOCATION,
+            CalendarContract.Events.RRULE,
+            CalendarContract.Events.CALENDAR_ID,
+            CalendarContract.Events.CALENDAR_DISPLAY_NAME,
+            CalendarContract.Events.EVENT_COLOR,
+            CalendarContract.Events.CALENDAR_COLOR
+        )
 
-                CalendarContract.Events.DTSTART,
 
-                CalendarContract.Events.DTEND,
-
-                CalendarContract.Events.ALL_DAY,
-
-                CalendarContract.Events.DESCRIPTION,
-
-                CalendarContract.Events.EVENT_LOCATION,
-
-                CalendarContract.Events.RRULE,
-
-                CalendarContract.Events.CALENDAR_ID,
-
-                CalendarContract.Events.CALENDAR_DISPLAY_NAME,
-
-                CalendarContract.Events.EVENT_COLOR,
-
-                CalendarContract.Events.CALENDAR_COLOR
-
-            )
-
-            
-
-            val calendar = Calendar.getInstance()
-
-            val selection = "${CalendarContract.Events.DTSTART} >= ?"
-
-            val selectionArgs = arrayOf(calendar.timeInMillis.toString())
 
     
 
