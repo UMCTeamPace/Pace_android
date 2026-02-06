@@ -4,10 +4,19 @@ import android.app.Application
 import android.util.Log
 import com.example.pace.data.db.ScheduleDatabase
 import com.example.pace.data.datasource.NormalScheduleRemoteDataSource
+import com.example.pace.data.db.SearchDatabase
 import com.example.pace.data.repository.ScheduleRepository
+import com.example.pace.data.repository.SearchRepository
 
 class PaceApplication : Application() {
     lateinit var repository: ScheduleRepository
+
+    val searchDatabase by lazy { SearchDatabase.getDatabase(this) }
+    val searchRepository by lazy {
+        SearchRepository(searchDatabase.searchDao(),
+            searchDatabase.recentRouteDao()
+        )
+    }
 
     override fun onCreate() {
         super.onCreate()

@@ -21,14 +21,20 @@ import androidx.core.app.ActivityCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.example.pace.BuildConfig
+import com.example.pace.PaceApplication
 import com.example.pace.R
 import com.example.pace.data.model.RouteResponse
 import com.example.pace.data.db.SearchDatabase
 import com.example.pace.data.model.RecentHistoryItem
 import com.example.pace.data.model.RecentPlace
+import com.example.pace.data.model.RecentRoute
 import com.example.pace.data.repository.SearchRepository
+import com.example.pace.data.util.RouteConstants
+import com.example.pace.data.viewmodel.SearchViewModel
+import com.example.pace.data.viewmodel.SearchViewModelFactory
 import com.example.pace.databinding.FragmentRouteBinding
 import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.search_box.*
@@ -59,7 +65,9 @@ class RouteFragment : Fragment() {
     private val mainActivity: MainActivity? get() = activity as? MainActivity
     private val mainBinding get() = (activity as? MainActivity)?.binding
 
-    private lateinit var repository: SearchRepository
+    private val searchViewModel: SearchViewModel by viewModels {
+        SearchViewModelFactory((requireActivity().application as PaceApplication).searchRepository)
+    }
 
     private lateinit var placesClient: PlacesClient
 
@@ -108,12 +116,7 @@ class RouteFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val db = SearchDatabase.getDatabase(requireContext())
-        repository = SearchRepository(db.searchDao())
-
-        lifecycleScope.launch(Dispatchers.IO) {
-            repository.deleteExpiredData()
-        }
+        searchViewModel.deleteExpiredData()
 
         initPlacesClient()
         initBottomSheet()
@@ -208,7 +211,14 @@ class RouteFragment : Fragment() {
         scheduleColor = intent.getStringExtra("SCHEDULE_COLOR") ?: "#DC354B"
         scheduleTime = intent.getStringExtra("SCHEDULE_TIME") ?: "00:00"
         earlyArriveTime = intent.getIntExtra("EARLY_ARRIVE_TIME", 10)
-        val sortString = intent.getStringExtra("SORT_OPTION") ?: "최적 경로순"
+        val sortNum = intent.getIntExtra("SORT_OPTION", 0)
+        val sortString = when (sortNum) {
+            RouteConstants.SORT_OPTION_BEST -> "최적 경로순"
+            RouteConstants.SORT_OPTION_TIME -> "최소 시간순"
+            RouteConstants.SORT_OPTION_TRANSFER -> "최소 환승순"
+            RouteConstants.SORT_OPTION_WALK -> "최소 도보순"
+            else -> "최적 경로순"
+        }
         currentSortOption = RouteSortOption.values().find { it.uiText == sortString }
             ?: RouteSortOption.BEST
         searchTime = intent.getStringExtra("SEARCH_TIME") ?: ""
@@ -382,7 +392,7 @@ class RouteFragment : Fragment() {
             behavior.state = BottomSheetBehavior.STATE_COLLAPSED
             behavior.peekHeight = (250 * resources.displayMetrics.density).toInt() // 지도 보일 정도 높이
 
-            RouteDetailHelper.setupData(bottomSheetView, item)
+            RouteDetailHelper.setupData(requireContext(),bottomSheetView, item, selectedEndPlace?.first ?: "")
 
 
         }
@@ -397,7 +407,14 @@ class RouteFragment : Fragment() {
                 putExtra("endPlaceName", selectedEndPlace?.first)
                 putExtra("endPlaceId", selectedEndPlace?.second)
                 putExtra("earlyArriveTime", earlyArriveTime)
-                putExtra("sortOption", currentSortOption.uiText)
+                val sortNum = when (currentSortOption) {
+                    RouteSortOption.BEST -> RouteConstants.SORT_OPTION_BEST
+                    RouteSortOption.TIME -> RouteConstants.SORT_OPTION_TIME
+                    RouteSortOption.TRANSFER -> RouteConstants.SORT_OPTION_TRANSFER
+                    RouteSortOption.WALK -> RouteConstants.SORT_OPTION_WALK
+                    else -> RouteConstants.SORT_OPTION_BEST
+                }
+                putExtra("sortOption", sortNum)
                 putExtra("routeData", Gson().toJson(item))
             }
 
@@ -683,6 +700,7 @@ private fun selectCurrentLocation() {
         val existingRouteFrag = childFragmentManager.findFragmentByTag("ROUTE_RESULT")
 
         if (selectedStartPlace != null && selectedEndPlace != null) {
+            saveCurrentRoute()
 
             if (historyFragment.isAdded) transaction.hide(historyFragment)
             if (recommendFragment.isAdded) transaction.hide(recommendFragment)
@@ -729,6 +747,28 @@ private fun selectCurrentLocation() {
         if (::bottomSheetBehavior.isInitialized) {
             bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
         }
+    }
+
+    private fun saveCurrentRoute() {
+        val start = selectedStartPlace ?: return
+        val end = selectedEndPlace ?: return
+
+        val newRoute = RecentRoute(
+            startPlaceName = start.first,
+            startPlaceId = start.second,
+            endPlaceName = end.first,
+            endPlaceId = end.second
+        )
+
+        // 3. DB 저장 및 청소
+        lifecycleScope.launch(Dispatchers.IO) {
+            val database = SearchDatabase.getDatabase(requireContext())
+            database.recentRouteDao().insertRecentRoute(newRoute)
+
+            // 30일 지난 데이터 삭제
+            searchViewModel.deleteExpiredData()
+        }
+
     }
 
     private fun setupRouteHeaderListeners() {
@@ -1319,7 +1359,7 @@ private fun selectCurrentLocation() {
                 && bottomSheetBehavior.state != BottomSheetBehavior.STATE_COLLAPSED) {
 
                 bottomSheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
-                mapFrag.setMapPadding(bottomSheetBehavior.peekHeight)
+                mapFrag!!.setMapPadding(bottomSheetBehavior.peekHeight)
             }
         }
 
@@ -1484,9 +1524,7 @@ private fun setupMyLocationButton() {
     }
 }
     private fun saveRecentSearch(query: String){
-        lifecycleScope.launch(Dispatchers.IO) {
-            repository.insertSearch(query)
-        }
+        searchViewModel.insertSearch(query)
     }
     private fun saveRecentPlace(item: SearchItem) {
         val recentPlace = RecentPlace(
@@ -1500,9 +1538,7 @@ private fun setupMyLocationButton() {
             timestamp = System.currentTimeMillis()
         )
 
-        lifecycleScope.launch(Dispatchers.IO) {
-            repository.insertPlace(recentPlace)
-        }
+        searchViewModel.insertPlace(recentPlace)
     }
 
     // 유틸리티 함수들
@@ -1599,8 +1635,8 @@ private fun setupMyLocationButton() {
 }
 
 enum class RouteSortOption(val uiText: String, val apiValue: String) {
-    BEST("최적 경로순", "BEST"),
-    TIME("최소 시간순", "TIME"),
-    TRANSFER("최소 환승순", "TRANSFER"),
-    WALK("최소 도보순", "WALK")
+    BEST("최적 경로순", "EFFICIENT"),
+    TIME("최소 시간순", "MIN_TIME"),
+    TRANSFER("최소 환승순", "MIN_TRANSFER"),
+    WALK("최소 도보순", "MIN_WALK")
 }

@@ -1,4 +1,4 @@
-package com.example.pace.data.repository.repositoryimpl
+package com.example.pace.data.repository.repositoryImpl
 
 import com.example.pace.data.api.AuthControllerService
 import com.example.pace.data.datasource.AuthDataStore
