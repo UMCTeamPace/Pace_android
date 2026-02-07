@@ -1,20 +1,15 @@
 package com.example.pace.ui.search_box
 
-import android.app.ActionBar
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
 import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.widget.LinearLayout
-import android.widget.Space
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.text.buildSpannedString
 import androidx.core.text.color
-import androidx.core.view.marginStart
 import androidx.core.view.setPadding
 import androidx.core.view.updatePadding
 import com.example.pace.R
@@ -24,7 +19,6 @@ import com.example.pace.databinding.ItemRouteDetailArrivalBinding
 import com.example.pace.databinding.ItemRouteDetailBriefBinding
 import com.example.pace.databinding.ItemRouteDetailVehicleBinding
 import com.example.pace.databinding.ItemRouteDetailWalkBinding
-import kotlin.math.ln
 
 object RouteDetailHelper {
 
@@ -76,13 +70,12 @@ object RouteDetailHelper {
                         expandedWalkBinding.itemRouteDetailWalkStartTv.visibility = View.INVISIBLE
                     }
                     binding.routeDetailExpandedLl.addView(expandedWalkBinding.root)
-                    //binding.routeDetailExpandedLl.addView(space)
                 }
                 // 대중교통
                 else -> {
                     // 아이콘 및 색상 설정
                     val layoutDrawable = (ContextCompat.getDrawable(context, R.drawable.ic_route_detail))?.mutate() as LayerDrawable
-                    val iconColor = layoutDrawable.findDrawableByLayerId(R.id.ic_route_detail_color) as GradientDrawable
+                    val iconColor = layoutDrawable.findDrawableByLayerId(R.id.ic_route_detail_color)?.mutate() as GradientDrawable
                     val bgColor = briefBinding.itemRouteDetailBriefTv.background.mutate() as GradientDrawable
                     val lineColor = Color.parseColor(data.transitDetail.lineColor)
                     var moreStation = false
