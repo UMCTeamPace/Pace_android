@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/layout_route_input_header"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/white"
+    android:orientation="vertical"
+    android:elevation="0dp"
+    android:stateListAnimator="@null"
+    android:outlineProvider="none"
+    android:paddingBottom="16dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="54dp">
+        <ImageView
+            android:id="@+id/btn_bookmark_back"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:layout_marginStart="15dp"
+            android:layout_marginBottom="10dp"
+            android:src="@drawable/ic_arrow_opened"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/tv_route_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="15dp"
+            android:text="경로탐색"
+            android:textColor="@color/black"
+            android:fontFamily="@font/pretendard_semibold"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="@id/btn_bookmark_back"
+            app:layout_constraintStart_toEndOf="@id/btn_bookmark_back"
+            app:layout_constraintTop_toTopOf="@id/btn_bookmark_back" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_gravity="bottom"
+            android:background="@color/gray_100" />
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/tab_layout_bookmark"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@android:color/transparent"
+            app:tabIndicatorColor="@color/primary_500"
+            app:tabIndicatorHeight="2dp"
+            app:tabIndicatorFullWidth="true"
+            app:tabSelectedTextColor="@color/primary_500"
+            app:tabTextColor="@color/gray_500"
+            app:tabRippleColor="@android:color/transparent"
+            app:tabMode="fixed"
+            app:tabGravity="fill">
+
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="집/회사" />
+
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="장소" />
+
+        </com.google.android.material.tabs.TabLayout>
+    </FrameLayout>
+
+</LinearLayout>

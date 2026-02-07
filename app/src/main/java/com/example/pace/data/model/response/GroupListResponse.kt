@@ -11,7 +11,8 @@ data class GroupItem(
     @SerializedName("groupId") val groupId: Long,
     @SerializedName("groupName") val groupName: String,
     @SerializedName("groupColor") val groupColor: String,
-    @SerializedName("createdAt") val createdAt: String
+    @SerializedName("createdAt") val createdAt: String,
+    @SerializedName("placeCount") val placeCount: Int
 )
 
 data class CreateGroupResponse(
@@ -26,4 +27,11 @@ data class UpdateGroupResponse(
 
 data class BaseResponse(
     @SerializedName("status") val status: String? = null
+)
+
+data class GroupBaseResponse<T>(
+    @SerializedName("isSuccess") val isSuccess: Boolean,
+    @SerializedName("code") val code: String,
+    @SerializedName("message") val message: String,
+    @SerializedName("result") val result: T
 )

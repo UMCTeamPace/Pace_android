@@ -12,6 +12,11 @@ class RecentRouteAdapter(
     private val onItemClick: (RecentRoute) -> Unit,
     private val onDeleteClick: (RecentRoute) -> Unit
 ) : ListAdapter<RecentRoute, RecentRouteAdapter.ViewHolder>(DiffCallback) {
+    private var touchHelper: CommonSwipeTouchHelper? = null
+
+    fun setHelper(helper: CommonSwipeTouchHelper) {
+        this.touchHelper = helper
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val binding = ItemRecentRouteBinding.inflate(LayoutInflater.from(parent.context), parent, false)
@@ -22,13 +27,25 @@ class RecentRouteAdapter(
         holder.bind(getItem(position))
     }
 
-    inner class ViewHolder(private val binding: ItemRecentRouteBinding) : RecyclerView.ViewHolder(binding.root) {
+    inner class ViewHolder(private val binding: ItemRecentRouteBinding)
+        : RecyclerView.ViewHolder(binding.root), SwipeableViewHolder {
+        override fun setSwiped(isSwiped: Boolean) { }
+
         fun bind(item: RecentRoute) {
             binding.tvRouteStartText.text = item.startPlaceName
             binding.tvRouteEndText.text = item.endPlaceName
 
-            binding.root.setOnClickListener { onItemClick(item) }
-//            binding.ivDelete.setOnClickListener { onDeleteClick(item) }
+            binding.viewForeground.translationX = 0f
+
+            binding.viewForeground.setOnClickListener {
+                touchHelper?.closeSwipedMenu()
+                onItemClick(item)
+            }
+
+            binding.ivDelete.setOnClickListener {
+                onDeleteClick(item)
+                touchHelper?.closeSwipedMenu()
+            }
         }
     }
 
