@@ -16,8 +16,8 @@
         android:gravity="center"/>
     <TextView
         android:id="@+id/horizontal_calendar_date_tv"
-        android:layout_width="38dp"
-        android:layout_height="38dp"
+        android:layout_width="39dp"
+        android:layout_height="39dp"
         android:background="@drawable/box_horizontal_calendar"
         android:layout_marginStart="2dp"
         android:paddingStart="7dp"
