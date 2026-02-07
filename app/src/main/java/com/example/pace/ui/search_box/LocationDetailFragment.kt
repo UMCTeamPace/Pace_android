@@ -44,6 +44,7 @@ class LocationDetailFragment : Fragment() {
         val placeId = arguments?.getString("placeId") ?: ""
         val openStatus = arguments?.getString("openStatus") ?: ""
         val isScheduleMode = arguments?.getBoolean("isScheduleMode") ?: false
+        val isBookmarkMode = arguments?.getBoolean("isBookmarkMode") ?: false
         val argLat = arguments?.getDouble("lat", 0.0) ?: 0.0
         val argLng = arguments?.getDouble("lng", 0.0) ?: 0.0
 
@@ -81,14 +82,22 @@ class LocationDetailFragment : Fragment() {
             binding.svPhotos.visibility = View.GONE
         }
 
-        if (isScheduleMode) {
-            binding.icStart.visibility = View.GONE
-            binding.icArrive.visibility = View.GONE
-            binding.icSelectLocation.visibility = View.VISIBLE
-        } else {
-            binding.icStart.visibility = View.VISIBLE
-            binding.icArrive.visibility = View.VISIBLE
-            binding.icSelectLocation.visibility = View.GONE
+        when {
+            isBookmarkMode -> {
+                binding.icStart.visibility = View.GONE
+                binding.icArrive.visibility = View.GONE
+                binding.icSelectLocation.visibility = View.VISIBLE
+            }
+            isScheduleMode -> {
+                binding.icStart.visibility = View.GONE
+                binding.icArrive.visibility = View.GONE
+                binding.icSelectLocation.visibility = View.VISIBLE
+            }
+            else -> {
+                binding.icStart.visibility = View.VISIBLE
+                binding.icArrive.visibility = View.VISIBLE
+                binding.icSelectLocation.visibility = View.GONE
+            }
         }
 
         binding.icStart.setOnClickListener {
@@ -203,7 +212,7 @@ class LocationDetailFragment : Fragment() {
     }
 
     companion object {
-        fun newInstance(item: SearchItem, isScheduleMode: Boolean): LocationDetailFragment {
+        fun newInstance(item: SearchItem, isScheduleMode: Boolean, isBookmarkMode: Boolean): LocationDetailFragment {
             val fragment = LocationDetailFragment()
             val bundle = Bundle().apply {
                 putString("name", item.name)
@@ -213,6 +222,7 @@ class LocationDetailFragment : Fragment() {
                 putString("placeId", item.placeId)
                 putString("openStatus", item.openStatus)
                 putBoolean("isScheduleMode", isScheduleMode)
+                putBoolean("isBookmarkMode", isBookmarkMode)
                 putDouble("lat", item.lat)
                 putDouble("lng", item.lng)
             }

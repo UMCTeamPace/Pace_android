@@ -10,12 +10,21 @@ import com.example.pace.R
 
 class ScheduleTouchHelper(
     private val adapter: ScheduleRVAdapter
-): ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
+): ItemTouchHelper.Callback() {
     // 스와이프 범위
     private val leftWidth = dpToPx(70)
     private val rightWidth = dpToPx(120)
     private var currentScrollX = 0f
     private var swipedViewHolder: RecyclerView.ViewHolder? = null
+    override fun getMovementFlags(
+        recyclerView: RecyclerView,
+        viewHolder: RecyclerView.ViewHolder
+    ): Int {
+        if(swipedViewHolder != null && swipedViewHolder != viewHolder){
+            return makeMovementFlags(0, 0)
+        }
+        return makeMovementFlags(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT)
+    }
 
     override fun onMove(
         recyclerView: RecyclerView,
@@ -81,7 +90,7 @@ class ScheduleTouchHelper(
                             super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
                         }
                         else -> {
-                            if(dX < 0 && currentScrollX == -rightWidth){
+                            if(dX < 0 && currentScrollX <= -rightWidth / 2){
                                 schedule.isSwiped = true
                                 swipedViewHolder = viewHolder
                                 translationX = -rightWidth
@@ -120,16 +129,6 @@ class ScheduleTouchHelper(
         }
         currentScrollX = 0f
         swipedViewHolder = null
-    }
-
-    // 다른 거 스와이프 시 기존 것이 자동으로 닫히도록
-    override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
-        if(actionState == ItemTouchHelper.ACTION_STATE_SWIPE){
-            if(hasSwipedItem() && swipedViewHolder != viewHolder){
-                closeSwipedMenu()
-            }
-        }
-        super.onSelectedChanged(viewHolder, actionState)
     }
 
     fun hasSwipedItem(): Boolean {
