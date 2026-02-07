@@ -468,7 +468,7 @@ class RouteFragment : Fragment() {
             behavior.state = BottomSheetBehavior.STATE_COLLAPSED
             behavior.peekHeight = (250 * resources.displayMetrics.density).toInt() // 지도 보일 정도 높이
 
-            RouteDetailHelper.setupData(bottomSheetView, item)
+            RouteDetailHelper.setupData(requireContext(),bottomSheetView, item, selectedEndPlace?.first ?: "")
 
 
         }
