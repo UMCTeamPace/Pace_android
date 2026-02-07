@@ -20,11 +20,10 @@ class ScheduleTouchHelper(
         recyclerView: RecyclerView,
         viewHolder: RecyclerView.ViewHolder
     ): Int {
-        return if(swipedViewHolder != null && swipedViewHolder != viewHolder){
-            makeMovementFlags(0, 0)
-        }else{
-            makeMovementFlags(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT)
+        if(swipedViewHolder != null && swipedViewHolder != viewHolder){
+            return makeMovementFlags(0, 0)
         }
+        return makeMovementFlags(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT)
     }
 
     override fun onMove(
