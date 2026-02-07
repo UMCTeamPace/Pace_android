@@ -102,6 +102,8 @@ class CalendarPageFragment: Fragment() {
         setupMonthYearPicker()
         setupViewPager()
 
+        // [추가] 앱 시작 시 오늘 날짜의 리스트를 미리 불러옴
+        updateBottomSheetList(today)
         class DayViewContainer(view: View) : ViewContainer(view) {
             val rootLayout: ConstraintLayout = view.findViewById(R.id.root_layout)
             val textView: TextView = view.findViewById(R.id.calendarDayText)

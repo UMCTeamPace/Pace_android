@@ -14,7 +14,8 @@ class PaceApplication : Application() {
     val searchDatabase by lazy { SearchDatabase.getDatabase(this) }
     val searchRepository by lazy {
         SearchRepository(searchDatabase.searchDao(),
-            searchDatabase.recentRouteDao()
+            searchDatabase.recentRouteDao(),
+            searchDatabase.myPlaceDao()
         )
     }
 

@@ -15,6 +15,12 @@ class RecentHistoryAdapter(
     private val onDeleteClick: (RecentHistoryItem) -> Unit
 ) : ListAdapter<RecentHistoryItem, RecentHistoryAdapter.ViewHolder>(DiffCallback) {
 
+    private var touchHelper: CommonSwipeTouchHelper? = null
+
+    fun setHelper(helper: CommonSwipeTouchHelper) {
+        this.touchHelper = helper
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val binding = ItemRecentHistoryBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return ViewHolder(binding)
@@ -24,7 +30,12 @@ class RecentHistoryAdapter(
         holder.bind(getItem(position))
     }
 
-    inner class ViewHolder(private val binding: ItemRecentHistoryBinding) : RecyclerView.ViewHolder(binding.root) {
+    inner class ViewHolder(private val binding: ItemRecentHistoryBinding)
+        : RecyclerView.ViewHolder(binding.root), SwipeableViewHolder {
+        override fun setSwiped(isSwiped: Boolean) {
+            // 필요하면 여기에 배경색 변경 등 추가 로직 작성
+        }
+
         fun bind(item: RecentHistoryItem) {
             binding.tvHistoryText.text = item.mainText
 
@@ -35,7 +46,18 @@ class RecentHistoryAdapter(
             }
             binding.ivHistoryIcon.setImageResource(iconRes)
 
-            binding.root.setOnClickListener { onItemClick(item) }
+            binding.viewForeground.translationX = 0f
+
+            binding.viewForeground.setOnClickListener {
+                touchHelper?.closeSwipedMenu()
+
+                onItemClick(item)
+            }
+
+            binding.ivDelete.setOnClickListener {
+                onDeleteClick(item)
+                touchHelper?.closeSwipedMenu() // 삭제 후 닫기
+            }
         }
     }
 

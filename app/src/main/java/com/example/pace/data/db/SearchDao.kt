@@ -21,6 +21,9 @@ interface SearchDao {
     @Delete
     suspend fun deleteSearch(search: RecentSearch)
 
+    @Query("DELETE FROM recent_searches WHERE `query` = :query")
+    suspend fun deleteSearchByQuery(query: String)
+
     @Query("DELETE FROM recent_searches")
     suspend fun clearAllSearches()
 

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/dialog_rounded_bg"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:id="@+id/tv_dialog_origin_place_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:gravity="center"
+        android:text="검색한 진짜 장소명"
+        android:fontFamily="@font/pretendard_semibold"
+        android:textColor="@color/black"
+        android:textSize="18sp"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        android:background="@drawable/bg_route_edittext"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="12dp">
+
+        <EditText
+            android:id="@+id/et_dialog_place_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@android:color/transparent"
+            android:fontFamily="@font/pretendard_medium"
+            android:hint="저장할 장소명을 입력해주세요"
+            android:inputType="text"
+            android:maxLines="1"
+            android:textColor="@color/black"
+            android:textSize="16sp" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_dialog_single_place_cancel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:background="@drawable/btn_cancel_bg"
+            android:fontFamily="@font/pretendard_semibold"
+            android:text="취소"
+            android:textColor="@color/gray_500" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_dialog_single_place_save"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:background="@drawable/btn_confirm_bg"
+            android:fontFamily="@font/pretendard_semibold"
+            android:text="저장"
+            android:textColor="@android:color/white" />
+    </LinearLayout>
+</LinearLayout>

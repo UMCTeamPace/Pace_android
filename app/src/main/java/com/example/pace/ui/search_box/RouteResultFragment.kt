@@ -30,6 +30,7 @@ class RouteResultFragment : Fragment(){
         val dummyData = createFullDummyData()
 
         val adapter = RouteAdapter(
+            context = requireContext(),
             items = dummyData,
 
             onItemClick = { item ->
