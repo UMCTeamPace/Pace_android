@@ -41,6 +41,10 @@ object RouteDetailHelper {
             append(" 소요")
         }
 
+        // 기존 데이터 삭제
+        binding.routeDetailBriefLl.removeAllViews()
+        binding.routeDetailExpandedLl.removeAllViews()
+
         item.routeDetailInfoResDTOList.forEach { data ->
             val briefBinding = ItemRouteDetailBriefBinding.inflate(LayoutInflater.from(context))
             val expandedVehicleBinding = ItemRouteDetailVehicleBinding.inflate(LayoutInflater.from(context), binding.routeDetailExpandedLl, false)
