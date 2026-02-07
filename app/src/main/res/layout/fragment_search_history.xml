@@ -103,14 +103,14 @@
                 android:layout_height="wrap_content"
                 app:chipMinHeight="36dp"
                 app:chipCornerRadius="18dp"
-                app:chipIcon="@drawable/ic_home"
-                app:chipIconSize="20dp"
+                app:chipIcon="@drawable/ic_home_unselected"
+                app:chipIconSize="15dp"
                 app:chipIconVisible="true"
                 app:iconStartPadding="8dp"
                 app:iconEndPadding="-8dp"
                 app:chipBackgroundColor="@color/white"
                 app:chipStrokeWidth="1dp"
-                app:chipStrokeColor="@color/selector_chip_text"
+                app:chipStrokeColor="@color/gray_400"
                 android:checkable="true"
                 app:checkedIconVisible="false" />
 
@@ -121,14 +121,14 @@
                 android:layout_height="wrap_content"
                 app:chipMinHeight="36dp"
                 app:chipCornerRadius="18dp"
-                app:chipIcon="@drawable/ic_company"
-                app:chipIconSize="20dp"
+                app:chipIcon="@drawable/ic_work_unselected"
+                app:chipIconSize="15dp"
                 app:chipIconVisible="true"
                 app:iconStartPadding="8dp"
                 app:iconEndPadding="-8dp"
                 app:chipBackgroundColor="@color/white"
                 app:chipStrokeWidth="1dp"
-                app:chipStrokeColor="@color/selector_chip_text"
+                app:chipStrokeColor="@color/gray_400"
                 android:checkable="true"
                 app:checkedIconVisible="false" />
 
@@ -196,8 +196,10 @@
                 app:chipIconSize="20dp"
                 app:chipIconVisible="true"
                 app:iconStartPadding="8dp"
-                app:iconEndPadding="0dp"
+                app:iconEndPadding="-8dp"
                 app:chipBackgroundColor="@color/white"
+                app:chipStrokeWidth="1dp"
+                app:chipStrokeColor="@color/gray_400"
                 android:checkable="true"
                 app:checkedIconVisible="false" />
         </com.google.android.material.chip.ChipGroup>
