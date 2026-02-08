@@ -6,6 +6,7 @@ import com.example.pace.data.db.ScheduleDatabase
 import com.example.pace.data.datasource.NormalScheduleRemoteDataSource
 import com.example.pace.data.db.SearchDatabase
 import com.example.pace.data.repository.ScheduleRepository
+import com.kakao.sdk.common.KakaoSdk
 import com.example.pace.data.repository.SearchRepository
 
 class PaceApplication : Application() {
@@ -32,5 +33,9 @@ class PaceApplication : Application() {
             Log.e("PaceApplication", "Repository 초기화 실패", e)
             throw e  // 크래시로 디버깅
         }
+
+        KakaoSdk.init(this, BuildConfig.KAKAO_NATIVE_APP_KEY)
     }
+
+
 }

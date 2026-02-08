@@ -48,109 +48,108 @@ class NormalScheduleRemoteDataSource(private val applicationContext: Context) {
 
 
 
-    
-
+        try {
+            // 2. 권한 확인이 통과된 경우에만 쿼리를 실행
             val cursor: Cursor? = applicationContext.contentResolver.query(
-
                 CalendarContract.Events.CONTENT_URI,
-
                 projection,
-
                 selection,
-
                 selectionArgs,
-
                 CalendarContract.Events.DTSTART + " ASC"
-
             )
 
-    
+        cursor?.use {
 
-            cursor?.use {
+            while (it.moveToNext()) {
 
-                while (it.moveToNext()) {
+                val id = it.getLong(it.getColumnIndexOrThrow(CalendarContract.Events._ID))
 
-                    val id = it.getLong(it.getColumnIndexOrThrow(CalendarContract.Events._ID))
+                val title = it.getString(it.getColumnIndexOrThrow(CalendarContract.Events.TITLE))
 
-                    val title = it.getString(it.getColumnIndexOrThrow(CalendarContract.Events.TITLE))
+                val dtStart = it.getLong(it.getColumnIndexOrThrow(CalendarContract.Events.DTSTART))
 
-                    val dtStart = it.getLong(it.getColumnIndexOrThrow(CalendarContract.Events.DTSTART))
+                val dtEnd = it.getLong(it.getColumnIndexOrThrow(CalendarContract.Events.DTEND))
 
-                    val dtEnd = it.getLong(it.getColumnIndexOrThrow(CalendarContract.Events.DTEND))
+                val isAllDay = it.getInt(it.getColumnIndexOrThrow(CalendarContract.Events.ALL_DAY)) == 1
 
-                    val isAllDay = it.getInt(it.getColumnIndexOrThrow(CalendarContract.Events.ALL_DAY)) == 1
+                val memo = it.getString(it.getColumnIndexOrThrow(CalendarContract.Events.DESCRIPTION))
 
-                    val memo = it.getString(it.getColumnIndexOrThrow(CalendarContract.Events.DESCRIPTION))
+                val location = it.getString(it.getColumnIndexOrThrow(CalendarContract.Events.EVENT_LOCATION))
 
-                    val location = it.getString(it.getColumnIndexOrThrow(CalendarContract.Events.EVENT_LOCATION))
+                val rrule = it.getString(it.getColumnIndexOrThrow(CalendarContract.Events.RRULE))
 
-                    val rrule = it.getString(it.getColumnIndexOrThrow(CalendarContract.Events.RRULE))
+                val calendarId = it.getLong(it.getColumnIndexOrThrow(CalendarContract.Events.CALENDAR_ID))
 
-                    val calendarId = it.getLong(it.getColumnIndexOrThrow(CalendarContract.Events.CALENDAR_ID))
+                val calendarName = it.getString(it.getColumnIndexOrThrow(CalendarContract.Events.CALENDAR_DISPLAY_NAME))
 
-                    val calendarName = it.getString(it.getColumnIndexOrThrow(CalendarContract.Events.CALENDAR_DISPLAY_NAME))
+                val eventColor = it.getInt(it.getColumnIndexOrThrow(CalendarContract.Events.EVENT_COLOR))
 
-                    val eventColor = it.getInt(it.getColumnIndexOrThrow(CalendarContract.Events.EVENT_COLOR))
+                val calendarColor = it.getInt(it.getColumnIndexOrThrow(CalendarContract.Events.CALENDAR_COLOR))
 
-                    val calendarColor = it.getInt(it.getColumnIndexOrThrow(CalendarContract.Events.CALENDAR_COLOR))
+                Log.d("ScheduleDataSource", "Fetched colors for ${title}: eventColor=$eventColor, calendarColor=$calendarColor")
 
-                    Log.d("ScheduleDataSource", "Fetched colors for ${title}: eventColor=$eventColor, calendarColor=$calendarColor")
 
-    
 
-                    val reminders = fetchReminders(id)
+                val reminders = fetchReminders(id)
 
-    
 
-                    scheduleList.add(
 
-                        Schedule(
+                scheduleList.add(
 
-                            id = id,
+                    Schedule(
 
-                            title = title,
+                        id = id,
 
-                            startDate = formatMillisToDate(dtStart),
+                        title = title,
 
-                            endDate = formatMillisToDate(dtEnd),
+                        startDate = formatMillisToDate(dtStart),
 
-                            startTime = formatMillisToTime(dtStart),
+                        endDate = formatMillisToDate(dtEnd),
 
-                            endTime = formatMillisToTime(dtEnd),
+                        startTime = formatMillisToTime(dtStart),
 
-                            isAllDay = isAllDay,
+                        endTime = formatMillisToTime(dtEnd),
 
-                            memo = memo,
+                        isAllDay = isAllDay,
 
-                            location = location,
+                        memo = memo,
 
-                            repeatRule = rrule,
+                        location = location,
 
-                            calendarId = calendarId,
+                        repeatRule = rrule,
 
-                            calendarDisplayName = calendarName,
+                        calendarId = calendarId,
 
-                            calendarAccountName = null,
+                        calendarDisplayName = calendarName,
 
-                            reminders = reminders,
+                        calendarAccountName = null,
 
-                            eventColor = eventColor,
+                        reminders = reminders,
 
-                            calendarColor = calendarColor,
+                        eventColor = eventColor,
 
-                            type = "NORMAL" // Set the type for schedules from this source
+                        calendarColor = calendarColor,
 
-                        )
+                        type = "NORMAL" // Set the type for schedules from this source
 
                     )
 
-                }
+                )
 
             }
 
-            scheduleList
-
         }
+    } catch (e: SecurityException) {
+        // 3. 만약의 경우를 대비한 2중 방어막
+        android.util.Log.e("ScheduleDataSource", "SecurityException 발생: ${e.message}")
+        return@withContext emptyList<Schedule>()
+    } catch (e: Exception) {
+        android.util.Log.e("ScheduleDataSource", "데이터 로드 중 오류 발생: ${e.message}")
+    }
+
+    scheduleList
+
+}
 
     private fun fetchReminders(eventId: Long): List<Int> {
         val reminderList = mutableListOf<Int>()
@@ -174,7 +173,7 @@ class NormalScheduleRemoteDataSource(private val applicationContext: Context) {
         }
         return reminderList
     }
-    
+
     private fun formatMillisToDate(millis: Long): String {
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         return sdf.format(Date(millis))

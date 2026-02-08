@@ -101,6 +101,7 @@ class CalendarPageFragment: Fragment() {
         setupBottomSheet()
         setupMonthYearPicker()
         setupViewPager()
+
         class DayViewContainer(view: View) : ViewContainer(view) {
             val rootLayout: ConstraintLayout = view.findViewById(R.id.root_layout)
             val textView: TextView = view.findViewById(R.id.calendarDayText)

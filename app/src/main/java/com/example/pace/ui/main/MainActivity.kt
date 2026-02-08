@@ -69,8 +69,13 @@ class MainActivity : AppCompatActivity() {
         Log.d("MainActivity", "onCreate3: checkCalendarPermissions()")
         val readGranted = permissions[Manifest.permission.READ_CALENDAR] ?: false
         val writeGranted = permissions[Manifest.permission.WRITE_CALENDAR] ?: false
-        if (!readGranted || !writeGranted) {
-            // Handle the case where permissions are not granted, maybe show a toast or a dialog.
+        if (readGranted && writeGranted) {
+            // 권한이 허용된 "직후"에 데이터를 새로고침하여 튕김 방지 및 데이터 표시
+            Log.d("MainActivity", "권한 허용됨: 데이터 리프레쉬 시작")
+            viewModel.refreshSchedules()
+        } else {
+            // 필수 권한이 없으면 앱 이용이 어려우므로 토스트를 띄우거나 온보딩으로 재유도 가능
+            Log.d("MainActivity", "달력 권한 거부됨")
         }
     }
 
@@ -87,7 +92,6 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         checkCalendarPermissions()
-        Log.d("MainActivity", "onCreate1: checkCalendarPermissions()")
 
         // 1. 초기화 (위치, Places API, 바텀시트)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
@@ -99,7 +103,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         // 2. 초기 화면 설정 (Home)
-        supportFragmentManager.beginTransaction().replace(R.id.main_fcv, HomeFragment()).commit()
+        if (savedInstanceState == null) {
+            supportFragmentManager.beginTransaction().replace(R.id.main_fcv, HomeFragment()).commit()
+        }
 
         // 초기 툴바 상태 설정 (Home 기준)
         binding.mainLogoIv.visibility = View.VISIBLE
@@ -144,9 +150,17 @@ class MainActivity : AppCompatActivity() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             startLocationUpdates()
         }
-        // Refresh schedule data
-        Log.d("D", "뷰모델 리프레쉬 시점")
-        viewModel.refreshSchedules()
+        // [수정] 캘린더 권한이 있을 때만 새로고침 호출
+        val isCalendarAllowed = androidx.core.content.ContextCompat.checkSelfPermission(
+            this, android.Manifest.permission.READ_CALENDAR
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+        if (isCalendarAllowed) {
+            android.util.Log.d("MainActivity", "onResume: 권한 확인됨, 데이터 리프레쉬 실행")
+            viewModel.refreshSchedules()
+        } else {
+            android.util.Log.d("MainActivity", "onResume: 여전히 권한 없음, 스킵")
+        }
     }
 
     override fun onPause() {
