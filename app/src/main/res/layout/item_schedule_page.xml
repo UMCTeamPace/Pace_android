@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_daily_schedule_item"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:paddingHorizontal="20dp"
+        android:paddingBottom="180dp"
+        android:nestedScrollingEnabled="true"
+        android:overScrollMode="never" />
+
+    <TextView
+        android:id="@+id/tv_empty_state_item"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_horizontal"
+        android:paddingTop="40dp"
+        android:text="선택된 날짜에 일정이 없습니다."
+        android:textColor="#999999"
+        android:textSize="16sp"
+        android:visibility="gone" />
+
+</FrameLayout>
