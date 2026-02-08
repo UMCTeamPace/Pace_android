@@ -34,7 +34,7 @@ class PaceApplication : Application() {
             throw e  // 크래시로 디버깅
         }
 
-        KakaoSdk.init(this, "96f3d1e887cdeb30155db869f86731a0")
+        KakaoSdk.init(this, BuildConfig.KAKAO_NATIVE_APP_KEY)
     }
 
 
