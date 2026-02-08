@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-xmlns:android="http://schemas.android.com/apk/res/android"
-xmlns:app="http://schemas.android.com/apk/res-auto"
-android:layout_width="match_parent"
-android:layout_height="match_parent"
-android:background="#FFFFFF">
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:background="#FFFFFF">
 
 <View
     android:id="@+id/centerLine"
@@ -31,7 +31,7 @@ android:background="#FFFFFF">
     android:layout_height="wrap_content"
     android:layout_marginTop="30dp"
     android:gravity="center"
-    android:text="일정부터 출발까지 \n하루의 흐름을, 나의 페이스로"
+    tools:text="일정부터 출발까지 \n하루의 흐름을, 나의 페이스로"
     android:lineSpacingExtra="4dp"
     android:alpha="1"
     app:layout_constraintEnd_toEndOf="parent"

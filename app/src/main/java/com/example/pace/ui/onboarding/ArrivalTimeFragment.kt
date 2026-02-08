@@ -1,10 +1,15 @@
 package com.example.pace.ui.onboarding
 
 import android.content.Context
+import android.graphics.Typeface
 import android.os.Bundle
+import android.text.Spannable
+import android.text.SpannableStringBuilder
+import android.text.style.StyleSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.viewpager2.widget.ViewPager2
 import com.example.pace.R
@@ -26,23 +31,26 @@ class ArrivalTimeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // 1. NumberPicker 설정
         setupNumberPicker()
 
-        // 2. 다음 버튼 클릭 시 저장 및 이동
         binding.btnNext.setOnClickListener {
             saveArrivalTime(binding.numberPicker.value)
             navigateToNextPage()
         }
+
+        binding.tvDescription.setBoldText(
+            "일정 시작 몇 분 전에 도착하는 것을 선호하시나요?",
+            listOf("몇 분 전에")
+        )
     }
 
     private fun setupNumberPicker() {
         binding.numberPicker.apply {
             minValue = 0
             maxValue = 60
-            value = 60 // 기본값 60분 설정
+            value = 60
 
-            // 텍스트가 순환되게 하고 싶다면 (0 다음 바로 60)
+            //0~60 순환되게
             wrapSelectorWheel = true
         }
     }
@@ -62,6 +70,23 @@ class ArrivalTimeFragment : Fragment() {
         viewPager?.let {
             it.currentItem = it.currentItem + 1
         }
+    }
+
+    fun TextView.setBoldText(fullText: String, boldKeywords: List<String>) {
+        val spannable = SpannableStringBuilder(fullText)
+
+        boldKeywords.forEach { keyword ->
+            val start = fullText.indexOf(keyword)
+            if (start != -1) {
+                spannable.setSpan(
+                    StyleSpan(Typeface.BOLD),
+                    start,
+                    start + keyword.length,
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+            }
+        }
+        this.text = spannable
     }
 
     override fun onDestroyView() {

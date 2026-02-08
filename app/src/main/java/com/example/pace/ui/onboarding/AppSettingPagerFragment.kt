@@ -21,7 +21,9 @@ class AppSettingPagerFragment : Fragment() {
         val adapter = InnerSettingAdapter(this)
 
         binding.appSettingViewpager.adapter = adapter
-        binding.appSettingViewpager.isUserInputEnabled = false // 스와이프 차단
+
+        // 스와이프 차단(다음버튼 눌러야만 움직이는거 가능하게)
+        binding.appSettingViewpager.isUserInputEnabled = false
 
         // 인디케이터 제어 로직
         binding.appSettingViewpager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
@@ -36,7 +38,7 @@ class AppSettingPagerFragment : Fragment() {
         return binding.root
     }
 
-    // 내부 프래그먼트 어댑터 (ViewPager2용)
+    // 내부 프래그먼트 어댑터
     inner class InnerSettingAdapter(fragment: Fragment) : FragmentStateAdapter(fragment) {
         override fun getItemCount(): Int = 4
         override fun createFragment(position: Int): Fragment {
