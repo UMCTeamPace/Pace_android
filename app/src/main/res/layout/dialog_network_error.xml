@@ -24,7 +24,8 @@
         android:gravity="center"
         android:layout_marginTop="8dp"
         app:layout_constraintTop_toBottomOf="@id/network_error_iv"
-        app:layout_constraintStart_toStartOf="parent"/>
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
     <TextView
         android:id="@+id/network_error_tv2"
         android:layout_width="match_parent"
@@ -34,19 +35,34 @@
         style="@style/TextColor.Primary"
         android:gravity="center"
         app:layout_constraintTop_toBottomOf="@id/network_error_tv1"
-        app:layout_constraintStart_toStartOf="parent"/>
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
         android:layout_marginTop="24dp"
         app:layout_constraintTop_toBottomOf="@id/network_error_tv2">
         <androidx.appcompat.widget.AppCompatButton
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:id="@+id/network_error_wifi_setting_btn"
+            android:layout_width="120dp"
+            android:layout_height="40dp"
             android:text="Wifi 설정"
             android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-            style="@style/TextColor.Primary"/>
+            style="@style/TextColor.Primary"
+            android:background="@drawable/btn_network_error_white" />
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/network_error_reload_btn"
+            android:layout_width="120dp"
+            android:layout_height="40dp"
+            android:text="새로고침"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+            style="@style/TextColor.White"
+            android:background="@drawable/btn_network_error_green"
+            android:layout_marginStart="16dp"/>
     </LinearLayout>
 
 
