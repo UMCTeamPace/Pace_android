@@ -15,36 +15,41 @@ class NormalScheduleRemoteDataSource(private val applicationContext: Context) {
     suspend fun getSchedules(): List<Schedule> = withContext(Dispatchers.IO) {
         val scheduleList = mutableListOf<Schedule>()
 
-        // 실행 전 권한이 있는지 엄격하게 확인
-        val hasPermission = androidx.core.content.ContextCompat.checkSelfPermission(
-            applicationContext,
-            android.Manifest.permission.READ_CALENDAR
-        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            val projection = arrayOf(
 
-        // 권한이 없다면 로그를 남기고 빈 리스트를 즉시 반환하여 튕김(Crash)을 방지합니다.
-        if (!hasPermission) {
-            android.util.Log.e("ScheduleDataSource", "캘린더 읽기 권한이 없습니다. 조회를 중단합니다.")
-            return@withContext emptyList<Schedule>()
-        }
+                CalendarContract.Events._ID,
 
-        val projection = arrayOf(
-            CalendarContract.Events._ID,
-            CalendarContract.Events.TITLE,
-            CalendarContract.Events.DTSTART,
-            CalendarContract.Events.DTEND,
-            CalendarContract.Events.ALL_DAY,
-            CalendarContract.Events.DESCRIPTION,
-            CalendarContract.Events.EVENT_LOCATION,
-            CalendarContract.Events.RRULE,
-            CalendarContract.Events.CALENDAR_ID,
-            CalendarContract.Events.CALENDAR_DISPLAY_NAME,
-            CalendarContract.Events.EVENT_COLOR,
-            CalendarContract.Events.CALENDAR_COLOR
-        )
+                CalendarContract.Events.TITLE,
 
-        val calendar = Calendar.getInstance()
-        val selection = "${CalendarContract.Events.DTSTART} >= ?"
-        val selectionArgs = arrayOf(calendar.timeInMillis.toString())
+                CalendarContract.Events.DTSTART,
+
+                CalendarContract.Events.DTEND,
+
+                CalendarContract.Events.ALL_DAY,
+
+                CalendarContract.Events.DESCRIPTION,
+
+                CalendarContract.Events.EVENT_LOCATION,
+
+                CalendarContract.Events.RRULE,
+
+                CalendarContract.Events.CALENDAR_ID,
+
+                CalendarContract.Events.CALENDAR_DISPLAY_NAME,
+
+                CalendarContract.Events.EVENT_COLOR,
+
+                CalendarContract.Events.CALENDAR_COLOR
+
+            )
+
+            
+
+            val calendar = Calendar.getInstance()
+
+            val selection = "${CalendarContract.Events.DTSTART} >= ?"
+
+            val selectionArgs = arrayOf(calendar.timeInMillis.toString())
 
         try {
             // 2. 권한 확인이 통과된 경우에만 쿼리를 실행
@@ -83,8 +88,11 @@ class NormalScheduleRemoteDataSource(private val applicationContext: Context) {
                             endTime = formatMillisToTime(dtEnd),
                             isAllDay = isAllDay,
                             memo = memo,
+
                             location = location,
+
                             repeatRule = rrule,
+
                             calendarId = calendarId,
                             calendarDisplayName = calendarName,
                             calendarAccountName = null,
@@ -93,8 +101,11 @@ class NormalScheduleRemoteDataSource(private val applicationContext: Context) {
                             calendarColor = calendarColor,
                             type = "NORMAL"
                         )
+
                     )
+
                 }
+
             }
         } catch (e: SecurityException) {
             // 3. 만약의 경우를 대비한 2중 방어막
@@ -104,8 +115,9 @@ class NormalScheduleRemoteDataSource(private val applicationContext: Context) {
             android.util.Log.e("ScheduleDataSource", "데이터 로드 중 오류 발생: ${e.message}")
         }
 
-        scheduleList
-    }
+            scheduleList
+
+        }
 
     private fun fetchReminders(eventId: Long): List<Int> {
         val reminderList = mutableListOf<Int>()
