@@ -1,9 +1,11 @@
 package com.example.pace.ui.onboarding
 
-import android.content.Intent
 import android.os.Bundle
+import android.view.animation.DecelerateInterpolator
+import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
 import com.example.pace.R
+import com.example.pace.data.model.OnboardingItem
 import com.example.pace.databinding.ActivityOnboardingBinding
 
 class OnboardingActivity : AppCompatActivity() {
@@ -14,17 +16,18 @@ class OnboardingActivity : AppCompatActivity() {
         binding = ActivityOnboardingBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        if (savedInstanceState == null) {
-            supportFragmentManager.beginTransaction()
-                .replace(R.id.fragment_container, OnboardingFragment())
-                .commit()
-        }
-    }
+        // 1. 어댑터 생성 (데이터 리스트 없이 생성)
+        val adapter = OnboardingAdapter(this)
 
-    // [추가] 로그인 성공 시 호출하여 권한 설정 화면으로 이동
-    fun moveToPermissionStep() {
-        val intent = Intent(this, PermissionActivity::class.java)
-        startActivity(intent)
-        finish() // 온보딩 액티비티 종료
+        // 2. ViewPager2에 연결
+        binding.vpOnboarding.adapter = adapter
+
+        // 3. 인디케이터 연결
+        binding.dotsIndicator.setViewPager2(binding.vpOnboarding)
+
+        // 카카오 로그인 버튼 로직
+        binding.btnKakaoLogin.setOnClickListener {
+            // 로그인 처리
+        }
     }
 }
