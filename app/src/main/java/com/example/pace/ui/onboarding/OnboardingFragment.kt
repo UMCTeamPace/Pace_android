@@ -1,14 +1,18 @@
 package com.example.pace.ui.onboarding
 
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat.getSystemService
 import androidx.fragment.app.Fragment
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import com.example.pace.databinding.FragmentOnboardingBinding
+import com.example.pace.ui.NetworkErrorDialog
 import com.example.pace.ui.main.MainActivity
 import com.kakao.sdk.auth.model.OAuthToken
 import com.kakao.sdk.user.UserApiClient
@@ -77,8 +81,25 @@ class OnboardingFragment : Fragment() {
         binding.btnKakaoLogin.animate().alpha(1f).setDuration(500).start()
 
         binding.btnKakaoLogin.setOnClickListener {
-            loginWithKakao()
+            // 네트워크 연결 시에만 로그인 진행
+            val connectivityManager = getSystemService(requireContext(), ConnectivityManager:: class.java)
+            val activeNetwork = connectivityManager?.activeNetwork
+            val isActiveNetwork = connectivityManager?.getNetworkCapabilities(activeNetwork)
+            if(isActiveNetwork?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true){
+                loginWithKakao()
+            }else{
+                // 미연결 시 다이얼로그 띄우기
+                val dialog = NetworkErrorDialog(requireActivity()) {
+                    reload()
+                }
+                dialog.show()
+            }
         }
+    }
+
+    fun reload(){
+        parentFragmentManager.beginTransaction().detach(this).commit()
+        parentFragmentManager.beginTransaction().attach(this).commit()
     }
 
     private fun loginWithKakao() {
