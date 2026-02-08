@@ -4,11 +4,16 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Typeface
 import android.os.Bundle
+import android.text.Spannable
+import android.text.SpannableStringBuilder
+import android.text.style.StyleSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.CheckBox
+import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.example.pace.databinding.FragmentCalendarSelectBinding
@@ -45,6 +50,11 @@ class CalendarSelectFragment : Fragment() {
             saveSelectedCalendar()
             moveToMainActivity()
         }
+
+        binding.tvDescription.setBoldText(
+            "출발 알림을 언제 보내 드릴까요?",
+            listOf("출발 알림")
+        )
     }
 
     private fun setupSingleSelectionLogic() {
@@ -76,6 +86,23 @@ class CalendarSelectFragment : Fragment() {
 
         // 현재 온보딩 액티비티 종료
         requireActivity().finish()
+    }
+
+    fun TextView.setBoldText(fullText: String, boldKeywords: List<String>) {
+        val spannable = SpannableStringBuilder(fullText)
+
+        boldKeywords.forEach { keyword ->
+            val start = fullText.indexOf(keyword)
+            if (start != -1) {
+                spannable.setSpan(
+                    StyleSpan(Typeface.BOLD),
+                    start,
+                    start + keyword.length,
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+            }
+        }
+        this.text = spannable
     }
 
     override fun onDestroyView() {

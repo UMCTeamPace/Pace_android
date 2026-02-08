@@ -36,19 +36,24 @@ class OnboardingFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // [테스트용] 앱 실행 시마다 카카오 세션 종료
+        UserApiClient.instance.logout { error ->
+            if (error != null) Log.e("Kakao", "로그아웃 실패")
+            else Log.d("Kakao", "로그아웃 성공 - 이제 온보딩 화면이 유지됩니다.")
+        }
+
         val keyHash = Utility.getKeyHash(requireContext())
         Log.d("KeyHash", keyHash)
 
         // 1. 로고가 위로 솟구치는 애니메이션
         binding.ivLargeLogo.animate()
-            .translationY(-500f) // 위쪽으로 이동
-            .alpha(0f)           // 서서히 사라짐
+            .translationY(-500f)
+            .alpha(0f)
             .setDuration(1000)
             .withEndAction {
                 // 2. 애니메이션 로고 완전히 제거
                 binding.ivLargeLogo.visibility = View.GONE
 
-                // 3. 온보딩 내용 및 하단 버튼 세트 등장
                 setupOnboarding()
             }
             .start()
@@ -105,16 +110,11 @@ class OnboardingFragment : Fragment() {
     private fun loginWithKakao() {
         // 1. 로그인 결과 콜백 정의
         val callback: (OAuthToken?, Throwable?) -> Unit = { token, error ->
-//            if (error != null) {
-//                Log.e("KakaoLogin", "카카오 계정으로 로그인 실패", error)
-//            } else if (token != null) {
-//                sendTokenToServer(token.accessToken)
-//            }
+
             if (error != null) {
                 // 로그인 실패 처리
             } else if (token != null) {
                 // 로그인 성공!
-                // 여기서 바로 MainActivity로 가지 말고, 권한 설정 화면으로 이동합니다.
                 (activity as? OnboardingActivity)?.moveToPermissionStep()
             }
         }
@@ -147,37 +147,19 @@ class OnboardingFragment : Fragment() {
         Log.d("KakaoLogin", "발급받은 액세스 토큰: $accessToken")
 
         // TODO: Retrofit을 사용하여 서버 API 호출
-        // 예: service.postKakaoLogin(accessToken).enqueue(...)
 
-        // 성공 시 MainActivity로 이동
-        val intent = Intent(requireContext(), MainActivity::class.java)
-        startActivity(intent)
-
-        activity?.finish()
+        moveToPermissionScreen()
     }
 
     private fun moveToPermissionScreen() {
-        // 만약 PermissionFragment를 새로운 액티비티에서 띄운다면:
         val intent = Intent(requireContext(), PermissionActivity::class.java)
         startActivity(intent)
-        activity?.finish() // 로그인 화면 종료
+        activity?.finish()
     }
+
 
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
-    }
-}
-
-class OnboardingPagerAdapter(fragment: Fragment) : FragmentStateAdapter(fragment) {
-    override fun getItemCount(): Int = 4 // 총 4페이지
-
-    override fun createFragment(position: Int): Fragment {
-        return when (position) {
-            0 -> OnboardingFragment1()
-            1 -> OnboardingFragment2()
-            2 -> OnboardingFragment3()
-            else -> OnboardingFragment4()
-        }
     }
 }

@@ -24,7 +24,6 @@
         android:layout_marginTop="24dp"
         android:gravity="center"
         android:text="PACE 이용을 위해\n아래 권한을 허용해주세요."
-        android:textAppearance="@style/TextAppearance.App.BodyMd.Medium"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -117,6 +116,14 @@
     </LinearLayout>
 
 
+    <View
+        android:id="@+id/divider2"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="24dp"
+        android:background="#EEEEEE"
+        app:layout_constraintTop_toBottomOf="@id/layout_calendar" />
+
     <TextView
         android:id="@+id/tv_optional_label"
         android:layout_width="wrap_content"
@@ -165,12 +172,15 @@
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/btn_next"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="wrap_content"
         android:background="@color/primary_500"
         android:text="다음"
         android:textColor="@color/white"
         android:textSize="16sp"
         android:textStyle="bold"
+        android:elevation="0dp"
+        android:stateListAnimator="@null"
+        android:layout_marginBottom="60dp"
         app:layout_constraintBottom_toBottomOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
