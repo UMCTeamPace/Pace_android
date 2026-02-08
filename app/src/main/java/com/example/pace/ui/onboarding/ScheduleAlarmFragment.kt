@@ -1,11 +1,16 @@
 package com.example.pace.ui.onboarding
 
 import android.content.Context
+import android.graphics.Typeface
 import android.os.Bundle
+import android.text.Spannable
+import android.text.SpannableStringBuilder
+import android.text.style.StyleSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.CheckBox
+import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.example.pace.R
@@ -40,6 +45,11 @@ class ScheduleAlarmFragment : Fragment() {
             saveSelectedAlarms()
             navigateToNextPage()
         }
+
+        binding.tvDescription.setBoldText(
+            "일정 알림을 언제 보내 드릴까요?",
+            listOf("일정 알림")
+        )
     }
 
     private fun setupCheckBoxLogic() {
@@ -89,6 +99,23 @@ class ScheduleAlarmFragment : Fragment() {
     private fun navigateToNextPage() {
         val viewPager = activity?.findViewById<androidx.viewpager2.widget.ViewPager2>(R.id.app_setting_viewpager)
         viewPager?.let { it.currentItem = it.currentItem + 1 }
+    }
+
+    fun TextView.setBoldText(fullText: String, boldKeywords: List<String>) {
+        val spannable = SpannableStringBuilder(fullText)
+
+        boldKeywords.forEach { keyword ->
+            val start = fullText.indexOf(keyword)
+            if (start != -1) {
+                spannable.setSpan(
+                    StyleSpan(Typeface.BOLD),
+                    start,
+                    start + keyword.length,
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+            }
+        }
+        this.text = spannable
     }
 
     override fun onDestroyView() {
