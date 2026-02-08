@@ -109,6 +109,7 @@ dependencies {
 
     // Retrofit 라이브러리
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
+
     // JSON 변환을 위한 Gson 컨버터
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 
@@ -117,5 +118,9 @@ dependencies {
 
     // Kakao Login SDK
     implementation("com.kakao.sdk:v2-user:2.20.6")
+
+    // Retrofit 2.9.0과 호환되는 OkHttp & Logging Interceptor
+    implementation("com.squareup.okhttp3:okhttp:4.9.3")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.9.3")
 
 }
