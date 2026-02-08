@@ -21,6 +21,9 @@ interface SearchDao {
     @Delete
     suspend fun deleteSearch(search: RecentSearch)
 
+    @Query("DELETE FROM recent_searches WHERE `query` = :query")
+    suspend fun deleteSearchByQuery(query: String)
+
     @Query("DELETE FROM recent_searches")
     suspend fun clearAllSearches()
 
@@ -40,4 +43,7 @@ interface SearchDao {
     // 30일 넘으면 장소 삭제
     @Query("DELETE FROM recent_places WHERE timestamp < :threshold")
     suspend fun deleteOldPlaces(threshold: Long)
+
+    @Query("DELETE FROM recent_searches WHERE timestamp < :threshold")
+    suspend fun deleteOldSearches(threshold: Long)
 }

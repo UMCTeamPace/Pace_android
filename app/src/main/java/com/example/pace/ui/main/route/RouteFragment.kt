@@ -20,15 +20,23 @@ import androidx.activity.OnBackPressedCallback
 import androidx.core.app.ActivityCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.example.pace.BuildConfig
+import com.example.pace.PaceApplication
 import com.example.pace.R
 import com.example.pace.data.model.RouteResponse
 import com.example.pace.data.db.SearchDatabase
+import com.example.pace.data.model.MyPlace
 import com.example.pace.data.model.RecentHistoryItem
 import com.example.pace.data.model.RecentPlace
+import com.example.pace.data.model.RecentRoute
 import com.example.pace.data.repository.SearchRepository
+import com.example.pace.data.util.RouteConstants
+import com.example.pace.data.viewmodel.SearchViewModel
+import com.example.pace.data.viewmodel.SearchViewModelFactory
 import com.example.pace.databinding.FragmentRouteBinding
 import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.search_box.*
@@ -43,6 +51,7 @@ import com.google.android.libraries.places.api.net.PlacesClient
 import com.google.android.libraries.places.api.net.SearchByTextRequest
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.tabs.TabLayout
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -59,7 +68,9 @@ class RouteFragment : Fragment() {
     private val mainActivity: MainActivity? get() = activity as? MainActivity
     private val mainBinding get() = (activity as? MainActivity)?.binding
 
-    private lateinit var repository: SearchRepository
+    private val searchViewModel: SearchViewModel by viewModels {
+        SearchViewModelFactory((requireActivity().application as PaceApplication).searchRepository)
+    }
 
     private lateinit var placesClient: PlacesClient
 
@@ -83,6 +94,12 @@ class RouteFragment : Fragment() {
 
     private var isDetailFromRecommend = false
     private var isSelectingStart = true
+    private var isBookmarkMode = false
+    private var wasRouteHeaderVisibleBeforeBookmark = false
+    enum class BookmarkTarget { NONE, HOME, WORK }
+
+    private var bookmarkTarget = BookmarkTarget.NONE
+    private var selectedGroupId: Int? = null
 
     private var currentRankPreference = SearchByTextRequest.RankPreference.RELEVANCE // 검색 필터
     private var lastQuery: String = ""
@@ -108,12 +125,7 @@ class RouteFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val db = SearchDatabase.getDatabase(requireContext())
-        repository = SearchRepository(db.searchDao())
-
-        lifecycleScope.launch(Dispatchers.IO) {
-            repository.deleteExpiredData()
-        }
+        searchViewModel.deleteExpiredData()
 
         initPlacesClient()
         initBottomSheet()
@@ -144,6 +156,7 @@ class RouteFragment : Fragment() {
         setupMapSelectListeners()
         setupMyLocationButton()
         setupRouteDetailListeners()
+        setupBookmarkHeaderListenrs()
 
         val activityIntent = requireActivity().intent
         val actionMode = activityIntent?.getStringExtra("ACTION_MODE")
@@ -208,7 +221,14 @@ class RouteFragment : Fragment() {
         scheduleColor = intent.getStringExtra("SCHEDULE_COLOR") ?: "#DC354B"
         scheduleTime = intent.getStringExtra("SCHEDULE_TIME") ?: "00:00"
         earlyArriveTime = intent.getIntExtra("EARLY_ARRIVE_TIME", 10)
-        val sortString = intent.getStringExtra("SORT_OPTION") ?: "최적 경로순"
+        val sortNum = intent.getIntExtra("SORT_OPTION", 0)
+        val sortString = when (sortNum) {
+            RouteConstants.SORT_OPTION_BEST -> "최적 경로순"
+            RouteConstants.SORT_OPTION_TIME -> "최소 시간순"
+            RouteConstants.SORT_OPTION_TRANSFER -> "최소 환승순"
+            RouteConstants.SORT_OPTION_WALK -> "최소 도보순"
+            else -> "최적 경로순"
+        }
         currentSortOption = RouteSortOption.values().find { it.uiText == sortString }
             ?: RouteSortOption.BEST
         searchTime = intent.getStringExtra("SEARCH_TIME") ?: ""
@@ -257,10 +277,6 @@ class RouteFragment : Fragment() {
             bottomSheetBehavior.peekHeight = 0
         }
 
-        // 2. 경로 탐색 모드 헤더
-        if(currentEntryMode == EntryMode.MAIN){
-            currentEntryMode = EntryMode.ROUTE_PLAN
-        }
         binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
         binding.layoutRouteInputHeader.root.bringToFront()
         mainBinding?.mainToolbar?.visibility = View.GONE
@@ -270,17 +286,87 @@ class RouteFragment : Fragment() {
     }
 
     fun onScheduleLocationSelected(name: String, placeId: String) {
-        val resultIntent = android.content.Intent().apply {
-            putExtra("placeName", name)
-            putExtra("placeId", placeId)
+
+        showNameConfirmDialog(name) { finalName ->
+            if(isBookmarkMode){
+                handleBookmarkSingleRegistration(finalName, placeId)
+            }else{
+                val resultIntent = android.content.Intent().apply {
+                    putExtra("placeName", name)
+                    putExtra("placeId", placeId)
+                }
+
+                // 2. 결과 설정 (RESULT_OK)
+                requireActivity().setResult(android.app.Activity.RESULT_OK, resultIntent)
+
+                binding.routeMapFcv.visibility = View.GONE
+                requireActivity().finish()
+            }
+        }
+    }
+
+    private fun handleBookmarkSingleRegistration(name: String, placeId: String) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            if (selectedGroupId != null) {
+                // 일반 장소 저장 로직
+            } else {
+                val type = if (bookmarkTarget == BookmarkTarget.HOME) "HOME" else "WORK"
+                val myPlace = MyPlace(
+                    type = type,
+                    name = name,
+                    placeId = placeId
+                )
+                searchViewModel.insertMyPlace(myPlace)
+            }
+
+            withContext(Dispatchers.Main) {
+                bookmarkTarget = BookmarkTarget.NONE
+                selectedGroupId = null
+
+                exitBookmarkSearchMode()
+
+                android.widget.Toast.makeText(requireContext(), "$name 등록 완료", android.widget.Toast.LENGTH_SHORT).show()
+            }
+
+        }
+    }
+
+    private fun showNameConfirmDialog(originalName: String, onConfirm: (String) -> Unit) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_confirm_place_name, null)
+
+        // 2. 일반 AlertDialog 생성
+        val alertDialog = android.app.AlertDialog.Builder(requireContext())
+            .setView(dialogView)
+            .create()
+
+        val tvFullAddress = dialogView.findViewById<android.widget.TextView>(R.id.tv_dialog_origin_place_name)
+        val etPlaceName = dialogView.findViewById<android.widget.EditText>(R.id.et_dialog_place_name)
+        val btnCancel = dialogView.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btn_dialog_single_place_cancel)
+        val btnSave = dialogView.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btn_dialog_single_place_save)
+
+        tvFullAddress.text = originalName
+        etPlaceName.requestFocus()
+
+
+        btnCancel.setOnClickListener {
+            alertDialog.dismiss()
         }
 
-        // 2. 결과 설정 (RESULT_OK)
-        requireActivity().setResult(android.app.Activity.RESULT_OK, resultIntent)
+        btnSave.setOnClickListener {
+            hideKeyboard()
+            val finalName = etPlaceName.text.toString().trim()
+            if (finalName.isNotEmpty()) {
+                onConfirm(finalName)
+                alertDialog.dismiss()
+            }
+        }
 
-        binding.routeMapFcv.visibility = View.GONE
-        requireActivity().finish()
+        alertDialog.show()
+
+        showKeyBoard()
     }
+
+
 
     private fun setupMapSelectListeners() {
         // 확인 버튼 클릭 시
@@ -382,7 +468,7 @@ class RouteFragment : Fragment() {
             behavior.state = BottomSheetBehavior.STATE_COLLAPSED
             behavior.peekHeight = (250 * resources.displayMetrics.density).toInt() // 지도 보일 정도 높이
 
-            RouteDetailHelper.setupData(bottomSheetView, item)
+            RouteDetailHelper.setupData(requireContext(),bottomSheetView, item, selectedEndPlace?.first ?: "")
 
 
         }
@@ -397,7 +483,14 @@ class RouteFragment : Fragment() {
                 putExtra("endPlaceName", selectedEndPlace?.first)
                 putExtra("endPlaceId", selectedEndPlace?.second)
                 putExtra("earlyArriveTime", earlyArriveTime)
-                putExtra("sortOption", currentSortOption.uiText)
+                val sortNum = when (currentSortOption) {
+                    RouteSortOption.BEST -> RouteConstants.SORT_OPTION_BEST
+                    RouteSortOption.TIME -> RouteConstants.SORT_OPTION_TIME
+                    RouteSortOption.TRANSFER -> RouteConstants.SORT_OPTION_TRANSFER
+                    RouteSortOption.WALK -> RouteConstants.SORT_OPTION_WALK
+                    else -> RouteConstants.SORT_OPTION_BEST
+                }
+                putExtra("sortOption", sortNum)
                 putExtra("routeData", Gson().toJson(item))
             }
 
@@ -473,6 +566,7 @@ class RouteFragment : Fragment() {
         sessionToken = null
         startLatLng = null
         endLatLng = null
+        bookmarkTarget = BookmarkTarget.NONE
 
         binding.layoutRouteInputHeader.tvRouteStart.setText("")
         binding.layoutRouteInputHeader.tvRouteEnd.setText("")
@@ -632,6 +726,11 @@ private fun selectCurrentLocation() {
         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
         mapFrag?.clearMarkers()
 
+        if (isBookmarkMode) {
+            onScheduleLocationSelected(item.name, item.placeId)
+            return
+        }
+
         if(currentEntryMode == EntryMode.ROUTE_PLAN || currentEntryMode == EntryMode.SCHEDULE_ROUTE){
             onLocationSelected(item.name, item.placeId, isSelectingStart)
 
@@ -674,7 +773,30 @@ private fun selectCurrentLocation() {
         mapFrag.moveCameraToSinglePosition(lat, lng)
     }
 
+    fun handleRecentRouteClick(route: RecentRoute){
+        selectedStartPlace = Pair(route.startPlaceName, route.startPlaceId)
+        selectedEndPlace = Pair(route.endPlaceName, route.endPlaceId)
+
+        binding.layoutRouteInputHeader.tvRouteStart.text = route.startPlaceName
+        binding.layoutRouteInputHeader.tvRouteEnd.text = route.endPlaceName
+
+        updateClearButtonVisibility()
+
+        hideKeyboard()
+        mainBinding?.searchEt?.clearFocus()
+        mainBinding?.searchEt?.setText("")
+
+        if (::bottomSheetBehavior.isInitialized) {
+            bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+        }
+
+        showSearchRouteFragment()
+    }
+
     private fun showSearchRouteFragment() {
+        if(currentEntryMode == EntryMode.MAIN){
+            currentEntryMode = EntryMode.ROUTE_PLAN
+        }
         val transaction = childFragmentManager.beginTransaction()
 
         mainBinding?.mainBnv?.visibility = View.GONE
@@ -683,6 +805,7 @@ private fun selectCurrentLocation() {
         val existingRouteFrag = childFragmentManager.findFragmentByTag("ROUTE_RESULT")
 
         if (selectedStartPlace != null && selectedEndPlace != null) {
+            saveCurrentRoute()
 
             if (historyFragment.isAdded) transaction.hide(historyFragment)
             if (recommendFragment.isAdded) transaction.hide(recommendFragment)
@@ -729,6 +852,155 @@ private fun selectCurrentLocation() {
         if (::bottomSheetBehavior.isInitialized) {
             bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
         }
+    }
+
+    private fun saveCurrentRoute() {
+        val start = selectedStartPlace ?: return
+        val end = selectedEndPlace ?: return
+
+        val newRoute = RecentRoute(
+            startPlaceName = start.first,
+            startPlaceId = start.second,
+            endPlaceName = end.first,
+            endPlaceId = end.second
+        )
+
+        // 3. DB 저장 및 청소
+        lifecycleScope.launch(Dispatchers.IO) {
+            val database = SearchDatabase.getDatabase(requireContext())
+            database.recentRouteDao().insertRecentRoute(newRoute)
+
+            // 30일 지난 데이터 삭제
+            searchViewModel.deleteExpiredData()
+        }
+
+    }
+
+    fun enterBookmarkMode(){
+        isBookmarkMode = false
+        wasRouteHeaderVisibleBeforeBookmark = binding.layoutRouteInputHeader.root.visibility == View.VISIBLE
+        hideKeyboard()
+
+        mainBinding?.mainToolbar?.visibility = View.GONE
+        binding.layoutRouteInputHeader.root.visibility = View.GONE
+
+        binding.layoutBookmarkHeader.root.visibility = View.VISIBLE
+
+        val selectedTabPosition = binding.layoutBookmarkHeader.tabLayoutBookmark.selectedTabPosition
+        val targetFragment = when (selectedTabPosition) {
+            0 -> BookmarkHomeWorkFragment()
+            1 -> BookmarkPlaceFragment()
+            else -> BookmarkHomeWorkFragment()
+        } as Fragment
+        val tag: String? = if (selectedTabPosition == 0) "BOOKMARK_HOME" else "BOOKMARK_PLACE"
+
+        val transaction = childFragmentManager.beginTransaction()
+
+        transaction.replace(R.id.route_search_fcv, targetFragment, tag)
+        transaction.commitAllowingStateLoss()
+    }
+
+    private fun exitBookmarkSearchMode() {
+        hideKeyboard()
+        mainBinding?.searchEt?.clearFocus()
+        mainBinding?.searchEt?.setText("")
+
+        historyFragment.setChipsVisibility(true)
+        val isRoutePlanMode = (currentEntryMode == EntryMode.ROUTE_PLAN || currentEntryMode == EntryMode.SCHEDULE_ROUTE)
+        historyFragment.setRouteOptionsVisible(isRoutePlanMode)
+
+        isBookmarkMode = false
+        bookmarkTarget = BookmarkTarget.NONE
+
+        val transaction = childFragmentManager.beginTransaction()
+        if (historyFragment.isAdded) transaction.hide(historyFragment)
+        if (recommendFragment.isAdded) transaction.hide(recommendFragment)
+        transaction.commitAllowingStateLoss()
+
+        binding.layoutBookmarkHeader.root.visibility = View.VISIBLE
+        binding.layoutRouteInputHeader.root.visibility = View.GONE
+        mainBinding?.mainToolbar?.visibility = View.GONE
+
+        val showTransaction = childFragmentManager.beginTransaction()
+        val homeFrag = childFragmentManager.findFragmentByTag("BOOKMARK_HOME")
+        val placeFrag = childFragmentManager.findFragmentByTag("BOOKMARK_PLACE")
+
+        val selectedTab = binding.layoutBookmarkHeader.tabLayoutBookmark.selectedTabPosition
+        if (selectedTab == 0) {
+            homeFrag?.let { showTransaction.show(it) }
+        } else {
+            placeFrag?.let { showTransaction.show(it) }
+        }
+        showTransaction.commitAllowingStateLoss()
+    }
+
+    private fun exitBookmarkMode(){
+        isBookmarkMode = false
+        binding.layoutBookmarkHeader.root.visibility = View.GONE
+
+        val transaction = childFragmentManager.beginTransaction()
+        val homeFrag = childFragmentManager.findFragmentByTag("BOOKMARK_HOME")
+        val placeFrag = childFragmentManager.findFragmentByTag("BOOKMARK_PLACE")
+
+        homeFrag?.let { transaction.remove(it) }
+        placeFrag?.let { transaction.remove(it) }
+        transaction.commitAllowingStateLoss()
+
+        if (wasRouteHeaderVisibleBeforeBookmark) {
+            binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
+            binding.layoutBookmarkHeader.tabLayoutBookmark.visibility = View.GONE
+            mainBinding?.mainToolbar?.visibility = View.GONE
+
+
+            showSearchFragment(historyFragment)
+
+        } else {
+            enterSearchMode()
+        }
+    }
+
+    private fun replaceBookmarkChildFragment(fragment: Fragment, tag: String) {
+        childFragmentManager.beginTransaction()
+            .replace(R.id.route_search_fcv, fragment, tag)
+            .setReorderingAllowed(true)
+            .commitAllowingStateLoss()
+    }
+
+    private fun setupBookmarkHeaderListenrs(){
+        binding.layoutBookmarkHeader.tabLayoutBookmark.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab?) {
+                when (tab?.position) {
+                    0 -> replaceBookmarkChildFragment(BookmarkHomeWorkFragment(), "BOOKMARK_HOME") // 집/회사 탭
+                    1 -> replaceBookmarkChildFragment(BookmarkPlaceFragment(), "BOOKMARK_PLACE")    // 장소 탭
+                }
+            }
+            override fun onTabUnselected(tab: TabLayout.Tab?) {}
+            override fun onTabReselected(tab: TabLayout.Tab?) {}
+        })
+
+        binding.layoutBookmarkHeader.btnBookmarkBack.setOnClickListener {
+            handleCustomBackClick()
+        }
+    }
+
+    fun startBookmarkSearch(target: BookmarkTarget) {
+        this.bookmarkTarget = target
+        this.isBookmarkMode = true
+
+        val transaction = childFragmentManager.beginTransaction()
+        val homeFrag = childFragmentManager.findFragmentByTag("BOOKMARK_HOME")
+        val placeFrag = childFragmentManager.findFragmentByTag("BOOKMARK_PLACE")
+
+        homeFrag?.let { if (it.isVisible) transaction.hide(it) }
+        placeFrag?.let { if (it.isVisible) transaction.hide(it) }
+        transaction.commitAllowingStateLoss()
+
+        binding.layoutBookmarkHeader.root.visibility = View.GONE
+
+        historyFragment.setChipsVisibility(false)
+        historyFragment.forcePlaceFilter()
+        historyFragment.setRouteOptionsVisible(true)
+        enterSearchMode()
     }
 
     private fun setupRouteHeaderListeners() {
@@ -825,6 +1097,19 @@ private fun selectCurrentLocation() {
             hideKeyboard()
             return
         }
+        if (isSearchMode()) {
+            if (isBookmarkMode) {
+                exitBookmarkSearchMode()
+                return
+
+            }
+        }
+
+        if (binding.layoutBookmarkHeader.root.visibility == View.VISIBLE) {
+            exitBookmarkMode()
+            return
+        }
+
         if (currentEntryMode == EntryMode.SCHEDULE || currentEntryMode == EntryMode.SCHEDULE_ROUTE) {
             handleScheduleBackClick()
         } else {
@@ -1361,7 +1646,7 @@ private fun selectCurrentLocation() {
         saveRecentPlace(item)
         val isSchedule = currentEntryMode == EntryMode.SCHEDULE
 
-        val detailFragment = LocationDetailFragment.newInstance(item, isSchedule)
+        val detailFragment = LocationDetailFragment.newInstance(item, isSchedule, isBookmarkMode)
 
         childFragmentManager.beginTransaction()
             .replace(R.id.bottom_sheet_container, detailFragment, "DETAIL")
@@ -1402,6 +1687,11 @@ private fun selectCurrentLocation() {
 
             RecentHistoryItem.TYPE_PLACE -> {
                 val place = item.placeEntity ?: return
+
+                if (isBookmarkMode) {
+                    onScheduleLocationSelected(place.name, place.placeId)
+                    return
+                }
 
                 saveRecentPlace(SearchItem(
                     placeId = place.placeId,
@@ -1484,9 +1774,7 @@ private fun setupMyLocationButton() {
     }
 }
     private fun saveRecentSearch(query: String){
-        lifecycleScope.launch(Dispatchers.IO) {
-            repository.insertSearch(query)
-        }
+        searchViewModel.insertSearch(query)
     }
     private fun saveRecentPlace(item: SearchItem) {
         val recentPlace = RecentPlace(
@@ -1500,9 +1788,7 @@ private fun setupMyLocationButton() {
             timestamp = System.currentTimeMillis()
         )
 
-        lifecycleScope.launch(Dispatchers.IO) {
-            repository.insertPlace(recentPlace)
-        }
+        searchViewModel.insertPlace(recentPlace)
     }
 
     // 유틸리티 함수들
@@ -1599,8 +1885,8 @@ private fun setupMyLocationButton() {
 }
 
 enum class RouteSortOption(val uiText: String, val apiValue: String) {
-    BEST("최적 경로순", "BEST"),
-    TIME("최소 시간순", "TIME"),
-    TRANSFER("최소 환승순", "TRANSFER"),
-    WALK("최소 도보순", "WALK")
+    BEST("최적 경로순", "EFFICIENT"),
+    TIME("최소 시간순", "MIN_TIME"),
+    TRANSFER("최소 환승순", "MIN_TRANSFER"),
+    WALK("최소 도보순", "MIN_WALK")
 }

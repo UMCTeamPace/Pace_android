@@ -94,8 +94,43 @@
         app:behavior_hideable="true"
         app:behavior_peekHeight="0dp">
 
-        <include layout="@layout/bottom_sheet_schedule" />
+        <include
+            android:id="@+id/schedule_list_container"
+            layout="@layout/bottom_sheet_schedule" />
 
     </FrameLayout>
+
+    <LinearLayout
+        android:id="@+id/btn_return_to_today"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="30dp"
+        android:background="@drawable/bg_return_to_today"
+        android:elevation="8dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="10dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone"
+        android:alpha="0">
+
+        <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="오늘로 돌아가기"
+        android:textColor="@color/text_primary"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+        <ImageView
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:layout_marginStart="6dp"
+            android:src="@drawable/ic_arrow_closed"
+            app:tint="@color/text_primary" />
+    </LinearLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

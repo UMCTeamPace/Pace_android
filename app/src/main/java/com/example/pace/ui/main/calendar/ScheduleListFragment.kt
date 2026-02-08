@@ -68,25 +68,43 @@ class ScheduleListFragment : Fragment() {
 
     private fun observeSchedules() {
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.allSchedules.collectLatest { schedules ->
-                processAndDisplaySchedules(schedules)
+            // [수정] 뷰모델에서 이미 가공된 scheduleMap을 관찰합니다.
+            viewModel.scheduleMap.collectLatest { groupedMap ->
+                processAndDisplaySchedules(groupedMap)
             }
         }
     }
 
-    private suspend fun processAndDisplaySchedules(schedules: List<Schedule>) {
+    private suspend fun processAndDisplaySchedules(groupedMap: Map<java.time.LocalDate, List<Schedule>>) {
         val items = mutableListOf<ScheduleListItem>()
-        if (schedules.isNotEmpty()) {
-            val sortedSchedules = schedules.sortedWith(
-                compareBy({ it.startDate }, { !it.isPinned }, { it.startTime })
-            )
+        val today = java.time.LocalDate.now()
 
-            val groupedByDate = sortedSchedules.groupBy { it.startDate }
+        if (groupedMap.isNotEmpty()) {
+            withContext(Dispatchers.Default) {
+                // 1. 오늘 이후의 날짜만 필터링하고 정렬된 리스트 생성
+                val sortedDates = groupedMap.keys
+                    .filter { !it.isBefore(today) } // 오늘 포함 미래 일정만
+                    .sorted()
 
-            for ((date, scheduleList) in groupedByDate) {
-                items.add(ScheduleListItem.DateHeader(formatDateToHeader(date)))
-                scheduleList.forEach { schedule ->
-                    items.add(ScheduleListItem.ScheduleItem(schedule))
+                // 2. 어댑터용 아이템 리스트 생성
+                for (date in sortedDates) {
+                    val scheduleList = groupedMap[date] ?: continue
+
+                    // 날짜 헤더 추가
+                    items.add(ScheduleListItem.DateHeader(formatDateToHeader(date)))
+
+                    // 해당 날짜 내 일정 정렬 (고정 -> 종일 -> 시간순)
+                    val sortedList = scheduleList.sortedWith(
+                        compareBy(
+                            { !it.isPinned },
+                            { !it.isAllDay },
+                            { it.startTime }
+                        )
+                    )
+
+                    sortedList.forEach { schedule ->
+                        items.add(ScheduleListItem.ScheduleItem(schedule))
+                    }
                 }
             }
         }
@@ -95,12 +113,15 @@ class ScheduleListFragment : Fragment() {
             scheduleAdapter.updateData(items)
         }
     }
-    
-    private fun formatDateToHeader(dateStr: String): String {
-        val parser = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val formatter = SimpleDateFormat("yyyy년 MM월 dd일 (E)", Locale.KOREAN)
-        val date = parser.parse(dateStr)
-        return formatter.format(date)
+
+    // 파라미터를 String이 아닌 LocalDate로 받아 더 안전하게 처리
+    private fun formatDateToHeader(date: java.time.LocalDate): String {
+        return try {
+            val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy년 MM월 dd일 (E)", java.util.Locale.KOREAN)
+            date.format(formatter)
+        } catch (e: Exception) {
+            date.toString()
+        }
     }
 
     override fun onDestroyView() {

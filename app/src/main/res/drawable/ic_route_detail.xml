@@ -2,15 +2,19 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/ic_route_detail_color"
-        android:drawable="@drawable/bg_route_detail"
-        android:height="24.5dp" android:width="24.5dp"/>
+        android:height="28dp" android:width="28dp">
+        <shape xmlns:android="http://schemas.android.com/apk/res/android"
+            android:shape="oval">
+            <solid android:color="@color/route_metropolitan_bus"/>
+        </shape>
+    </item>
     <item
         android:id="@+id/ic_route_detail_vehicle"
         android:drawable="@drawable/ic_bus"
         android:width="15.07dp" android:height="14.53dp"
         android:gravity="center"
-        android:top="1.75dp"
-        android:left="1.75dp"
-        android:right="1.75dp"
-        android:bottom="1.75dp"/>
+        android:top="1dp"
+        android:left="2dp"
+        android:right="1dp"
+        android:bottom="1dp"/>
 </layer-list>

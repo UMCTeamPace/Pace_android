@@ -8,16 +8,9 @@ import androidx.fragment.app.Fragment
 import androidx.viewpager2.widget.ViewPager2
 import com.example.pace.databinding.FragmentCalendarBinding
 import com.example.pace.ui.main.MainActivity
-import com.example.pace.ui.main.calendar.CalendarFragmentAdapter
-import com.example.pace.data.db.ScheduleDatabase
-import com.example.pace.data.repository.ScheduleRepository
 import com.google.android.material.tabs.TabLayoutMediator
-import androidx.fragment.app.activityViewModels
-import androidx.fragment.app.viewModels
-import com.example.pace.PaceApplication
-import com.example.pace.data.datasource.NormalScheduleRemoteDataSource
-import com.example.pace.ui.main.calendar.ScheduleViewModel
-import com.example.pace.ui.main.calendar.ScheduleViewModelFactory
+import com.example.pace.ui.main.calendar.SearchFragment
+import com.example.pace.R
 
 class CalendarFragment: Fragment() {
     private var _binding: FragmentCalendarBinding? = null
@@ -37,6 +30,17 @@ class CalendarFragment: Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        val mainActivity = requireActivity() as MainActivity
+
+        // 1. 액티비티 툴바의 돋보기 버튼 리스너 달기
+        mainActivity.binding.scheduleSearchIv.setOnClickListener {
+            // 프래그먼트 전환 로직
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.main_fcv, SearchFragment()) // 액티비티의 컨테이너 ID 사용
+                .addToBackStack(null) // 뒤로가기 버튼 지원
+                .commit()
+        }
 
         val calendarFragmentAdapter = CalendarFragmentAdapter(this)
         binding.calendarVp.adapter = calendarFragmentAdapter

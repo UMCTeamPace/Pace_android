@@ -7,6 +7,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import com.example.pace.R
+import com.example.pace.data.model.RecentHistoryItem
 import com.example.pace.databinding.FragmentSearchHistoryBinding
 import com.example.pace.ui.main.route.RouteFragment
 
@@ -17,6 +18,9 @@ class SearchHistoryFragment : Fragment() {
     var onRouteOptionClick: ((isMyLocation: Boolean) -> Unit)? = null
     private var lastRouteHeaderState: Boolean = false
     private var lastIsScheduleMode: Boolean = false
+    private var pendingChipsVisible: Boolean = true
+    private var pendingRouteOptionsVisible: Boolean = false
+    private var pendingForcePlaceFilter: Boolean = false
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -33,10 +37,13 @@ class SearchHistoryFragment : Fragment() {
             when (checkedIds.firstOrNull()) {
                 R.id.chip_recent_search -> replaceChildFragment(RecentSearchFragment())
                 R.id.chip_recent_place -> replaceChildFragment(RecentPlaceFragment())
-                R.id.chip_recent_route -> { /* 최근 경로 프래그먼트 */ }
+                R.id.chip_recent_route -> replaceChildFragment(RecentRouteFragment())
                 R.id.chip_saved -> { /* 저장됨 프래그먼트 */ }
-                R.id.chip_setting -> {}
             }
+        }
+
+        binding.chipSetting.setOnClickListener {
+            (parentFragment as? RouteFragment)?.enterBookmarkMode()
         }
 
         binding.btnMyLocation.setOnClickListener {
@@ -48,12 +55,27 @@ class SearchHistoryFragment : Fragment() {
             parent?.onSelectOnMapSelected()
         }
 
+        applyPendingStates()
+    }
+
+    private fun applyPendingStates() {
+        binding.chipGroup.visibility = if (pendingChipsVisible) View.VISIBLE else View.GONE
+
+        binding.layoutRouteOptions.visibility = if (pendingRouteOptionsVisible) View.VISIBLE else View.GONE
+
         updateChipsForScheduleMode(lastRouteHeaderState, lastIsScheduleMode)
+
+        if (pendingForcePlaceFilter) {
+            binding.chipRecentPlace.isChecked = true
+            pendingForcePlaceFilter = false
+        }
     }
 
     override fun onResume() {
         super.onResume()
-        updateChipsForScheduleMode(lastRouteHeaderState, lastIsScheduleMode)
+        if (_binding != null) {
+            updateChipsForScheduleMode(lastRouteHeaderState, lastIsScheduleMode)
+        }
     }
 
     override fun onHiddenChanged(hidden: Boolean) {
@@ -68,12 +90,26 @@ class SearchHistoryFragment : Fragment() {
             .commitAllowingStateLoss()
     }
 
+    fun setChipsVisibility(isVisible: Boolean) {
+        pendingChipsVisible = isVisible // 상태 기억
+        if (_binding != null) {
+            binding.chipGroup.visibility = if (isVisible) View.VISIBLE else View.GONE
+        }
+    }
     fun setRouteOptionsVisible(isVisible: Boolean) {
         if (_binding == null) return
         if (isVisible) {
             binding.layoutRouteOptions.visibility = View.VISIBLE
         } else {
             binding.layoutRouteOptions.visibility = View.GONE
+        }
+    }
+
+    fun forcePlaceFilter() {
+        pendingForcePlaceFilter = true
+        if (_binding != null) {
+            binding.chipRecentPlace.isChecked = true
+            replaceChildFragment(RecentPlaceFragment())
         }
     }
 
@@ -96,8 +132,10 @@ class SearchHistoryFragment : Fragment() {
             } else {
                 binding.chipRecentSearch.visibility = View.VISIBLE
 
-                binding.chipRecentSearch.isChecked = true
-                replaceChildFragment(RecentSearchFragment())
+                if (!pendingForcePlaceFilter && !binding.chipRecentPlace.isChecked) {
+                    binding.chipRecentSearch.isChecked = true
+                    replaceChildFragment(RecentSearchFragment())
+                }
             }
         }
 
