@@ -36,6 +36,8 @@ class HomeFragment: Fragment() {
     private var selectedDate: LocalDate = LocalDate.now()
     private var allSchedules: List<Schedule> = emptyList()
 
+    private var scheduleMap: Map<LocalDate, List<Schedule>> = emptyMap()
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -150,8 +152,9 @@ class HomeFragment: Fragment() {
     private fun setupObservers() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.allSchedules.collect { schedules ->
-                    allSchedules = schedules
+                // [수정] 가공된 scheduleMap을 관찰합니다.
+                viewModel.scheduleMap.collect { map ->
+                    scheduleMap = map
                     filterAndDisplaySchedules()
                 }
             }
@@ -159,17 +162,25 @@ class HomeFragment: Fragment() {
     }
 
     private fun filterAndDisplaySchedules() {
-        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-        val selectedDateStr = selectedDate.format(formatter)
+        // [수정] 복잡한 문자열 포맷팅과 filter 루프 없이 Map에서 즉시 가져옵니다.
+        val filteredList = scheduleMap[selectedDate] ?: emptyList()
 
-        val filteredList = allSchedules.filter { it.startDate == selectedDateStr }
-        
-        scheduleAdapter.updateData(filteredList)
+        // 정렬 로직 추가 (필요 시: 고정 -> 시간순)
+        val sortedList = filteredList.sortedWith(
+            compareBy(
+                { !it.isPinned },
+                { !it.isAllDay },
+                { it.startTime }
+            )
+        )
 
-        if(filteredList.isEmpty()){
+        scheduleAdapter.updateData(sortedList)
+
+        // UI 처리
+        if(sortedList.isEmpty()){
             binding.homeNoSchedule.visibility = View.VISIBLE
             binding.homeScheduleRv.visibility = View.GONE
-        }else{
+        } else {
             binding.homeNoSchedule.visibility = View.GONE
             binding.homeScheduleRv.visibility = View.VISIBLE
         }
