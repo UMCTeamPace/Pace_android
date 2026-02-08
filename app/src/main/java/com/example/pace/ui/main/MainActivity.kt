@@ -31,9 +31,9 @@ import androidx.activity.viewModels
 import com.example.pace.PaceApplication
 import com.example.pace.data.db.ScheduleDatabase
 import com.example.pace.data.datasource.NormalScheduleRemoteDataSource
-import com.example.pace.data.repository.ScheduleRepository
 import com.example.pace.ui.main.calendar.ScheduleViewModel
 import com.example.pace.ui.main.calendar.ScheduleViewModelFactory
+import com.example.pace.data.repository.repository.ScheduleRepository
 
 class MainActivity : AppCompatActivity() {
     lateinit var binding: ActivityMainBinding
@@ -42,7 +42,11 @@ class MainActivity : AppCompatActivity() {
     // ViewModel injection
     private val repository by lazy { (application as PaceApplication).repository }
     private val viewModel: ScheduleViewModel by viewModels {
-        ScheduleViewModelFactory((application as PaceApplication).repository)
+        val app = application as PaceApplication
+        ScheduleViewModelFactory(
+            repository = app.repository,
+            authDataStore = app.authDataStore
+        )
     }
 
     fun getSharedViewModel(): ScheduleViewModel = viewModel
@@ -159,6 +163,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             android.util.Log.d("MainActivity", "onResume: 여전히 권한 없음, 스킵")
         }
+
     }
 
     override fun onPause() {

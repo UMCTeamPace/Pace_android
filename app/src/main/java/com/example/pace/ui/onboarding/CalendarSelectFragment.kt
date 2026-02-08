@@ -52,8 +52,8 @@ class CalendarSelectFragment : Fragment() {
         }
 
         binding.tvDescription.setBoldText(
-            "출발 알림을 언제 보내 드릴까요?",
-            listOf("출발 알림")
+            "어떤 캘린더에 일정을 담아 드릴까요?",
+            listOf("어떤 캘린더")
         )
     }
 
