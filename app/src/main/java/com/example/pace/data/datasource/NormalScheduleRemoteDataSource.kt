@@ -13,148 +13,99 @@ import java.util.*
 class NormalScheduleRemoteDataSource(private val applicationContext: Context) {
 
     suspend fun getSchedules(): List<Schedule> = withContext(Dispatchers.IO) {
+        val scheduleList = mutableListOf<Schedule>()
 
-            val scheduleList = mutableListOf<Schedule>()
+        // 실행 전 권한이 있는지 엄격하게 확인
+        val hasPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+            applicationContext,
+            android.Manifest.permission.READ_CALENDAR
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
 
-            val projection = arrayOf(
+        // 권한이 없다면 로그를 남기고 빈 리스트를 즉시 반환하여 튕김(Crash)을 방지합니다.
+        if (!hasPermission) {
+            android.util.Log.e("ScheduleDataSource", "캘린더 읽기 권한이 없습니다. 조회를 중단합니다.")
+            return@withContext emptyList<Schedule>()
+        }
 
-                CalendarContract.Events._ID,
+        val projection = arrayOf(
+            CalendarContract.Events._ID,
+            CalendarContract.Events.TITLE,
+            CalendarContract.Events.DTSTART,
+            CalendarContract.Events.DTEND,
+            CalendarContract.Events.ALL_DAY,
+            CalendarContract.Events.DESCRIPTION,
+            CalendarContract.Events.EVENT_LOCATION,
+            CalendarContract.Events.RRULE,
+            CalendarContract.Events.CALENDAR_ID,
+            CalendarContract.Events.CALENDAR_DISPLAY_NAME,
+            CalendarContract.Events.EVENT_COLOR,
+            CalendarContract.Events.CALENDAR_COLOR
+        )
 
-                CalendarContract.Events.TITLE,
+        val calendar = Calendar.getInstance()
+        val selection = "${CalendarContract.Events.DTSTART} >= ?"
+        val selectionArgs = arrayOf(calendar.timeInMillis.toString())
 
-                CalendarContract.Events.DTSTART,
-
-                CalendarContract.Events.DTEND,
-
-                CalendarContract.Events.ALL_DAY,
-
-                CalendarContract.Events.DESCRIPTION,
-
-                CalendarContract.Events.EVENT_LOCATION,
-
-                CalendarContract.Events.RRULE,
-
-                CalendarContract.Events.CALENDAR_ID,
-
-                CalendarContract.Events.CALENDAR_DISPLAY_NAME,
-
-                CalendarContract.Events.EVENT_COLOR,
-
-                CalendarContract.Events.CALENDAR_COLOR
-
-            )
-
-            
-
-            val calendar = Calendar.getInstance()
-
-            val selection = "${CalendarContract.Events.DTSTART} >= ?"
-
-            val selectionArgs = arrayOf(calendar.timeInMillis.toString())
-
-    
-
+        try {
+            // 2. 권한 확인이 통과된 경우에만 쿼리를 실행
             val cursor: Cursor? = applicationContext.contentResolver.query(
-
                 CalendarContract.Events.CONTENT_URI,
-
                 projection,
-
                 selection,
-
                 selectionArgs,
-
                 CalendarContract.Events.DTSTART + " ASC"
-
             )
-
-    
 
             cursor?.use {
-
                 while (it.moveToNext()) {
-
                     val id = it.getLong(it.getColumnIndexOrThrow(CalendarContract.Events._ID))
-
-                    val title = it.getString(it.getColumnIndexOrThrow(CalendarContract.Events.TITLE))
-
+                    val title = it.getString(it.getColumnIndexOrThrow(CalendarContract.Events.TITLE)) ?: "제목 없음"
                     val dtStart = it.getLong(it.getColumnIndexOrThrow(CalendarContract.Events.DTSTART))
-
                     val dtEnd = it.getLong(it.getColumnIndexOrThrow(CalendarContract.Events.DTEND))
-
                     val isAllDay = it.getInt(it.getColumnIndexOrThrow(CalendarContract.Events.ALL_DAY)) == 1
-
                     val memo = it.getString(it.getColumnIndexOrThrow(CalendarContract.Events.DESCRIPTION))
-
                     val location = it.getString(it.getColumnIndexOrThrow(CalendarContract.Events.EVENT_LOCATION))
-
                     val rrule = it.getString(it.getColumnIndexOrThrow(CalendarContract.Events.RRULE))
-
                     val calendarId = it.getLong(it.getColumnIndexOrThrow(CalendarContract.Events.CALENDAR_ID))
-
                     val calendarName = it.getString(it.getColumnIndexOrThrow(CalendarContract.Events.CALENDAR_DISPLAY_NAME))
-
                     val eventColor = it.getInt(it.getColumnIndexOrThrow(CalendarContract.Events.EVENT_COLOR))
-
                     val calendarColor = it.getInt(it.getColumnIndexOrThrow(CalendarContract.Events.CALENDAR_COLOR))
-
-                    Log.d("ScheduleDataSource", "Fetched colors for ${title}: eventColor=$eventColor, calendarColor=$calendarColor")
-
-    
 
                     val reminders = fetchReminders(id)
 
-    
-
                     scheduleList.add(
-
                         Schedule(
-
                             id = id,
-
                             title = title,
-
                             startDate = formatMillisToDate(dtStart),
-
                             endDate = formatMillisToDate(dtEnd),
-
                             startTime = formatMillisToTime(dtStart),
-
                             endTime = formatMillisToTime(dtEnd),
-
                             isAllDay = isAllDay,
-
                             memo = memo,
-
                             location = location,
-
                             repeatRule = rrule,
-
                             calendarId = calendarId,
-
                             calendarDisplayName = calendarName,
-
                             calendarAccountName = null,
-
                             reminders = reminders,
-
                             eventColor = eventColor,
-
                             calendarColor = calendarColor,
-
-                            type = "NORMAL" // Set the type for schedules from this source
-
+                            type = "NORMAL"
                         )
-
                     )
-
                 }
-
             }
-
-            scheduleList
-
+        } catch (e: SecurityException) {
+            // 3. 만약의 경우를 대비한 2중 방어막
+            android.util.Log.e("ScheduleDataSource", "SecurityException 발생: ${e.message}")
+            return@withContext emptyList<Schedule>()
+        } catch (e: Exception) {
+            android.util.Log.e("ScheduleDataSource", "데이터 로드 중 오류 발생: ${e.message}")
         }
+
+        scheduleList
+    }
 
     private fun fetchReminders(eventId: Long): List<Int> {
         val reminderList = mutableListOf<Int>()

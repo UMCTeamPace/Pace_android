@@ -10,10 +10,12 @@ import androidx.fragment.app.Fragment
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import com.example.pace.databinding.FragmentOnboardingBinding
 import com.example.pace.ui.main.MainActivity
+import com.kakao.sdk.auth.model.OAuthToken
 import com.kakao.sdk.user.UserApiClient
 import com.kakao.sdk.common.model.ClientError
 import com.kakao.sdk.common.model.ClientErrorCause
 import com.kakao.sdk.common.util.Utility
+import kotlin.jvm.java
 
 class OnboardingFragment : Fragment() {
     private var _binding: FragmentOnboardingBinding? = null
@@ -75,39 +77,50 @@ class OnboardingFragment : Fragment() {
         binding.btnKakaoLogin.animate().alpha(1f).setDuration(500).start()
 
         binding.btnKakaoLogin.setOnClickListener {
-            // 1. 여기서 실제 카카오 SDK 로그인 로직을 호출하거나,
-            // 2. 우선 메인 화면으로 이동하는지 테스트해볼 수 있습니다.
-            val intent = android.content.Intent(requireContext(), com.example.pace.ui.main.MainActivity::class.java)
-            startActivity(intent)
-
-            // 온보딩은 다시 돌아올 필요가 없으므로 현재 액티비티 종료
-            activity?.finish()
+            loginWithKakao()
         }
     }
 
     private fun loginWithKakao() {
-        // 카카오톡 설치 여부 확인
+        // 1. 로그인 결과 콜백 정의
+        val callback: (OAuthToken?, Throwable?) -> Unit = { token, error ->
+//            if (error != null) {
+//                Log.e("KakaoLogin", "카카오 계정으로 로그인 실패", error)
+//            } else if (token != null) {
+//                sendTokenToServer(token.accessToken)
+//            }
+            if (error != null) {
+                // 로그인 실패 처리
+            } else if (token != null) {
+                // 로그인 성공!
+                // 여기서 바로 MainActivity로 가지 말고, 권한 설정 화면으로 이동합니다.
+                (activity as? OnboardingActivity)?.moveToPermissionStep()
+            }
+        }
+
+        // 2. 카카오톡 설치 여부에 따른 로그인 처리
         if (UserApiClient.instance.isKakaoTalkLoginAvailable(requireContext())) {
-            // 1. 카카오톡 앱으로 로그인
             UserApiClient.instance.loginWithKakaoTalk(requireContext()) { token, error ->
                 if (error != null) {
-                    Log.e("KakaoLogin", "카카오톡 로그인 실패", error)
+                    Log.e("KakaoLogin", "카카오톡으로 로그인 실패", error)
+
+                    // 사용자가 의도적으로 취소한 경우 (예: 뒤로 가기)
+                    if (error is ClientError && error.reason == ClientErrorCause.Cancelled) {
+                        return@loginWithKakaoTalk
+                    }
+
+                    // 카카오톡 설치는 되어있으나 로그인이 불가능한 경우 웹뷰 시도
+                    UserApiClient.instance.loginWithKakaoAccount(requireContext(), callback = callback)
                 } else if (token != null) {
-                    // 로그인 성공! 서버로 토큰 전송
                     sendTokenToServer(token.accessToken)
                 }
             }
         } else {
-            // 2. 카카오톡 미설치 시 카카오 계정(웹뷰)으로 로그인
-            UserApiClient.instance.loginWithKakaoAccount(requireContext()) { token, error ->
-                if (error != null) {
-                    Log.e("KakaoLogin", "카카오 계정 로그인 실패", error)
-                } else if (token != null) {
-                    sendTokenToServer(token.accessToken)
-                }
-            }
+            // 카카오톡이 없으면 바로 웹뷰로 로그인 시도
+            UserApiClient.instance.loginWithKakaoAccount(requireContext(), callback = callback)
         }
     }
+
 
     private fun sendTokenToServer(accessToken: String) {
         Log.d("KakaoLogin", "발급받은 액세스 토큰: $accessToken")
@@ -118,9 +131,16 @@ class OnboardingFragment : Fragment() {
         // 성공 시 MainActivity로 이동
         val intent = Intent(requireContext(), MainActivity::class.java)
         startActivity(intent)
+
         activity?.finish()
     }
 
+    private fun moveToPermissionScreen() {
+        // 만약 PermissionFragment를 새로운 액티비티에서 띄운다면:
+        val intent = Intent(requireContext(), PermissionActivity::class.java)
+        startActivity(intent)
+        activity?.finish() // 로그인 화면 종료
+    }
 
     override fun onDestroyView() {
         super.onDestroyView()

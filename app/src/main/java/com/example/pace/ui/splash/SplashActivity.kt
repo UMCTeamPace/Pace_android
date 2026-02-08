@@ -8,6 +8,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.airbnb.lottie.LottieAnimationView
 import com.example.pace.R
 import com.example.pace.ui.onboarding.OnboardingActivity
+import com.example.pace.ui.onboarding.PermissionActivity
 
 class SplashActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -17,6 +18,7 @@ class SplashActivity : AppCompatActivity() {
 
         val lottieView = findViewById<LottieAnimationView>(R.id.lottieAnimationView)
         lottieView.addAnimatorListener(object : Animator.AnimatorListener {
+
             override fun onAnimationEnd(animation: Animator) {
                 val intent = Intent(this@SplashActivity, OnboardingActivity::class.java)
                 overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
