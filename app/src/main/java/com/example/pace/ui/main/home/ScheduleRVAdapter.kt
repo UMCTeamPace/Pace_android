@@ -3,11 +3,9 @@ package com.example.pace.ui.main.home
 import android.annotation.SuppressLint
 import android.content.Context
 import android.view.LayoutInflater
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.example.pace.R
 import com.example.pace.data.model.Schedule
 import com.example.pace.databinding.ItemScheduleBinding
 
