@@ -56,6 +56,7 @@ dependencies {
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.ui.graphics)
+    implementation(libs.rfc5545.datetime)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -72,6 +73,9 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
     implementation("com.kizitonwose.calendar:view:2.5.1")
     implementation("com.kizitonwose.calendar:core:2.5.1")
+
+    implementation(libs.biweekly)
+
 
     //지도 sdk
     implementation("com.google.android.gms:play-services-maps:18.2.0")

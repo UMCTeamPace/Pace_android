@@ -155,6 +155,13 @@ class HomeFragment: Fragment() {
                 // [수정] 가공된 scheduleMap을 관찰합니다.
                 viewModel.scheduleMap.collect { map ->
                     scheduleMap = map
+                    // --- [로그 추가 시작] ---
+                    // 모든 날짜에 들어있는 일정들을 하나의 리스트로 합쳐서 색상 값 출력
+                    map.values.flatten().forEach { schedule ->
+                        Log.d("ScheduleColor", "제목: ${schedule.title} | 색상: ${schedule.eventColor}")
+                    }
+                    // --- [로그 추가 끝] ---
+
                     filterAndDisplaySchedules()
                 }
             }

@@ -12,6 +12,8 @@ constraintlayout = "2.2.1"
 uiGraphics = "1.10.1"
 room = "2.6.1"
 ksp = "1.9.22-1.0.17"
+rfc5545Datetime = "0.3"
+biweekly = "0.6.7"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -28,6 +30,8 @@ androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics", ve
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+rfc5545-datetime = { group = "org.dmfs", name = "rfc5545-datetime", version.ref = "rfc5545Datetime" }
+biweekly = { group = "net.sf.biweekly", name = "biweekly", version.ref = "biweekly" }
 
 
 [plugins]

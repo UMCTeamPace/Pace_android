@@ -61,6 +61,9 @@ data class Schedule(
     @ColumnInfo(name = "repeat_rule")
     val repeatRule: String?,
 
+    @ColumnInfo(name = "exdate")
+    val exdate: String? = null,
+
     @ColumnInfo(name = "calendar_id")
     val calendarId: Long,
 

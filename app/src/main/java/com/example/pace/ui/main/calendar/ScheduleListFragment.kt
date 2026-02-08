@@ -53,13 +53,60 @@ class ScheduleListFragment : Fragment() {
 
         setupRecyclerView()
         observeSchedules()
+        observeEditMode() // 추가
+        setupEditBarButtons() // 추가
+
+    }
+
+    private fun observeEditMode() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.isEditMode.collectLatest { isEditMode ->
+                val mainActivity = requireActivity() as MainActivity
+                val parent = parentFragment as? CalendarFragment
+
+                // 1. 편집 헤더 텍스트 보이기/숨기기
+                binding.layoutEditHeader.visibility = if (isEditMode) View.VISIBLE else View.GONE
+
+                if (isEditMode) {
+                    // --- 편집 모드 진입 ---
+                    binding.layoutEditBar.visibility = View.VISIBLE
+                    mainActivity.binding.mainBnv.visibility = View.GONE
+                    mainActivity.binding.mainToolbar.visibility = View.GONE
+                    parent?.setTabVisibility(false)
+                } else {
+                    // --- 편집 모드 해제 ---
+                    binding.layoutEditBar.visibility = View.GONE
+                    mainActivity.binding.mainBnv.visibility = View.VISIBLE
+                    mainActivity.binding.mainToolbar.visibility = View.VISIBLE
+                    parent?.setTabVisibility(true)
+                }
+
+                scheduleAdapter.setEditMode(isEditMode)
+            }
+        }
+    }
+
+    private fun setupEditBarButtons() {
+        binding.btnEditCancel.setOnClickListener {
+            viewModel.setEditMode(false)
+        }
+        binding.btnEditDelete.setOnClickListener {
+            viewModel.deleteSelected()
+        }
     }
 
     private fun setupRecyclerView() {
-        scheduleAdapter = ScheduleAdapter(emptyList()) { schedule ->
-            val updatedSchedule = schedule.copy(isPinned = !schedule.isPinned)
-            viewModel.updateSchedule(updatedSchedule)
-        }
+        scheduleAdapter = ScheduleAdapter(
+            items = emptyList(),
+            onPinClick = { schedule ->
+                val updatedSchedule = schedule.copy(isPinned = !schedule.isPinned)
+                viewModel.updateSchedule(updatedSchedule)
+            },
+            onEditSelect = { id ->
+                // 아이템 클릭 시 뷰모델의 선택 리스트에 추가/삭제
+                viewModel.toggleSelection(id)
+            }
+        )
         binding.scheduleListRv.apply {
             layoutManager = LinearLayoutManager(context)
             adapter = scheduleAdapter
@@ -67,10 +114,19 @@ class ScheduleListFragment : Fragment() {
     }
 
     private fun observeSchedules() {
+        // 1. 일정 데이터 관찰 (기존 로직)
         viewLifecycleOwner.lifecycleScope.launch {
-            // [수정] 뷰모델에서 이미 가공된 scheduleMap을 관찰합니다.
             viewModel.scheduleMap.collectLatest { groupedMap ->
                 processAndDisplaySchedules(groupedMap)
+            }
+        }
+
+        // 3. 선택된 아이템 ID 세트 관찰 (추가)
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.selectedIds.collectLatest { ids ->
+                scheduleAdapter.updateSelectedIds(ids)
+                // 선택된 개수에 따라 삭제 버튼 텍스트 변경 가능 (예: 삭제(3))
+                binding.btnEditDelete.text = if (ids.isEmpty()) "삭제" else "삭제(${ids.size})"
             }
         }
     }

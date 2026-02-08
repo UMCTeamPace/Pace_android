@@ -87,6 +87,8 @@ class ScheduleTouchHelper(
 
                     when(dX){
                         0f -> {
+                            schedule.isSwiped = false
+                            swipedViewHolder = null
                             super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
                         }
                         else -> {

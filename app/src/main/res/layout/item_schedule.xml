@@ -133,10 +133,12 @@
                 android:layout_height="0dp"
                 android:layout_weight="1"/>
             <ImageView
+                android:id="@+id/schedule_repeat_iv"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:src="@drawable/ic_repeat"/>
             <TextView
+                android:id="@+id/schedule_repeat_tv"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="4dp"
@@ -156,6 +158,7 @@
             app:layout_constraintTop_toBottomOf="@id/schedule_time_ll">
 
             <ImageView
+                android:id="@+id/schedule_normal_location_iv"
                 android:layout_width="16dp"
                 android:layout_height="16dp"
                 android:src="@drawable/ic_route_unselected" />

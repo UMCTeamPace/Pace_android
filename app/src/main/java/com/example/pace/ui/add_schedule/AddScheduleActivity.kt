@@ -21,13 +21,21 @@ class AddScheduleActivity : AppCompatActivity() {
         binding = ActivityAddScheduleBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+
+        val selectedDate = intent.getStringExtra("selected_date")
+        val mode = intent.getStringExtra("mode")
+
         // ViewPager2 어댑터 연결
         val pagerAdapter = object : FragmentStateAdapter(this) {
             override fun getItemCount(): Int = 2
             override fun createFragment(position: Int): Fragment {
+                val bundle = Bundle().apply {
+                    putString("selected_date", selectedDate)
+                    putString("mode", mode)
+                }
                 return when (position) {
-                    0 -> GeneralScheduleFragment()
-                    else -> RouteScheduleFragment()
+                    0 -> GeneralScheduleFragment().apply { arguments = bundle }
+                    else -> RouteScheduleFragment().apply { arguments = bundle }
                 }
             }
         }
