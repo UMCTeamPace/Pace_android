@@ -218,6 +218,26 @@ class ScheduleViewModel @Inject constructor(
             }
         }
         viewModelScope.launch(Dispatchers.IO) { repository.refreshSchedules() }
+        android.util.Log.d("API_TEST", "ViewModel: refreshSchedules() 진입")
+
+        viewModelScope.launch {
+            try {
+                // 2. AuthDataStore에서 저장된 토큰을 가져옵니다.
+                val token = authDataStore.getAccessToken()
+                Log.d("API_TEST", "ViewModel: 불러온 토큰 -> $token")
+
+                if (token != null) {
+                    // 3. 불러온 토큰을 사용하여 API 호출
+                    val response = repository.getScheduleList(token,"2026-02-01","2026-02-28",null,null)
+                    Log.d("API_TEST", "ViewModel: 리포지토리 호출 완료 -> $response")
+                } else {
+                    Log.e("API_TEST", "ViewModel: 저장된 토큰이 없습니다. 로그인이 필요합니다.")
+                }
+
+            } catch (e: Exception) {
+                Log.e("API_TEST", "ViewModel: 에러 발생 -> ${e.message}")
+            }
+        }
     }
 
     fun updateSchedule(schedule: Schedule) {

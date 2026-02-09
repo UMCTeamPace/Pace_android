@@ -1,8 +1,10 @@
 package com.example.pace.data.repository.repositoryImpl
 
 import android.content.Context
+import android.util.Log
 import com.example.pace.data.api.ScheduleService
 import com.example.pace.data.createCalendarObserver
+import com.example.pace.data.datasource.AuthDataStore
 import com.example.pace.data.datasource.NormalScheduleRemoteDataSource
 import com.example.pace.data.db.ScheduleDao
 import com.example.pace.data.model.Schedule
@@ -23,7 +25,6 @@ import biweekly.util.DayOfWeek
 import biweekly.util.Frequency
 import biweekly.util.ICalDate
 import biweekly.util.Recurrence
-import com.example.pace.data.datasource.AuthDataStore
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.ZoneId
@@ -38,6 +39,19 @@ class ScheduleRepositoryImpl @Inject constructor(
     private val authDataStore: AuthDataStore,
     @ApplicationContext private val context: Context
 ) : ScheduleRepository {
+
+    // --- [공통 토큰 검사 로직] ---
+    private fun ensureValidToken(token: String): String {
+        return when {
+            token.isBlank() -> {
+                Log.e("Auth_Check", "⚠️ Access Token이 비어있습니다!")
+                ""
+            }
+            // 서버가 "Bearer " 접두사를 요구할 경우를 대비한 자동 처리
+            !token.startsWith("Bearer ") -> "Bearer $token"
+            else -> token
+        }
+    }
 
     // 1. 로컬 데이터 Flow (RRULE 전개 로직 적용)
     override val allSchedules: Flow<List<Schedule>> = scheduleDao.getAllSchedules()
@@ -70,39 +84,47 @@ class ScheduleRepositoryImpl @Inject constructor(
 
     override fun getUsedColors(): Flow<List<String>> = scheduleDao.getUsedColorsRaw().map { list ->
         list.mapNotNull { it.color }
-    }
+    }.flowOn(Dispatchers.IO)
 
-    // 3. 서버 API 메서드 (safeApiCall 활용)
+    // 3. 서버 API 메서드 (수동 토큰 검사 및 safeApiCall 적용)
     override suspend fun getScheduleList(accessToken: String, startDate: String, endDate: String?, lastDate: String?, lastId: Long?) = safeApiCall {
-        api.getScheduleList(accessToken, startDate, endDate, lastDate, lastId)
+        val validToken = ensureValidToken(accessToken)
+        api.getScheduleList(validToken, startDate, endDate, lastDate, lastId)
     }
 
     override suspend fun createSchedule(accessToken: String, request: CreateScheduleRequest) = safeApiCall {
-        api.createSchedule(accessToken, request)
+        val validToken = ensureValidToken(accessToken)
+        api.createSchedule(validToken, request)
     }
 
     override suspend fun getScheduleDetail(accessToken: String, scheduleId: Long) = safeApiCall {
-        api.getScheduleDetail(accessToken, scheduleId)
+        val validToken = ensureValidToken(accessToken)
+        api.getScheduleDetail(validToken, scheduleId)
     }
 
     override suspend fun updateSchedule(accessToken: String, scheduleId: Long, scope: String, request: UpdateScheduleRequest) = safeApiCall {
-        api.updateSchedule(accessToken, scheduleId, scope, request)
+        val validToken = ensureValidToken(accessToken)
+        api.updateSchedule(validToken, scheduleId, scope, request)
     }
 
     override suspend fun deleteSchedules(accessToken: String, request: DeleteScheduleRequest) = safeApiCall {
-        api.deleteSchedules(accessToken, request)
+        val validToken = ensureValidToken(accessToken)
+        api.deleteSchedules(validToken, request)
     }
 
     override suspend fun updateScheduleRoute(accessToken: String, scheduleId: Long, request: UpdateScheduleRouteRequest) = safeApiCall {
-        api.updateScheduleRoute(accessToken, scheduleId, request)
+        val validToken = ensureValidToken(accessToken)
+        api.updateScheduleRoute(validToken, scheduleId, request)
     }
 
     override suspend fun deleteScheduleRoute(accessToken: String, scheduleId: Long) = safeApiCall {
-        api.deleteScheduleRoute(accessToken, scheduleId)
+        val validToken = ensureValidToken(accessToken)
+        api.deleteScheduleRoute(validToken, scheduleId)
     }
 
     override suspend fun convertRouteToGeneral(accessToken: String, id: Long) = safeApiCall {
-        api.convertRouteToGeneral(accessToken, id)
+        val validToken = ensureValidToken(accessToken)
+        api.convertRouteToGeneral(validToken, id)
     }
 
     override suspend fun searchSchedules(query: String, colors: Set<String>, includeRoute: Boolean, startDate: String, endDate: String): List<Schedule> {
@@ -116,7 +138,7 @@ class ScheduleRepositoryImpl @Inject constructor(
         }
     }
 
-    // 4. 반복 일정 전개 로직 (biweekly 활용)
+    // 4. 반복 일정 전개 로직 (biweekly 라이브러리 활용)
     private fun expandSchedules(rawSchedules: List<Schedule>): List<Schedule> {
         val expandedList = mutableListOf<Schedule>()
         val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")

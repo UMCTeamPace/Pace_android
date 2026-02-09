@@ -160,9 +160,9 @@ class NormalScheduleRemoteDataSource(private val applicationContext: Context) {
         android.util.Log.e("ScheduleDataSource", "데이터 로드 중 오류 발생: ${e.message}")
     }
 
-            scheduleList
+    scheduleList
 
-        }
+}
 
     private fun fetchReminders(eventId: Long): List<Int> {
         val reminderList = mutableListOf<Int>()
@@ -186,7 +186,7 @@ class NormalScheduleRemoteDataSource(private val applicationContext: Context) {
         }
         return reminderList
     }
-    
+
     private fun formatMillisToDate(millis: Long): String {
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         return sdf.format(Date(millis))
