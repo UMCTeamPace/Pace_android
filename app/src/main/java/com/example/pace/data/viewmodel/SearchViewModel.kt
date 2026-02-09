@@ -62,6 +62,20 @@ class SearchViewModel(private val repository: SearchRepository) : ViewModel() {
 
     fun getMyPlace(type: String) = repository.getMyPlaceByType(type)
 
+    val homePlace: StateFlow<MyPlace?> = repository.getMyPlaceByType("HOME")
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
+
+    val workPlace: StateFlow<MyPlace?> = repository.getMyPlaceByType("WORK")
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
+
     fun deleteExpiredData() = viewModelScope.launch {
         repository.deleteExpiredData()
     }

@@ -16,7 +16,7 @@ class LocationListAdapter(
 ): RecyclerView.Adapter<LocationListAdapter.LocationViewHolder>() {
     private var items: List<SearchItem> = emptyList()
 
-    var onFavoriteClick: ((String) -> Unit)? = null
+    var onFavoriteClick: ((SearchItem) -> Unit)? = null
     fun submitList(newItems: List<SearchItem>) {
         this.items = newItems
         notifyDataSetChanged()
@@ -92,8 +92,13 @@ class LocationListAdapter(
                         }
                 }
             }
-            binding.ivFavorite.setOnClickListener{
-                //item.placeId
+
+            binding.root.setOnClickListener {
+                onItemClick(item)
+            }
+
+            binding.ivFavorite.setOnClickListener {
+                onFavoriteClick?.invoke(item)
             }
         }
     }
