@@ -47,6 +47,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.libraries.places.api.net.SearchNearbyRequest
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.AutocompleteSessionToken
+import com.google.android.libraries.places.api.model.CircularBounds
 import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.net.FetchPlaceRequest
 import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
@@ -60,6 +61,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.ArrayList
@@ -94,7 +96,11 @@ class RouteFragment : Fragment() {
 
     private var selectedStartPlace: Pair<String, String>? = null
     private var selectedEndPlace: Pair<String, String>? = null
-    private var selectedCalendarPlace: Pair<String, String>? = null
+    private var selectedOnMapPlace: Pair<String, String>? = null
+    private var currentMapCenter: LatLng? = null
+    private var currentMapAddress: String? = ""
+    private var currentMapCategory: String? = ""
+    private var currentMyLocation: LatLng? = null
     private var earlyArriveTime: Int = 0
     private var currentSortOption: RouteSortOption = RouteSortOption.BEST
 
@@ -270,10 +276,16 @@ class RouteFragment : Fragment() {
         mainBinding?.mainBnv?.visibility = View.GONE
 
         if (isStart) {
+            if(placeId == selectedEndPlace?.second || itemName == selectedEndPlace?.first){
+                swapLocations()
+            }
             selectedStartPlace = Pair(itemName, placeId)
             binding.layoutRouteInputHeader.tvRouteStart.setText(itemName)
             updateClearButtonVisibility()
         } else {
+            if(placeId == selectedStartPlace?.second || itemName == selectedEndPlace?.first){
+                swapLocations()
+            }
             selectedEndPlace = Pair(itemName, placeId)
             binding.layoutRouteInputHeader.tvRouteEnd.setText(itemName)
             updateClearButtonVisibility()
@@ -298,6 +310,10 @@ class RouteFragment : Fragment() {
         showNameConfirmDialog(name) { finalName ->
             if(isBookmarkSearchMode){
                 handleBookmarkSingleRegistration(finalName, placeId)
+
+                binding.layoutMapSelectOverlay.root.visibility = View.GONE
+
+                binding.routeSearchFcv.visibility = View.VISIBLE
             }else{
                 val resultIntent = android.content.Intent().apply {
                     putExtra("placeName", name)
@@ -316,7 +332,7 @@ class RouteFragment : Fragment() {
     private fun handleBookmarkSingleRegistration(name: String, placeId: String) {
         lifecycleScope.launch(Dispatchers.IO) {
             if (selectedGroupId != null) {
-                // 일반 장소 저장 로직
+                // todo 일반 장소 저장 로직 -> 다시 생각해보니 필요없어 보이긴함; 무슨 생각이 있긴 했겠지?
             } else {
                 val type = if (bookmarkTarget == BookmarkTarget.HOME) "HOME" else "WORK"
                 val myPlace = MyPlace(
@@ -379,16 +395,31 @@ class RouteFragment : Fragment() {
     private fun setupMapSelectListeners() {
         // 확인 버튼 클릭 시
         binding.layoutMapSelectOverlay.btnMapSelectConfirm.setOnClickListener {
-            val tempName = selectedCalendarPlace?.first ?: binding.layoutMapSelectOverlay.tvMapSelectName.text.toString()
-            val tempId = selectedCalendarPlace?.second ?: ""
+            val tempName = selectedOnMapPlace?.first ?: binding.layoutMapSelectOverlay.tvMapSelectName.text.toString()
+            val tempId = selectedOnMapPlace?.second ?: ""
 
-            onLocationSelected(tempName, tempId, isSelectingStart)
+            if(isBookmarkSearchMode){
+                onScheduleLocationSelected(tempName, tempId)
+            }else{
+                val selectedItem = SearchItem(
+                    placeId = tempId,
+                    name = tempName,
+                    lat = currentMapCenter?.latitude ?: 0.0,
+                    lng = currentMapCenter?.longitude ?: 0.0,
+                    address = currentMapAddress ?: "",
+                    category = currentMapCategory ?: "",
+                    distance = ""
+                )
 
-            binding.layoutMapSelectOverlay.root.visibility = View.GONE
-            val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
-            mapFrag?.setMyLocationButtonVisibility(true)
+                saveRecentPlace(selectedItem)
+                onLocationSelected(tempName, tempId, isSelectingStart)
 
-            selectedCalendarPlace = null
+                binding.layoutMapSelectOverlay.root.visibility = View.GONE
+                val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+                mapFrag?.setMyLocationButtonVisibility(true)
+
+                selectedOnMapPlace = null
+            }
         }
 
         binding.layoutMapSelectOverlay.layoutMapSelectHeader.btnMapSelectBack.setOnClickListener {
@@ -567,7 +598,13 @@ class RouteFragment : Fragment() {
 
         if (targetFragment is SearchHistoryFragment) {
             val isRoutePlan = (currentEntryMode == EntryMode.ROUTE_PLAN || currentEntryMode==EntryMode.SCHEDULE_ROUTE)
-            targetFragment.setRouteOptionsVisible(isRoutePlan)
+//            targetFragment.setRouteOptionsVisible(isRoutePlan)
+            if(isBookmarkSearchMode){
+                targetFragment.setRouteOptionsVisible(true)
+            }
+            else{
+                targetFragment.setRouteOptionsVisible(isRoutePlan)
+            }
 
             targetFragment.onRouteOptionClick = { isMyLocation ->
                 if (isMyLocation) {
@@ -593,7 +630,7 @@ class RouteFragment : Fragment() {
 
         selectedStartPlace = null
         selectedEndPlace = null
-        selectedCalendarPlace = null
+        selectedOnMapPlace = null
         if(currentEntryMode == EntryMode.ROUTE_PLAN){
             currentEntryMode = EntryMode.MAIN
         }
@@ -681,7 +718,13 @@ private fun selectCurrentLocation() {
             val fullAddress = addresses?.firstOrNull()?.getAddressLine(0)?.replace("대한민국 ", "") ?: "주소 미상"
 
             withContext(Dispatchers.Main) {
-                applyCurrentLocationSelection(fullAddress, latLng)
+                if (isBookmarkSearchMode) {
+                    currentMyLocation = latLng
+                    val currentPlaceId = getNearbyPlaceId(latLng)
+                    onScheduleLocationSelected(fullAddress, currentPlaceId?:"")
+                } else {
+                    applyCurrentLocationSelection(fullAddress, latLng)
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -692,13 +735,40 @@ private fun selectCurrentLocation() {
     }
 }
 
+    private suspend fun getNearbyPlaceId(latLng: LatLng): String? = suspendCancellableCoroutine { continuation ->
+        val circle = CircularBounds.newInstance(latLng, 30.0)
+        val placeFields = listOf(Place.Field.ID)
+
+        val searchNearbyRequest = SearchNearbyRequest.builder(circle, placeFields)
+            .setMaxResultCount(1)
+            .build()
+
+        val task = placesClient.searchNearby(searchNearbyRequest)
+            .addOnSuccessListener { response ->
+                val placeId = response.places.firstOrNull()?.id
+                continuation.resume(placeId) {}
+            }
+            .addOnFailureListener { exception ->
+                exception.printStackTrace()
+                continuation.resume(null) {}
+            }
+
+        continuation.invokeOnCancellation {}
+    }
+
     private fun applyCurrentLocationSelection(address: String, latLng: LatLng) {
         if (isSelectingStart) {
+            if(selectedEndPlace?.first == address){
+                swapLocations()
+            }
             selectedStartPlace = Pair(address, "내 위치")
             startLatLng = latLng
             binding.layoutRouteInputHeader.tvRouteStart.text = address
             updateClearButtonVisibility()
         } else {
+            if(selectedStartPlace?.first == address){
+                swapLocations()
+            }
             selectedEndPlace = Pair(address, "내 위치")
             endLatLng = latLng
             binding.layoutRouteInputHeader.tvRouteEnd.text = address
@@ -1150,20 +1220,7 @@ private fun selectCurrentLocation() {
         }
 
         binding.layoutRouteInputHeader.btnSwapLocation.setOnClickListener {
-            val tempPlace = selectedStartPlace
-            selectedStartPlace = selectedEndPlace
-            selectedEndPlace = tempPlace
-
-            val tempLatLng = startLatLng
-            startLatLng = endLatLng
-            endLatLng = tempLatLng
-
-            binding.layoutRouteInputHeader.tvRouteStart.text = selectedStartPlace?.first ?: ""
-            binding.layoutRouteInputHeader.tvRouteEnd.text = selectedEndPlace?.first ?: ""
-
-            updateClearButtonVisibility()
-
-            showSearchRouteFragment()
+            swapLocations()
         }
 
         binding.layoutRouteInputHeader.btnRouteBack.setOnClickListener {
@@ -1188,6 +1245,22 @@ private fun selectCurrentLocation() {
         binding.layoutRouteInputHeader.tvSortFilter.setOnClickListener {
             showSortOptionBottomSheet()
         }
+    }
+
+    fun swapLocations() {
+        val tempPlace = selectedStartPlace
+        selectedStartPlace = selectedEndPlace
+        selectedEndPlace = tempPlace
+
+        val tempLatLng = startLatLng
+        startLatLng = endLatLng
+        endLatLng = tempLatLng
+
+        binding.layoutRouteInputHeader.tvRouteStart.text = selectedStartPlace?.first ?: ""
+        binding.layoutRouteInputHeader.tvRouteEnd.text = selectedEndPlace?.first ?: ""
+
+        updateClearButtonVisibility()
+        showSearchRouteFragment()
     }
 
     private fun updateClearButtonVisibility() {
@@ -1254,7 +1327,7 @@ private fun selectCurrentLocation() {
         // 2. 지도 선택 오버레이
         if (binding.layoutMapSelectOverlay.root.visibility == View.VISIBLE) {
             binding.layoutMapSelectOverlay.root.visibility = View.GONE
-            selectedCalendarPlace = null
+            selectedOnMapPlace = null
             enterSearchMode()
             return
         }
@@ -1338,7 +1411,7 @@ private fun selectCurrentLocation() {
 
         if (binding.layoutMapSelectOverlay.root.visibility == View.VISIBLE) {
             binding.layoutMapSelectOverlay.root.visibility = View.GONE
-            selectedCalendarPlace = null
+            selectedOnMapPlace = null
             enterSearchMode()
             return
         }
@@ -1414,7 +1487,9 @@ private fun selectCurrentLocation() {
     fun updateAddressFromMapCenter(latLng: LatLng) {
         if (binding.layoutMapSelectOverlay.root.visibility != View.VISIBLE) return
 
-        val geocoder = android.location.Geocoder(requireContext(), java.util.Locale.KOREAN)
+        currentMapCenter = latLng
+
+        val geocoder = android.location.Geocoder(requireContext(), Locale.KOREAN)
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -1437,11 +1512,13 @@ private fun selectCurrentLocation() {
                             val name = place?.name ?: addresses?.firstOrNull()?.featureName ?: "지정된 위치"
                             val id = place?.id ?: ""
 
-                            selectedCalendarPlace = Pair(name, id)
+                            selectedOnMapPlace = Pair(name, id)
 
                             if (place != null) {
                                 val category = convertTypeToKorean(place.types?.map { it.toString().lowercase() } ?: emptyList())
                                 binding.layoutMapSelectOverlay.tvMapSelectName.text = place.name
+                                currentMapAddress = place.address
+                                currentMapCategory = category
                                 binding.layoutMapSelectOverlay.tvMapSelectInfo.text = "$category · ${calculateDistance(latLng)} · ${place.address?.replace("대한민국 ", "")}"
                             } else {
                                 binding.layoutMapSelectOverlay.tvMapSelectName.text = addresses?.firstOrNull()?.featureName ?: "지정된 위치"
