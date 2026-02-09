@@ -54,14 +54,27 @@
         android:clickable="true"
         android:focusable="true">
 
-        <ImageView
+        <FrameLayout
             android:id="@+id/iv_group_icon"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
-            android:src="@drawable/ic_favorites"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent">
+
+            <ImageView
+                android:id="@+id/ivGroupBg"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_bookmark_background" />
+
+            <ImageView
+                android:id="@+id/iv_group_icon_line"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_bookmark_line" />
+
+        </FrameLayout>
 
         <TextView
             android:id="@+id/tv_group_name"

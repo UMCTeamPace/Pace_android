@@ -16,17 +16,19 @@ class GroupColorAdapter(
 
     private var selectedPosition = 0
 
-    inner class ColorViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
+    inner class ColorViewHolder(val binding: ItemGroupColorBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(colorHex: String, position: Int) {
-            try {
-                view.backgroundTintList = ColorStateList.valueOf(Color.parseColor(colorHex))
-            } catch (e: Exception) {
-                /* 색상 파싱 에러 처리 */
+            val color = Color.parseColor(colorHex)
+
+            binding.ivColorCircle.imageTintList = ColorStateList.valueOf(color)
+
+            if (selectedPosition == position) {
+                binding.ivSelectionRing.visibility = View.VISIBLE
+            } else {
+                binding.ivSelectionRing.visibility = View.GONE
             }
 
-            view.alpha = if (selectedPosition == position) 1.0f else 0.5f
-
-            view.setOnClickListener {
+            binding.root.setOnClickListener {
                 val previousPosition = selectedPosition
                 selectedPosition = bindingAdapterPosition
                 notifyItemChanged(previousPosition)
@@ -38,15 +40,8 @@ class GroupColorAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ColorViewHolder {
-        val view = View(parent.context).apply {
-            val size = (32 * resources.displayMetrics.density).toInt()
-            val margin = (8 * resources.displayMetrics.density).toInt()
-            layoutParams = ViewGroup.MarginLayoutParams(size, size).apply {
-                setMargins(margin, margin, margin, margin)
-            }
-            setBackgroundResource(R.drawable.circle_schedulecolor)
-        }
-        return ColorViewHolder(view)
+        val binding = ItemGroupColorBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        return ColorViewHolder(binding)
     }
 
     override fun onBindViewHolder(holder: ColorViewHolder, position: Int) {

@@ -1,22 +1,21 @@
-<?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:layout_margin="8dp">
+    android:layout_width="48dp"
+    android:layout_height="48dp"
+    android:padding="8dp">
 
-    <View
-        android:id="@+id/view_color_border"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_gravity="center"
-        android:background="@drawable/shape_circle_border_gray"
-        android:visibility="invisible" />
-
-    <View
-        android:id="@+id/view_color_circle"
+    <ImageView
+        android:id="@+id/ivColorCircle"
         android:layout_width="32dp"
         android:layout_height="32dp"
         android:layout_gravity="center"
-        android:background="@drawable/circle_schedulecolor" />
+        android:src="@drawable/circle_schedulecolor" />
 
+    <ImageView
+        android:id="@+id/ivSelectionRing"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_gravity="center"
+        android:src="@drawable/ic_selection_ring"
+        android:padding="3dp"
+        android:visibility="gone" />
 </FrameLayout>
