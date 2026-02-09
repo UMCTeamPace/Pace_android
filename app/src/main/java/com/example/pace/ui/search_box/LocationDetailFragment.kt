@@ -3,15 +3,18 @@ package com.example.pace.ui.search_box
 import android.graphics.Bitmap
 import android.location.Location
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.example.pace.databinding.FragmentLocationDetailBinding
 import com.example.pace.R
 import com.example.pace.ui.main.route.RouteFragment
+import com.example.pace.ui.search_box.group.GroupSelectBottomSheet
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.Place
@@ -113,6 +116,30 @@ class LocationDetailFragment : Fragment() {
         binding.icSelectLocation.setOnClickListener {
             val parent = parentFragment as? RouteFragment
             parent?.onScheduleLocationSelected(name, placeId)
+        }
+
+        binding.icStar.setOnClickListener {
+            val currentPlaceId = arguments?.getString("placeId") ?: ""
+            val originalName = binding.tvTitle.text.toString()
+
+            val bottomSheet = GroupSelectBottomSheet(
+                mode = GroupSelectBottomSheet.Mode.SAVE,
+                placeName = originalName
+            ) { selectedGroupId, userTypedName ->
+
+                // 바텀시트에서 저장 눌렀을 때
+                val finalName = userTypedName
+
+                // ★ TODO: 실제 서버 저장 로직 호출 (Retrofit 등)
+                // savePlaceToServer(selectedGroupId, currentPlaceId, finalName)
+
+                // 로그 확인용
+                Log.d("PlaceSave", "그룹ID: $selectedGroupId, 장소ID: $currentPlaceId, 저장명: $finalName")
+
+                Toast.makeText(requireContext(), "'$finalName' 저장 완료!", Toast.LENGTH_SHORT).show()
+            }
+
+            bottomSheet.show(parentFragmentManager, "GroupSelectBottomSheet")
         }
     }
 
