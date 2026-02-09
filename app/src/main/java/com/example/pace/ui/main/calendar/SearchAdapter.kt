@@ -1,3 +1,7 @@
+package com.example.pace.ui.main.calendar
+
+import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.text.Spannable
 import android.text.SpannableString
@@ -5,13 +9,23 @@ import android.text.style.ForegroundColorSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.example.pace.R
 import com.example.pace.data.model.Schedule
 import com.example.pace.databinding.ItemScheduleBinding // 레이아웃 파일명에 맞춰 수정하세요
+import com.example.pace.ui.main.home.DeleteScheduleDialog
+import com.example.pace.ui.main.home.ScheduleTouchHelper
 
-class SearchAdapter(private var query: String = "") : ListAdapter<Schedule, SearchAdapter.SearchViewHolder>(DiffCallback) {
+class SearchAdapter(
+    private val context: Context,
+    private var query: String = "",
+    private val onPinClick: (Schedule) -> Unit,
+    private val onEditSelect: (Long) -> Unit // 추가: 아이템 선택 시 호출될 콜백
+) : ListAdapter<Schedule, SearchAdapter.SearchViewHolder>(DiffCallback) {
+    lateinit var scheduleTouchHelper: ScheduleTouchHelper
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SearchViewHolder {
         val binding =
@@ -20,7 +34,7 @@ class SearchAdapter(private var query: String = "") : ListAdapter<Schedule, Sear
     }
 
     override fun onBindViewHolder(holder: SearchViewHolder, position: Int) {
-        holder.bind(getItem(position), query)
+        holder.bind(getItem(position), query, holder)
     }
 
     fun updateQuery(newQuery: String) {
@@ -29,9 +43,9 @@ class SearchAdapter(private var query: String = "") : ListAdapter<Schedule, Sear
         notifyDataSetChanged()
     }
 
-    class SearchViewHolder(private val binding: ItemScheduleBinding) :
+    inner class SearchViewHolder(private val binding: ItemScheduleBinding) :
         RecyclerView.ViewHolder(binding.root) {
-        fun bind(schedule: Schedule, query: String) {
+        fun bind(schedule: Schedule, query: String, holder: RecyclerView.ViewHolder) {
             val title = schedule.title ?: "제목 없음"
 
             // 검색어 하이라이트 로직
@@ -64,7 +78,7 @@ class SearchAdapter(private var query: String = "") : ListAdapter<Schedule, Sear
                 else -> Color.parseColor("#A2BD3B") // 기본 색상
             }
             binding.scheduleCategoryIv.imageTintList =
-                android.content.res.ColorStateList.valueOf(colorResId)
+                ColorStateList.valueOf(colorResId)
 
             // 2. 시간 표시
             if (schedule.isAllDay) {
@@ -104,6 +118,17 @@ class SearchAdapter(private var query: String = "") : ListAdapter<Schedule, Sear
             // 고정 아이콘 (isPinned 상태에 따라)
             binding.schedulePinnedIv.visibility = if (schedule.isPinned) View.VISIBLE else View.GONE
             binding.scheduleAlertTv.visibility = View.GONE
+
+            // 스와이프 로직
+            binding.schedulePinIv.setOnClickListener {
+                // todo: 핀 작동 X
+                onPinClick(schedule)
+                scheduleTouchHelper.closeSwipedMenu(holder)
+            }
+            binding.scheduleDeleteIv.setOnClickListener {
+                val deleteScheduleDialog = DeleteScheduleDialog(context)
+                deleteScheduleDialog.show()
+            }
         }
 
     }
