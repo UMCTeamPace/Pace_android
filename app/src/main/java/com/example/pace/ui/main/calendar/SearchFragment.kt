@@ -32,9 +32,7 @@ class SearchFragment : Fragment() {
     // 결과 리스트용 리사이클러뷰 (동적 생성)
     private var recyclerView: RecyclerView? = null
 
-    private val viewModel: ScheduleViewModel by lazy {
-        (requireActivity() as MainActivity).getSharedViewModel()
-    }
+    private val viewModel: ScheduleViewModel by activityViewModels()
 
     override fun onCreateView(
         inflater: LayoutInflater,
