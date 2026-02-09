@@ -8,6 +8,7 @@ import android.graphics.Color
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -38,6 +39,7 @@ import com.example.pace.data.util.RouteConstants
 import com.example.pace.data.viewmodel.SearchViewModel
 import com.example.pace.data.viewmodel.SearchViewModelFactory
 import com.example.pace.databinding.FragmentRouteBinding
+import com.example.pace.ui.add_schedule.AddScheduleActivity
 import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.search_box.*
 import com.google.android.gms.maps.SupportMapFragment
@@ -46,6 +48,7 @@ import com.google.android.libraries.places.api.net.SearchNearbyRequest
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.AutocompleteSessionToken
 import com.google.android.libraries.places.api.model.Place
+import com.google.android.libraries.places.api.net.FetchPlaceRequest
 import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
 import com.google.android.libraries.places.api.net.PlacesClient
 import com.google.android.libraries.places.api.net.SearchByTextRequest
@@ -58,8 +61,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
 import java.util.ArrayList
+import java.util.Calendar
 import java.util.Locale
+import java.util.TimeZone
 
 class RouteFragment : Fragment() {
     private var _binding: FragmentRouteBinding? = null
@@ -94,7 +100,7 @@ class RouteFragment : Fragment() {
 
     private var isDetailFromRecommend = false
     private var isSelectingStart = true
-    private var isBookmarkMode = false
+    private var isBookmarkSearchMode = false
     private var wasRouteHeaderVisibleBeforeBookmark = false
     enum class BookmarkTarget { NONE, HOME, WORK }
 
@@ -107,10 +113,12 @@ class RouteFragment : Fragment() {
     //백엔드 경로 탐색을 위해 여기다가 placeId를 좌표로 api 검색해서 주기
     private var startLatLng: LatLng? = null
     private var endLatLng: LatLng? = null
-    private var scheduleColor: String = "#DC354B"
+    private var scheduleColor: String = ""
     private var scheduleName: String = ""
     private var scheduleTime: String = "00:00"
     private var searchTime: String = ""
+    private var requestSearchTime: String = ""
+    private var responseArrivelTime: String = ""
     private lateinit var bottomSheetBehavior: BottomSheetBehavior<View>
     private var searchJob: Job? = null
     private var sessionToken: AutocompleteSessionToken? = null
@@ -288,7 +296,7 @@ class RouteFragment : Fragment() {
     fun onScheduleLocationSelected(name: String, placeId: String) {
 
         showNameConfirmDialog(name) { finalName ->
-            if(isBookmarkMode){
+            if(isBookmarkSearchMode){
                 handleBookmarkSingleRegistration(finalName, placeId)
             }else{
                 val resultIntent = android.content.Intent().apply {
@@ -422,6 +430,14 @@ class RouteFragment : Fragment() {
         binding.layoutMapSelectOverlay.root.visibility = View.VISIBLE
         binding.layoutMapSelectOverlay.root.bringToFront()
 
+        if(isBookmarkSearchMode == true){
+            binding.layoutMapSelectOverlay.tvMapSelectInfo.text = "일정 선택"
+        }else if(isSelectingStart){
+            binding.layoutMapSelectOverlay.tvMapSelectInfo.text = "출발지 선택"
+        }else{
+            binding.layoutMapSelectOverlay.tvMapSelectInfo.text = "도착지 선택"
+        }
+
         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
         mapFrag?.initMapSelectionMode()
 
@@ -449,6 +465,11 @@ class RouteFragment : Fragment() {
 
             binding.layoutRouteDetailOverlay.root.visibility = View.VISIBLE
             binding.layoutRouteDetailOverlay.root.bringToFront()
+            if(currentEntryMode == EntryMode.SCHEDULE_ROUTE){
+                binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.VISIBLE
+            }else{
+                binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.GONE
+            }
             try {
                 val colorInt = Color.parseColor(scheduleColor)
 
@@ -497,7 +518,21 @@ class RouteFragment : Fragment() {
             requireActivity().setResult(android.app.Activity.RESULT_OK, resultIntent)
             requireActivity().finish()
         }else {
-            // 일반 경로 탐색이면 일정 activity 띄우기;;
+            val intent = android.content.Intent(requireContext(), AddScheduleActivity::class.java).apply {
+                putExtra("startPlaceName", selectedStartPlace?.first)
+                putExtra("startPlaceId", selectedStartPlace?.second)
+                putExtra("endPlaceName", selectedEndPlace?.first)
+                putExtra("endPlaceId", selectedEndPlace?.second)
+                //백엔드 연동 후 5분단위로 보정해서 넣기
+                responseArrivelTime ="02:03"
+                putExtra("scheduleStartTime", responseArrivelTime)
+                putExtra("routeData", Gson().toJson(item))
+                putExtra("earlyArriveTime", 0)
+
+                // 일반 일정이 아닌 '경로 일정' 탭으로 바로 보내기 위한 플래그
+                putExtra("OPEN_ROUTE_TAB", true)
+            }
+            startActivity(intent)
         }
     }
 
@@ -719,14 +754,86 @@ private fun selectCurrentLocation() {
         })
     }
 
+    fun onSavedPlaceClick(placeId: String) {
+        val ctx = context ?: return
+
+        if (!::placesClient.isInitialized) {
+            return
+        }
+
+        val placeFields = listOf(
+            Place.Field.ID, Place.Field.NAME, Place.Field.LAT_LNG,
+            Place.Field.ADDRESS, Place.Field.TYPES, Place.Field.PHOTO_METADATAS,
+            Place.Field.BUSINESS_STATUS, Place.Field.OPENING_HOURS
+        )
+        val request = FetchPlaceRequest.newInstance(placeId, placeFields)
+
+        placesClient.fetchPlace(request).addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                val place = task.result.place
+
+                val item = SearchItem(
+                    name = place.name ?: "",
+                    placeId = place.id ?: placeId,
+                    lat = place.latLng?.latitude ?: 0.0,
+                    lng = place.latLng?.longitude ?: 0.0,
+                    address = place.address ?: "",
+                    category = convertTypeToKorean(place.types?.map { it.toString().lowercase() } ?: emptyList()),
+                    distance = calculateDistance(place.latLng),
+                    openStatus = getPlaceStatus(place),
+                    photoMetadata = place.photoMetadatas?.firstOrNull()
+                )
+
+                hideKeyboard()
+                mainBinding?.searchEt?.clearFocus()
+                Log.d("DEBUG_CLICK", "Saved Place Clicked: ${item.placeId}, Name: ${item.name}")
+
+                val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+                mapFrag?.clearMarkers()
+
+                if (isBookmarkSearchMode) {
+                    onScheduleLocationSelected(item.name, item.placeId)
+                    return@addOnCompleteListener
+                }
+
+                if(currentEntryMode == EntryMode.ROUTE_PLAN || currentEntryMode == EntryMode.SCHEDULE_ROUTE){
+                    onLocationSelected(item.name, item.placeId, isSelectingStart)
+
+                    val transaction = childFragmentManager.beginTransaction()
+                    if (historyFragment.isAdded) transaction.hide(historyFragment)
+                    if (recommendFragment.isAdded) transaction.hide(recommendFragment)
+                    transaction.commitAllowingStateLoss()
+
+                    binding.routeSearchFcv.visibility = View.GONE
+                    mainBinding?.searchEt?.setText("")
+
+                    return@addOnCompleteListener
+                }
+
+                exitSearchMode()
+
+                isDetailFromRecommend = true
+                showLocationDetail(item)
+
+                mainBinding?.mainBackIv?.visibility = View.VISIBLE
+
+            } else {
+                val exception = task.exception
+                Log.e("PlacesAPI", "Place not found: ${exception?.message}")
+                android.widget.Toast.makeText(ctx, "장소 정보를 불러올 수 없습니다.", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     fun onRecommendItemClick(item: SearchItem) {
         hideKeyboard()
         mainBinding?.searchEt?.clearFocus()
+        Log.d("DEBUG_CLICK", "Clicked item ID: ${item.placeId}, Name: ${item.name}")
 
         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
         mapFrag?.clearMarkers()
 
-        if (isBookmarkMode) {
+        if (isBookmarkSearchMode) {
             onScheduleLocationSelected(item.name, item.placeId)
             return
         }
@@ -754,6 +861,7 @@ private fun selectCurrentLocation() {
 
         mainBinding?.mainBackIv?.visibility = View.VISIBLE
     }
+
     fun updateMapFromDetail(name: String, placeId: String, lat: Double, lng: Double) {
         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment ?: return
 
@@ -802,13 +910,23 @@ private fun selectCurrentLocation() {
         mainBinding?.mainBnv?.visibility = View.GONE
         mainBinding?.mainToolbar?.visibility = View.GONE
 
+        val calendar = Calendar.getInstance()
+        if(currentEntryMode != EntryMode.SCHEDULE_ROUTE){
+            val currentTime = SimpleDateFormat("HH시 mm분", Locale.KOREAN).format(calendar.time)
+            binding.layoutRouteInputHeader.tvTimeFilter.text = "오늘 $currentTime 출발"
+        } else{
+            //todo 스케쥴루트 모드일 때 필터 초기 텍스트 여기 아니면 스케쥴루트 시작할떄 설정
+        }
+
         val existingRouteFrag = childFragmentManager.findFragmentByTag("ROUTE_RESULT")
 
         if (selectedStartPlace != null && selectedEndPlace != null) {
             saveCurrentRoute()
-
-            if (historyFragment.isAdded) transaction.hide(historyFragment)
-            if (recommendFragment.isAdded) transaction.hide(recommendFragment)
+                // 칩겹침 문제로 이곳 고침 숨김->제거로 만약 문제 생긴다면 참고 칩겹침 문제는 해결됨!!!!!!! 헤
+//            if (historyFragment.isAdded) transaction.hide(historyFragment)
+//            if (recommendFragment.isAdded) transaction.hide(recommendFragment)
+            if (historyFragment.isAdded) transaction.remove(historyFragment)
+            if (recommendFragment.isAdded) transaction.remove(recommendFragment)
 
             if (existingRouteFrag != null) {
                 transaction.show(existingRouteFrag)
@@ -877,7 +995,7 @@ private fun selectCurrentLocation() {
     }
 
     fun enterBookmarkMode(){
-        isBookmarkMode = false
+        isBookmarkSearchMode = false
         wasRouteHeaderVisibleBeforeBookmark = binding.layoutRouteInputHeader.root.visibility == View.VISIBLE
         hideKeyboard()
 
@@ -906,10 +1024,9 @@ private fun selectCurrentLocation() {
         mainBinding?.searchEt?.setText("")
 
         historyFragment.setChipsVisibility(true)
-        val isRoutePlanMode = (currentEntryMode == EntryMode.ROUTE_PLAN || currentEntryMode == EntryMode.SCHEDULE_ROUTE)
-        historyFragment.setRouteOptionsVisible(isRoutePlanMode)
+        historyFragment.setRouteOptionsVisible(false)
 
-        isBookmarkMode = false
+        isBookmarkSearchMode = false
         bookmarkTarget = BookmarkTarget.NONE
 
         val transaction = childFragmentManager.beginTransaction()
@@ -935,7 +1052,7 @@ private fun selectCurrentLocation() {
     }
 
     private fun exitBookmarkMode(){
-        isBookmarkMode = false
+        isBookmarkSearchMode = false
         binding.layoutBookmarkHeader.root.visibility = View.GONE
 
         val transaction = childFragmentManager.beginTransaction()
@@ -985,7 +1102,7 @@ private fun selectCurrentLocation() {
 
     fun startBookmarkSearch(target: BookmarkTarget) {
         this.bookmarkTarget = target
-        this.isBookmarkMode = true
+        this.isBookmarkSearchMode = true
 
         val transaction = childFragmentManager.beginTransaction()
         val homeFrag = childFragmentManager.findFragmentByTag("BOOKMARK_HOME")
@@ -1064,7 +1181,7 @@ private fun selectCurrentLocation() {
             if (currentEntryMode == EntryMode.SCHEDULE_ROUTE) {
                 showScheduleRouteDialog()
             } else {
-//                showRoutePlanDialog()
+                showRoutePlanDialog()
             }
         }
 
@@ -1098,7 +1215,7 @@ private fun selectCurrentLocation() {
             return
         }
         if (isSearchMode()) {
-            if (isBookmarkMode) {
+            if (isBookmarkSearchMode) {
                 exitBookmarkSearchMode()
                 return
 
@@ -1281,23 +1398,6 @@ private fun selectCurrentLocation() {
                 showSearchRouteFragment()
 
                 return
-
-//                if (selectedStartPlace == null && selectedEndPlace == null) {
-//                    exitSearchMode()
-//                }
-//                else {
-//                    hideKeyboard()
-//                    mainBinding?.searchEt?.clearFocus()
-//                    mainBinding?.searchEt?.setText("")
-//
-//                    showSearchRouteFragment()
-//
-//                    binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
-//                    mainBinding?.mainToolbar?.visibility = View.GONE
-//
-//                    historyFragment.setRouteOptionsVisible(false)
-//                }
-//                return
             }
 
             exitSearchMode()
@@ -1357,6 +1457,38 @@ private fun selectCurrentLocation() {
             }
         }
     }
+
+    private fun showRoutePlanDialog() {
+        val bottomSheet = RoutePlanFilterBottomSheet(
+            initialCalendar = Calendar.getInstance(),
+            initialMode = 0
+        ) { selectedCalendar, mode ->
+            val isoSdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.KOREAN).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }
+            requestSearchTime = isoSdf.format(selectedCalendar.time)
+            responseArrivelTime = SimpleDateFormat("HH:mm", Locale.KOREAN).format(selectedCalendar.time)
+            val today = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            }
+            val target = (selectedCalendar.clone() as Calendar).apply {
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            }
+
+            val diffDays = ((target.timeInMillis - today.timeInMillis) / (24 * 60 * 60 * 1000)).toInt()
+            val datePrefix = when (diffDays) {
+                0 -> "오늘"
+                1 -> "내일"
+                else -> SimpleDateFormat("M월 d일", Locale.KOREAN).format(selectedCalendar.time)
+            }
+            val timeString = SimpleDateFormat("HH시 mm분", Locale.KOREAN).format(selectedCalendar.time)
+            val modeString = if (mode == 0) "출발" else "도착"
+
+            binding.layoutRouteInputHeader.tvTimeFilter.text = "$datePrefix $timeString $modeString"
+        }
+        bottomSheet.show(childFragmentManager, "RoutePlanFilter")
+    }
+
 
     private fun showScheduleRouteDialog(){
         val view = layoutInflater.inflate(R.layout.dialog_schedule_route_filter, null)
@@ -1646,7 +1778,7 @@ private fun selectCurrentLocation() {
         saveRecentPlace(item)
         val isSchedule = currentEntryMode == EntryMode.SCHEDULE
 
-        val detailFragment = LocationDetailFragment.newInstance(item, isSchedule, isBookmarkMode)
+        val detailFragment = LocationDetailFragment.newInstance(item, isSchedule, isBookmarkSearchMode)
 
         childFragmentManager.beginTransaction()
             .replace(R.id.bottom_sheet_container, detailFragment, "DETAIL")
@@ -1688,7 +1820,7 @@ private fun selectCurrentLocation() {
             RecentHistoryItem.TYPE_PLACE -> {
                 val place = item.placeEntity ?: return
 
-                if (isBookmarkMode) {
+                if (isBookmarkSearchMode) {
                     onScheduleLocationSelected(place.name, place.placeId)
                     return
                 }

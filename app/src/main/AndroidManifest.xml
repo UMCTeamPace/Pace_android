@@ -44,6 +44,8 @@
             android:exported="true"/>
         <activity android:name=".ui.add_schedule.AddScheduleActivity"
             android:exported="true"/>
+        <activity android:name=".ui.search_box.group.GroupEditActivity"
+            android:exported="true" />
     </application>
 
 </manifest>
