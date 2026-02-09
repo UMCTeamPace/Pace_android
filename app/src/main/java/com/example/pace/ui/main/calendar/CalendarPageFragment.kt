@@ -587,6 +587,7 @@ class CalendarPageFragment: Fragment() {
 
     private fun setupViewPager() {
         dailyPageAdapter = DailyPageAdapter(
+            context = requireContext(),
             events = events,
             onScheduleClick = { schedule ->
                 val updatedSchedule = schedule.copy(isPinned = !schedule.isPinned)

@@ -1,21 +1,26 @@
 package com.example.pace.ui.main.calendar
 
+import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.R
 import com.example.pace.data.model.Schedule
 import com.example.pace.databinding.ItemDateHeaderBinding
 import com.example.pace.databinding.ItemScheduleBinding
+import com.example.pace.ui.main.home.DeleteScheduleDialog
+import com.example.pace.ui.main.home.ScheduleTouchHelper
 
 class ScheduleAdapter(
+    private val context: Context,
     private var items: List<ScheduleListItem>,
     private val onPinClick: (Schedule) -> Unit,
     private val onEditSelect: (Long) -> Unit // 추가: 아이템 선택 시 호출될 콜백
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
-
+    lateinit var scheduleTouchHelper: ScheduleTouchHelper
     private var isEditMode = false
     private var selectedIds = setOf<Long>()
 
@@ -63,9 +68,15 @@ class ScheduleAdapter(
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        // 데이터 갱신 시 swipe된 거 초기화
+        val viewTop = holder.itemView.findViewById<ConstraintLayout>(R.id.schedule_view_top)
+        if(viewTop != null){
+            viewTop.translationX = 0f
+        }
+
         when (val item = items[position]) {
             is ScheduleListItem.DateHeader -> (holder as DateHeaderViewHolder).bind(item)
-            is ScheduleListItem.ScheduleItem -> (holder as ScheduleItemViewHolder).bind(item)
+            is ScheduleListItem.ScheduleItem -> (holder as ScheduleItemViewHolder).bind(item, holder)
         }
     }
 
@@ -83,7 +94,7 @@ class ScheduleAdapter(
     inner class ScheduleItemViewHolder(private val binding: ItemScheduleBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(item: ScheduleListItem.ScheduleItem) {
+        fun bind(item: ScheduleListItem.ScheduleItem, holder: RecyclerView.ViewHolder) {
             val schedule = item.schedule
 
             // 편집 모드 여부에 따른 가시성 제어
@@ -100,10 +111,17 @@ class ScheduleAdapter(
             } else {
                 // 일반 모드일 때
                 binding.scheduleCheckbox.visibility = View.GONE // 일반 모드에서는 체크박스 숨김
-                binding.schedulePinIv.visibility = if (schedule.isPinned) View.VISIBLE else View.GONE // 고정 여부에 따라 아이콘 표시
+                binding.schedulePinnedIv.visibility = if (schedule.isPinned) View.VISIBLE else View.GONE // 고정 여부에 따라 아이콘 표시
 
                 binding.root.setOnClickListener { /* TODO: 상세보기 등 기존 로직 */ } // 일반 모드에서 아이템 클릭 리스너
-                binding.schedulePinIv.setOnClickListener { onPinClick(schedule) }
+                binding.schedulePinIv.setOnClickListener {
+                    onPinClick(schedule)
+                    scheduleTouchHelper.closeSwipedMenu(holder)
+                }
+                binding.scheduleDeleteIv.setOnClickListener {
+                    val deleteScheduleDialog = DeleteScheduleDialog(context)
+                    deleteScheduleDialog.show()
+                }
             }
 
             // 1. 이름 (Title)

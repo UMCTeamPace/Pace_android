@@ -5,6 +5,7 @@ import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.data.model.Schedule
 import com.example.pace.databinding.ItemScheduleBinding
@@ -12,7 +13,8 @@ import java.time.LocalDate
 
 class ScheduleRVAdapter(
     private var scheduleList: MutableList<Schedule>,
-    private val context: Context
+    private val context: Context,
+    private val onPinClick: (Schedule) -> Unit,
 ): RecyclerView.Adapter<ScheduleRVAdapter.ViewHolder>() {
     lateinit var mOnClickListener: MyOnClickListener
     lateinit var scheduleTouchHelper: ScheduleTouchHelper
@@ -41,13 +43,17 @@ class ScheduleRVAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        // 데이터 갱신 시 swipe된 거 초기화
+        val viewTop = holder.itemView.findViewById<ConstraintLayout>(R.id.schedule_view_top)
+        viewTop.translationX = 0f
+
         val schedule = scheduleList[position]
         holder.bind(schedule)
 
         holder.binding.schedulePinIv.setOnClickListener {
-            // 핀 로직 작성하기
             holder.binding.schedulePinnedIv.visibility = View.VISIBLE
-            scheduleTouchHelper.closeSwipedMenu()
+            onPinClick(schedule)
+            scheduleTouchHelper.closeSwipedMenu(holder)
         }
         holder.binding.scheduleDeleteIv.setOnClickListener {
             val deleteScheduleDialog = DeleteScheduleDialog(context)
@@ -55,12 +61,8 @@ class ScheduleRVAdapter(
         }
 
         holder.binding.scheduleViewTop.setOnClickListener {
-            // 스와이프된 상태에서 클릭 시 닫음
-            if (schedule.isSwiped && scheduleTouchHelper.hasSwipedItem()) {
-                scheduleTouchHelper.closeSwipedMenu()
-                schedule.isSwiped = false
-            } else {
-                // 아니면 다이얼로그 띄우기
+            // 스와이프 상태가 아닐 때만 모달 띄우도록
+            if (viewTop.translationX == 0f) {
                 mOnClickListener.showModalCase(scheduleList, position)
             }
         }

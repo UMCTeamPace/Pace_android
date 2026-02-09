@@ -36,6 +36,7 @@ class ModalVPAdapter(
     override fun getItemCount(): Int = scheduleList.size
 
     inner class ViewHolder(val binding: ItemModalBinding): RecyclerView.ViewHolder(binding.root){
+        // schedule.repeatRule 한국어 변환 Map
         private val repeatFreqMap = mapOf<String, String>(
             "DAILY" to "일", "WEEKLY" to "주", "MONTHLY" to "월", "YEARLY" to "년"
         )
@@ -73,14 +74,13 @@ class ModalVPAdapter(
                 "NORMAL" -> {
                     binding.modalRouteLocationLl.visibility = View.INVISIBLE
                     binding.modalRouteView.visibility = View.INVISIBLE
-                    // 장소 여부
-                    Log.d("schedule/location", schedule.location.toString())
                     if(schedule.location.isNullOrEmpty()){
                         binding.modalNormalLocationLl.visibility = View.GONE
                     }else{
                         binding.modalNormalLocationLl.visibility = View.VISIBLE
                         binding.modalNormalLocationTv.text = schedule.location
                     }
+                    binding.modalDepartureReminderTv.text = "안함"
                 }
                 // 장소 일정일 때
                 "ROUTE" -> {
