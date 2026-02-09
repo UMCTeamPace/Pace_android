@@ -5,7 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pace.data.datasource.AuthDataStore
 import com.example.pace.data.model.Schedule
+import com.example.pace.data.model.request.CreateScheduleRequest
 import com.example.pace.data.repository.repository.ScheduleRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -20,6 +22,8 @@ import kotlinx.coroutines.withContext
 
 import javax.inject.Inject
 
+
+@HiltViewModel
 class ScheduleViewModel @Inject constructor(
     private val repository: ScheduleRepository,
     private val authDataStore: AuthDataStore
@@ -63,6 +67,9 @@ class ScheduleViewModel @Inject constructor(
 
     private val _selectedIds = MutableStateFlow<Set<Long>>(emptySet())
     val selectedIds: StateFlow<Set<Long>> = _selectedIds
+
+    private val _createScheduleEvent = MutableStateFlow<Boolean?>(null)
+    val createScheduleEvent: StateFlow<Boolean?> = _createScheduleEvent
 
     fun setEditMode(enabled: Boolean) {
         _isEditMode.value = enabled
@@ -192,9 +199,6 @@ class ScheduleViewModel @Inject constructor(
     val allSchedules = repository.allSchedules
     val calendarEvents = repository.calendarEvents
 
-    init {
-        refreshSchedules()
-    }
 
     fun refreshSchedules() {
         android.util.Log.d("API_TEST", "ViewModel: refreshSchedules() 진입")
@@ -231,5 +235,45 @@ class ScheduleViewModel @Inject constructor(
         _searchResults.value = emptyList()
 
         android.util.Log.d("SearchFlow", "ScheduleViewModel: 검색어 및 데이터 완전 초기화 완료")
+    }
+
+    fun createSchedule(request: CreateScheduleRequest) {
+        viewModelScope.launch {
+            try {
+                // 1. 토큰 가져오기
+                val token = authDataStore.getAccessToken()
+                if (token != null) {
+                    val fullToken = if (token.startsWith("Bearer ")) token else "Bearer $token"
+
+                    // 2. 리포지토리를 통해 서버 전송
+                    val response = repository.createSchedule(fullToken, request)
+
+                    // [수정 완료] success -> isSuccess / data -> result
+                    if (response.isSuccess) {
+                        // response.result는 CreateScheduleResponse 객체입니다.
+                        Log.d("API_CREATE", "일정 생성 성공: ${response.result}")
+
+                        // 3. 로컬 DB(Room) 새로고침 및 성공 알림
+                        repository.refreshSchedules()
+                        _createScheduleEvent.value = true
+                    } else {
+                        // 서버에서 내려준 에러 메시지 출력
+                        Log.e("API_CREATE", "일정 생성 실패: ${response.message}")
+                        _createScheduleEvent.value = false
+                    }
+                } else {
+                    Log.e("API_CREATE", "인증 토큰이 없습니다.")
+                    _createScheduleEvent.value = false
+                }
+            } catch (e: Exception) {
+                Log.e("API_CREATE", "네트워크 에러 발생: ${e.message}")
+                _createScheduleEvent.value = false
+            }
+        }
+    }
+
+    // 이벤트 초기화 함수 (연속 호출 방지)
+    fun resetCreateEvent() {
+        _createScheduleEvent.value = null
     }
 }

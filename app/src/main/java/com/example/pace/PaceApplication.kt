@@ -12,13 +12,13 @@ import com.kakao.sdk.common.KakaoSdk
 import com.example.pace.data.repository.SearchRepository
 import com.example.pace.data.repository.repository.ScheduleRepository
 import com.example.pace.data.repository.repositoryImpl.ScheduleRepositoryImpl
+import dagger.hilt.android.HiltAndroidApp
 
+@HiltAndroidApp
 class PaceApplication : Application() {
     val authDataStore by lazy {
         AuthDataStore(getSharedPreferences("pace_prefs", MODE_PRIVATE))
     }
-
-    lateinit var repository: ScheduleRepository
 
     val searchDatabase by lazy { SearchDatabase.getDatabase(this) }
     val searchRepository by lazy {
@@ -31,25 +31,10 @@ class PaceApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        try {
-            // Retrofit 서비스 생성 (본인의 구조에 맞게)
-            val scheduleService = RetrofitClient.instance
-
-            // 2. 통합된 Impl 생성자 호출
-            repository = ScheduleRepositoryImpl(
-                api = scheduleService,
-                scheduleDao = ScheduleDatabase.getDatabase(this).scheduleDao(),
-                authDataStore = authDataStore,
-                normalScheduleDataSource = NormalScheduleRemoteDataSource(this),
-                context = this // Impl 생성자에서 @ApplicationContext Context를 받는 부분
-            )
-
-            Log.d("PaceApplication", "통합 Repository 초기화 완료")
-        } catch (e: Exception) {
-            Log.e("PaceApplication", "Repository 초기화 실패", e)
-        }
-
+        // Kakao SDK 초기화만 남겨둡니다.
         KakaoSdk.init(this, BuildConfig.KAKAO_NATIVE_APP_KEY)
+
+        Log.d("PaceApplication", "Hilt 기반 어플리케이션 시작")
     }
 
 

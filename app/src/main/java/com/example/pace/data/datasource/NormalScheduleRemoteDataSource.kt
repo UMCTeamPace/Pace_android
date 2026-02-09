@@ -9,9 +9,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
-
-class NormalScheduleRemoteDataSource(private val applicationContext: Context) {
-
+import dagger.hilt.android.qualifiers.ApplicationContext // 추가
+import javax.inject.Inject // 추가
+class NormalScheduleRemoteDataSource @Inject constructor(
+    @ApplicationContext private val applicationContext: Context
+) {
     suspend fun getSchedules(): List<Schedule> = withContext(Dispatchers.IO) {
         val scheduleList = mutableListOf<Schedule>()
 

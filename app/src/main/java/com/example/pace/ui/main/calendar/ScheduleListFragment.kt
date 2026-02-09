@@ -26,17 +26,16 @@ import androidx.fragment.app.activityViewModels
 import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.main.calendar.ScheduleViewModel
 import com.example.pace.ui.main.calendar.ScheduleViewModelFactory
-
-
+import androidx.fragment.app.activityViewModels // 추가
+import dagger.hilt.android.AndroidEntryPoint // 추가
+@AndroidEntryPoint
 class ScheduleListFragment : Fragment() {
     private var _binding: FragmentScheduleListBinding? = null
     private val binding get() = _binding!!
 
     private lateinit var scheduleAdapter: ScheduleAdapter
 
-    private val viewModel: ScheduleViewModel by lazy {
-        (requireActivity() as MainActivity).getSharedViewModel()
-    }
+    private val viewModel: ScheduleViewModel by activityViewModels()
 
 
     override fun onCreateView(

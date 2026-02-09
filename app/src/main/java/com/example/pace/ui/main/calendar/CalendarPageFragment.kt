@@ -44,15 +44,15 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import kotlinx.coroutines.*
 import java.time.LocalTime
+import androidx.fragment.app.activityViewModels // 추가
+import dagger.hilt.android.AndroidEntryPoint // 추가
+@AndroidEntryPoint
 class CalendarPageFragment: Fragment() {
     private var _binding: FragmentCalendarPageBinding? = null
     private val binding get() = _binding!!
     private lateinit var bottomSheetBehavior: BottomSheetBehavior<FrameLayout>
 
-    // 1. 뷰모델 가져오기 (MainActivity의 공유 뷰모델 사용)
-    private val viewModel: ScheduleViewModel by lazy {
-        (requireActivity() as MainActivity).getSharedViewModel()
-    }
+    private val viewModel: ScheduleViewModel by activityViewModels()
 
     // 2. 캘린더에 표시할 데이터를 담을 Map (날짜 -> 일정 리스트)
     private var events = mapOf<LocalDate, List<Schedule>>()
@@ -493,7 +493,7 @@ class CalendarPageFragment: Fragment() {
             val oldDate = selectedDate
             selectedDate = date
 
-            // ⭐ [중요!] 공유 뷰모델에 선택된 날짜 업데이트
+            // 공유 뷰모델에 선택된 날짜 업데이트
             viewModel.setSelectedDate(date)
 
             updateSelectedDateText(date)

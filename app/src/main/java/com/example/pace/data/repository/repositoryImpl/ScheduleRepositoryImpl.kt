@@ -30,11 +30,15 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.*
 import javax.inject.Inject
+import android.graphics.Color
+import com.example.pace.data.datasource.RouteScheduleRemoteDataSource
+import kotlinx.coroutines.flow.toSet
 
 class ScheduleRepositoryImpl @Inject constructor(
     private val api: ScheduleService,
     private val scheduleDao: ScheduleDao,
-    private val normalScheduleDataSource: NormalScheduleRemoteDataSource,
+    private val routeRemoteDataSource: RouteScheduleRemoteDataSource, // 방금 만든 것
+    private val normalDataSource: NormalScheduleRemoteDataSource,    // 기기 캘린더용
     private val authDataStore: AuthDataStore,
     @ApplicationContext private val context: Context
 ) : ScheduleRepository {
@@ -52,20 +56,36 @@ class ScheduleRepositoryImpl @Inject constructor(
     }
 
     override suspend fun refreshSchedules() {
-        val normalSchedules = normalScheduleDataSource.getSchedules()
-        val localSchedules = scheduleDao.getAllSchedulesOnce()
-        val localScheduleMap = localSchedules.associateBy { it.id }
+        try {
+            // 1. 변수명 수정: normalScheduleDataSource -> normalDataSource
+            val normalSchedules = normalDataSource.getSchedules()
 
-        val mergedSchedules = normalSchedules.map { remote ->
-            val local = localScheduleMap[remote.id]
-            if (local != null) remote.copy(isPinned = local.isPinned) else remote
+            // 2. 현재 로컬 DB 데이터 조회
+            val localSchedules = scheduleDao.getAllSchedulesOnce()
+            val localScheduleMap = localSchedules.associateBy { it.id }
+
+            // 3. 기기 데이터 기준으로 병합 (핀 고정 상태 유지)
+            val mergedSchedules = normalSchedules.map { remote ->
+                val local = localScheduleMap[remote.id]
+                if (local != null) remote.copy(isPinned = local.isPinned) else remote
+            }
+
+            // 4. 삭제 대상 식별 (기기에서 사라진 것만 골라냄)
+            val remoteIds = normalSchedules.map { it.id }.toSet()
+            // 필터 조건: 기기에 없고 + 출처가 DEVICE인 데이터만 삭제 (나중에 서버 데이터 보호용)
+            val toDelete = localSchedules.filter { it.id !in remoteIds && it.sourceType == "DEVICE" }
+
+            // 5. DB 반영
+            if (toDelete.isNotEmpty()) {
+                scheduleDao.deleteAll(toDelete)
+            }
+            scheduleDao.insertAll(mergedSchedules)
+
+            android.util.Log.d("REPO_SYNC", "로컬 일정 ${mergedSchedules.size}개 동기화 완료")
+
+        } catch (e: Exception) {
+            android.util.Log.e("REPO_SYNC", "새로고침 중 에러: ${e.message}")
         }
-
-        val remoteIds = normalSchedules.map { it.id }.toSet()
-        val toDelete = localSchedules.filter { it.id !in remoteIds }
-
-        scheduleDao.deleteAll(toDelete)
-        scheduleDao.insertAll(mergedSchedules)
     }
 
     override fun getUsedColors(): Flow<List<String>> = scheduleDao.getUsedColorsRaw().map { list ->
@@ -78,9 +98,21 @@ class ScheduleRepositoryImpl @Inject constructor(
     }
 
     override suspend fun createSchedule(accessToken: String, request: CreateScheduleRequest) = safeApiCall {
-        api.createSchedule(accessToken, request)
-    }
+        val response = api.createSchedule(accessToken, request)
 
+        if (response.isSuccess && response.result != null) {
+            // 서버 응답 결과를 로컬 엔티티로 변환 (필요시 색상 정보 전달)
+            val newSchedule = response.result.toEntity(request.title) // 예시로 title 전달, 실제론 색상 필드 사용 가능
+
+            // Room DB에 저장
+            // insertAll은 List를 받으므로 listOf로 감싸줍니다.
+            scheduleDao.insertAll(listOf(newSchedule))
+
+            android.util.Log.d("REPO_SYNC", "서버 일정 로컬 DB 동기화 완료: ${newSchedule.id}")
+        }
+
+        response
+    }
     override suspend fun getScheduleDetail(accessToken: String, scheduleId: Long) = safeApiCall {
         api.getScheduleDetail(accessToken, scheduleId)
     }
@@ -228,4 +260,55 @@ class ScheduleRepositoryImpl @Inject constructor(
             builder.build()
         } catch (e: Exception) { null }
     }
+
+    // CreateScheduleResponse -> Schedule(Entity) 변환 확장 함수
+    fun CreateScheduleResponse.toEntity(selectedColorStr: String = "#DC354B"): Schedule {
+        // 16진수 문자열("#RRGGBB")을 Int로 변환
+        val colorInt = try {
+            Color.parseColor(selectedColorStr)
+        } catch (e: Exception) {
+            Color.RED // 변환 실패 시 기본색
+        }
+
+        return Schedule(
+            id = this.scheduleId, // 서버 ID를 Primary Key로 사용
+            title = this.scheduleInfo.title,
+            startDate = this.scheduleInfo.startDate,
+            endDate = this.scheduleInfo.endDate,
+            startTime = this.scheduleInfo.startTime ?: "00:00",
+            endTime = this.scheduleInfo.endTime ?: "00:00",
+            isAllDay = this.scheduleInfo.isAllDay,
+            memo = this.scheduleInfo.memo,
+
+            // 장소 이름만 저장 (위도/경도는 무시)
+            location = this.place?.targetName,
+
+            // 필수 필드 및 기본값 처리
+            calendarId = 0L,
+            calendarDisplayName = "내 일정",
+            calendarAccountName = "Pace",
+
+            // 앱 고유 데이터
+            withRoute = (this.route != null),
+            type = if (this.route != null) "ROUTE" else "NORMAL",
+
+            // 색상 (Int 타입으로 매핑)
+            eventColor = colorInt,
+            calendarColor = colorInt,
+
+            // 기타 상태값
+            isCompleted = false,
+            isPinned = false,
+            isSwiped = false,
+            sourceType = "SERVER", // 서버에서 가져온 데이터임을 명시
+
+            // 반복 규칙 (서버 응답에 있다면 매핑, 없으면 null)
+            repeatRule = null,
+            exdate = null,
+
+            // 필요한 경우 서버 전용 ID 보관
+            serverId = this.scheduleId
+        )
+    }
+
 }

@@ -95,5 +95,17 @@ data class Schedule(
     val eventColor: Int?,
 
     @ColumnInfo(name = "calendar_color")
-    val calendarColor: Int?
+    val calendarColor: Int?,
+
+    @ColumnInfo(name = "server_id")
+    val serverId: Long? = null,
+
+    @ColumnInfo(name = "source_type")
+    val sourceType: String = "SYSTEM",
+
+    @ColumnInfo(name = "place_json")
+    val placeJson: String? = null,
+
+    @ColumnInfo(name = "route_id")
+    val routeId: Long? = null
 )
