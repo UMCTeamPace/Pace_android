@@ -53,13 +53,60 @@ class ScheduleListFragment : Fragment() {
 
         setupRecyclerView()
         observeSchedules()
+        observeEditMode() // 추가
+        setupEditBarButtons() // 추가
+
+    }
+
+    private fun observeEditMode() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.isEditMode.collectLatest { isEditMode ->
+                val mainActivity = requireActivity() as MainActivity
+                val parent = parentFragment as? CalendarFragment
+
+                // 1. 편집 헤더 텍스트 보이기/숨기기
+                binding.layoutEditHeader.visibility = if (isEditMode) View.VISIBLE else View.GONE
+
+                if (isEditMode) {
+                    // --- 편집 모드 진입 ---
+                    binding.layoutEditBar.visibility = View.VISIBLE
+                    mainActivity.binding.mainBnv.visibility = View.GONE
+                    mainActivity.binding.mainToolbar.visibility = View.GONE
+                    parent?.setTabVisibility(false)
+                } else {
+                    // --- 편집 모드 해제 ---
+                    binding.layoutEditBar.visibility = View.GONE
+                    mainActivity.binding.mainBnv.visibility = View.VISIBLE
+                    mainActivity.binding.mainToolbar.visibility = View.VISIBLE
+                    parent?.setTabVisibility(true)
+                }
+
+                scheduleAdapter.setEditMode(isEditMode)
+            }
+        }
+    }
+
+    private fun setupEditBarButtons() {
+        binding.btnEditCancel.setOnClickListener {
+            viewModel.setEditMode(false)
+        }
+        binding.btnEditDelete.setOnClickListener {
+            viewModel.deleteSelected()
+        }
     }
 
     private fun setupRecyclerView() {
-        scheduleAdapter = ScheduleAdapter(emptyList()) { schedule ->
-            val updatedSchedule = schedule.copy(isPinned = !schedule.isPinned)
-            viewModel.updateSchedule(updatedSchedule)
-        }
+        scheduleAdapter = ScheduleAdapter(
+            items = emptyList(),
+            onPinClick = { schedule ->
+                val updatedSchedule = schedule.copy(isPinned = !schedule.isPinned)
+                viewModel.updateSchedule(updatedSchedule)
+            },
+            onEditSelect = { id ->
+                // 아이템 클릭 시 뷰모델의 선택 리스트에 추가/삭제
+                viewModel.toggleSelection(id)
+            }
+        )
         binding.scheduleListRv.apply {
             layoutManager = LinearLayoutManager(context)
             adapter = scheduleAdapter
@@ -67,73 +114,53 @@ class ScheduleListFragment : Fragment() {
     }
 
     private fun observeSchedules() {
+        // 1. 일정 데이터 관찰 (기존 로직)
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.allSchedules.collectLatest { schedules ->
-                processAndDisplaySchedules(schedules)
+            viewModel.scheduleMap.collectLatest { groupedMap ->
+                processAndDisplaySchedules(groupedMap)
+            }
+        }
+
+        // 3. 선택된 아이템 ID 세트 관찰 (추가)
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.selectedIds.collectLatest { ids ->
+                scheduleAdapter.updateSelectedIds(ids)
+                // 선택된 개수에 따라 삭제 버튼 텍스트 변경 가능 (예: 삭제(3))
+                binding.btnEditDelete.text = if (ids.isEmpty()) "삭제" else "삭제(${ids.size})"
             }
         }
     }
 
-    private suspend fun processAndDisplaySchedules(schedules: List<Schedule>) {
+    private suspend fun processAndDisplaySchedules(groupedMap: Map<java.time.LocalDate, List<Schedule>>) {
         val items = mutableListOf<ScheduleListItem>()
-        if (schedules.isNotEmpty()) {
-            val today = java.time.LocalDate.now() // [추가] 오늘 날짜 기준
+        val today = java.time.LocalDate.now()
 
-            val expandedSchedules = withContext(Dispatchers.Default) {
-                val dateStyleFormatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")
-                val flattenedList = mutableListOf<Pair<String, Schedule>>()
+        if (groupedMap.isNotEmpty()) {
+            withContext(Dispatchers.Default) {
+                // 1. 오늘 이후의 날짜만 필터링하고 정렬된 리스트 생성
+                val sortedDates = groupedMap.keys
+                    .filter { !it.isBefore(today) } // 오늘 포함 미래 일정만
+                    .sorted()
 
-                schedules.forEach { schedule ->
-                    try {
-                        val start = java.time.LocalDate.parse(schedule.startDate.substring(0, 10))
-                        var end = java.time.LocalDate.parse(schedule.endDate.substring(0, 10))
+                // 2. 어댑터용 아이템 리스트 생성
+                for (date in sortedDates) {
+                    val scheduleList = groupedMap[date] ?: continue
 
-                        // All-day 종료일 보정 (원본 데이터 훼손 없이 UI 판단용으로만)
-                        if (schedule.isAllDay && end.isAfter(start)) {
-                            end = end.minusDays(1)
-                        }
+                    // 날짜 헤더 추가
+                    items.add(ScheduleListItem.DateHeader(formatDateToHeader(date)))
 
-                        // [수정] 일정의 '종료일'이 오늘보다 전이면 아예 계산에서 제외
-                        if (!end.isBefore(today)) {
-                            var current = start
-                            while (!current.isAfter(end)) {
-                                // [추가] 날짜를 펼칠 때도 오늘 이후인 날짜만 리스트에 담음
-                                if (!current.isBefore(today)) {
-                                    flattenedList.add(current.format(dateStyleFormatter) to schedule)
-                                }
-                                current = current.plusDays(1)
-                            }
-                        }
-                    } catch (e: Exception) {
-                        // 예외 발생 시 안전을 위해 추가하되, 날짜가 오늘 이후인지 체크
-                        val dateStr = schedule.startDate.substring(0, 10)
-                        if (dateStr >= today.format(dateStyleFormatter)) {
-                            flattenedList.add(dateStr to schedule)
-                        }
-                    }
-                }
-                flattenedList
-            }
-
-            // 2. 날짜별로 그룹화 및 정렬
-            val groupedByDate = expandedSchedules
-                .groupBy({ it.first }, { it.second })
-                .toSortedMap()
-
-            // 3. 어댑터용 아이템 리스트 생성
-            for ((date, scheduleList) in groupedByDate) {
-                items.add(ScheduleListItem.DateHeader(formatDateToHeader(date)))
-
-                val sortedList = scheduleList.sortedWith(
-                    compareBy(
-                        { !it.isPinned },
-                        { !it.isAllDay },
-                        { it.startTime }
+                    // 해당 날짜 내 일정 정렬 (고정 -> 종일 -> 시간순)
+                    val sortedList = scheduleList.sortedWith(
+                        compareBy(
+                            { !it.isPinned },
+                            { !it.isAllDay },
+                            { it.startTime }
+                        )
                     )
-                )
 
-                sortedList.forEach { schedule ->
-                    items.add(ScheduleListItem.ScheduleItem(schedule))
+                    sortedList.forEach { schedule ->
+                        items.add(ScheduleListItem.ScheduleItem(schedule))
+                    }
                 }
             }
         }
@@ -143,13 +170,13 @@ class ScheduleListFragment : Fragment() {
         }
     }
 
-    private fun formatDateToHeader(dateStr: String): String {
+    // 파라미터를 String이 아닌 LocalDate로 받아 더 안전하게 처리
+    private fun formatDateToHeader(date: java.time.LocalDate): String {
         return try {
-            val date = java.time.LocalDate.parse(dateStr.substring(0, 10))
             val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy년 MM월 dd일 (E)", java.util.Locale.KOREAN)
             date.format(formatter)
         } catch (e: Exception) {
-            dateStr
+            date.toString()
         }
     }
 

@@ -1,5 +1,6 @@
 package com.example.pace.module
 
+import android.content.Context
 import com.example.pace.data.api.AuthControllerService
 import com.example.pace.data.api.MemberControllerService
 import com.example.pace.data.api.OnboardingService
@@ -8,6 +9,8 @@ import com.example.pace.data.api.SavedPlaceService
 import com.example.pace.data.api.ScheduleService
 import com.example.pace.data.api.SettingsService
 import com.example.pace.data.datasource.AuthDataStore
+import com.example.pace.data.datasource.NormalScheduleRemoteDataSource
+import com.example.pace.data.db.ScheduleDao
 import com.example.pace.data.repository.repository.AuthControllerRepository
 import com.example.pace.data.repository.repository.MemberControllerRepository
 import com.example.pace.data.repository.repository.OnboardingRepository
@@ -27,6 +30,7 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.components.ViewModelComponent
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.scopes.ViewModelScoped
 
 @Module
@@ -67,9 +71,19 @@ object RepositoryModule {
     @ViewModelScoped
     @Provides
     fun providesScheduleRepository(
-        ScheduleService: ScheduleService
-    ) : ScheduleRepository {
-        return ScheduleRepositoryImpl(ScheduleService)
+        scheduleService: ScheduleService,
+        scheduleDao: ScheduleDao,
+        authDataStore: AuthDataStore,
+        normalScheduleDataSource: NormalScheduleRemoteDataSource,
+        @ApplicationContext context: Context
+    ): ScheduleRepository {
+        return ScheduleRepositoryImpl(
+            api = scheduleService,
+            scheduleDao = scheduleDao,
+            authDataStore = authDataStore,
+            normalScheduleDataSource = normalScheduleDataSource,
+            context = context
+        )
     }
 
     @ViewModelScoped

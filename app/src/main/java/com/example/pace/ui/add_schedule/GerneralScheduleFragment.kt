@@ -60,6 +60,15 @@ class GeneralScheduleFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        val selectedDate = arguments?.getString("selected_date")
+        val mode = arguments?.getString("mode")
+        if (selectedDate != null) {
+            val message = "날짜: $selectedDate\n모드: $mode"
+            Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+
+            // 팁: 받아온 날짜를 화면의 날짜 텍스트뷰(예: btnStartDate)에도 바로 넣어주면 좋습니다.
+            // binding.btnStartDate.text = selectedDate
+        }
         initTimePickers()
 
         updateTimeVisibility()

@@ -1,5 +1,7 @@
 package com.example.pace.ui.main.calendar
 
+import DailyPageAdapter
+import android.R.attr.firstDayOfWeek
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
@@ -39,6 +41,7 @@ import java.time.format.TextStyle
 import java.util.Locale
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.viewpager2.widget.ViewPager2
 import kotlinx.coroutines.*
 import java.time.LocalTime
 class CalendarPageFragment: Fragment() {
@@ -58,7 +61,8 @@ class CalendarPageFragment: Fragment() {
     private var selectedDate: LocalDate? = null
     private val today = LocalDate.now()
 
-    private lateinit var dailyScheduleAdapter: ScheduleAdapter
+    private lateinit var dailyPageAdapter: DailyPageAdapter
+    private var isProgrammaticScroll = false // 캘린더 클릭 vs 스와이프 구분용
     private var cachedSchedules: List<Schedule> = emptyList() // 데이터 캐싱용
 
     private var headerHeight = 0
@@ -83,35 +87,29 @@ class CalendarPageFragment: Fragment() {
                 .detectAll()
                 .penaltyLog()
                 .penaltyFlashScreen()
+                .permitDiskReads()
                 .build()
         )
 
         bottomSheetBehavior = BottomSheetBehavior.from(binding.bottomSheet)
 
         val currentMonth = YearMonth.now()
+        val firstDayOfWeek = DayOfWeek.SUNDAY
         selectedMonth = currentMonth
         selectedDate = today
+        viewModel.setSelectedDate(today) // 초기값 세팅
 
-        setupCalendarLayout()     // 가독성을 위해 기존 레이아웃 계산 코드 분리 (아래 정의)
-        setupBottomSheet()        // 가독성을 위해 기존 바텀시트 설정 코드 분리 (아래 정의)
-        setupMonthYearPicker()    // 기존 피커 버튼 리스너
-        // 리사이클러뷰 및 어댑터 설정 (이 함수가 구현되어 있어야 함)
-        setupBottomSheetRecyclerView()
+        setupCalendarLayout()
+        setupBottomSheet()
+        setupMonthYearPicker()
+        setupViewPager()
 
-        // 데이터 관찰 시작
-        observeSchedules()
-
-        // [추가] 앱 시작 시 오늘 날짜의 리스트를 미리 불러옴
-        updateBottomSheetList(today)
         class DayViewContainer(view: View) : ViewContainer(view) {
             val rootLayout: ConstraintLayout = view.findViewById(R.id.root_layout)
             val textView: TextView = view.findViewById(R.id.calendarDayText)
-            lateinit var date: LocalDate // day 대신 date만 가짐
-
+            lateinit var date: LocalDate
             init {
-                rootLayout.setOnClickListener {
-                    selectDate(date) // 위에서 만든 통합 함수 호출
-                }
+                rootLayout.setOnClickListener { selectDate(date) }
             }
         }
 
@@ -120,12 +118,12 @@ class CalendarPageFragment: Fragment() {
             override fun create(view: View) = DayViewContainer(view)
             override fun bind(container: DayViewContainer, day: CalendarDay) {
                 container.date = day.date
+                // [수정] 현재 달의 날짜(MonthDate)일 때만 '활성화' 상태로 UI 업데이트
                 val isCurrentMonth = day.position == DayPosition.MonthDate
                 updateDayUI(container.textView, container.rootLayout, day.date, isCurrentMonth)
             }
         }
 
-// 주간 바인더 (isCurrentMonth를 항상 true로 전달하여 비활성화를 막음)
         binding.weekCalendarView.dayBinder = object : WeekDayBinder<DayViewContainer> {
             override fun create(view: View) = DayViewContainer(view)
             override fun bind(container: DayViewContainer, day: WeekDay) {
@@ -138,93 +136,141 @@ class CalendarPageFragment: Fragment() {
         binding.calendarView.monthScrollListener = { month ->
             selectedMonth = month.yearMonth
             updateTitle()
-            // 월간을 넘기면 주간 캘린더도 해당 월의 1일로 이동
-            binding.weekCalendarView.scrollToWeek(month.yearMonth.atDay(1))
+
+            if (!isProgrammaticScroll) {
+                val currentSelected = selectedDate ?: today
+
+                // [수정 핵심] 이동하려는 월이 현재 이미 선택된 날짜의 월과 같은지 확인
+                val isAlreadyInMonth = YearMonth.from(currentSelected) == month.yearMonth
+
+                // 초기 진입(오늘 날짜 포함 월)이거나, 주간에서 이미 해당 월의 날짜를 선택했다면 유지
+                val targetDate = if (isAlreadyInMonth) {
+                    currentSelected
+                } else {
+                    // 아예 다른 달로 스크롤해서 넘어갈 때만 그 달의 1일을 선택
+                    month.yearMonth.atDay(1)
+                }
+
+                selectedMonth = month.yearMonth
+                updateTitle()
+
+                // 선택된 날짜가 타겟과 다를 때만 업데이트 수행
+                if (selectedDate != targetDate) {
+                    selectDate(targetDate, scrollToPager = true, fromScroll = true)
+                }
+            }
         }
 
+        // 주간 캘린더 스크롤 리스너 수정
         binding.weekCalendarView.weekScrollListener = { week ->
-            val firstDate = week.days.first().date
-            selectedMonth = YearMonth.from(firstDate)
+
+            val weekFirstDate = week.days.first().date
+            selectedMonth = YearMonth.from(weekFirstDate)
             updateTitle()
-            // 주간을 넘기면 월간 캘린더도 해당 월로 이동
-            binding.calendarView.scrollToMonth(selectedMonth)
+
+            if (!isProgrammaticScroll) {
+                // 현재 선택된 날짜가 있다면 그 요일을 유지, 없으면 그 주의 첫날
+                val currentSelected = selectedDate ?: today
+                val weekFirstDate = week.days.first().date
+
+                // 스크롤된 주의 시작일로부터 기존 요일만큼 떨어진 날짜 계산
+                // (주의: 기존 요일의 날짜가 해당 주 범위 내에 있는지 확인)
+                val targetDate = weekFirstDate.plusDays(currentSelected.dayOfWeek.value.toLong() % 7)
+
+                selectedMonth = YearMonth.from(targetDate)
+                updateTitle()
+
+                if (selectedDate != targetDate) {
+                    selectDate(targetDate, scrollToPager = true, fromScroll = true)
+                }
+            }
         }
 
-
-        // ... 기존 캘린더 setup 및 스크롤 리스너 코드 유지 ...
-        val firstMonth = currentMonth.minusMonths(100)
-        val lastMonth = currentMonth.plusMonths(100)
-        val firstDayOfWeek = DayOfWeek.SUNDAY
-
-        binding.calendarView.setup(firstMonth, lastMonth, firstDayOfWeek)
-        binding.calendarView.outDateStyle = OutDateStyle.EndOfRow
+        binding.calendarView.setup(currentMonth.minusYears(10), currentMonth.plusYears(10), firstDayOfWeek)
         binding.calendarView.scrollToMonth(currentMonth)
 
-        binding.weekCalendarView.setup(today.minusWeeks(52), today.plusWeeks(52), firstDayOfWeek)
+        binding.weekCalendarView.setup(today.minusWeeks(520), today.plusWeeks(520), firstDayOfWeek)
         binding.weekCalendarView.scrollToWeek(selectedDate ?: today)
 
-        binding.calendarView.monthScrollListener = {
-            selectedMonth = it.yearMonth
-            updateTitle()
+
+        observeSchedules()
+
+        // [추가] 요일 헤더 설정 함수 호출
+        setupDayHeaders(firstDayOfWeek)
+
+        binding.btnReturnToToday.setOnClickListener {
+            val targetMonth = YearMonth.now()
+
+            // 1. 프로그래밍적 이동임을 선언 (리스너의 '1일 선택' 로직 방지)
+            isProgrammaticScroll = true
+
+            // 2. 날짜 먼저 선택 (데이터 및 텍스트 업데이트)
+            selectDate(today, scrollToPager = true, fromScroll = false)
+
+            // 3. 캘린더 이동
+            val currentMonth = selectedMonth
+            val monthDiff = java.time.temporal.ChronoUnit.MONTHS.between(currentMonth, targetMonth)
+
+            if (Math.abs(monthDiff) > 1) {
+                val intermediateMonth = if (monthDiff > 0) targetMonth.minusMonths(1) else targetMonth.plusMonths(1)
+                binding.calendarView.scrollToMonth(intermediateMonth)
+                binding.calendarView.smoothScrollToMonth(targetMonth)
+            } else {
+                binding.calendarView.smoothScrollToMonth(targetMonth)
+            }
+
+            // 주간 캘린더도 오늘로
+            binding.weekCalendarView.scrollToWeek(today)
+
+            // 4. 이동이 완료된 후 리스너 해제 (핸들러를 사용해 안전하게 처리)
+            binding.calendarView.postDelayed({
+                isProgrammaticScroll = false
+            }, 500) // 스크롤 애니메이션 시간만큼 충분히 줌
         }
 
-        binding.weekCalendarView.weekScrollListener = { week ->
-            val days = week.days
-            val thisMonthDays = days.filter { YearMonth.from(it.date) == selectedMonth }
-            val targetDay = if (thisMonthDays.isNotEmpty()) thisMonthDays.first() else days.first()
-            selectedMonth = YearMonth.from(targetDay.date)
-            updateTitle()
-        }
+        // 초기 날짜 텍스트 설정
+        updateSelectedDateText(today)
+        binding.btnReturnToToday.visibility = if (selectedDate == today) View.GONE else View.VISIBLE
+    }
 
-        // 요일 헤더 설정
+    // 헬퍼 함수: 상단 "202X년 X월 X일" 텍스트 업데이트
+    private fun updateSelectedDateText(date: LocalDate) {
+        val headerFormat = DateTimeFormatter.ofPattern("yyyy년 M월 d일 (E)", Locale.KOREAN)
+        binding.root.findViewById<TextView>(R.id.tv_selected_date)?.text = date.format(headerFormat)
+    }
+
+
+    // [추가] 요일 헤더(일~토) 설정 함수
+    private fun setupDayHeaders(firstDayOfWeek: DayOfWeek) {
         val daysOfWeek = daysOfWeek(firstDayOfWeek)
         binding.legendLayout.root.children.forEachIndexed { index, view ->
             val tv = view as TextView
             tv.text = daysOfWeek[index].getDisplayName(TextStyle.SHORT, Locale.getDefault())
-            tv.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_primary))
             when (daysOfWeek[index]) {
                 DayOfWeek.SUNDAY -> tv.setTextColor(ContextCompat.getColor(requireContext(), R.color.semantic_error))
                 DayOfWeek.SATURDAY -> tv.setTextColor(ContextCompat.getColor(requireContext(), R.color.semantic_success))
-                else -> {}
+                else -> tv.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_primary))
             }
         }
-        updateTitle()
     }
+
 
     // 5. 뷰모델 데이터 관찰 함수 구현
     private fun observeSchedules() {
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.allSchedules.collectLatest { schedules ->
-                // 1. 백그라운드 스레드에서 무거운 작업 처리
-                val (groupedEvents, cachedList) = withContext(Dispatchers.Default) {
-                    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-                    val grouped = schedules.groupBy { schedule ->
-                        try {
-                            // DB의 날짜 문자열 앞 10자리만 잘라서 파싱 (시간 포함 대비)
-                            val datePart = schedule.startDate.substring(0, 10)
-                            LocalDate.parse(datePart, formatter)
-                        } catch (e: Exception) {
-                            null
-                        }
-                    }.filterKeys { it != null } as Map<LocalDate, List<Schedule>>
+            // [수정] viewModel.allSchedules 대신 viewModel.scheduleMap을 관찰합니다.
+            viewModel.scheduleMap.collectLatest { groupedMap ->
+                // 뷰모델에서 이미 LocalDate 키로 그룹화된 데이터를 주므로 바로 할당합니다.
+                events = groupedMap
 
-                    Pair(grouped, schedules)
+                // 어댑터에 데이터 전달
+                if (::dailyPageAdapter.isInitialized) {
+                    dailyPageAdapter.updateEvents(events)
                 }
 
-                // 2. 결과 반영 (Main 스레드)
-                events = groupedEvents
-                cachedSchedules = cachedList
-
-                // 로그 추가: 데이터 로딩 확인
-                android.util.Log.d("CalendarDebug", "Total schedules loaded: ${schedules.size}")
-                if (schedules.isNotEmpty()) {
-                    android.util.Log.d("CalendarDebug", "First schedule startDate raw: '${schedules[0].startDate}'")
-                }
-
+                // 캘린더 새로고침
                 binding.calendarView.notifyCalendarChanged()
                 binding.weekCalendarView.notifyCalendarChanged()
-
-                selectedDate?.let { updateBottomSheetList(it) }
             }
         }
     }
@@ -268,7 +314,9 @@ class CalendarPageFragment: Fragment() {
                     BottomSheetBehavior.STATE_HIDDEN -> {
                         binding.weekCalendarView.visibility = View.GONE
                         binding.calendarView.visibility = View.VISIBLE
-                        selectedDate?.let { binding.calendarView.scrollToMonth(YearMonth.from(it)) }
+                        // 현재 선택된 날짜가 있는 달로 월간 캘린더 이동(주간에서 스크롤만 하다가 월간으로 전환시 오류발생 보완)
+                        val targetMonth = selectedDate?.let { YearMonth.from(it) } ?: selectedMonth
+                        binding.calendarView.scrollToMonth(targetMonth)
                         val targetHeight = containerHeight - headerHeight
                         if (targetHeight > 0 && binding.calendarView.layoutParams.height != targetHeight) {
                             binding.calendarView.layoutParams.height = targetHeight
@@ -292,7 +340,7 @@ class CalendarPageFragment: Fragment() {
                                 addListener(object : AnimatorListenerAdapter() {
                                     override fun onAnimationEnd(animation: Animator) {
                                         weekCalendar.visibility = View.GONE
-                                        selectedDate?.let { binding.calendarView.scrollToMonth(YearMonth.from(it)) }
+                                        binding.calendarView.scrollToMonth(selectedMonth)
                                     }
                                 })
                             }
@@ -300,7 +348,7 @@ class CalendarPageFragment: Fragment() {
                         } else {
                             weekCalendar.visibility = View.GONE
                             calendar.visibility = View.VISIBLE
-                            selectedDate?.let { binding.calendarView.scrollToMonth(YearMonth.from(it)) }
+                            binding.calendarView.scrollToMonth(selectedMonth)
                             if (collapsedHeight > 0 && calendar.layoutParams.height != collapsedHeight) {
                                 calendar.layoutParams.height = collapsedHeight
                                 calendar.requestLayout()
@@ -398,7 +446,6 @@ class CalendarPageFragment: Fragment() {
             val month = monthPicker.value
             val newMonth = YearMonth.of(year, month)
             selectedMonth = newMonth
-            selectedDate = null
             binding.calendarView.scrollToMonth(newMonth)
             binding.weekCalendarView.scrollToWeek(LocalDate.of(year, month, 1))
             updateTitle()
@@ -408,97 +455,76 @@ class CalendarPageFragment: Fragment() {
         dialog.show()
     }
 
-    private fun selectDate(date: LocalDate) {
-        if (selectedDate == date) {
-            // [복구] 같은 날짜를 다시 클릭했을 때 바텀시트 토글
+    private fun toggleTodayButton(show: Boolean) {
+        val btn = binding.btnReturnToToday
+
+        if (show) {
+            if (btn.visibility != View.VISIBLE) {
+                btn.visibility = View.VISIBLE
+                btn.animate()
+                    .alpha(1f)
+                    .setDuration(300)
+                    .setListener(null) // 기존에 설정된 리스너가 있다면 초기화
+                    .start()
+            }
+        } else {
+            if (btn.visibility == View.VISIBLE) {
+                btn.animate()
+                    .alpha(0f)
+                    .setDuration(300)
+                    .withEndAction {
+                        btn.visibility = View.GONE
+                    }
+                    .start()
+            }
+        }
+    }
+
+    // CalendarPageFragment.kt 의 selectDate 수정
+    private fun selectDate(date: LocalDate, scrollToPager: Boolean = true, fromScroll: Boolean = false) {
+        if (selectedDate == date && scrollToPager && !fromScroll) {
+            // 바텀시트 토글 로직 그대로 유지
             bottomSheetBehavior.state = if (bottomSheetBehavior.state == BottomSheetBehavior.STATE_HIDDEN) {
                 BottomSheetBehavior.STATE_COLLAPSED
             } else {
                 BottomSheetBehavior.STATE_HIDDEN
             }
         } else {
-            // 새로운 날짜 선택 시
             val oldDate = selectedDate
             selectedDate = date
 
-            // 1. 양쪽 UI 갱신 (동그라미 이동)
+            // ⭐ [중요!] 공유 뷰모델에 선택된 날짜 업데이트
+            viewModel.setSelectedDate(date)
+
+            updateSelectedDateText(date)
+            toggleTodayButton(date != today)
+
+
+            // 날짜 갱신 알림
             binding.calendarView.notifyDateChanged(date)
             oldDate?.let { binding.calendarView.notifyDateChanged(it) }
             binding.weekCalendarView.notifyDateChanged(date)
             oldDate?.let { binding.weekCalendarView.notifyDateChanged(it) }
 
-            // 2. [추가] 리스트 업데이트 함수 호출
-            updateBottomSheetList(date)
+            if (scrollToPager) {
+                isProgrammaticScroll = true // [중요] 리스너 간섭 방지 시작
 
-            // 3. 스크롤 동기화
-            if (bottomSheetBehavior.state == BottomSheetBehavior.STATE_EXPANDED) {
-                binding.calendarView.scrollToMonth(YearMonth.from(date))
-            } else {
-                binding.weekCalendarView.scrollToWeek(date)
+                val position = dailyPageAdapter.getPosition(date)
+                binding.root.findViewById<ViewPager2>(R.id.vp_daily_schedule)
+                    .setCurrentItem(position, true)
+
+                if (!fromScroll) {
+                    // 이 안에서 scrollToMonth 등이 호출될 때 리스너가 동작하지 않도록 보장
+                    binding.calendarView.scrollToMonth(YearMonth.from(date))
+                    binding.weekCalendarView.scrollToWeek(date)
+                }
+
+                // 약간의 딜레이 뒤에 해제 (스크롤이 완전히 끝날 때까지 보호)
+                binding.root.postDelayed({ isProgrammaticScroll = false }, 100)
             }
 
-            // 4. 날짜가 바뀌면 바텀시트를 항상 보여줌
             if (bottomSheetBehavior.state == BottomSheetBehavior.STATE_HIDDEN) {
                 bottomSheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
-            }
-        }
-    }
-
-    private fun updateBottomSheetList(date: LocalDate) {
-        val dateString = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-        val headerFormat = DateTimeFormatter.ofPattern("yyyy년 M월 d일 (E)", Locale.KOREAN)
-        binding.root.findViewById<TextView>(R.id.tv_selected_date)?.text = date.format(headerFormat)
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            val adapterItems = withContext(Dispatchers.Default) {
-                val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-
-                cachedSchedules.filter { schedule ->
-                    try {
-                        val start = LocalDate.parse(schedule.startDate.substring(0, 10), formatter)
-                        var end = LocalDate.parse(schedule.endDate.substring(0, 10), formatter)
-
-                        // [추가] 하루 종일 일정인데 종료일이 시작일보다 늦다면, 종료일에서 하루를 뺌
-                        // (Calendar Provider의 00:00 종료 특성 처리)
-                        if (schedule.isAllDay && end.isAfter(start)) {
-                            end = end.minusDays(1)
-                        }
-
-                        // 기간 내 포함 여부 확인
-                        val isWithinRange = !date.isBefore(start) && !date.isAfter(end)
-
-                        // 반복 일정 체크
-                        val isRecurring = if (!schedule.repeatRule.isNullOrEmpty()) {
-                            isDateInRecurrence(date, start, schedule.repeatRule)
-                        } else false
-
-                        isWithinRange || isRecurring
-                    } catch (e: Exception) {
-                        false
-                    }
-                }.sortedWith(
-                    compareBy<Schedule>(
-                        { !it.isPinned },   // 1순위: 핀 고정 여부 (고정된 게 위로)
-                        { !it.isAllDay },   // 2순위: 하루 종일 여부 (하루 종일이 시간 일정보다 위로)
-                        { it.startTime } )  // 3순위: 시작 시간 순
-                ).map { ScheduleListItem.ScheduleItem(it) }
-            }
-            // UI 반영
-            if (::dailyScheduleAdapter.isInitialized) {
-                dailyScheduleAdapter.updateData(adapterItems)
-            }
-
-            val emptyView = binding.root.findViewById<TextView>(R.id.tv_empty_state)
-            val recyclerView = binding.root.findViewById<RecyclerView>(R.id.rv_daily_schedule)
-
-            if (adapterItems.isEmpty()) {
-                emptyView?.visibility = View.VISIBLE
-                recyclerView?.visibility = View.INVISIBLE
-                android.util.Log.w("CalendarDebug", "No schedules found for: $dateString")
-            } else {
-                emptyView?.visibility = View.GONE
-                recyclerView?.visibility = View.VISIBLE
-                android.util.Log.i("CalendarDebug", "Found ${adapterItems.size} schedules for: $dateString")
             }
         }
     }
@@ -528,66 +554,85 @@ class CalendarPageFragment: Fragment() {
     private fun updateDayUI(textView: TextView, root: View, date: LocalDate, isActive: Boolean) {
         textView.text = date.dayOfMonth.toString()
 
-        when {
-            date == selectedDate && date == today -> {
+        // [핵심 수정] isActive가 true일 때만 선택 UI를 그립니다.
+        if (isActive && date == selectedDate) {
+            if (date == today) {
                 root.setBackgroundResource(R.drawable.bg_selected_day_outline)
                 textView.setTextColor(Color.WHITE)
                 textView.setBackgroundResource(R.drawable.drawable_circle_green)
-            }
-            date == selectedDate -> {
+            } else {
                 root.setBackgroundResource(R.drawable.bg_selected_day_outline)
                 textView.setTextColor(ContextCompat.getColor(requireContext(), R.color.schedule_18))
                 textView.setBackgroundResource(R.drawable.drawable_circle_white)
             }
-            date == today -> {
+        } else if (date == today) {
+            // 오늘 날짜 표시는 isActive 상관없이 보여줄지 결정 (보통 isActive일 때만 보여주는 게 깔끔합니다)
+            if (isActive) {
                 textView.setTextColor(Color.WHITE)
                 textView.setBackgroundResource(R.drawable.drawable_circle_green)
-                root.background = null
-            }
-            else -> {
-                root.background = null
-                textView.background = null
-                textView.setTextColor(
-                    if (isActive) ContextCompat.getColor(requireContext(), R.color.text_primary)
-                    else ContextCompat.getColor(requireContext(), R.color.gray_400)
-                )
-            }
-        }
-    }
-    private fun setupBottomSheetRecyclerView() {
-        // 바텀시트 내부에 있는 RecyclerView ID를 확인하세요 (rv_daily_schedule 가정)
-        val recyclerView = binding.root.findViewById<RecyclerView>(R.id.rv_daily_schedule)
-
-        dailyScheduleAdapter = ScheduleAdapter(emptyList()) { schedule ->
-            // 아이템 클릭 시 핀(고정) 토글 로직
-            val updatedSchedule = schedule.copy(isPinned = !schedule.isPinned)
-            viewModel.updateSchedule(updatedSchedule)
-        }
-
-        recyclerView?.apply {
-            layoutManager = LinearLayoutManager(context)
-            adapter = dailyScheduleAdapter
-        }
-    }
-    private fun getFormattedTimeRange(schedule: Schedule): String {
-        val dateUpdateFormatter = DateTimeFormatter.ofPattern("M월 d일", Locale.KOREAN)
-        val timeFormatter = DateTimeFormatter.ofPattern("a hh:mm", Locale.KOREAN)
-
-        return try {
-            // 시작일과 종료일이 다른 '기간 일정'인 경우
-            if (schedule.startDate != schedule.endDate) {
-                // "2월 9일 오전 08:00 - 2월 11일 오전 09:00" 형식
-                val startDateTime = "${LocalDate.parse(schedule.startDate).format(dateUpdateFormatter)} ${LocalTime.parse(schedule.startTime).format(timeFormatter)}"
-                val endDateTime = "${LocalDate.parse(schedule.endDate).format(dateUpdateFormatter)} ${LocalTime.parse(schedule.endTime).format(timeFormatter)}"
-                "$startDateTime - $endDateTime"
             } else {
-                // 같은 날인 경우 기존처럼 시간만 표시
-                "${LocalTime.parse(schedule.startTime).format(timeFormatter)} - ${LocalTime.parse(schedule.endTime).format(timeFormatter)}"
+                textView.setTextColor(ContextCompat.getColor(requireContext(), R.color.gray_400))
+                textView.background = null
             }
-        } catch (e: Exception) {
-            "${schedule.startTime} - ${schedule.endTime}"
+            root.background = null
+        } else {
+            root.background = null
+            textView.background = null
+            textView.setTextColor(
+                if (isActive) ContextCompat.getColor(requireContext(), R.color.text_primary)
+                else ContextCompat.getColor(requireContext(), R.color.gray_400)
+            )
         }
     }
+
+    private fun setupViewPager() {
+        dailyPageAdapter = DailyPageAdapter(
+            events = events,
+            onScheduleClick = { schedule ->
+                val updatedSchedule = schedule.copy(isPinned = !schedule.isPinned)
+                viewModel.updateSchedule(updatedSchedule)
+            },
+            // [추가] 편집 모드 선택 시 동작할 콜백 (캘린더 페이지에선 편집을 안 하므로 빈 값)
+            onEditSelect = { id ->
+                // 캘린더 페이지에서도 선택 기능을 쓰고 싶다면 viewModel.toggleSelection(id) 호출
+            }
+        )
+
+        binding.root.findViewById<androidx.viewpager2.widget.ViewPager2>(R.id.vp_daily_schedule).apply {
+            adapter = dailyPageAdapter
+            setCurrentItem(dailyPageAdapter.START_POSITION, false)
+
+            registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
+                override fun onPageSelected(position: Int) {
+                    super.onPageSelected(position)
+
+                    // 1. 캘린더 클릭으로 인한 이동인 경우 여기서 또 캘린더를 움직일 필요 없음
+                    if (isProgrammaticScroll) return
+
+                    val newDate = dailyPageAdapter.getDate(position)
+
+                    if (selectedDate != newDate) {
+                        // 2. 날짜 선택 처리 (동그라미 표시 등)
+                        // scrollToPager = false로 두어 무한 루프(Pager -> Calendar -> Pager) 방지
+                        selectDate(newDate, scrollToPager = false)
+
+                        // 3. [핵심] 뷰페이저 스와이프 시 캘린더도 해당 날짜로 이동
+                        val newMonth = YearMonth.from(newDate)
+
+                        // 월간 캘린더 부드럽게 이동
+                        binding.calendarView.smoothScrollToMonth(newMonth)
+                        // 주간 캘린더 부드럽게 이동
+                        binding.weekCalendarView.smoothScrollToWeek(newDate)
+
+                        // 4. 상단 타이틀(202X년 X월) 업데이트
+                        selectedMonth = newMonth
+                        updateTitle()
+                    }
+                }
+            })
+        }
+    }
+
     private fun updateTitle() {
         binding.calendarNumberPickerTv.text = "${selectedMonth.year}년 ${selectedMonth.monthValue}월"
     }

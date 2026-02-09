@@ -26,7 +26,21 @@ android {
         manifestPlaceholders["GOOGLE_API_KEY"] = "${properties.getProperty("GOOGLE_API_KEY")}"
     }
 
+    signingConfigs {
+        getByName("debug") {
+            // app 폴더 바로 안에 debug.keystore를 두었을 때의 설정입니다.
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        // 2. 디버그 빌드 시 위에서 설정한 서명을 사용하도록 연결
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
@@ -57,6 +71,7 @@ dependencies {
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.ui.graphics)
+    implementation(libs.rfc5545.datetime)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -73,6 +88,9 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
     implementation("com.kizitonwose.calendar:view:2.5.1")
     implementation("com.kizitonwose.calendar:core:2.5.1")
+
+    implementation(libs.biweekly)
+
 
     //지도 sdk
     implementation("com.google.android.gms:play-services-maps:18.2.0")
@@ -111,4 +129,15 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     // JSON 변환을 위한 Gson 컨버터
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+    //splash
+    implementation("com.airbnb.android:lottie:6.4.0")
+
+    // Kakao Login SDK
+    implementation("com.kakao.sdk:v2-user:2.20.6")
+
+    // Retrofit 2.9.0과 호환되는 OkHttp & Logging Interceptor
+    implementation("com.squareup.okhttp3:okhttp:4.9.3")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.9.3")
+
 }

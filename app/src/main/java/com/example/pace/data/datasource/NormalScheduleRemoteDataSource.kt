@@ -15,17 +15,19 @@ class NormalScheduleRemoteDataSource(private val applicationContext: Context) {
     suspend fun getSchedules(): List<Schedule> = withContext(Dispatchers.IO) {
         val scheduleList = mutableListOf<Schedule>()
 
-        // 1. 조회 범위 설정 (예: 과거 1년 전부터 미래 1년 후까지)
+        // 1. 조회 범위 설정 (예: 과거 2.5년 전부터 미래 2.5년 후까지)
         val calendar = Calendar.getInstance()
-        calendar.add(Calendar.YEAR, -1) // 1년 전으로 설정
+        calendar.add(Calendar.MONTH, -30) // 2.5년 전으로 설정
         val startRange = calendar.timeInMillis
 
-        calendar.add(Calendar.YEAR, 2) // 위에서 -1 했으므로 +2를 해야 미래 1년이 됨
+        calendar.add(Calendar.MONTH, 60) // 위에서 -30 했으므로 +60을 해야 미래 2.5년이 됨
         val endRange = calendar.timeInMillis
 
         // 2. 쿼리 조건 수정 (시작일과 종료일 사이의 이벤트를 가져옴)
         // 과거 데이터도 가져오고 싶다면 단순히 >= 조건을 바꾸거나 범위를 지정합니다.
-        val selection = "${CalendarContract.Events.DTSTART} >= ? AND ${CalendarContract.Events.DTSTART} <= ?"
+        val selection = "(${CalendarContract.Events.DTSTART} >= ? AND ${CalendarContract.Events.DTSTART} <= ?) AND " +
+                "(${CalendarContract.Events.DELETED} != '1') AND " +
+                "(${CalendarContract.Events.STATUS} IS NULL OR ${CalendarContract.Events.STATUS} != ${CalendarContract.Events.STATUS_CANCELED})"
         val selectionArgs = arrayOf(
             startRange.toString(),
             endRange.toString()
@@ -40,6 +42,7 @@ class NormalScheduleRemoteDataSource(private val applicationContext: Context) {
             CalendarContract.Events.DESCRIPTION,
             CalendarContract.Events.EVENT_LOCATION,
             CalendarContract.Events.RRULE,
+            CalendarContract.Events.EXDATE, // EXDATE 추가
             CalendarContract.Events.CALENDAR_ID,
             CalendarContract.Events.CALENDAR_DISPLAY_NAME,
             CalendarContract.Events.EVENT_COLOR,
@@ -48,8 +51,8 @@ class NormalScheduleRemoteDataSource(private val applicationContext: Context) {
 
 
 
-    
-
+        try {
+            // 2. 권한 확인이 통과된 경우에만 쿼리를 실행
             val cursor: Cursor? = applicationContext.contentResolver.query(
 
                 CalendarContract.Events.CONTENT_URI,
@@ -85,6 +88,7 @@ class NormalScheduleRemoteDataSource(private val applicationContext: Context) {
                     val location = it.getString(it.getColumnIndexOrThrow(CalendarContract.Events.EVENT_LOCATION))
 
                     val rrule = it.getString(it.getColumnIndexOrThrow(CalendarContract.Events.RRULE))
+                    val exdate = it.getString(it.getColumnIndexOrThrow(CalendarContract.Events.EXDATE)) // EXDATE 추출
 
                     val calendarId = it.getLong(it.getColumnIndexOrThrow(CalendarContract.Events.CALENDAR_ID))
 
@@ -125,6 +129,7 @@ class NormalScheduleRemoteDataSource(private val applicationContext: Context) {
                             location = location,
 
                             repeatRule = rrule,
+                            exdate = exdate, // EXDATE 전달
 
                             calendarId = calendarId,
 
@@ -146,11 +151,18 @@ class NormalScheduleRemoteDataSource(private val applicationContext: Context) {
 
                 }
 
-            }
-
-            scheduleList
-
         }
+    } catch (e: SecurityException) {
+        // 3. 만약의 경우를 대비한 2중 방어막
+        android.util.Log.e("ScheduleDataSource", "SecurityException 발생: ${e.message}")
+        return@withContext emptyList<Schedule>()
+    } catch (e: Exception) {
+        android.util.Log.e("ScheduleDataSource", "데이터 로드 중 오류 발생: ${e.message}")
+    }
+
+    scheduleList
+
+}
 
     private fun fetchReminders(eventId: Long): List<Int> {
         val reminderList = mutableListOf<Int>()
@@ -174,7 +186,7 @@ class NormalScheduleRemoteDataSource(private val applicationContext: Context) {
         }
         return reminderList
     }
-    
+
     private fun formatMillisToDate(millis: Long): String {
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         return sdf.format(Date(millis))

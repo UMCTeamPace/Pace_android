@@ -65,6 +65,19 @@ class RouteScheduleFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // 1. Activity에서 넘겨준 데이터 가져오기
+        val selectedDate = arguments?.getString("selected_date")
+        val mode = arguments?.getString("mode")
+
+        // 2. 토스트 메시지 띄우기 (경로 일정 탭임을 명시)
+        if (selectedDate != null) {
+            val message = "[경로 일정] 날짜: $selectedDate\n모드: $mode"
+            Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+
+            // 팁: 시작 날짜 버튼 등에 바로 텍스트를 세팅할 수도 있습니다.
+            // binding.tvStartDate.text = selectedDate
+        }
+
         initTimePickers()
 
         updateTimeVisibility()
