@@ -12,7 +12,8 @@ import kotlin.collections.sortedWith
 
 class DailyPageAdapter(
     private var events: Map<LocalDate, List<Schedule>>,
-    private val onScheduleClick: (Schedule) -> Unit
+    private val onScheduleClick: (Schedule) -> Unit,
+    private val onEditSelect: (Long) -> Unit = {}
 ) : RecyclerView.Adapter<DailyPageAdapter.PageViewHolder>() {
 
     // 오늘 날짜를 기준으로 아주 먼 과거/미래까지 스와이프 가능하게 설정
@@ -36,7 +37,14 @@ class DailyPageAdapter(
             ).map { ScheduleListItem.ScheduleItem(it) }
 
             // 내부 리사이클러뷰 설정
-            val scheduleAdapter = ScheduleAdapter(sortedItems, onScheduleClick)
+            val scheduleAdapter = ScheduleAdapter(
+                items = sortedItems,
+                onPinClick = onScheduleClick,
+                onEditSelect = onEditSelect
+            )
+            scheduleAdapter.setEditMode(false)
+            scheduleAdapter.updateSelectedIds(emptySet())
+
             binding.rvDailyScheduleItem.apply {
                 layoutManager = LinearLayoutManager(context)
                 adapter = scheduleAdapter

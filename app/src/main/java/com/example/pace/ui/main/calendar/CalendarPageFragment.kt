@@ -87,6 +87,7 @@ class CalendarPageFragment: Fragment() {
                 .detectAll()
                 .penaltyLog()
                 .penaltyFlashScreen()
+                .permitDiskReads()
                 .build()
         )
 
@@ -96,6 +97,7 @@ class CalendarPageFragment: Fragment() {
         val firstDayOfWeek = DayOfWeek.SUNDAY
         selectedMonth = currentMonth
         selectedDate = today
+        viewModel.setSelectedDate(today) // 초기값 세팅
 
         setupCalendarLayout()
         setupBottomSheet()
@@ -184,10 +186,10 @@ class CalendarPageFragment: Fragment() {
             }
         }
 
-        binding.calendarView.setup(currentMonth.minusMonths(100), currentMonth.plusMonths(100), firstDayOfWeek)
+        binding.calendarView.setup(currentMonth.minusYears(10), currentMonth.plusYears(10), firstDayOfWeek)
         binding.calendarView.scrollToMonth(currentMonth)
 
-        binding.weekCalendarView.setup(today.minusWeeks(52), today.plusWeeks(52), firstDayOfWeek)
+        binding.weekCalendarView.setup(today.minusWeeks(520), today.plusWeeks(520), firstDayOfWeek)
         binding.weekCalendarView.scrollToWeek(selectedDate ?: today)
 
 
@@ -481,7 +483,7 @@ class CalendarPageFragment: Fragment() {
     // CalendarPageFragment.kt 의 selectDate 수정
     private fun selectDate(date: LocalDate, scrollToPager: Boolean = true, fromScroll: Boolean = false) {
         if (selectedDate == date && scrollToPager && !fromScroll) {
-            // 바텀시트 토글 로직
+            // 바텀시트 토글 로직 그대로 유지
             bottomSheetBehavior.state = if (bottomSheetBehavior.state == BottomSheetBehavior.STATE_HIDDEN) {
                 BottomSheetBehavior.STATE_COLLAPSED
             } else {
@@ -491,8 +493,12 @@ class CalendarPageFragment: Fragment() {
             val oldDate = selectedDate
             selectedDate = date
 
+            // ⭐ [중요!] 공유 뷰모델에 선택된 날짜 업데이트
+            viewModel.setSelectedDate(date)
+
             updateSelectedDateText(date)
             toggleTodayButton(date != today)
+
 
             // 날짜 갱신 알림
             binding.calendarView.notifyDateChanged(date)
@@ -580,10 +586,17 @@ class CalendarPageFragment: Fragment() {
     }
 
     private fun setupViewPager() {
-        dailyPageAdapter = DailyPageAdapter(events) { schedule ->
-            val updatedSchedule = schedule.copy(isPinned = !schedule.isPinned)
-            viewModel.updateSchedule(updatedSchedule)
-        }
+        dailyPageAdapter = DailyPageAdapter(
+            events = events,
+            onScheduleClick = { schedule ->
+                val updatedSchedule = schedule.copy(isPinned = !schedule.isPinned)
+                viewModel.updateSchedule(updatedSchedule)
+            },
+            // [추가] 편집 모드 선택 시 동작할 콜백 (캘린더 페이지에선 편집을 안 하므로 빈 값)
+            onEditSelect = { id ->
+                // 캘린더 페이지에서도 선택 기능을 쓰고 싶다면 viewModel.toggleSelection(id) 호출
+            }
+        )
 
         binding.root.findViewById<androidx.viewpager2.widget.ViewPager2>(R.id.vp_daily_schedule).apply {
             adapter = dailyPageAdapter

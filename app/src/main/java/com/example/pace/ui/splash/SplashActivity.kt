@@ -7,12 +7,19 @@ import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.airbnb.lottie.LottieAnimationView
 import com.example.pace.R
+import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.onboarding.OnboardingActivity
 import com.example.pace.ui.onboarding.PermissionActivity
 
 class SplashActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // 묻지도 따지지도 않고 바로 메인으로 이동
+        val intent = Intent(this, MainActivity::class.java)
+        startActivity(intent)
+        finish()
+
         setContentView(R.layout.activity_splash)
 
 
