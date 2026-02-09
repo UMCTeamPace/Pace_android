@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.data.model.Schedule
 import com.example.pace.databinding.ItemScheduleBinding
+import java.time.LocalDate
 
 class ScheduleRVAdapter(
     private var scheduleList: MutableList<Schedule>,

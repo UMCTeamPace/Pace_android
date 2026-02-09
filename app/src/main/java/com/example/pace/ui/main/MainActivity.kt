@@ -97,6 +97,7 @@ class MainActivity : AppCompatActivity() {
 
         // 1. 초기화 (위치, Places API, 바텀시트)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        checkCalendarPermissions()
 
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
