@@ -8,10 +8,12 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.RadioGroup
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.pace.R
 import com.example.pace.databinding.FragmentLocationBottomSheetBinding
+import com.example.pace.ui.search_box.group.GroupSelectBottomSheet
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.net.PlacesClient
 import com.google.android.libraries.places.api.net.SearchByTextRequest
@@ -48,16 +50,6 @@ class LocationBottomSheetFragment : Fragment() {
         setupRecyclerView()
         setupFilterListeners()
 
-        adapter = LocationListAdapter(placesClient) { selectedItem ->
-            onItemClick?.invoke(selectedItem)
-        }
-        binding.rvSearchResults.adapter = adapter
-
-        // 3. UI 설정
-        setupRecyclerView()
-        // 검색
-        setupFilterListeners()
-
         if (currentItems.isNotEmpty()) {
             adapter.submitList(currentItems)
         }
@@ -68,6 +60,22 @@ class LocationBottomSheetFragment : Fragment() {
             onItemClick?.invoke(selectedItem)
         }
 
+        adapter.onFavoriteClick = { selectedItem ->
+            val groupSelectSheet = GroupSelectBottomSheet(
+                mode = GroupSelectBottomSheet.Mode.SAVE,
+                placeName = selectedItem.name
+            ) { groupId, savedName ->
+                // (2) [저장] 버튼 눌렀을 때 실행될 로직 (서버 통신 등)
+                // TODO: 여기서 실제 저장 API를 호출하세요.
+                // viewModel.savePlace(groupId, searchItem.placeId, savedName)
+
+                Toast.makeText(requireContext(), "${savedName} 저장 완료!", Toast.LENGTH_SHORT).show()
+            }
+
+            // (3) 화면에 표시
+            groupSelectSheet.show(parentFragmentManager, "GroupSelectBottomSheet")
+        }
+
         binding.rvSearchResults.apply {
             layoutManager = LinearLayoutManager(context)
             this.adapter = this@LocationBottomSheetFragment.adapter
@@ -75,7 +83,6 @@ class LocationBottomSheetFragment : Fragment() {
     }
 
     private fun setupFilterListeners() {
-
         binding.tvFilterLocation.setOnClickListener {
             showFilterDialog()
         }

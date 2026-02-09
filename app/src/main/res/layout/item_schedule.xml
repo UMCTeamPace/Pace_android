@@ -64,7 +64,7 @@
                 android:scaleType="fitCenter"
                 android:adjustViewBounds="true"
                 android:padding="4dp"
-                android:src="@drawable/ic_schedule_orange" />
+                android:src="@drawable/ic_schedule_category" />
 
             <TextView
                 android:id="@+id/schedule_title_tv"

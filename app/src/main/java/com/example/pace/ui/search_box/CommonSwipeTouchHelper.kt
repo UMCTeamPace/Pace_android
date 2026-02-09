@@ -9,12 +9,23 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.R
 import kotlin.math.max
 
-class CommonSwipeTouchHelper: ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT){
-    private val deleteButtonWidth = dpToPx(60) // 삭제 버튼 너비 (필요시 생성자로 받아도 됨)
+class CommonSwipeTouchHelper(
+    private val clampWidthDp: Int = 60
+): ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT){
+    private val deleteButtonWidth = dpToPx(clampWidthDp)
     private var currentScrollX = 0f
-//    private var swipedViewHolder: RecyclerView.ViewHolder? = null
     private var currentSwipedViewHolder: RecyclerView.ViewHolder? = null
     private var lastInteractedViewHolder: RecyclerView.ViewHolder? = null
+
+    override fun getMovementFlags(
+        recyclerView: RecyclerView,
+        viewHolder: RecyclerView.ViewHolder
+    ): Int {
+        if (viewHolder !is SwipeableViewHolder) {
+            return makeMovementFlags(0, 0)
+        }
+        return super.getMovementFlags(recyclerView, viewHolder)
+    }
 
     override fun onMove(
         recyclerView: RecyclerView,
@@ -39,7 +50,6 @@ class CommonSwipeTouchHelper: ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.
             val viewForeground = viewHolder.itemView.findViewById<ConstraintLayout>(R.id.view_foreground) ?: return
             var translationX: Float
 
-            // 사용자가 스와이프를 시도 중일 때(isCurrentlyActive)
             if (isCurrentlyActive) {
                 lastInteractedViewHolder = viewHolder
 

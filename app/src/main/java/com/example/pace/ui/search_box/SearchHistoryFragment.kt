@@ -6,14 +6,26 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import com.example.pace.PaceApplication
 import com.example.pace.R
 import com.example.pace.data.model.RecentHistoryItem
+import com.example.pace.data.viewmodel.SearchViewModel
+import com.example.pace.data.viewmodel.SearchViewModelFactory
 import com.example.pace.databinding.FragmentSearchHistoryBinding
 import com.example.pace.ui.main.route.RouteFragment
+import kotlinx.coroutines.launch
 
 class SearchHistoryFragment : Fragment() {
     private var _binding: FragmentSearchHistoryBinding? = null
     private val binding get() = _binding!!
+
+    private val viewModel: SearchViewModel by activityViewModels {
+        SearchViewModelFactory((requireActivity().application as PaceApplication).searchRepository)
+    }
 
     var onRouteOptionClick: ((isMyLocation: Boolean) -> Unit)? = null
     private var lastRouteHeaderState: Boolean = false
@@ -33,12 +45,20 @@ class SearchHistoryFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        setupChipListeners()
+        observeMyPlaces()
+        applyPendingStates()
+    }
+
+    private fun setupChipListeners() {
+        val parent = parentFragment as? RouteFragment
+
         binding.chipGroup.setOnCheckedStateChangeListener { group, checkedIds ->
             when (checkedIds.firstOrNull()) {
                 R.id.chip_recent_search -> replaceChildFragment(RecentSearchFragment())
                 R.id.chip_recent_place -> replaceChildFragment(RecentPlaceFragment())
                 R.id.chip_recent_route -> replaceChildFragment(RecentRouteFragment())
-                R.id.chip_saved -> { /* 저장됨 프래그먼트 */ }
+                R.id.chip_saved -> replaceChildFragment(BookmarkPlaceFragment())
             }
         }
 
@@ -51,11 +71,51 @@ class SearchHistoryFragment : Fragment() {
         }
 
         binding.btnSelectOnMap.setOnClickListener {
-            val parent = parentFragment as? RouteFragment
             parent?.onSelectOnMapSelected()
         }
 
-        applyPendingStates()
+        binding.chipHome.setOnClickListener {
+            val homePlace = viewModel.homePlace.value
+            if (homePlace == null) {
+                parent?.enterBookmarkMode()
+            } else {
+                parent?.handleMyPlaceClick(homePlace)
+            }
+        }
+
+        binding.chipWork.setOnClickListener {
+            val workPlace = viewModel.workPlace.value
+            if (workPlace == null) {
+                parent?.enterBookmarkMode()
+            } else {
+                parent?.handleMyPlaceClick(workPlace)
+            }
+        }
+    }
+
+    private fun observeMyPlaces() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    viewModel.homePlace.collect { home ->
+                        if (home != null) {
+                            binding.chipHome.setChipIconResource(R.drawable.ic_home)
+                        } else {
+                            binding.chipHome.setChipIconResource(R.drawable.ic_home_unselected)
+                        }
+                    }
+                }
+                launch {
+                    viewModel.workPlace.collect { work ->
+                        if (work != null) {
+                            binding.chipWork.setChipIconResource(R.drawable.ic_work_selected)
+                        } else {
+                            binding.chipWork.setChipIconResource(R.drawable.ic_work_unselected)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private fun applyPendingStates() {

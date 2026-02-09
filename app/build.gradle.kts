@@ -5,8 +5,8 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.ksp)
     id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
-    alias(libs.plugins.dagger.hilt.android)
-
+    id("com.google.dagger.hilt.android")
+    id("kotlin-parcelize")
 }
 
 android {
@@ -38,7 +38,21 @@ android {
         buildConfigField("String", "BEARER_TOKEN", "\"$token\"")
     }
 
+    signingConfigs {
+        getByName("debug") {
+            // app 폴더 바로 안에 debug.keystore를 두었을 때의 설정입니다.
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        // 2. 디버그 빌드 시 위에서 설정한 서명을 사용하도록 연결
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
@@ -119,13 +133,12 @@ dependencies {
     // Dots Indicator
     implementation("com.tbuonomo:dotsindicator:4.3")
 
-    // Hilt
-    implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)
+    //Hilt
+    implementation("com.google.dagger:hilt-android:2.50")
+    ksp("com.google.dagger:hilt-compiler:2.50")
 
     // Retrofit 라이브러리
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
-
     // JSON 변환을 위한 Gson 컨버터
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 

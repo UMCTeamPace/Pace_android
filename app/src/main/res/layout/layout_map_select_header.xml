@@ -24,7 +24,7 @@
         android:id="@+id/tv_map_select_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="경로탐색"
+        android:text="장소 선택"
         android:textColor="@color/black"
         android:fontFamily="@font/pretendard_semibold"
         android:textSize="18sp"
