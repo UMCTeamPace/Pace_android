@@ -51,6 +51,11 @@ class ScheduleTouchHelper(
         actionState: Int,
         isCurrentlyActive: Boolean
     ) {
+        if(swipedViewHolder != null && swipedViewHolder != viewHolder){
+            super.onChildDraw(c, recyclerView, viewHolder, 0f, dY, actionState, isCurrentlyActive)
+            return
+        }
+
         if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE) {
             // 상단 뷰 찾기
             val viewTop = viewHolder.itemView.findViewById<ConstraintLayout>(R.id.schedule_view_top)
@@ -132,6 +137,17 @@ class ScheduleTouchHelper(
         currentScrollX = 0f
         swipedViewHolder = null
     }
+
+    override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+        super.onSelectedChanged(viewHolder, actionState)
+        // 스와이프로 닫았을 때 swipedViewHolder null로 설정
+        if (actionState == ItemTouchHelper.ACTION_STATE_IDLE) {
+            if (swipedViewHolder?.itemView?.translationX == 0f) {
+                swipedViewHolder = null
+            }
+        }
+    }
+
 
     fun hasSwipedItem(): Boolean {
         return swipedViewHolder != null

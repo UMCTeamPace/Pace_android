@@ -33,6 +33,7 @@ class HomeFragment: Fragment() {
         (requireActivity() as MainActivity).getSharedViewModel()
     }
     private lateinit var scheduleAdapter: ScheduleRVAdapter
+    private lateinit var scheduleTouchHelper: ScheduleTouchHelper
     private var selectedDate: LocalDate = LocalDate.now()
     private var allSchedules: List<Schedule> = emptyList()
 
@@ -58,7 +59,7 @@ class HomeFragment: Fragment() {
 
     private fun setupRecyclerView() {
         scheduleAdapter = ScheduleRVAdapter(mutableListOf(), requireContext())
-        val scheduleTouchHelper = ScheduleTouchHelper(scheduleAdapter)
+        scheduleTouchHelper = ScheduleTouchHelper(scheduleAdapter)
         val itemTouchHelper = ItemTouchHelper(scheduleTouchHelper)
 
         binding.homeScheduleRv.adapter = scheduleAdapter
@@ -96,6 +97,10 @@ class HomeFragment: Fragment() {
         binding.homeHorizontalCalendarTv.text = calendarText
         horizontalCalendarAdapter.setMyOnclickListener(object: HorizontalCalendarRVAdapter.MyItemOnClickListener{
             override fun changeSelectedDate(position: Int) {
+                // 스와이프 됐다면 닫고 이동
+                if(scheduleTouchHelper.hasSwipedItem()){
+                    scheduleTouchHelper.closeSwipedMenu()
+                }
                 val smoothScroller = object: LinearSmoothScroller(binding.homeHorizontalCalendarRv.context){
                     override fun calculateDxToMakeVisible(view: View, snapPreference: Int): Int {
                         val screenCenter = binding.homeHorizontalCalendarRv.width/2
@@ -126,7 +131,14 @@ class HomeFragment: Fragment() {
             RecyclerView.OnScrollListener() {
             override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
                 super.onScrollStateChanged(recyclerView, newState)
+
+                // 스와이프 됐다면 닫고 이동
+                if(scheduleTouchHelper.hasSwipedItem()){
+                    scheduleTouchHelper.closeSwipedMenu()
+                }
+
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+
                     val centerView = snapHelper.findSnapView(recyclerView.layoutManager)
                     if (centerView != null) {
                         val position = recyclerView.getChildAdapterPosition(centerView)

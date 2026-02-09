@@ -51,8 +51,8 @@ class NormalScheduleRemoteDataSource(private val applicationContext: Context) {
 
 
 
-    
-
+        try {
+            // 2. 권한 확인이 통과된 경우에만 쿼리를 실행
             val cursor: Cursor? = applicationContext.contentResolver.query(
 
                 CalendarContract.Events.CONTENT_URI,
@@ -151,7 +151,14 @@ class NormalScheduleRemoteDataSource(private val applicationContext: Context) {
 
                 }
 
-            }
+        }
+    } catch (e: SecurityException) {
+        // 3. 만약의 경우를 대비한 2중 방어막
+        android.util.Log.e("ScheduleDataSource", "SecurityException 발생: ${e.message}")
+        return@withContext emptyList<Schedule>()
+    } catch (e: Exception) {
+        android.util.Log.e("ScheduleDataSource", "데이터 로드 중 오류 발생: ${e.message}")
+    }
 
             scheduleList
 

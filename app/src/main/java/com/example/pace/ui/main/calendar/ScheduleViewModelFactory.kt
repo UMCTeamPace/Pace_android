@@ -2,13 +2,17 @@ package com.example.pace.ui.main.calendar
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.example.pace.data.repository.ScheduleRepository
+import com.example.pace.data.datasource.AuthDataStore
+import com.example.pace.data.repository.repository.ScheduleRepository
 
-class ScheduleViewModelFactory(private val repository: ScheduleRepository) : ViewModelProvider.Factory {
+class ScheduleViewModelFactory(
+    private val repository: ScheduleRepository,
+    private val authDataStore: AuthDataStore
+) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(ScheduleViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return ScheduleViewModel(repository) as T
+            return ScheduleViewModel(repository,authDataStore) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
