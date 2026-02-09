@@ -65,7 +65,7 @@ class HomeFragment: Fragment() {
         binding.homeScheduleRv.adapter = scheduleAdapter
         scheduleAdapter.setMyOnClickListener(object: ScheduleRVAdapter.MyOnClickListener{
             override fun showModalCase(scheduleList: List<Schedule>, position: Int) {
-                val modalCaseDialog = ModalCaseDialog(requireContext(), scheduleList, position)
+                val modalCaseDialog = ModalCaseDialog(requireContext(), scheduleList, position, selectedDate)
                 modalCaseDialog.show()
             }
         })
@@ -75,7 +75,7 @@ class HomeFragment: Fragment() {
 
     private fun setupCalendar() {
         val calendarSize = 1000000
-        val today = LocalDate.now()
+        val today: LocalDate = LocalDate.now()
         val layoutManager = binding.homeHorizontalCalendarRv.layoutManager as LinearLayoutManager
         val todayPos = calendarSize / 2
         var calendarText = today.year.toString() + "년 " + today.monthValue.toString() + "월"
