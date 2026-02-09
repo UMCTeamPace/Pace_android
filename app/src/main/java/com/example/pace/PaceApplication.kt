@@ -12,7 +12,9 @@ import com.kakao.sdk.common.KakaoSdk
 import com.example.pace.data.repository.SearchRepository
 import com.example.pace.data.repository.repository.ScheduleRepository
 import com.example.pace.data.repository.repositoryImpl.ScheduleRepositoryImpl
+import dagger.hilt.android.HiltAndroidApp
 
+@HiltAndroidApp
 class PaceApplication : Application() {
     val authDataStore by lazy {
         AuthDataStore(getSharedPreferences("pace_prefs", MODE_PRIVATE))

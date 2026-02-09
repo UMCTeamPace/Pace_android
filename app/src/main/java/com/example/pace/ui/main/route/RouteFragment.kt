@@ -1064,6 +1064,31 @@ private fun selectCurrentLocation() {
 
     }
 
+    fun handleMyPlaceClick(myPlace: MyPlace) {
+        val name = myPlace.name
+        val placeId = myPlace.placeId
+
+        when {
+            currentEntryMode == EntryMode.SCHEDULE -> {
+                onScheduleLocationSelected(name, placeId)
+            }
+
+            currentEntryMode == EntryMode.MAIN -> {
+                isSelectingStart = true
+                onLocationSelected(name, placeId, isStart = true)
+            }
+
+            else -> {
+                if (selectedStartPlace == null) {
+                    onLocationSelected(name, placeId, isStart = true)
+                } else {
+                    onLocationSelected(name, placeId, isStart = false)
+                }
+//                onLocationSelected(name, placeId, isSelectingStart)
+            }
+        }
+    }
+
     fun enterBookmarkMode(){
         isBookmarkSearchMode = false
         wasRouteHeaderVisibleBeforeBookmark = binding.layoutRouteInputHeader.root.visibility == View.VISIBLE

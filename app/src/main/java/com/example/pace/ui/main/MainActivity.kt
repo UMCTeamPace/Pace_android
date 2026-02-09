@@ -34,7 +34,9 @@ import com.example.pace.data.datasource.NormalScheduleRemoteDataSource
 import com.example.pace.ui.main.calendar.ScheduleViewModel
 import com.example.pace.ui.main.calendar.ScheduleViewModelFactory
 import com.example.pace.data.repository.repository.ScheduleRepository
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
     lateinit var binding: ActivityMainBinding
     private lateinit var fusedLocationClient: FusedLocationProviderClient

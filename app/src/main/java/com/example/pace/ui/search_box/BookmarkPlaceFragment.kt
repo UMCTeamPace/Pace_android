@@ -5,21 +5,26 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.R
 import com.example.pace.data.model.response.GroupItem
+import com.example.pace.data.viewmodel.GroupViewModel
 import com.example.pace.databinding.FragmentBookmarkPlaceBinding
 import com.example.pace.ui.search_box.group.GroupDetailBottomSheet
+import dagger.hilt.android.AndroidEntryPoint
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@AndroidEntryPoint
 class BookmarkPlaceFragment : Fragment(){
 
     private var _binding: FragmentBookmarkPlaceBinding? = null
     private val binding get() = _binding!!
+    private val groupViewModel: GroupViewModel by viewModels()
     private lateinit var groupAdapter: BookmarkGroupAdapter
     private val currentGroupList = mutableListOf<GroupItem>()
     private var dummyIdCounter: Long = 100
@@ -32,13 +37,27 @@ class BookmarkPlaceFragment : Fragment(){
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        loadInitialData()
-
         setupRecyclerView()
+        observeViewModel()
+
+        groupViewModel.fetchGroupList()
+    }
+
+    private fun observeViewModel() {
+        // 그룹 리스트 관찰
+        groupViewModel.groupList.observe(viewLifecycleOwner) { groups ->
+            currentGroupList.clear()
+            currentGroupList.addAll(groups)
+            groupAdapter.submitList(currentGroupList.toList())
+        }
+
+        // 에러 메시지 관찰
+        groupViewModel.errorMessage.observe(viewLifecycleOwner) { msg ->
+            android.widget.Toast.makeText(requireContext(), msg, android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun setupRecyclerView() {
-        // 스와이프 헬퍼 설정 (버튼 2개 너비 = 120dp)
         val touchHelper = CommonSwipeTouchHelper(clampWidthDp = 120)
         val itemTouchHelper = ItemTouchHelper(touchHelper)
 
@@ -55,7 +74,7 @@ class BookmarkPlaceFragment : Fragment(){
             },
             onAddClick = {
                 val dialog = AddGroupDialogFragment { request ->
-                    addNewDummyGroup(request.groupName, request.groupColor)
+                    groupViewModel.createGroup(request.groupName, request.groupColor)
                 }
                 dialog.show(parentFragmentManager, "AddGroupDialog")
             }
@@ -78,7 +97,6 @@ class BookmarkPlaceFragment : Fragment(){
             })
         }
 
-        // 데이터 반영
         updateAdapter()
     }
 

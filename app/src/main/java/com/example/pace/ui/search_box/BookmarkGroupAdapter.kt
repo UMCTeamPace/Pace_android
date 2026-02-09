@@ -78,7 +78,6 @@ class BookmarkGroupAdapter(
             try {
                 val themeColor = Color.parseColor(item.groupColor)
                 binding.ivGroupIconLine.imageTintList = ColorStateList.valueOf(themeColor)
-                // todo 특정 path 만 수정하도록 이미지 관리.
             } catch (e: Exception) { }
 
             binding.viewForeground.setOnClickListener {

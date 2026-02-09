@@ -51,6 +51,8 @@ class SearchHistoryFragment : Fragment() {
     }
 
     private fun setupChipListeners() {
+        val parent = parentFragment as? RouteFragment
+
         binding.chipGroup.setOnCheckedStateChangeListener { group, checkedIds ->
             when (checkedIds.firstOrNull()) {
                 R.id.chip_recent_search -> replaceChildFragment(RecentSearchFragment())
@@ -69,8 +71,25 @@ class SearchHistoryFragment : Fragment() {
         }
 
         binding.btnSelectOnMap.setOnClickListener {
-            val parent = parentFragment as? RouteFragment
             parent?.onSelectOnMapSelected()
+        }
+
+        binding.chipHome.setOnClickListener {
+            val homePlace = viewModel.homePlace.value
+            if (homePlace == null) {
+                parent?.enterBookmarkMode()
+            } else {
+                parent?.handleMyPlaceClick(homePlace)
+            }
+        }
+
+        binding.chipWork.setOnClickListener {
+            val workPlace = viewModel.workPlace.value
+            if (workPlace == null) {
+                parent?.enterBookmarkMode()
+            } else {
+                parent?.handleMyPlaceClick(workPlace)
+            }
         }
     }
 
