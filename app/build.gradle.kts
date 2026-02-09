@@ -1,12 +1,11 @@
 import java.util.Properties
 
 plugins {
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.ksp)
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("com.google.dagger.hilt.android")
+    id("com.google.devtools.ksp")
     id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
-    alias(libs.plugins.dagger.hilt.android)
-
 }
 
 android {
@@ -21,12 +20,38 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        //local.properties 파일에서 토큰 가져오기
         val properties = Properties()
-        properties.load(project.rootProject.file("local.properties").inputStream())
-        manifestPlaceholders["GOOGLE_API_KEY"] = "${properties.getProperty("GOOGLE_API_KEY")}"
+        val propertiesFile = project.rootProject.file("local.properties")
+        if (propertiesFile.exists()) {
+            properties.load(propertiesFile.inputStream())
+        }
+
+        // BuildConfig에 등록 (코드에서 접근 가능하게 바꿈)
+        val token = properties.getProperty("BEARER_TOKEN") ?: ""
+        buildConfigField("String", "BEARER_TOKEN", "\"$token\"")
+        
+        manifestPlaceholders["GOOGLE_API_KEY"] = properties.getProperty("GOOGLE_API_KEY") ?: ""
+    }
+
+    signingConfigs {
+        // 'create' 대신 'getByName'을 사용하여 이미 존재하는 debug 설정을 가져와 수정합니다.
+        getByName("debug") {
+            // "app" 폴더 안에 복사해 넣은 파일을 사용하도록 설정
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "AndroidDebugKey" // signingReport 결과와 대소문자까지 일치해야 함
+            keyPassword = "android"
+        }
     }
 
     buildTypes {
+        getByName("debug") {
+            // 이제 위에서 수정한 debug 서명 설정이 정상적으로 연결됩니다.
+            signingConfig = signingConfigs.getByName("debug")
+        }
+
         release {
             isMinifyEnabled = false
             proguardFiles(
