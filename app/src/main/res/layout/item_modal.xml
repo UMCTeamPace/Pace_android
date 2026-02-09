@@ -18,7 +18,8 @@
             android:scaleType="fitCenter"
             android:adjustViewBounds="true"
             android:padding="4dp"
-            android:src="@drawable/ic_schedule_orange" />
+            android:layout_marginStart="4dp"
+            android:src="@drawable/ic_schedule_category"/>
         <TextView
             android:id="@+id/schedule_title_tv"
             android:layout_width="wrap_content"
@@ -38,17 +39,58 @@
         app:layout_constraintTop_toBottomOf="@id/modal_title_ll"
         app:layout_constraintStart_toStartOf="parent">
         <ImageView
-            android:id="@+id/modal_time_iv"
             android:layout_width="16dp"
             android:layout_height="16dp"
-            android:src="@drawable/ic_time" />
+            android:src="@drawable/ic_time"/>
         <TextView
+            android:id="@+id/modal_time_tv"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="하루 종일"
             android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
             style="@style/TextColor.Secondary"
             android:layout_marginStart="4dp" />
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"/>
+        <ImageView
+            android:id="@+id/modal_repeat_iv"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:src="@drawable/ic_repeat_modal"
+            android:layout_gravity="center"/>
+        <TextView
+            android:id="@+id/modal_repeat_tv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="매주 금요일"
+            android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
+            style="@style/TextColor.Secondary"
+            android:layout_marginStart="4dp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/modal_normal_location_ll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center_vertical"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/modal_time_ll">
+
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:src="@drawable/ic_route_unselected" />
+        <TextView
+            android:id="@+id/modal_normal_location_tv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:text="장소"
+            android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
+            style="@style/TextColor.Secondary"/>
     </LinearLayout>
 
     <LinearLayout
@@ -64,6 +106,7 @@
         app:layout_constraintTop_toBottomOf="@id/modal_time_ll">
 
         <LinearLayout
+            android:id="@+id/modal_route_ll"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content">
             <ImageView
@@ -72,6 +115,7 @@
                 android:layout_height="16dp"
                 android:src="@drawable/ic_route_schedule" />
             <TextView
+                android:id="@+id/modal_route_tv"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="4dp"
@@ -84,6 +128,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp">
             <TextView
+                android:id="@+id/modal_route_"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="4dp"
