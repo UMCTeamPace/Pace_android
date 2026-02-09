@@ -11,14 +11,30 @@ import com.example.pace.databinding.ItemScheduleBinding
 
 class ScheduleAdapter(
     private var items: List<ScheduleListItem>,
-    private val onPinClick: (Schedule) -> Unit
+    private val onPinClick: (Schedule) -> Unit,
+    private val onEditSelect: (Long) -> Unit // 추가: 아이템 선택 시 호출될 콜백
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+
+
+    private var isEditMode = false
+    private var selectedIds = setOf<Long>()
+
 
     companion object {
         private const val TYPE_DATE_HEADER = 0
         private const val TYPE_SCHEDULE_ITEM = 1
     }
+    // 편집 모드 전환 설정
+    fun setEditMode(enabled: Boolean) {
+        this.isEditMode = enabled
+        notifyDataSetChanged()
+    }
 
+    // 선택된 ID 목록 갱신
+    fun updateSelectedIds(ids: Set<Long>) {
+        this.selectedIds = ids
+        notifyDataSetChanged()
+    }
     fun updateData(newItems: List<ScheduleListItem>) {
         this.items = newItems
         notifyDataSetChanged()
@@ -69,71 +85,70 @@ class ScheduleAdapter(
 
         fun bind(item: ScheduleListItem.ScheduleItem) {
             val schedule = item.schedule
+
+            // 편집 모드 여부에 따른 가시성 제어
+            if (isEditMode) {
+                binding.scheduleCheckbox.visibility = View.VISIBLE
+                binding.scheduleCheckbox.isChecked = selectedIds.contains(schedule.id)
+                binding.schedulePinIv.visibility = View.GONE // 편집 모드에서는 고정 아이콘 숨김
+
+                // 클릭 시 선택 상태 토글
+                binding.root.setOnClickListener { onEditSelect(schedule.id) }
+                // 체크박스 클릭 시에도 선택 상태 토글 (중복 호출 방지 위해 체크)
+                binding.scheduleCheckbox.setOnClickListener { onEditSelect(schedule.id) }
+
+            } else {
+                // 일반 모드일 때
+                binding.scheduleCheckbox.visibility = View.GONE // 일반 모드에서는 체크박스 숨김
+                binding.schedulePinIv.visibility = if (schedule.isPinned) View.VISIBLE else View.GONE // 고정 여부에 따라 아이콘 표시
+
+                binding.root.setOnClickListener { /* TODO: 상세보기 등 기존 로직 */ } // 일반 모드에서 아이템 클릭 리스너
+                binding.schedulePinIv.setOnClickListener { onPinClick(schedule) }
+            }
+
+            // 1. 이름 (Title)
             binding.scheduleTitleTv.text = schedule.title ?: "제목 없음"
 
-            // 색상 설정 로직 (기존 유지)
-            val color = when {
-                schedule.eventColor != 0 && schedule.eventColor != null -> schedule.eventColor
-                schedule.calendarColor != 0 && schedule.calendarColor != null -> schedule.calendarColor
-                else -> android.graphics.Color.parseColor("#A2BD3B")
+            // 2. 색상 설정
+            val colorResId = when {
+                schedule.eventColor != null && schedule.eventColor != 0 -> schedule.eventColor
+                schedule.calendarColor != null && schedule.calendarColor != 0 -> schedule.calendarColor
+                else -> android.graphics.Color.parseColor("#A2BD3B") // 기본 색상 (원하는 색상으로 변경 가능)
             }
-            binding.scheduleCategoryIv.imageTintList = android.content.res.ColorStateList.valueOf(color)
+            binding.scheduleCategoryIv.imageTintList = android.content.res.ColorStateList.valueOf(colorResId)
 
-            // --- [추가 및 수정] 시간/기간 표시 로직 ---
-            val dateUpdateFormatter = java.time.format.DateTimeFormatter.ofPattern("M월 d일", java.util.Locale.KOREAN)
-            val timeFormatter = java.time.format.DateTimeFormatter.ofPattern("a hh:mm", java.util.Locale.KOREAN)
-
-            binding.scheduleTimeTv.text = try {
-                val startLocalDate = java.time.LocalDate.parse(schedule.startDate)
-                var endLocalDate = java.time.LocalDate.parse(schedule.endDate)
-
-                // [보정] 하루 종일 일정인데 종료일이 다음날로 잡혀있다면 하루를 뺌
-                if (schedule.isAllDay && endLocalDate.isAfter(startLocalDate)) {
-                    endLocalDate = endLocalDate.minusDays(1)
-                }
-
-                when {
-                    // CASE 1: 하루 종일 + 기간 (보정 후에도 날짜가 다를 때) -> "2월 9일 - 2월 11일"
-                    schedule.isAllDay && startLocalDate != endLocalDate -> {
-                        "${startLocalDate.format(dateUpdateFormatter)} - ${endLocalDate.format(dateUpdateFormatter)}"
-                    }
-
-                    // CASE 2: 하루 종일 + 당일 (보정 후 날짜가 같아짐) -> "하루 종일"
-                    schedule.isAllDay -> {
-                        "하루 종일"
-                    }
-
-                    // CASE 3: 일반 일정 + 기간 -> 시간 포함 표시
-                    startLocalDate != endLocalDate -> {
-                        val startTime = java.time.LocalTime.parse(schedule.startTime)
-                        val endTime = java.time.LocalTime.parse(schedule.endTime)
-                        "${startLocalDate.format(dateUpdateFormatter)} ${startTime.format(timeFormatter)} - ${endLocalDate.format(dateUpdateFormatter)} ${endTime.format(timeFormatter)}"
-                    }
-
-                    // CASE 4: 일반 일정 + 당일 -> 시간만 표시
-                    else -> {
-                        val startTime = java.time.LocalTime.parse(schedule.startTime)
-                        val endTime = java.time.LocalTime.parse(schedule.endTime)
-                        "${startTime.format(timeFormatter)} - ${endTime.format(timeFormatter)}"
-                    }
-                }
-            } catch (e: Exception) {
-                "${schedule.startDate} - ${schedule.endDate}"
-            }
-            binding.schedulePinnedIv.visibility = View.GONE
-            binding.scheduleAlertTv.visibility = View.GONE
-            binding.scheduleCheckbox.visibility = View.GONE
-            // Pin 아이콘 리스너 및 상태 변경
-            binding.schedulePinIv.setOnClickListener { onPinClick(schedule) }
-
-
-            if (!schedule.location.isNullOrEmpty()) {
-                binding.scheduleNormalLocationLl.visibility = ViewGroup.VISIBLE
-                binding.scheduleNormalLocationTv.text = schedule.location
-                binding.scheduleRouteLocationLl.visibility = ViewGroup.GONE
+            // 3. 시간 표시
+            if (schedule.isAllDay) {
+                binding.scheduleTimeTv.text = "하루 종일"
             } else {
-                binding.scheduleNormalLocationLl.visibility = ViewGroup.GONE
-                binding.scheduleRouteLocationLl.visibility = if (schedule.withRoute) ViewGroup.VISIBLE else ViewGroup.GONE
+                binding.scheduleTimeTv.text = "${schedule.startTime} - ${schedule.endTime}"
+            }
+
+            // 4. 반복 문자열 표시
+            if (!schedule.repeatRule.isNullOrEmpty()) {
+                binding.scheduleRepeatIv.visibility = View.VISIBLE
+                binding.scheduleRepeatTv.visibility = View.VISIBLE
+                // TODO: 스케줄 객체에 사람이 읽을 수 있는 반복 문자열 필드가 있다면 그것을 사용.
+                // 현재는 rrule 문자열만 있으므로, "반복 설정됨"으로 표시.
+                // ScheduleRepeatFragment에서 생성한 "selectedRepeat" 값을 Schedule 객체에 저장해서 사용하는 것을 권장.
+                binding.scheduleRepeatTv.text = "반복 설정됨"
+            } else {
+                binding.scheduleRepeatIv.visibility = View.GONE
+                binding.scheduleRepeatTv.visibility = View.GONE
+            }
+
+            // 5. 장소 표시
+            if (!schedule.location.isNullOrEmpty()) {
+                binding.scheduleNormalLocationLl.visibility = View.VISIBLE
+                binding.scheduleNormalLocationIv.visibility = View.VISIBLE
+                binding.scheduleNormalLocationTv.text = schedule.location
+                binding.scheduleRouteLocationLl.visibility = View.GONE // 일반 일정에서는 경로 위치 숨김
+            } else {
+                binding.scheduleNormalLocationLl.visibility = View.GONE
+                binding.scheduleNormalLocationIv.visibility = View.GONE
+                binding.scheduleNormalLocationTv.text = "" // 텍스트도 비워둠
+                // 경로 일정이 withRoute 플래그를 사용하는 경우를 위해 추가 확인
+                binding.scheduleRouteLocationLl.visibility = if (schedule.type == "ROUTE" && schedule.withRoute) View.VISIBLE else View.GONE
             }
         }
     }
