@@ -1,6 +1,7 @@
 package com.example.pace.data.datasource
 
 import android.content.SharedPreferences
+import com.example.pace.BuildConfig
 
 class AuthDataStore(private val sharedPreferences: SharedPreferences) {
 
@@ -21,5 +22,9 @@ class AuthDataStore(private val sharedPreferences: SharedPreferences) {
         }
     }
 
-    fun getAccessToken(): String? = sharedPreferences.getString("ACCESS_TOKEN", null)
+    fun getAccessToken(): String? {
+        BuildConfig.BEARER_TOKEN
+        val tempToken = BuildConfig.BEARER_TOKEN
+        return tempToken
+    }
 }

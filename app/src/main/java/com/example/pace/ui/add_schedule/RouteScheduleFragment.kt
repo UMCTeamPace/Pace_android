@@ -12,13 +12,26 @@ import android.widget.NumberPicker
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResultListener
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.afollestad.materialdialogs.color.colorChooser
 import com.example.pace.R
+import com.example.pace.data.model.request.CreateScheduleRequest
+import com.example.pace.data.model.request.PlaceRequest
+import com.example.pace.data.model.request.ReminderRequest
+import com.example.pace.data.model.request.RouteRequest
 import com.example.pace.data.util.RouteConstants
 import com.example.pace.databinding.FragmentRouteScheduleBinding
+import com.example.pace.ui.main.calendar.ScheduleViewModel
+import com.google.gson.Gson
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
+@AndroidEntryPoint
 class RouteScheduleFragment : Fragment() {
 
     private var _binding: FragmentRouteScheduleBinding? = null
@@ -32,11 +45,24 @@ class RouteScheduleFragment : Fragment() {
     private var routeJson: String? = null
     private var earlyArriveTime: Int = 0
     private var sortOption: String = "최적 경로순"
+
+    // [수정] 런처에서 받아온 경로 정보를 저장할 멤버 변수 선언
+    private var lastDestName: String? = null
+    private var lastDestLat: Double = 0.0
+    private var lastDestLng: Double = 0.0
+    private var lastRouteJson: String? = null
+    private val viewModel: ScheduleViewModel by viewModels()
     private val routeSearchLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             val data = result.data ?: return@registerForActivityResult
+
+            // [수정] 결과값을 멤버 변수에 저장 (나중에 확인 버튼 누를 때 사용)
+            lastDestName = data.getStringExtra("endPlaceName")
+            lastDestLat = data.getDoubleExtra("endPlaceLat", 0.0)
+            lastDestLng = data.getDoubleExtra("endPlaceLng", 0.0)
+            lastRouteJson = data.getStringExtra("routeData")
 
             val startName = data.getStringExtra("startPlaceName")
             val startId = data.getStringExtra("startPlaceId")
@@ -90,31 +116,81 @@ class RouteScheduleFragment : Fragment() {
             imm.showSoftInput(binding.etScheduleName, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
         }
 
+        // 1. 결과 관찰 (성공 시 화면 닫기)
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.createScheduleEvent.collect { isSuccess ->
+                    when (isSuccess) {
+                        true -> {
+                            Toast.makeText(context, "일정이 저장되었습니다.", Toast.LENGTH_SHORT).show()
+                            viewModel.resetCreateEvent() // 이벤트 초기화
+                            requireActivity().finish()   // 화면 종료
+                        }
+                        false -> {
+                            Toast.makeText(context, "일정 저장에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                            viewModel.resetCreateEvent()
+                        }
+                        null -> { /* 대기 상태 */ }
+                    }
+                }
+            }
+        }
+
         binding.btnConfirm.setOnClickListener {
             val scheduleName = binding.etScheduleName.text.toString().trim()
+            val selectedDate = arguments?.getString("selected_date") ?: "2026-02-09"
 
-
+            // 1. 유효성 검사
             if (scheduleName.isEmpty()) {
                 Toast.makeText(context, "일정명을 입력해 주세요.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
-                val start = binding.tvStartTime.text.toString()
-                val end = binding.tvEndTime.text.toString()
-                if (isTimeAfter(start, end)) {
-                    Toast.makeText(context, "종료 시간이 시작 시간보다 빨라야 합니다.", Toast.LENGTH_SHORT).show()
-                    return@setOnClickListener
-                }
-
-
-            Toast.makeText(context, "일정이 저장되었습니다.", Toast.LENGTH_SHORT).show()
-
-            if (parentFragmentManager.backStackEntryCount > 0) {
-                parentFragmentManager.popBackStack()
-            } else {
-                requireActivity().finish()
+            val start = binding.tvStartTime.text.toString()
+            val end = binding.tvEndTime.text.toString()
+            if (isTimeAfter(start, end)) {
+                Toast.makeText(context, "종료 시간이 시작 시간보다 빨라야 합니다.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
             }
 
+            // 2. Request 객체 생성
+            val request = CreateScheduleRequest(
+                title = scheduleName,
+                isAllDay = false,
+                startDate = selectedDate,
+                endDate = selectedDate,
+                startTime = "$start:00",
+                endTime = "$end:00",
+                memo = binding.etMemo.text.toString(),
+                isPathIncluded = true,
+                isRepeat = false,
+                repeatInfo = null,
+                place = PlaceRequest(
+                    targetName = lastDestName ?: "",
+                    targetLat = lastDestLat,
+                    targetLng = lastDestLng
+                ),
+                reminders = listOf(
+                    ReminderRequest(
+                        "EVENT",
+                        mapAlarmTextToMinutes(binding.tvAlarmStatus.text.toString())
+                    )
+                ),
+                route = parseRouteData(lastRouteJson)
+            )
+            viewModel.createSchedule(request)
+            // TODO: 여기서 ViewModel.createSchedule(request) 호출
+            android.util.Log.d("RouteSchedule", """
+    [일정 데이터 추출 결과]
+    제목: ${request.title}
+    메모: ${request.memo}
+    날짜: ${request.startDate} ~ ${request.endDate}
+    시간: ${request.startTime} ~ ${request.endTime}
+    도착지: ${request.place?.targetName} (Lat: ${request.place?.targetLat}, Lng: ${request.place?.targetLng})
+    알림 설정: ${request.reminders.firstOrNull()?.minutesBefore}분 전
+    경로 포함 여부: ${request.route != null}
+""".trimIndent())
+            Toast.makeText(context, "일정이 저장되었습니다.", Toast.LENGTH_SHORT).show()
         }
 
         binding.btnCancel.setOnClickListener {
@@ -374,6 +450,23 @@ class RouteScheduleFragment : Fragment() {
             } else {
                 binding.layoutBottomButtons.visibility = View.VISIBLE
             }
+        }
+    }
+
+    private fun parseRouteData(json: String?): RouteRequest? {
+        return try {
+            Gson().fromJson(json, RouteRequest::class.java)
+        } catch (e: Exception) {
+            null
+        }
+    }
+    // [추가] 알람 텍스트 매핑 함수
+    private fun mapAlarmTextToMinutes(statusText: String): Int {
+        return when {
+            statusText.contains("10분") -> 10
+            statusText.contains("30분") -> 30
+            statusText.contains("1시간") -> 60
+            else -> 0
         }
     }
 

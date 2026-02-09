@@ -9,7 +9,8 @@ import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
 import com.example.pace.databinding.ActivityAddScheduleBinding
 import com.google.android.material.tabs.TabLayoutMediator
-
+import dagger.hilt.android.AndroidEntryPoint // 추가
+@AndroidEntryPoint
 class AddScheduleActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityAddScheduleBinding
