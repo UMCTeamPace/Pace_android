@@ -23,17 +23,20 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.fragment.app.activityViewModels
+import androidx.recyclerview.widget.ItemTouchHelper
 import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.main.calendar.ScheduleViewModel
 import com.example.pace.ui.main.calendar.ScheduleViewModelFactory
 import androidx.fragment.app.activityViewModels // 추가
 import dagger.hilt.android.AndroidEntryPoint // 추가
+import com.example.pace.ui.main.home.ScheduleTouchHelper
 @AndroidEntryPoint
 class ScheduleListFragment : Fragment() {
     private var _binding: FragmentScheduleListBinding? = null
     private val binding get() = _binding!!
 
     private lateinit var scheduleAdapter: ScheduleAdapter
+    private lateinit var scheduleTouchHelper: ScheduleTouchHelper
 
     private val viewModel: ScheduleViewModel by activityViewModels()
 
@@ -96,6 +99,7 @@ class ScheduleListFragment : Fragment() {
 
     private fun setupRecyclerView() {
         scheduleAdapter = ScheduleAdapter(
+            context = requireContext(),
             items = emptyList(),
             onPinClick = { schedule ->
                 val updatedSchedule = schedule.copy(isPinned = !schedule.isPinned)
@@ -106,6 +110,12 @@ class ScheduleListFragment : Fragment() {
                 viewModel.toggleSelection(id)
             }
         )
+        // 스와이프 로직 연결
+        scheduleTouchHelper = ScheduleTouchHelper(scheduleAdapter)
+        val itemTouchHelper = ItemTouchHelper(scheduleTouchHelper)
+        scheduleAdapter.scheduleTouchHelper = scheduleTouchHelper
+        itemTouchHelper.attachToRecyclerView(binding.scheduleListRv)
+
         binding.scheduleListRv.apply {
             layoutManager = LinearLayoutManager(context)
             adapter = scheduleAdapter
