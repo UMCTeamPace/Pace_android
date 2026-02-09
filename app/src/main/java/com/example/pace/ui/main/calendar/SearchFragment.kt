@@ -1,6 +1,5 @@
 package com.example.pace.ui.main.calendar
 
-import SearchAdapter
 import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -12,13 +11,14 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.example.pace.R
 import com.example.pace.data.model.Schedule
 import com.example.pace.databinding.FragmentSearchBinding
 import com.example.pace.databinding.LayoutSearchEmptyBinding // EmptyView 바인딩 가정
 import com.example.pace.ui.main.MainActivity
 import kotlinx.coroutines.launch
 import androidx.fragment.app.activityViewModels // 추가
+import androidx.recyclerview.widget.ItemTouchHelper
+import com.example.pace.ui.main.home.ScheduleTouchHelper
 import dagger.hilt.android.AndroidEntryPoint // 추가
 @AndroidEntryPoint
 class SearchFragment : Fragment() {
@@ -27,11 +27,14 @@ class SearchFragment : Fragment() {
 
     // 어댑터 선언
     private lateinit var searchAdapter: SearchAdapter
+    private lateinit var scheduleTouchHelper: ScheduleTouchHelper
 
     // 결과 리스트용 리사이클러뷰 (동적 생성)
     private var recyclerView: RecyclerView? = null
 
-    private val viewModel: ScheduleViewModel by activityViewModels()
+    private val viewModel: ScheduleViewModel by lazy {
+        (requireActivity() as MainActivity).getSharedViewModel()
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -64,7 +67,17 @@ class SearchFragment : Fragment() {
 
     // SearchFragment.kt 수정 제안
     private fun setupRecyclerView() {
-        searchAdapter = SearchAdapter()
+        searchAdapter = SearchAdapter(
+            context = requireContext(),
+            onPinClick = { schedule ->
+                val updatedSchedule = schedule.copy(isPinned = !schedule.isPinned)
+                viewModel.updateSchedule(updatedSchedule)
+            },
+            onEditSelect = { id ->
+                // 아이템 클릭 시 뷰모델의 선택 리스트에 추가/삭제
+                viewModel.toggleSelection(id)
+            }
+        )
         // 1. RecyclerView를 미리 Container에 담아두고 visibility만 조절하는 게 성능상 좋습니다.
         recyclerView = RecyclerView(requireContext()).apply {
             layoutParams = ViewGroup.LayoutParams(
@@ -74,6 +87,11 @@ class SearchFragment : Fragment() {
             layoutManager = LinearLayoutManager(context)
             adapter = searchAdapter
         }
+        // 스와이프 로직 연결
+        scheduleTouchHelper = ScheduleTouchHelper(searchAdapter)
+        val itemTouchHelper = ItemTouchHelper(scheduleTouchHelper)
+        searchAdapter.scheduleTouchHelper = scheduleTouchHelper
+        itemTouchHelper.attachToRecyclerView(recyclerView)
     }
 
     private fun showResultList(results: List<Schedule>) {

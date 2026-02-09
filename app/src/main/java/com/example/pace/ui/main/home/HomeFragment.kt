@@ -35,8 +35,6 @@ class HomeFragment: Fragment() {
     private lateinit var scheduleAdapter: ScheduleRVAdapter
     private lateinit var scheduleTouchHelper: ScheduleTouchHelper
     private var selectedDate: LocalDate = LocalDate.now()
-    private var allSchedules: List<Schedule> = emptyList()
-
     private var scheduleMap: Map<LocalDate, List<Schedule>> = emptyMap()
 
     override fun onCreateView(
@@ -58,7 +56,10 @@ class HomeFragment: Fragment() {
     }
 
     private fun setupRecyclerView() {
-        scheduleAdapter = ScheduleRVAdapter(mutableListOf(), requireContext())
+        scheduleAdapter = ScheduleRVAdapter(mutableListOf(), requireContext()){ schedule ->
+            val updatedSchedule = schedule.copy(isPinned = !schedule.isPinned)
+            viewModel.updateSchedule(updatedSchedule)
+        }
         scheduleTouchHelper = ScheduleTouchHelper(scheduleAdapter)
         val itemTouchHelper = ItemTouchHelper(scheduleTouchHelper)
 
@@ -97,10 +98,6 @@ class HomeFragment: Fragment() {
         binding.homeHorizontalCalendarTv.text = calendarText
         horizontalCalendarAdapter.setMyOnclickListener(object: HorizontalCalendarRVAdapter.MyItemOnClickListener{
             override fun changeSelectedDate(position: Int) {
-                // 스와이프 됐다면 닫고 이동
-                if(scheduleTouchHelper.hasSwipedItem()){
-                    scheduleTouchHelper.closeSwipedMenu()
-                }
                 val smoothScroller = object: LinearSmoothScroller(binding.homeHorizontalCalendarRv.context){
                     override fun calculateDxToMakeVisible(view: View, snapPreference: Int): Int {
                         val screenCenter = binding.homeHorizontalCalendarRv.width/2
@@ -131,11 +128,6 @@ class HomeFragment: Fragment() {
             RecyclerView.OnScrollListener() {
             override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
                 super.onScrollStateChanged(recyclerView, newState)
-
-                // 스와이프 됐다면 닫고 이동
-                if(scheduleTouchHelper.hasSwipedItem()){
-                    scheduleTouchHelper.closeSwipedMenu()
-                }
 
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
 

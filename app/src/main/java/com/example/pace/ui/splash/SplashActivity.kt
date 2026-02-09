@@ -21,9 +21,6 @@ class SplashActivity : AppCompatActivity() {
         finish()
 
         setContentView(R.layout.activity_splash)
-        val intent = Intent(this@SplashActivity, MainActivity::class.java)
-        startActivity(intent)
-        finish()
 
         val lottieView = findViewById<LottieAnimationView>(R.id.lottieAnimationView)
         lottieView.addAnimatorListener(object : Animator.AnimatorListener {

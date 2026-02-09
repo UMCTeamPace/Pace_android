@@ -9,20 +9,40 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.R
 
 class ScheduleTouchHelper(
-    private val adapter: ScheduleRVAdapter
+    private val adapter: RecyclerView.Adapter<*>
 ): ItemTouchHelper.Callback() {
     // 스와이프 범위
     private val leftWidth = dpToPx(70)
     private val rightWidth = dpToPx(120)
     private var currentScrollX = 0f
-    private var swipedViewHolder: RecyclerView.ViewHolder? = null
+
     override fun getMovementFlags(
         recyclerView: RecyclerView,
         viewHolder: RecyclerView.ViewHolder
     ): Int {
-        if(swipedViewHolder != null && swipedViewHolder != viewHolder){
+        val currentViewTop = viewHolder.itemView.findViewById<ConstraintLayout>(R.id.schedule_view_top)
+
+        // 모든 아이템을 조사해 swipe된 거 확인하기
+        val isOtherSwiped = (0 until recyclerView.childCount).any{ i ->
+            val child = recyclerView.getChildAt(i)
+            val childViewHolder = recyclerView.getChildViewHolder(child)
+
+            if(childViewHolder != viewHolder){
+                val viewTop = child.findViewById<ConstraintLayout>(R.id.schedule_view_top)
+                viewTop?.let{ it.translationX != 0f} ?: false
+            }else{
+                false
+            }
+        }
+        // 자신이 아니면 스와이프 X
+        if(isOtherSwiped){
             return makeMovementFlags(0, 0)
         }
+        // 현재 아이템이 없다면 스와이프 X
+        if(currentViewTop == null){
+            return makeMovementFlags(0, 0)
+        }
+
         return makeMovementFlags(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT)
     }
 
@@ -51,11 +71,6 @@ class ScheduleTouchHelper(
         actionState: Int,
         isCurrentlyActive: Boolean
     ) {
-        if(swipedViewHolder != null && swipedViewHolder != viewHolder){
-            super.onChildDraw(c, recyclerView, viewHolder, 0f, dY, actionState, isCurrentlyActive)
-            return
-        }
-
         if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE) {
             // 상단 뷰 찾기
             val viewTop = viewHolder.itemView.findViewById<ConstraintLayout>(R.id.schedule_view_top)
@@ -88,30 +103,22 @@ class ScheduleTouchHelper(
                         super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
                         return
                     }
-                    val schedule = adapter.getScheduleAt(position)
 
                     when(dX){
                         0f -> {
-                            schedule.isSwiped = false
-                            swipedViewHolder = null
                             super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
                         }
                         else -> {
+                            // 좌측 스크롤 임계점 도달
                             if(dX < 0 && currentScrollX <= -rightWidth / 2){
-                                schedule.isSwiped = true
-                                swipedViewHolder = viewHolder
                                 translationX = -rightWidth
                             }
-                            // 우측 스크롤 및 임계점 도달
+                            // 우측 스크롤 임계점 도달
                             else if(dX > 0 && currentScrollX == leftWidth){
-                                schedule.isSwiped = true
-                                swipedViewHolder = viewHolder
                                 translationX = leftWidth
                             }
                             else{
-                                schedule.isSwiped = false
                                 translationX = 0f
-                                //swipedPos = -1
                             }
                             // 상단 뷰 가로 위치 고정
                             viewTop.translationX = translationX
@@ -125,32 +132,10 @@ class ScheduleTouchHelper(
     override fun getSwipeThreshold(viewHolder: RecyclerView.ViewHolder): Float = 2f
 
     // 스와이프 메뉴 닫는 함수
-    fun closeSwipedMenu(){
-        val viewTop = swipedViewHolder?.itemView?.findViewById<ConstraintLayout>(R.id.schedule_view_top)
+    fun closeSwipedMenu(viewHolder: RecyclerView.ViewHolder){
+        val viewTop = viewHolder.itemView.findViewById<ConstraintLayout>(R.id.schedule_view_top)
         viewTop?.translationX = 0f
-        if (swipedViewHolder != null) {
-            val position = swipedViewHolder!!.bindingAdapterPosition
-            if (position != RecyclerView.NO_POSITION && position < adapter.itemCount) {
-                adapter.getScheduleAt(position).isSwiped = false
-            }
-        }
         currentScrollX = 0f
-        swipedViewHolder = null
-    }
-
-    override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
-        super.onSelectedChanged(viewHolder, actionState)
-        // 스와이프로 닫았을 때 swipedViewHolder null로 설정
-        if (actionState == ItemTouchHelper.ACTION_STATE_IDLE) {
-            if (swipedViewHolder?.itemView?.translationX == 0f) {
-                swipedViewHolder = null
-            }
-        }
-    }
-
-
-    fun hasSwipedItem(): Boolean {
-        return swipedViewHolder != null
     }
 
     private fun dpToPx(int: Int): Float {
