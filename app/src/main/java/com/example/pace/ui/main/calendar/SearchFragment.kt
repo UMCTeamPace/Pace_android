@@ -18,7 +18,9 @@ import com.example.pace.databinding.FragmentSearchBinding
 import com.example.pace.databinding.LayoutSearchEmptyBinding // EmptyView 바인딩 가정
 import com.example.pace.ui.main.MainActivity
 import kotlinx.coroutines.launch
-
+import androidx.fragment.app.activityViewModels // 추가
+import dagger.hilt.android.AndroidEntryPoint // 추가
+@AndroidEntryPoint
 class SearchFragment : Fragment() {
     private var _binding: FragmentSearchBinding? = null
     private val binding get() = _binding!!
@@ -29,9 +31,7 @@ class SearchFragment : Fragment() {
     // 결과 리스트용 리사이클러뷰 (동적 생성)
     private var recyclerView: RecyclerView? = null
 
-    private val viewModel: ScheduleViewModel by lazy {
-        (requireActivity() as MainActivity).getSharedViewModel()
-    }
+    private val viewModel: ScheduleViewModel by activityViewModels()
 
     override fun onCreateView(
         inflater: LayoutInflater,

@@ -34,22 +34,15 @@ import com.example.pace.data.datasource.NormalScheduleRemoteDataSource
 import com.example.pace.ui.main.calendar.ScheduleViewModel
 import com.example.pace.ui.main.calendar.ScheduleViewModelFactory
 import com.example.pace.data.repository.repository.ScheduleRepository
-import dagger.hilt.android.AndroidEntryPoint
+import dagger.hilt.android.AndroidEntryPoint // 추가
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
     lateinit var binding: ActivityMainBinding
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-
+    private val viewModel: ScheduleViewModel by viewModels()
     // ViewModel injection
-    private val repository by lazy { (application as PaceApplication).repository }
-    private val viewModel: ScheduleViewModel by viewModels {
-        val app = application as PaceApplication
-        ScheduleViewModelFactory(
-            repository = app.repository,
-            authDataStore = app.authDataStore
-        )
-    }
+
 
     fun getSharedViewModel(): ScheduleViewModel = viewModel
 
@@ -99,6 +92,7 @@ class MainActivity : AppCompatActivity() {
 
         // 1. 초기화 (위치, Places API, 바텀시트)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
         checkCalendarPermissions()
 
         locationCallback = object : LocationCallback() {

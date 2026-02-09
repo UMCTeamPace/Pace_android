@@ -21,9 +21,21 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // local.properties 파일 로드
         val properties = Properties()
-        properties.load(project.rootProject.file("local.properties").inputStream())
+        val propertiesFile = project.rootProject.file("local.properties")
+        if (propertiesFile.exists()) {
+            properties.load(propertiesFile.inputStream())
+        }
+
+        // 1. 매니페스트용 (구글 지도 키)
         manifestPlaceholders["GOOGLE_API_KEY"] = "${properties.getProperty("GOOGLE_API_KEY")}"
+
+        // 2. 코드용 (Bearer 토큰)
+        // local.properties에서 가져온 문자열을 코드로 넘길 때는 반드시 쌍따옴표("\"")로 감싸야 합니다.
+        val token = properties.getProperty("BEARER_TOKEN") ?: ""
+        buildConfigField("String", "BEARER_TOKEN", "\"$token\"")
     }
 
     signingConfigs {

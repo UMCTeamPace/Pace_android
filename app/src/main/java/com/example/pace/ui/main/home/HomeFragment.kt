@@ -25,13 +25,13 @@ import com.example.pace.ui.main.calendar.ScheduleViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
+import androidx.fragment.app.activityViewModels // 추가 확인
+import dagger.hilt.android.AndroidEntryPoint // 1. 추가
 
+@AndroidEntryPoint
 class HomeFragment: Fragment() {
     lateinit var binding: FragmentHomeBinding
-
-    private val viewModel: ScheduleViewModel by lazy {
-        (requireActivity() as MainActivity).getSharedViewModel()
-    }
+    private val viewModel: ScheduleViewModel by activityViewModels()
     private lateinit var scheduleAdapter: ScheduleRVAdapter
     private lateinit var scheduleTouchHelper: ScheduleTouchHelper
     private var selectedDate: LocalDate = LocalDate.now()

@@ -13,14 +13,15 @@ import com.google.android.material.tabs.TabLayoutMediator
 import com.example.pace.ui.main.calendar.SearchFragment
 import com.example.pace.R
 import com.example.pace.ui.add_schedule.AddScheduleActivity
+import androidx.fragment.app.activityViewModels // 추가
+import dagger.hilt.android.AndroidEntryPoint // 추가
 
+@AndroidEntryPoint
 class CalendarFragment: Fragment() {
     private var _binding: FragmentCalendarBinding? = null
     private val binding get() = _binding!!
 
-    private val viewModel: ScheduleViewModel by lazy {
-        (requireActivity() as MainActivity).getSharedViewModel()
-    }
+    private val viewModel: ScheduleViewModel by activityViewModels()
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,

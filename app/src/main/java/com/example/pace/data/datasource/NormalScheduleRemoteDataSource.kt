@@ -9,9 +9,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
-
-class NormalScheduleRemoteDataSource(private val applicationContext: Context) {
-
+import dagger.hilt.android.qualifiers.ApplicationContext // 추가
+import javax.inject.Inject // 추가
+class NormalScheduleRemoteDataSource @Inject constructor(
+    @ApplicationContext private val applicationContext: Context
+) {
     suspend fun getSchedules(): List<Schedule> = withContext(Dispatchers.IO) {
         val scheduleList = mutableListOf<Schedule>()
 
@@ -160,9 +162,9 @@ class NormalScheduleRemoteDataSource(private val applicationContext: Context) {
         android.util.Log.e("ScheduleDataSource", "데이터 로드 중 오류 발생: ${e.message}")
     }
 
-    scheduleList
+            scheduleList
 
-}
+        }
 
     private fun fetchReminders(eventId: Long): List<Int> {
         val reminderList = mutableListOf<Int>()
@@ -186,7 +188,7 @@ class NormalScheduleRemoteDataSource(private val applicationContext: Context) {
         }
         return reminderList
     }
-
+    
     private fun formatMillisToDate(millis: Long): String {
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         return sdf.format(Date(millis))

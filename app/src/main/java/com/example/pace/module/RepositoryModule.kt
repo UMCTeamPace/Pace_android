@@ -10,6 +10,7 @@ import com.example.pace.data.api.ScheduleService
 import com.example.pace.data.api.SettingsService
 import com.example.pace.data.datasource.AuthDataStore
 import com.example.pace.data.datasource.NormalScheduleRemoteDataSource
+import com.example.pace.data.datasource.RouteScheduleRemoteDataSource
 import com.example.pace.data.db.ScheduleDao
 import com.example.pace.data.repository.repository.AuthControllerRepository
 import com.example.pace.data.repository.repository.MemberControllerRepository
@@ -74,14 +75,16 @@ object RepositoryModule {
         scheduleService: ScheduleService,
         scheduleDao: ScheduleDao,
         authDataStore: AuthDataStore,
-        normalScheduleDataSource: NormalScheduleRemoteDataSource,
+        routeRemoteDataSource: RouteScheduleRemoteDataSource, // 1. 추가: 서버용 데이터소스
+        normalDataSource: NormalScheduleRemoteDataSource,    // 2. 이름 수정: Impl 생성자와 일치시킴
         @ApplicationContext context: Context
     ): ScheduleRepository {
         return ScheduleRepositoryImpl(
             api = scheduleService,
             scheduleDao = scheduleDao,
+            routeRemoteDataSource = routeRemoteDataSource, // 3. 인자 추가
+            normalDataSource = normalDataSource,           // 4. 이름 수정
             authDataStore = authDataStore,
-            normalScheduleDataSource = normalScheduleDataSource,
             context = context
         )
     }
