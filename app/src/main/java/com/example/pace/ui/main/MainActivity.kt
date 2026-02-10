@@ -99,6 +99,11 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+//        // 테스트를 위해 바로 AlertActivity 실행!
+//        val intent = Intent(this, AlertActivity::class.java)
+//        intent.putExtra("MINUTES_LEFT", 15) // 테스트하고 싶은 시간(분)을 넣어보세요
+//        startActivity(intent)
+
         // 1. 초기화 (위치, Places API, 바텀시트)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
