@@ -1,21 +1,30 @@
 package com.example.pace.ui.main.home
 
 import android.content.Context
+import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
 import androidx.core.content.ContextCompat
+import androidx.core.view.updatePadding
 import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.data.model.Schedule
 import com.example.pace.databinding.ItemModalBinding
 import com.example.pace.R
-import kotlin.collections.get
+import com.example.pace.data.model.response.RouteDetail
+import com.example.pace.data.model.response.RouteDetailResponse
+import com.example.pace.data.model.response.RouteInfo
+import com.example.pace.databinding.ItemRouteDetailBriefBinding
+import com.example.pace.databinding.ItemRouteVehicleBinding
+import com.example.pace.ui.WeightCalculator
 
 class ModalVPAdapter(
     private val context: Context,
-    private val scheduleList:List<Schedule>
+    private val scheduleList:List<Schedule>,
 ): RecyclerView.Adapter<ModalVPAdapter.ViewHolder>() {
     lateinit var binding: ItemModalBinding
     override fun onCreateViewHolder(
@@ -35,23 +44,16 @@ class ModalVPAdapter(
 
     override fun getItemCount(): Int = scheduleList.size
 
-    inner class ViewHolder(val binding: ItemModalBinding): RecyclerView.ViewHolder(binding.root){
-        // schedule.repeatRule 한국어 변환 Map
-        private val repeatFreqMap = mapOf<String, String>(
-            "DAILY" to "일", "WEEKLY" to "주", "MONTHLY" to "월", "YEARLY" to "년"
-        )
-        private val repeatByDayMap = mapOf<String, String>(
-            "SU" to "일요일", "MO" to "월요일", "TU" to "화요일", "WE" to "수요일", "TH" to "목요일", "FR" to "금요일", "SA" to "토요일"
-        )
-
-        fun bind(schedule: Schedule){
+    inner class ViewHolder(val binding: ItemModalBinding): RecyclerView.ViewHolder(binding.root) {
+        fun bind(schedule: Schedule) {
             // 기본 정보
-            val categoryIv = ContextCompat.getDrawable(context, R.drawable.ic_schedule_category).mutate() as GradientDrawable
-            if(schedule.eventColor != null && schedule.eventColor != 0){
+            val categoryIv = ContextCompat.getDrawable(context, R.drawable.ic_schedule_category)
+                .mutate() as GradientDrawable
+            if (schedule.eventColor != null && schedule.eventColor != 0) {
                 categoryIv.setColor(schedule.eventColor)
-            }else if(schedule.calendarColor != null && schedule.calendarColor != 0){
+            } else if (schedule.calendarColor != null && schedule.calendarColor != 0) {
                 categoryIv.setColor(schedule.calendarColor)
-            }else{
+            } else {
                 categoryIv.setColor(context.resources.getColor(R.color.schedule_18))
             }
             binding.scheduleCategoryIv.setImageDrawable(categoryIv)
@@ -59,99 +61,214 @@ class ModalVPAdapter(
             binding.modalTimeTv.text = schedule.startTime + " -> " + schedule.endTime
 
             // 반복 일정
-            if(schedule.repeatRule == null){
+            if (schedule.repeatRule == null) {
                 binding.modalRepeatIv.visibility = View.GONE
                 binding.modalRepeatTv.visibility = View.GONE
-            }else{
+            } else {
                 binding.modalRepeatIv.visibility = View.VISIBLE
                 binding.modalRepeatTv.visibility = View.VISIBLE
-                binding.modalRepeatTv.text = parseRRuleToKorean(schedule.repeatRule)
+                binding.modalRepeatTv.text = "반복 설정됨"
             }
 
             // 일반 일정 & 장소 일정 구분
-            when(schedule.type){
+            when (schedule.type) {
                 // 일반 일정일 때
                 "NORMAL" -> {
                     binding.modalRouteLocationLl.visibility = View.INVISIBLE
-                    binding.modalRouteView.visibility = View.INVISIBLE
-                    if(schedule.location.isNullOrEmpty()){
+                    binding.modalRouteBriefView.visibility = View.INVISIBLE
+                    binding.modalRouteBriefLl.visibility = View.INVISIBLE
+                    binding.modalRouteVehicleLl.visibility = View.INVISIBLE
+                    if (schedule.location.isNullOrEmpty()) {
                         binding.modalNormalLocationLl.visibility = View.GONE
-                    }else{
+                    } else {
                         binding.modalNormalLocationLl.visibility = View.VISIBLE
                         binding.modalNormalLocationTv.text = schedule.location
                     }
                     binding.modalDepartureReminderTv.text = "안함"
                 }
                 // 장소 일정일 때
+                // todo: API에서 실제 데이터 받아오기
                 "ROUTE" -> {
+                    binding.modalNormalLocationLl.visibility = View.GONE
+                    binding.modalRouteBriefView.visibility = View.VISIBLE
                     binding.modalRouteLocationLl.visibility = View.VISIBLE
-                    binding.modalRouteView.visibility = View.VISIBLE
-                    // todo: route 가지고 데이터 바인딩
+                    binding.modalRouteBriefLl.visibility = View.VISIBLE
+                    binding.modalRouteVehicleLl.visibility = View.VISIBLE
+
+                    // 데이터 바인딩
+                    // 기본 정보 세팅
+                    binding.modalRouteTv.text = route.originName + " -> " + route.destName
+                    // todo: 비니에게 추가 요청
+//                    val startTime = route.departureTime.split("T").last().take(5)
+//                    val endTime = route.arrivalTime.split("T").last().take(5)
+//                    binding.modalRouteTimeTv.text = startTime + " -> " + endTime
+                    binding.modalTotalTimeTv.text = "총 ${route.totalTime / 60}분 소요"
+
+                    var index = 0
+                    // 동적으로 데이터 가져오기
+                    route.routeDetails.forEach { data ->
+                        val briefBinding = ItemRouteDetailBriefBinding.inflate(LayoutInflater.from(context), binding.modalRouteBriefLl, false)
+                        val vehicleBinding = ItemRouteVehicleBinding.inflate(LayoutInflater.from(context), binding.modalRouteVehicleLl, false)
+
+                        when(data.transitType){
+                            // 걷기
+                            null -> {
+                                if(data.sequence == 1){
+                                    briefBinding.itemRouteDetailBriefIv.setImageResource(R.drawable.ic_people)
+                                }else{
+                                    briefBinding.itemRouteDetailBriefIv.visibility = View.GONE
+                                    briefBinding.itemRouteDetailBriefTv.updatePadding(0)
+                                }
+                                briefBinding.itemRouteDetailBriefTv.text = "${data.duration / 60}분"
+                                briefBinding.itemRouteDetailBriefTv.setTextColor(context.resources.getColor(R.color.gray_600))
+
+                                if(index == route.routeDetails.size - 1){
+                                    vehicleBinding.itemRouteVehicleIv.setImageResource(R.drawable.ic_route_item_arrival_icon)
+                                    vehicleBinding.itemRouteVehicleLineTv.text = "하차"
+                                    vehicleBinding.itemRouteVehicleLineTv.setTextColor(context.resources.getColor(R.color.black))
+                                    vehicleBinding.itemRouteVehicleView.visibility = View.GONE
+
+                                    binding.modalRouteVehicleLl.addView(vehicleBinding.root)
+                                }
+                            }
+                            // 대중교통
+                            else -> {
+                                // 아이콘 변경
+                                val layoutDrawable = ContextCompat.getDrawable(context, R.drawable.ic_route_detail)?.mutate() as LayerDrawable
+                                val iconColor = layoutDrawable.findDrawableByLayerId(R.id.ic_route_detail_color).mutate() as GradientDrawable
+                                val bgColor = briefBinding.itemRouteDetailBriefTv.background.mutate() as GradientDrawable
+                                val lineColor = Color.parseColor(data.lineColor)
+
+                                when(data.transitType){
+                                    "BUS" -> {
+                                        val busDrawable = ContextCompat.getDrawable(context, R.drawable.ic_bus)
+                                        layoutDrawable.setDrawableByLayerId(R.id.ic_route_detail_vehicle, busDrawable)
+                                    }
+                                    "SUBWAY" -> {
+                                        val subwayDrawable = ContextCompat.getDrawable(context, R.drawable.ic_subway)
+                                        layoutDrawable.setDrawableByLayerId(R.id.ic_route_detail_vehicle, subwayDrawable)
+                                    }
+                                }
+                                iconColor.setColor(lineColor)
+                                bgColor.setColor(lineColor)
+
+                                // 일직선 정보
+                                briefBinding.itemRouteDetailBriefIv.setImageDrawable(layoutDrawable)
+                                briefBinding.itemRouteDetailBriefTv.text = "${data.duration / 60}분"
+
+                                // 대중교통 정보
+                                vehicleBinding.itemRouteVehicleIv.setImageDrawable(layoutDrawable)
+                                vehicleBinding.itemRouteVehicleLineTv.text = data.shortName
+                                vehicleBinding.itemRouteVehicleLineTv.setTextColor(lineColor)
+                                vehicleBinding.itemRouteVehicleTv.text = data.departureStop
+
+                                if(vehicleBinding.root.parent != null){
+                                    (vehicleBinding.root.parent as ViewGroup).removeView(vehicleBinding.root)
+                                }
+                                binding.modalRouteVehicleLl.addView(vehicleBinding.root)
+                            }
+                        }
+
+                        if(briefBinding.root.parent != null){
+                            (briefBinding.root.parent as ViewGroup).removeView(briefBinding.root)
+                        }
+                        val weight = WeightCalculator.forRouteDetailBrief(data.duration)
+                        val params = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, weight)
+                        binding.modalRouteBriefLl.addView(briefBinding.root, params)
+
+                        index++
+                        Log.d("check/condition", (index == route.routeDetails.size -1).toString() )
+                    }
                 }
             }
             // 메모
-            if(schedule.memo.isNullOrEmpty()){
+            if (schedule.memo.isNullOrEmpty()) {
                 binding.modalMemoTv.visibility = View.INVISIBLE
-            }else{
+            } else {
                 binding.modalMemoTv.visibility = View.VISIBLE
                 binding.modalMemoTv.text = schedule.memo
             }
 
             // 알람 여부
-            if(schedule.reminders.isNotEmpty()){
+            if (schedule.reminders.isNotEmpty()) {
                 Log.d("reminder/schedule", schedule.reminders.toString())
                 val reminder = mutableListOf<String>()
                 schedule.reminders.forEach {
-                    if(it < 60){
+                    if (it < 60) {
                         reminder.add(" " + it.toString() + "분 전")
-                    }
-                    else{
-                        reminder.add(" " + (it/60).toString() + "시간 전")
+                    } else {
+                        reminder.add(" " + (it / 60).toString() + "시간 전")
                     }
                 }
                 binding.modalScheduleReminderTv.text = reminder.joinToString(",")
-            }else{
+            } else {
                 binding.modalScheduleReminderTv.text = "안함"
             }
         }
-
-        // schedule.repeatRule 한국어로 변환
-        fun parseRRuleToKorean(rrule: String): String{
-            // RRule 값 파싱
-            val rule = rrule.removePrefix("RRULE:")
-            val newRRule =  rule.split(";").associate{
-                it.substringBefore("=") to it.substringAfter("=", "")
-            }.filterKeys { it.isNotEmpty() }
-
-            // 값 추출
-            val freq = newRRule["FREQ"]
-            val interval = newRRule["INTERVAL"]?.toIntOrNull() ?: 1
-            val byDay = newRRule["BYDAY"]
-
-            // 간격 처리
-            val intervalText = if(interval == 1) "매${repeatFreqMap[freq]}" else "${interval}${repeatFreqMap[freq]}마다"
-            // BYDAY 숫자 및 요일  처리
-            val dayText = byDay?.let{
-                val digit = it.filter { char -> char.isDigit() || char == '-' }
-                val dayKey = it.filter { char -> char.isLetter() }
-                val day = repeatByDayMap[dayKey] ?: ""
-
-                if(digit.isNotEmpty()){
-                    val order = if (digit == "-1") "마지막" else "${digit}번째"
-                    "$order $day"
-                }
-                else{
-                    day
-                }
-            } ?: ""
-
-            // 최종 조합
-            return when {
-                freq == "WEEKLY" && dayText.isNotEmpty() -> "$intervalText $dayText"
-                freq == "MONTHLY" && dayText.isNotEmpty() -> "$intervalText $dayText"
-                else -> intervalText // 기본값 (매일, 매년 등)
-            }
-        }
     }
-
 }
+
+// 더미 데이터
+val route = RouteInfo(
+    originName = "서울역",
+    originLat = 37.5546,
+    originLng = 126.9706,
+    destName = "롯데월드타워",
+    destLat = 37.5133,
+    destLng = 127.1028,
+    totalTime = 3600,
+    totalDistance = 15500,
+    routeDetails = listOf(
+        RouteDetailResponse(
+            sequence = 1,
+            duration = 1200,
+            distance = 10200,
+            description = "지하철 4호선 승차 후 동작역 이동",
+            startLat = 37.5546,
+            startLng = 126.9706,
+            endLat = 37.5029,
+            endLng = 126.9793,
+            transitType = "SUBWAY",
+            lineName = "4호선",
+            lineColor = "#00a2d1",
+            stopCount = 6,
+            departureStop = "서울역",
+            arrivalStop = "동작역",
+            shortName = "4"
+        ),
+        RouteDetailResponse(
+            sequence = 2,
+            duration = 1500,
+            distance = 4800,
+            description = "350번 버스로 환승하여 잠실역 이동",
+            startLat = 37.5029,
+            startLng = 126.9793,
+            endLat = 37.5133,
+            endLng = 127.1001,
+            transitType = "BUS",
+            lineName = "350",
+            lineColor = "#33cc99",
+            stopCount = 12,
+            departureStop = "동작역하수처리장",
+            arrivalStop = "잠실역.롯데월드",
+            shortName = "350"
+        ),
+        RouteDetailResponse(
+            sequence = 3,
+            duration = 900,
+            distance = 500,
+            description = "롯데월드타워까지 도보 이동",
+            startLat = 37.5133,
+            startLng = 127.1001,
+            endLat = 37.5133,
+            endLng = 127.1028,
+            transitType = null,
+            lineName = null,
+            lineColor = "#cccccc",
+            stopCount = 0,
+            departureStop = "잠실역 2번출구",
+            arrivalStop = "롯데월드타워",
+            shortName = "WALK"
+        )
+    )
+)

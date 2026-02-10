@@ -128,7 +128,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp">
             <TextView
-                android:id="@+id/modal_route_"
+                android:id="@+id/modal_route_time_tv"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="4dp"
@@ -143,6 +143,7 @@
                 android:layout_marginStart="8dp"
                 style="@style/TextColor.Tertiary"/>
             <TextView
+                android:id="@+id/modal_total_time_tv"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="0시간 0분"
@@ -152,12 +153,27 @@
         </LinearLayout>
     </LinearLayout>
     <View
-        android:id="@+id/modal_route_view"
+        android:id="@+id/modal_route_brief_view"
         android:layout_width="match_parent"
-        android:layout_height="88dp"
-        android:background="@color/primary_100"
-        android:layout_marginTop="12dp"
+        android:layout_height="12dp"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/bg_item_route_detail_brief"
         app:layout_constraintTop_toBottomOf="@id/modal_route_location_ll"/>
+    <LinearLayout
+        android:id="@+id/modal_route_brief_ll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        app:layout_constraintTop_toBottomOf="@id/modal_route_location_ll"/>
+    <LinearLayout
+        android:id="@+id/modal_route_vehicle_ll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="14dp"
+        app:layout_constraintTop_toBottomOf="@id/modal_route_brief_ll"/>
     <TextView
         android:id="@+id/modal_memo_tv"
         android:layout_width="match_parent"
@@ -170,7 +186,7 @@
         android:paddingEnd="8dp"
         android:paddingBottom="10dp"
         android:layout_marginTop="44dp"
-        app:layout_constraintTop_toBottomOf="@id/modal_route_view"/>
+        app:layout_constraintTop_toBottomOf="@id/modal_route_vehicle_ll"/>
     <LinearLayout
         android:id="@+id/modal_reminder_ll"
         android:layout_width="match_parent"
