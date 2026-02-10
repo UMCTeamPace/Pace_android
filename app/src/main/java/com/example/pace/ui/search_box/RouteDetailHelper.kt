@@ -109,7 +109,11 @@ object RouteDetailHelper {
                     expandedVehicleBinding.itemRouteDetailVehicleTv.text = data.description
                     expandedVehicleBinding.itemRouteDetailVehicleTimeTv.text = data.transitDetail.departureTime.split("T").last().take(5)
                     expandedVehicleBinding.itemRouteDetailVehicleLineTv.text = data.transitDetail.shortName
-                    expandedVehicleBinding.itemRouteDetailVehicleDirectionTv.text = data.transitDetail.stationPath?.get(0) + "행 방면"
+                    if(data.transitDetail.stationPath.isNullOrEmpty()){
+                        expandedVehicleBinding.itemRouteDetailVehicleDirectionTv.text = data.transitDetail.headsign ?: "제공 불가"
+                    }else{
+                        expandedVehicleBinding.itemRouteDetailVehicleDirectionTv.text = data.transitDetail.stationPath[0] + "행 방면"
+                    }
                     expandedVehicleBinding.itemRouteDetailVehicleStationsTv.text = "${data.transitDetail.stopCount}개 정류장 이동"
                     expandedVehicleBinding.itemRouteDetailVehicleStationsTimeTv.text = "${data.duration / 60}분"
                     expandedVehicleBinding.itemRouteDetailVehicleStationsLl.setOnClickListener {
