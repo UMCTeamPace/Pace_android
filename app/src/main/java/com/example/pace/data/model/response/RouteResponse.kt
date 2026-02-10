@@ -35,7 +35,9 @@ data class TransitDetail(
     @SerializedName("departureStop") val departureStop: String,
     @SerializedName("arrivalStop") val arrivalStop: String,
     @SerializedName("departureTime") val departureTime: String,
-    @SerializedName("arrivalTime") val arrivalTime: String,
-    @SerializedName("headsign") val headsign: String?,
-    @SerializedName("stationPath") val stationPath: List<String>?
+    @SerializedName("shortName") val shortName: String,
+    @SerializedName("locationLat") val locationLat: Double,
+    @SerializedName("locationLng") val locationLng: Double,
+    @SerializedName("headsign") val headsign: String,
+    @SerializedName("stationPath") val stationPath: List<String>
 )
