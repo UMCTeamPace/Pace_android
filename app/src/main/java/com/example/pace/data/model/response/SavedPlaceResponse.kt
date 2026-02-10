@@ -24,6 +24,6 @@ data class SavedPlaceItem(
 )
 
 data class SavedPlaceListResponse(
-    @SerializedName("savedPlaceList") val savedPlaceList: List<SavedPlaceItem>,
-    @SerializedName("listSize") val listSize: Int
+    @SerializedName("placeDTOList") val savedPlaceList: List<SavePlaceResponse>,
+    @SerializedName("count") val listSize: Int
 )

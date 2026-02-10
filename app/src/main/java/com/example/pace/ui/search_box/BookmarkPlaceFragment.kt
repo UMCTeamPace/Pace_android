@@ -1,6 +1,7 @@
 package com.example.pace.ui.search_box
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -13,6 +14,7 @@ import com.example.pace.R
 import com.example.pace.data.model.response.GroupItem
 import com.example.pace.data.viewmodel.GroupViewModel
 import com.example.pace.databinding.FragmentBookmarkPlaceBinding
+import com.example.pace.ui.search_box.DeleteConfirmDialogFragment
 import com.example.pace.ui.search_box.group.GroupDetailBottomSheet
 import dagger.hilt.android.AndroidEntryPoint
 import java.text.SimpleDateFormat
@@ -51,7 +53,29 @@ class BookmarkPlaceFragment : Fragment(){
             groupAdapter.submitList(currentGroupList.toList())
         }
 
-        // 에러 메시지 관찰
+        groupViewModel.isOperationSuccess.observe(viewLifecycleOwner) { isSuccess ->
+            if (isSuccess) {
+                val addDialog = parentFragmentManager.findFragmentByTag("AddGroupDialog") as? AddGroupDialogFragment
+                addDialog?.dismiss()
+
+                val editDialog = parentFragmentManager.findFragmentByTag("EditGroupDialog") as? AddGroupDialogFragment
+                editDialog?.dismiss()
+            }
+        }
+
+
+        groupViewModel.errorCode.observe(viewLifecycleOwner) { code ->
+            Log.d("BookmarkFragment", "Error Code Received: $code")
+            if (code == "PLACE_GROUP400_1") {
+                val addDialog = parentFragmentManager.findFragmentByTag("AddGroupDialog") as? AddGroupDialogFragment
+                val editDialog = parentFragmentManager.findFragmentByTag("EditGroupDialog") as? AddGroupDialogFragment
+
+
+                addDialog?.showDuplicateError()
+                editDialog?.showDuplicateError()
+            }
+        }
+
         groupViewModel.errorMessage.observe(viewLifecycleOwner) { msg ->
             android.widget.Toast.makeText(requireContext(), msg, android.widget.Toast.LENGTH_SHORT).show()
         }
@@ -67,10 +91,17 @@ class BookmarkPlaceFragment : Fragment(){
                 bottomSheet.show(parentFragmentManager, "GroupDetailBottomSheet")
             },
             onEditClick = { groupItem ->
-//                Toast.makeText(context, "${groupItem.groupName} 수정", Toast.LENGTH_SHORT).show()
+                val dialog = AddGroupDialogFragment(groupItem) { reqest ->
+                    groupViewModel.updateGroup(groupItem.groupId, reqest.groupName, reqest.groupColor)
+                }
+                dialog.show(parentFragmentManager, "EditGroupDialog")
             },
-            onDeleteClick = {
-                groupItem ->
+            onDeleteClick = { groupItem ->
+                val message = "저장된 그룹 내 장소를/모두 삭제하시겠습니까?"
+                val dialog = DeleteConfirmDialogFragment(message) {
+                    groupViewModel.deleteGroup(groupItem.groupId)
+                }
+                dialog.show(parentFragmentManager, "DeleteConfirmDialog")
             },
             onAddClick = {
                 val dialog = AddGroupDialogFragment { request ->
@@ -100,34 +131,8 @@ class BookmarkPlaceFragment : Fragment(){
         updateAdapter()
     }
 
-    private fun addNewDummyGroup(name: String, color: String) {
-        val currentDate = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN).format(Date())
-
-        val newGroup = GroupItem(
-            groupId = dummyIdCounter++,
-            groupName = name,
-            groupColor = color,
-            createdAt = currentDate,
-            placeCount = 0
-        )
-
-        currentGroupList.add(newGroup)
-        updateAdapter() // 화면 갱신
-
-        // 추가된 아이템 위치로 스크롤
-        binding.rvBookmarkGroups.smoothScrollToPosition(currentGroupList.size - 1)
-    }
-
     private fun updateAdapter() {
         groupAdapter.submitList(currentGroupList.toList())
-    }
-
-    private fun loadInitialData() {
-        currentGroupList.clear()
-        currentGroupList.add(GroupItem(1, "카페", "#FFA500", "2024-02-09", 3))
-        currentGroupList.add(GroupItem(2, "맛집 리스트", "#FF5252", "2024-02-09", 10))
-        currentGroupList.add(GroupItem(3, "식당", "#3F51B5", "2024-02-09", 5))
-        currentGroupList.add(GroupItem(4, "데이트 코스", "#4CAF50", "2024-02-09", 0))
     }
 
     override fun onDestroyView() {

@@ -2,7 +2,6 @@ package com.example.pace.ui.add_schedule
 
 import android.content.res.ColorStateList
 import android.graphics.Color
-import android.graphics.Typeface
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -18,7 +17,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.afollestad.materialdialogs.color.colorChooser
 import com.example.pace.R
 import com.example.pace.data.model.request.CreateScheduleRequest
 import com.example.pace.data.model.request.PlaceRequest

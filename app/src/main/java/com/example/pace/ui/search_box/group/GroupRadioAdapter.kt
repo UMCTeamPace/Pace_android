@@ -52,7 +52,8 @@ class GroupRadioAdapter(
             binding.tvGroupName.text = item.groupName
 
             try {
-                binding.ivGroupIcon.imageTintList = ColorStateList.valueOf(Color.parseColor(item.groupColor))
+                val themeColor = Color.parseColor(item.groupColor)
+                binding.ivGroupIconLine.imageTintList = ColorStateList.valueOf(themeColor)
             } catch (e: Exception) { }
 
             binding.rbSelect.isChecked = (position == selectedPosition)
