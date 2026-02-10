@@ -31,8 +31,10 @@ data class TransitDetail(
     val arrivalStop: String,
     val departureTime: String,
     val arrivalTime: String,
+    val shortName: String?,
     val locationLat: Double,
     val locationLng: Double,
     val points: String?,
-    val headsign: String?
+    val headsign: String?,
+    val stationPath: List<String>?
 ) : Serializable
