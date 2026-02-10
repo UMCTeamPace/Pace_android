@@ -3,9 +3,11 @@ package com.example.pace.ui.main.calendar
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.pace.data.api.AuthControllerService
 import com.example.pace.data.datasource.AuthDataStore
 import com.example.pace.data.model.Schedule
 import com.example.pace.data.model.request.CreateScheduleRequest
+import com.example.pace.data.model.response.RouteInfo
 import com.example.pace.data.repository.repository.ScheduleRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -70,6 +72,9 @@ class ScheduleViewModel @Inject constructor(
 
     private val _createScheduleEvent = MutableStateFlow<Boolean?>(null)
     val createScheduleEvent: StateFlow<Boolean?> = _createScheduleEvent
+
+    private val _scheduleRouteInfo= MutableStateFlow<RouteInfo?>(null)
+    val scheduleRouteInfo = _scheduleRouteInfo.value
 
     fun setEditMode(enabled: Boolean) {
         _isEditMode.value = enabled
