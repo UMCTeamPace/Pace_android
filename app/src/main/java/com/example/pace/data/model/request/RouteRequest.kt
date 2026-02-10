@@ -12,3 +12,4 @@ data class RouteSearchRequest(
     @SerializedName("transitType") val transitType: String?,
     @SerializedName("searchWay") val searchWay: String
 )
+
