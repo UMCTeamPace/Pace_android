@@ -38,7 +38,7 @@
     <color name="semantic_warning">#FF4F4F</color>
     <color name="semantic_error">#FF4F4F</color>
     <color name="semantic_info">#98BD0B</color>
-
+    <color name="semantic_info2">#F2F9E1</color>
 
     <color name="text_primary">#191914</color>
     <color name="text_primary_transparency">#65191914</color>

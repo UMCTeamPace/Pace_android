@@ -17,9 +17,6 @@ class OnboardingActivity : AppCompatActivity() {
         binding = ActivityOnboardingBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        binding = ActivityOnboardingBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
         // 액티비티가 처음 생성될 때만 OnboardingFragment를 붙여줍니다.
         if (savedInstanceState == null) {
             supportFragmentManager.beginTransaction()
