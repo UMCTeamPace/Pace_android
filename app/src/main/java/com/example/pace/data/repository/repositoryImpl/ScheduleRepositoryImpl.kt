@@ -93,8 +93,28 @@ class ScheduleRepositoryImpl @Inject constructor(
     }
 
     // 3. 서버 API 메서드 (safeApiCall 활용)
-    override suspend fun getScheduleList(accessToken: String, startDate: String, endDate: String?, lastDate: String?, lastId: Long?) = safeApiCall {
-        api.getScheduleList(accessToken, startDate, endDate, lastDate, lastId)
+    override suspend fun getScheduleList(
+        accessToken: String,
+        startDate: String,
+        endDate: String?,
+        lastDate: String?,
+        lastId: Long?
+    ) = safeApiCall {
+        // 1. 서버 API 호출
+        val response = api.getScheduleList(accessToken, startDate, endDate, lastDate, lastId)
+
+        // 2. 서버 통신 성공 및 데이터가 있는 경우 로컬 DB 동기화
+        if (response.isSuccess && response.result != null) {
+            val serverSchedules = response.result.content.map { it.toScheduleEntity() }
+
+            if (serverSchedules.isNotEmpty()) {
+                // Room에 저장 (insertAll은 REPLACE 전략이므로 기존 데이터가 있다면 업데이트됨)
+                scheduleDao.insertAll(serverSchedules)
+                android.util.Log.d("REPO_SYNC", "서버로부터 ${serverSchedules.size}개의 일정을 가져와 DB에 저장했습니다.")
+            }
+        }
+
+        response // 최종적으로 ViewModel에 response 반환
     }
 
     override suspend fun createSchedule(accessToken: String, request: CreateScheduleRequest) = safeApiCall {
@@ -307,6 +327,36 @@ class ScheduleRepositoryImpl @Inject constructor(
             exdate = null,
 
             // 필요한 경우 서버 전용 ID 보관
+            serverId = this.scheduleId
+        )
+    }
+
+    private fun ScheduleItem.toScheduleEntity(): Schedule {
+        val colorInt = Color.parseColor("#DC354B") // 기본 색상
+
+        return Schedule(
+            id = this.scheduleId,
+            title = this.scheduleInfo.title,
+            startDate = this.scheduleInfo.startDate,
+            endDate = this.scheduleInfo.endDate,
+            startTime = this.scheduleInfo.startTime ?: "00:00",
+            endTime = this.scheduleInfo.endTime ?: "23:59",
+            isAllDay = this.scheduleInfo.isAllDay,
+            memo = this.scheduleInfo.memo,
+            location = this.place?.targetName,
+            calendarId = 0L,
+            calendarDisplayName = "내 일정",
+            calendarAccountName = "Pace",
+            withRoute = (this.route != null),
+            type = if (this.route != null) "ROUTE" else "NORMAL",
+            eventColor = colorInt,
+            calendarColor = colorInt,
+            isCompleted = false,
+            isPinned = false,
+            isSwiped = false,
+            sourceType = "SERVER",
+            repeatRule = null,
+            exdate = null,
             serverId = this.scheduleId
         )
     }
