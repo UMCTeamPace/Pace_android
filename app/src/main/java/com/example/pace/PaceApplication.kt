@@ -2,6 +2,7 @@ package com.example.pace  // 최상위 패키지
 
 import android.app.Application
 import android.util.Log
+import androidx.hilt.work.HiltWorkerFactory
 import com.example.pace.data.api.RetrofitClient
 import com.example.pace.data.datasource.AuthDataStore
 import com.example.pace.data.db.ScheduleDatabase
@@ -13,13 +14,25 @@ import com.example.pace.data.repository.SearchRepository
 import com.example.pace.data.repository.repository.ScheduleRepository
 import com.example.pace.data.repository.repositoryImpl.ScheduleRepositoryImpl
 import dagger.hilt.android.HiltAndroidApp
+import javax.inject.Inject
+import androidx.work.Configuration
+
 
 @HiltAndroidApp
-class PaceApplication : Application() {
+class PaceApplication : Application(), Configuration.Provider { // 1. 인터페이스 추가
+
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory // 2. HiltWorkerFactory 주입
+
+    // 3. WorkManager 설정 커스텀
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
+
     val authDataStore by lazy {
         AuthDataStore(getSharedPreferences("pace_prefs", MODE_PRIVATE))
     }
-
     val searchDatabase by lazy { SearchDatabase.getDatabase(this) }
     val searchRepository by lazy {
         SearchRepository(searchDatabase.searchDao(),
