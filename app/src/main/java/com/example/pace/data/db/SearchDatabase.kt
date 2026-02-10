@@ -9,7 +9,7 @@ import com.example.pace.data.model.RecentPlace
 import com.example.pace.data.model.RecentRoute
 import com.example.pace.data.model.RecentSearch
 
-@Database(entities = [RecentSearch::class, RecentPlace::class, RecentRoute::class, MyPlace::class], version = 4, exportSchema = false)
+@Database(entities = [RecentSearch::class, RecentPlace::class, RecentRoute::class, MyPlace::class], version = 5, exportSchema = false)
 abstract class SearchDatabase : RoomDatabase() {
     abstract fun searchDao(): SearchDao
     abstract fun recentRouteDao(): RecentRouteDao

@@ -10,7 +10,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.data.model.Schedule
 import com.example.pace.databinding.ItemScheduleBinding
 import java.time.LocalDate
-
+import com.example.pace.R
 class ScheduleRVAdapter(
     private var scheduleList: MutableList<Schedule>,
     private val context: Context,

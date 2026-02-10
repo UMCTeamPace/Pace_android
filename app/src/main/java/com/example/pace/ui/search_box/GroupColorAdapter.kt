@@ -51,4 +51,14 @@ class GroupColorAdapter(
     override fun getItemCount(): Int = colorList.size
 
     fun getSelectedColor(): String = colorList[selectedPosition]
+
+    fun setSelectedItem(position: Int) {
+        if (position in colorList.indices) {
+            val previousPosition = selectedPosition
+            selectedPosition = position
+
+            notifyItemChanged(previousPosition)
+            notifyItemChanged(selectedPosition)
+        }
+    }
 }

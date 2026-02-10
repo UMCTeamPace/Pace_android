@@ -19,6 +19,7 @@ import com.example.pace.databinding.ItemRouteDetailArrivalBinding
 import com.example.pace.databinding.ItemRouteDetailBriefBinding
 import com.example.pace.databinding.ItemRouteDetailVehicleBinding
 import com.example.pace.databinding.ItemRouteDetailWalkBinding
+import com.example.pace.ui.WeightCalculator
 
 object RouteDetailHelper {
 
@@ -45,6 +46,7 @@ object RouteDetailHelper {
         binding.routeDetailBriefLl.removeAllViews()
         binding.routeDetailExpandedLl.removeAllViews()
 
+        // 데이터 동적 바인딩
         item.routeDetailInfoResDTOList.forEach { data ->
             val briefBinding = ItemRouteDetailBriefBinding.inflate(LayoutInflater.from(context))
             val expandedVehicleBinding = ItemRouteDetailVehicleBinding.inflate(LayoutInflater.from(context), binding.routeDetailExpandedLl, false)
@@ -102,12 +104,12 @@ object RouteDetailHelper {
                     briefBinding.itemRouteDetailBriefTv.text = "${data.duration / 60}분"
 
                     // 상세 정보
-                    // todo: vehicleLineTv랑 vehicleDirectionTv는 정류장 받고 수정
                     expandedVehicleBinding.itemRouteDetailVehicleIv.setImageDrawable(layoutDrawable)
                     expandedVehicleBinding.itemRouteDetailVehicleView.setBackgroundColor(lineColor)
                     expandedVehicleBinding.itemRouteDetailVehicleTv.text = data.description
                     expandedVehicleBinding.itemRouteDetailVehicleTimeTv.text = data.transitDetail.departureTime.split("T").last().take(5)
-                    //expandedVehicleBinding.itemRouteDetailVehicleLineTv.text = data.transitDetail.shortName
+                    expandedVehicleBinding.itemRouteDetailVehicleLineTv.text = data.transitDetail.shortName
+                    expandedVehicleBinding.itemRouteDetailVehicleDirectionTv.text = data.transitDetail.stationPath?.get(0) + "행 방면"
                     expandedVehicleBinding.itemRouteDetailVehicleStationsTv.text = "${data.transitDetail.stopCount}개 정류장 이동"
                     expandedVehicleBinding.itemRouteDetailVehicleStationsTimeTv.text = "${data.duration / 60}분"
                     expandedVehicleBinding.itemRouteDetailVehicleStationsLl.setOnClickListener {
@@ -126,15 +128,12 @@ object RouteDetailHelper {
                     binding.routeDetailExpandedLl.addView(expandedVehicleBinding.root)
 
                     // 정류장 리사이클러뷰
-                    val adapter = RouteDetailStationAdapter(context, listOf("1", "2"), lineColor)
+                    val adapter = RouteDetailStationAdapter(context, data.transitDetail.stationPath!!, lineColor)
                     expandedVehicleBinding.itemRouteDetailVehicleRv.adapter = adapter
                 }
             }
             // 일직선 데이터 추가
-            val weight = when{
-                data.duration <= 180 -> 1.0f
-                else -> 1.0f + (data.duration + 200) / 400f
-            }
+            val weight = WeightCalculator.forRouteDetailBrief(data.duration)
             val params = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, weight)
             binding.routeDetailBriefLl.addView(briefBinding.root, params)
 

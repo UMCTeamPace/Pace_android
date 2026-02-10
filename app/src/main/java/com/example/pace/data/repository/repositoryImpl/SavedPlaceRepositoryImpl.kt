@@ -35,9 +35,10 @@ class SavedPlaceRepositoryImpl @Inject constructor(
 
     override suspend fun getSavedPlacesByGroup(
         accessToken: String,
-        groupId: Long
+        groupId: Long,
+        sortType: String
     ): RawDefaultResponse<SavedPlaceListResponse> {
-        return api.getSavedPlacesByGroup(accessToken, groupId)
+        return api.getSavedPlacesByGroup(accessToken, groupId, sortType)
 
     }
 }

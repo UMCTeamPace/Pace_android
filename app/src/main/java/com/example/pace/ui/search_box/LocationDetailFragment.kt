@@ -11,8 +11,10 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import com.example.pace.databinding.FragmentLocationDetailBinding
 import com.example.pace.R
+import com.example.pace.data.viewmodel.GroupViewModel
 import com.example.pace.ui.main.route.RouteFragment
 import com.example.pace.ui.search_box.group.GroupSelectBottomSheet
 import com.google.android.gms.maps.model.LatLng
@@ -21,11 +23,14 @@ import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.net.FetchPhotoRequest
 import com.google.android.libraries.places.api.net.FetchPlaceRequest
 import com.google.android.libraries.places.api.net.PlacesClient
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class LocationDetailFragment : Fragment() {
 
     private var _binding: FragmentLocationDetailBinding? = null
     private val binding get() = _binding!!
+    private val groupViewModel: GroupViewModel by viewModels()
     private lateinit var placesClient: PlacesClient
 
     override fun onCreateView(
@@ -39,6 +44,8 @@ class LocationDetailFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         placesClient = Places.createClient(requireContext())
+
+        observeViewModel()
 
         val name = arguments?.getString("name") ?: ""
         val category = arguments?.getString("category") ?: ""
@@ -126,20 +133,28 @@ class LocationDetailFragment : Fragment() {
                 mode = GroupSelectBottomSheet.Mode.SAVE,
                 placeName = originalName
             ) { selectedGroupId, userTypedName ->
-
-                // 바텀시트에서 저장 눌렀을 때
-                val finalName = userTypedName
-
-                // ★ TODO: 실제 서버 저장 로직 호출 (Retrofit 등)
-                // savePlaceToServer(selectedGroupId, currentPlaceId, finalName)
-
-                // 로그 확인용
-                Log.d("PlaceSave", "그룹ID: $selectedGroupId, 장소ID: $currentPlaceId, 저장명: $finalName")
-
-                Toast.makeText(requireContext(), "'$finalName' 저장 완료!", Toast.LENGTH_SHORT).show()
+                groupViewModel.savePlace(
+                    groupId = selectedGroupId,
+                    placeId = currentPlaceId,
+                    placeName = userTypedName ?: originalName
+                )
             }
 
             bottomSheet.show(parentFragmentManager, "GroupSelectBottomSheet")
+        }
+    }
+
+    private fun observeViewModel() {
+        groupViewModel.errorMessage.observe(viewLifecycleOwner) { msg ->
+            if (!msg.isNullOrBlank()) {
+                Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        groupViewModel.isOperationSuccess.observe(viewLifecycleOwner) { isSuccess ->
+            if (isSuccess) {
+                Toast.makeText(requireContext(), "장소 저장 완료!", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 

@@ -18,6 +18,8 @@ import com.example.pace.databinding.ItemRouteBinding
 import com.example.pace.databinding.ItemRouteDetailArrivalBinding
 import com.example.pace.databinding.ItemRouteDetailBriefBinding
 import com.example.pace.databinding.ItemRouteVehicleBinding
+import com.example.pace.ui.WeightCalculator
+import kotlin.math.ln
 
 class RouteAdapter(
     private val context: Context,
@@ -103,7 +105,7 @@ class RouteAdapter(
 
                         // 상세 정보
                         vehicleBinding.itemRouteVehicleIv.setImageDrawable(layoutDrawable)
-                        //vehicleBinding.itemRouteVehicleLineTv.text = data.transitDetail.shortName
+                        vehicleBinding.itemRouteVehicleLineTv.text = data.transitDetail.shortName
                         vehicleBinding.itemRouteVehicleLineTv.setTextColor(lineColor)
                         vehicleBinding.itemRouteVehicleTv.text = data.transitDetail.departureStop
 
@@ -117,10 +119,7 @@ class RouteAdapter(
                 if(briefBinding.root.parent != null){
                     (briefBinding.root.parent as ViewGroup).removeView(briefBinding.root)
                 }
-                val weight = when{
-                    data.duration <= 180 -> 1.0f
-                    else -> 1.0f + (data.duration + 200) / 400f
-                }
+                val weight = WeightCalculator.forRouteDetailBrief(data.duration)
                 val params = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, weight)
                 binding.routeBriefLl.addView(briefBinding.root, params)
 

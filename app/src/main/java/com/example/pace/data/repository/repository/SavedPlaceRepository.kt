@@ -35,6 +35,7 @@ interface SavedPlaceRepository {
 
     suspend fun getSavedPlacesByGroup(
         accessToken: String,
-        groupId: Long
+        groupId: Long,
+        sortType: String
     ): RawDefaultResponse<SavedPlaceListResponse>
 }

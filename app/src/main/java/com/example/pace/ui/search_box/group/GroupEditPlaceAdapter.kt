@@ -11,7 +11,6 @@ class GroupEditPlaceAdapter(
     private val onSelectionChanged: (Int) -> Unit
 ) : RecyclerView.Adapter<GroupEditPlaceAdapter.ViewHolder>() {
 
-    // 선택된 아이템의 포지션을 관리하는 Set
     val selectedPositions = mutableSetOf<Int>()
 
     inner class ViewHolder(val binding: ItemGroupEditPlaceBinding) : RecyclerView.ViewHolder(binding.root)
