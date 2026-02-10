@@ -11,14 +11,18 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.viewpager2.widget.ViewPager2
 import com.example.pace.R
+import com.example.pace.data.viewmodel.OnboardingViewModel
 import com.example.pace.databinding.FragmentArrivalTimeBinding
 
 class ArrivalTimeFragment : Fragment() {
 
     private var _binding: FragmentArrivalTimeBinding? = null
     private val binding get() = _binding!!
+
+    private val viewModel: OnboardingViewModel by activityViewModels()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -34,7 +38,8 @@ class ArrivalTimeFragment : Fragment() {
         setupNumberPicker()
 
         binding.btnNext.setOnClickListener {
-            saveArrivalTime(binding.numberPicker.value)
+            // 2. 뷰모델의 변수에 직접 값 할당
+            viewModel.earlyArrivalTime = binding.numberPicker.value
             navigateToNextPage()
         }
 
@@ -42,6 +47,7 @@ class ArrivalTimeFragment : Fragment() {
             "일정 시작 몇 분 전에 도착하는 것을 선호하시나요?",
             listOf("몇 분 전에")
         )
+
     }
 
     private fun setupNumberPicker() {
@@ -52,15 +58,6 @@ class ArrivalTimeFragment : Fragment() {
 
             //0~60 순환되게
             wrapSelectorWheel = true
-        }
-    }
-
-    private fun saveArrivalTime(minutes: Int) {
-        // SharedPreferences에 저장
-        val sharedPref = requireActivity().getSharedPreferences("PaceSettings", Context.MODE_PRIVATE)
-        with(sharedPref.edit()) {
-            putInt("arrival_buffer_time", minutes)
-            apply() // 비동기로 저장
         }
     }
 

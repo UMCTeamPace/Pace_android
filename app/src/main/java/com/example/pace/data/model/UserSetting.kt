@@ -5,16 +5,19 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "user_settings")
 data class UserSettingsEntity(
-    @PrimaryKey val id: Int = 1, // 설정값은 하나만 저장하므로 ID를 1로 고정
+    @PrimaryKey val id: Long = 1L,
     val isReminderActive: Boolean,
     val earlyArrivalTime: Int,
-    val calendarType: String,
 
-    // Converters 덕분에 List<Int>를 그대로 사용할 수 있습니다.
+    // [기본 캘린더] 하나만 선택 (RadioGroup/RadioButton용)
+    val calendarId: Long,
+
+    // [동기화할 캘린더들] 다중 선택 (RecyclerView/Toggle용) 👈 추가됨
+    val syncedCalendarIds: List<Long> = emptyList(),
+
     val departureAlarms: List<Int>,
     val scheduleAlarms: List<Int>,
 
-    // 동기화 상태 추적용
     val isSynced: Boolean = false,
     val lastUpdated: Long = System.currentTimeMillis()
 )
