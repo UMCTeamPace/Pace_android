@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.io.FileInputStream
 
 plugins {
     alias(libs.plugins.android.application)
@@ -7,6 +8,12 @@ plugins {
     id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
     id("com.google.dagger.hilt.android")
     id("kotlin-parcelize")
+}
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(FileInputStream(localPropertiesFile))
 }
 
 android {
@@ -32,10 +39,12 @@ android {
         // 1. 매니페스트용 (구글 지도 키)
         manifestPlaceholders["GOOGLE_API_KEY"] = "${properties.getProperty("GOOGLE_API_KEY")}"
 
-        // 2. 코드용 (Bearer 토큰)
-        // local.properties에서 가져온 문자열을 코드로 넘길 때는 반드시 쌍따옴표("\"")로 감싸야 합니다.
-        val token = properties.getProperty("BEARER_TOKEN") ?: ""
-        buildConfigField("String", "BEARER_TOKEN", "\"$token\"")
+        val weatherKey = localProperties.getProperty("OPENWEATHER_API_KEY") ?: ""
+        val bearerToken = localProperties.getProperty("BEARER_TOKEN") ?: ""
+
+        buildConfigField("String", "OPENWEATHER_API_KEY", "\"$weatherKey\"")
+        buildConfigField("String", "BEARER_TOKEN", "\"$bearerToken\"")
+
     }
 
     signingConfigs {
@@ -156,4 +165,8 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.9.0")
     implementation("androidx.hilt:hilt-work:1.2.0")
     ksp("androidx.hilt:hilt-compiler:1.2.0")
+
+    //viewmodelprovider
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.1")
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.6.1")
 }
