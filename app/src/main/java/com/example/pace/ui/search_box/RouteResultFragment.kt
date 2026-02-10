@@ -80,7 +80,48 @@ class RouteResultFragment : Fragment(){
                 locationLat = 37.4958,
                 locationLng = 127.0285,
                 points = "dummy_polyline_string_encrypted", // 지도 그릴 때 사용
-                headsign = "장지공영차고지행"
+                headsign = "장지공영차고지행",
+                shortName = "402",
+                stationPath = listOf(
+                    "병점",
+                    "세류",
+                    "수원",
+                    "화서",
+                    "성균관대",
+                    "의왕",
+                    "당정",
+                    "군포",
+                    "강남"
+                )
+            )
+
+        )
+
+        val subway2 = RouteDetail(
+            sequence = 3,
+            startLat = 37.5554, startLng = 126.9725,
+            endLat = 37.4958, endLng = 127.0285,
+            duration = 2100, distance = 11241,
+            description = "지하철 탑승",
+            transitDetail = TransitDetail(
+                transitType = "SUBWAY",
+                lineName = "2호선",
+                lineColor = "#33A23D",
+                stopCount = 4,
+                departureStop = "강남역",
+                arrivalStop = "사당역",
+                departureTime = "2026-02-03T09:11:13",
+                arrivalTime = "2026-02-03T09:41:36",
+                locationLat = 37.4958,
+                locationLng = 127.0285,
+                points = "dummy_polyline_string_encrypted", // 지도 그릴 때 사용
+                headsign = null,
+                shortName = "2호선",
+                stationPath = listOf(
+                    "교대",
+                    "서초",
+                    "방배"
+                )
             )
         )
 
@@ -100,7 +141,7 @@ class RouteResultFragment : Fragment(){
             totalTime = 2741,
             arrivalTime = "2026-02-03T09:45:41",
             departureTime = "2026-02-03T09:00:00",
-            routeDetailInfoResDTOList = listOf(walk1, bus1, walk2)
+            routeDetailInfoResDTOList = listOf(walk1, bus1, subway2, walk2)
         )
 
         // 리스트로 반환 (똑같은 데이터 3개)
