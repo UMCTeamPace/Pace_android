@@ -32,7 +32,7 @@ interface SavedPlaceService {
 
     @PATCH("/api/v1/places/saved/move")
     suspend fun movePlaceGroup(
-        @Header("Author ization") accessToken: String,
+        @Header("Authorization") accessToken: String,
         @Body request: MovePlaceGroupRequest
     ): RawDefaultResponse<Unit>
 

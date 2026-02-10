@@ -27,7 +27,7 @@
             app:singleSelection="true">
 
             <com.google.android.material.chip.Chip
-                android:id="@+id/chip_recent_search"
+                android:id="@+id/chip_all"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:checkable="true"
@@ -41,7 +41,7 @@
                 app:chipStrokeColor="@color/selector_chip_text" />
 
             <com.google.android.material.chip.Chip
-                android:id="@+id/chip_recent_place"
+                android:id="@+id/chip_bus"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:checkable="true"
@@ -54,7 +54,7 @@
                 app:chipStrokeColor="@color/selector_chip_text" />
 
             <com.google.android.material.chip.Chip
-                android:id="@+id/chip_recent_route"
+                android:id="@+id/chip_subway"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:checkable="true"

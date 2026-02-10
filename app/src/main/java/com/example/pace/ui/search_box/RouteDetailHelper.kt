@@ -13,7 +13,8 @@ import androidx.core.text.color
 import androidx.core.view.setPadding
 import androidx.core.view.updatePadding
 import com.example.pace.R
-import com.example.pace.data.model.RouteResponse
+import com.example.pace.data.model.RouteResponseSample
+import com.example.pace.data.model.response.RouteResponse
 import com.example.pace.databinding.BottomSheetRouteDetailBinding
 import com.example.pace.databinding.ItemRouteDetailArrivalBinding
 import com.example.pace.databinding.ItemRouteDetailBriefBinding
@@ -47,7 +48,7 @@ object RouteDetailHelper {
         binding.routeDetailExpandedLl.removeAllViews()
 
         // 데이터 동적 바인딩
-        item.routeDetailInfoResDTOList.forEach { data ->
+        item.routeDetails.forEach { data ->
             val briefBinding = ItemRouteDetailBriefBinding.inflate(LayoutInflater.from(context))
             val expandedVehicleBinding = ItemRouteDetailVehicleBinding.inflate(LayoutInflater.from(context), binding.routeDetailExpandedLl, false)
             val expandedWalkBinding = ItemRouteDetailWalkBinding.inflate(LayoutInflater.from(context), binding.routeDetailExpandedLl, false)
