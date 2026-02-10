@@ -7,15 +7,14 @@ import com.example.pace.data.model.response.SavePlaceResponse
 import com.example.pace.databinding.ItemRecentHistoryBinding
 
 class GroupPlaceAdapter(
-    private val items: List<SavePlaceResponse>,
+    initialItems: List<SavePlaceResponse>,
     private val onItemClick: (SavePlaceResponse) -> Unit
 ) : RecyclerView.Adapter<GroupPlaceAdapter.ViewHolder>() {
+    private val items = initialItems.toMutableList()
 
     inner class ViewHolder(private val binding: ItemRecentHistoryBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(item: SavePlaceResponse) {
             binding.tvHistoryText.text = item.placeName
-
-//            binding.ivHistoryIcon.setImageResource(com.example.pace.R.drawable.ic_history_place)
 
             binding.viewForeground.setOnClickListener {
                 onItemClick(item)
@@ -35,4 +34,10 @@ class GroupPlaceAdapter(
     }
 
     override fun getItemCount(): Int = items.size
+
+    fun updateItems(newItems: List<SavePlaceResponse>) {
+        items.clear()
+        items.addAll(newItems)
+        notifyDataSetChanged()
+    }
 }

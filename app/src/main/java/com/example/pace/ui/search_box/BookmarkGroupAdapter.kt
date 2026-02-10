@@ -1,5 +1,6 @@
 package com.example.pace.ui.search_box
 
+import android.annotation.SuppressLint
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.view.LayoutInflater
@@ -67,9 +68,7 @@ class BookmarkGroupAdapter(
     inner class GroupViewHolder(private val binding: ItemBookmarkGroupBinding)
         : RecyclerView.ViewHolder(binding.root), SwipeableViewHolder {
 
-        override fun setSwiped(isSwiped: Boolean) {
-            // 필요 시 배경색 변경 등 처리
-        }
+        override fun setSwiped(isSwiped: Boolean) {}
 
         fun bind(item: GroupItem) {
             binding.tvGroupName.text = item.groupName

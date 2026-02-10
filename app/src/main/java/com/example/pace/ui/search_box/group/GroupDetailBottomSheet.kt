@@ -5,22 +5,32 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
+import android.widget.Button
+import android.widget.RadioGroup
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.pace.R
 import com.example.pace.data.model.response.GroupItem
 import com.example.pace.data.model.response.SavePlaceResponse
+import com.example.pace.data.viewmodel.GroupViewModel
 import com.example.pace.databinding.BottomSheetGroupDetailBinding
 import com.example.pace.ui.main.route.RouteFragment
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class GroupDetailBottomSheet(
     private val groupItem: GroupItem
 ) : BottomSheetDialogFragment() {
 
     private var _binding: BottomSheetGroupDetailBinding? = null
     private val binding get() = _binding!!
+    private val groupViewModel: GroupViewModel by viewModels()
     private lateinit var placeAdapter: GroupPlaceAdapter
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -33,47 +43,30 @@ class GroupDetailBottomSheet(
 
         binding.tvGroupTitle.text = groupItem.groupName
 
-        // 더미 장소 데이터
-        val placeList = mutableListOf(
-            SavePlaceResponse(1, 1, "스타벅스 사당점", "ChIJ77yqsE6gfDUR7jztozyfVMo", "CreatedAt"),
-            SavePlaceResponse(2, 1, "맥도날드 이수점", "ChIJ77yqsE6gfDUR7jztozyfVMo", "2026-02-02 11:52")
-        )
+        binding.tvFilterText.text = "최신 등록순"
 
-        // 어댑터 연결
-        placeAdapter = GroupPlaceAdapter(placeList) { place ->
-            val id = place.placeId
+        groupViewModel.getSavedPlaces(groupItem.groupId)
 
-            if (id.isNotEmpty()) {
-                // 부모 찾기 시도
-                val routeFragment = findRouteFragmentRecursively(this)
+        setupRecyclerView()
+        observeViewModel()
+        setupListeners()
 
-                if (routeFragment != null) {
-                    routeFragment.onSavedPlaceClick(id)
-                    dismiss()
-                }
-            }
+        groupViewModel.getSavedPlaces(groupItem.groupId)
+
+    }
+
+    private fun observeViewModel() {
+        groupViewModel.savedPlaces.observe(viewLifecycleOwner) { list ->
+            android.util.Log.d("DEBUG_LIST", "받은 데이터 개수: ${list?.size}")
+            placeAdapter.updateItems(list)
         }
 
-        binding.rvGroupPlaces.apply {
-            adapter = placeAdapter
-            layoutManager = LinearLayoutManager(requireContext())
-        }
-
-        binding.tvEditMode.setOnClickListener {
-            // todo 편집 액티비티 띄우기
-            val intent = Intent(requireContext(), GroupEditActivity::class.java).apply {
-                putExtra("GROUP_ID", groupItem.groupId)
-                putExtra("GROUP_NAME", groupItem.groupName)
-                putParcelableArrayListExtra("PLACE_LIST", ArrayList(placeList))
-            }
-            startActivity(intent)
-        }
-
-        // 필터 버튼
-        binding.layoutFilter.setOnClickListener {
-            Toast.makeText(context, "필터 다이얼로그 띄우기", Toast.LENGTH_SHORT).show()
+        groupViewModel.errorMessage.observe(viewLifecycleOwner) { msg ->
+            if (!msg.isNullOrBlank()) Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
         }
     }
+
+
 
     override fun onStart() {
         super.onStart()
@@ -98,6 +91,87 @@ class GroupDetailBottomSheet(
             behavior.isDraggable = true
         }
     }
+
+    private fun setupRecyclerView() {
+        placeAdapter = GroupPlaceAdapter(emptyList()) { place ->
+            val id = place.placeId
+            if (id.isNotEmpty()) {
+                val routeFragment = findRouteFragmentRecursively(this)
+                routeFragment?.onSavedPlaceClick(id)
+                dismiss()
+            }
+        }
+
+        binding.rvGroupPlaces.apply {
+            adapter = placeAdapter
+            layoutManager = LinearLayoutManager(requireContext())
+        }
+    }
+
+    private fun setupListeners() {
+        // [편집 버튼]
+        binding.tvEditMode.setOnClickListener {
+            val currentList = groupViewModel.savedPlaces.value ?: emptyList()
+
+            val intent = Intent(requireContext(), GroupEditActivity::class.java).apply {
+                putExtra("GROUP_ID", groupItem.groupId)
+                putExtra("GROUP_NAME", groupItem.groupName)
+                putParcelableArrayListExtra("PLACE_LIST", ArrayList(currentList))
+            }
+            startActivity(intent)
+        }
+
+        binding.layoutFilter.setOnClickListener {
+            showFilterDialog() //todo
+        }
+    }
+
+    private fun showFilterDialog() {
+        // [수정] 만드신 XML 파일명(dialog_place_filter) 사용
+        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_place_filter, null)
+        val builder = AlertDialog.Builder(requireContext())
+        builder.setView(dialogView)
+
+        val dialog = builder.create()
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        val rgSortOptions = dialogView.findViewById<RadioGroup>(R.id.rg_sort_options_group)
+        val btnCancel = dialogView.findViewById<Button>(R.id.btn_cancel_search_filter)
+        val btnConfirm = dialogView.findViewById<Button>(R.id.btn_save_search_filter)
+
+        when (groupViewModel.currentSortType) {
+            "LATEST" -> rgSortOptions.check(R.id.rb_latest)
+            "OLDEST" -> rgSortOptions.check(R.id.rb_oldest)
+            "NAME" -> rgSortOptions.check(R.id.rb_name)
+            else -> rgSortOptions.check(R.id.rb_latest)
+        }
+
+        btnCancel.setOnClickListener { dialog.dismiss() }
+
+        btnConfirm.setOnClickListener {
+            val selectedId = rgSortOptions.checkedRadioButtonId
+
+            val (apiSortType, uiText) = when (selectedId) {
+                R.id.rb_latest -> "LATEST" to "최신 등록순"
+                R.id.rb_oldest -> "OLDEST" to "오래된 등록순"
+                R.id.rb_name -> "NAME" to "장소명순"
+                else -> "LATEST" to "최신 등록순"
+            }
+
+            binding.tvFilterText.text = uiText
+
+            groupViewModel.getSavedPlaces(groupItem.groupId, apiSortType)
+
+            dialog.dismiss()
+        }
+
+        dialog.show()
+
+        val displayMetrics = resources.displayMetrics
+        val width = (displayMetrics.widthPixels * 0.90).toInt()
+        dialog.window?.setLayout(width, WindowManager.LayoutParams.WRAP_CONTENT)
+    }
+
 
     override fun onDestroyView() {
         super.onDestroyView()

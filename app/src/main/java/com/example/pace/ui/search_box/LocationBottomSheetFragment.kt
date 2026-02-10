@@ -2,6 +2,7 @@ package com.example.pace.ui.search_box
 
 import android.app.AlertDialog
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -10,18 +11,24 @@ import android.widget.Button
 import android.widget.RadioGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.pace.R
+import com.example.pace.data.viewmodel.GroupViewModel
 import com.example.pace.databinding.FragmentLocationBottomSheetBinding
 import com.example.pace.ui.search_box.group.GroupSelectBottomSheet
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.net.PlacesClient
 import com.google.android.libraries.places.api.net.SearchByTextRequest
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class LocationBottomSheetFragment : Fragment() {
 
     private var _binding: FragmentLocationBottomSheetBinding? = null
     private val binding get() = _binding!!
+
+    private val groupViewModel: GroupViewModel by viewModels()
 
     private lateinit var adapter: LocationListAdapter
     private lateinit var placesClient: PlacesClient
@@ -49,9 +56,24 @@ class LocationBottomSheetFragment : Fragment() {
 
         setupRecyclerView()
         setupFilterListeners()
+        observeViewModel()
 
         if (currentItems.isNotEmpty()) {
             adapter.submitList(currentItems)
+        }
+    }
+
+    private fun observeViewModel() {
+        groupViewModel.errorMessage.observe(viewLifecycleOwner) { msg ->
+            if (!msg.isNullOrBlank()) {
+                Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        groupViewModel.isOperationSuccess.observe(viewLifecycleOwner) { isSuccess ->
+            if (isSuccess) {
+                Toast.makeText(requireContext(), "장소 저장 완료!", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -61,18 +83,18 @@ class LocationBottomSheetFragment : Fragment() {
         }
 
         adapter.onFavoriteClick = { selectedItem ->
+            Log.d("DEBUG", "선택된 장소 ID: ${selectedItem.placeId}")
             val groupSelectSheet = GroupSelectBottomSheet(
                 mode = GroupSelectBottomSheet.Mode.SAVE,
                 placeName = selectedItem.name
             ) { groupId, savedName ->
-                // (2) [저장] 버튼 눌렀을 때 실행될 로직 (서버 통신 등)
-                // TODO: 여기서 실제 저장 API를 호출하세요.
-                // viewModel.savePlace(groupId, searchItem.placeId, savedName)
-
-                Toast.makeText(requireContext(), "${savedName} 저장 완료!", Toast.LENGTH_SHORT).show()
+                groupViewModel.savePlace(
+                    groupId = groupId,
+                    placeId = selectedItem.placeId,
+                    placeName = savedName ?: "알 수 없는 장소"
+                )
             }
 
-            // (3) 화면에 표시
             groupSelectSheet.show(parentFragmentManager, "GroupSelectBottomSheet")
         }
 

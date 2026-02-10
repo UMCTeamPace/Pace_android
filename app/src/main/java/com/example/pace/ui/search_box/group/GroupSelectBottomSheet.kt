@@ -5,13 +5,17 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.fragment.app.viewModels
 import com.example.pace.data.model.response.GroupItem
+import com.example.pace.data.viewmodel.GroupViewModel
 import com.example.pace.databinding.BottomSheetGroupSelectBinding
 import com.example.pace.ui.search_box.AddGroupDialogFragment
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class GroupSelectBottomSheet(
     private val mode: Mode,
     private val placeName: String? = null, // 저장 모드일 때만 사용될 장소명
@@ -22,6 +26,7 @@ class GroupSelectBottomSheet(
 
     private var _binding: BottomSheetGroupSelectBinding? = null
     private val binding get() = _binding!!
+    private val groupViewModel: GroupViewModel by viewModels()
     private lateinit var radioAdapter: GroupRadioAdapter
     private val groupList = mutableListOf<GroupItem>()
 
@@ -36,6 +41,31 @@ class GroupSelectBottomSheet(
         setupUI()
         setupRecyclerView()
         setupListeners()
+        observeViewModel()
+
+        groupViewModel.fetchGroupList()
+    }
+
+    private fun observeViewModel() {
+        groupViewModel.groupList.observe(viewLifecycleOwner) { groups ->
+            groupList.clear()
+            groupList.addAll(groups)
+
+            if (::radioAdapter.isInitialized) {
+                radioAdapter.updateItems(groupList)
+            }
+        }
+
+        groupViewModel.errorMessage.observe(viewLifecycleOwner) { msg ->
+            if(msg.isNotBlank()) Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        }
+
+        groupViewModel.isOperationSuccess.observe(viewLifecycleOwner) { isSuccess ->
+            if(isSuccess) {
+                val dialog = parentFragmentManager.findFragmentByTag("AddGroupDialog") as? AddGroupDialogFragment
+                dialog?.dismiss()
+            }
+        }
     }
 
     private fun setupUI() {
@@ -46,41 +76,16 @@ class GroupSelectBottomSheet(
         } else {
             binding.tvSheetTitle.text = placeName ?: "장소 저장"
             binding.layoutInputContainer.visibility = View.VISIBLE
-            binding.etPlaceMemo.setText(placeName)
+            binding.etPlaceMemo.setText("")
+            binding.etPlaceMemo.hint = placeName
             binding.btnSave.text = "저장"
         }
     }
 
     private fun setupRecyclerView() {
-        groupList.clear()
-        groupList.addAll(listOf(
-            GroupItem(1, "내 장소", "#FFA500", "", 0),
-            GroupItem(2, "식당", "#FF5252", "", 0),
-            GroupItem(3, "멘션-숙소", "#FF4081", "", 0),
-            GroupItem(4, "서점-기타", "#40C4FF", "", 0),
-            GroupItem(5, "주점", "#7C4DFF", "", 0),
-            GroupItem(6, "카페", "#69F0AE", "", 0)
-        ))
-
         radioAdapter = GroupRadioAdapter(groupList) {
-            // [+ 새 그룹 추가] 클릭 시 다이얼로그 띄우기
             val dialog = AddGroupDialogFragment { request ->
-                // request는 CreateGroupRequest(groupName, groupColor) 타입
-
-                val newGroup = GroupItem(
-                    groupId = System.currentTimeMillis(),
-                    groupName = request.groupName,
-                    groupColor = request.groupColor,
-                    createdAt = "",
-                    placeCount = 0
-                )
-
-                groupList.add(newGroup)
-                radioAdapter.updateItems(groupList)
-
-                binding.rvGroupList.smoothScrollToPosition(groupList.size - 1)
-
-                Toast.makeText(requireContext(), "${request.groupName} 그룹 추가됨", Toast.LENGTH_SHORT).show()
+                groupViewModel.createGroup(request.groupName, request.groupColor)
             }
             dialog.show(parentFragmentManager, "AddGroupDialog")
         }
@@ -101,10 +106,25 @@ class GroupSelectBottomSheet(
                 return@setOnClickListener
             }
 
-            // 저장 모드일 때만 텍스트값 가져옴 (이동 모드면 null)
-            val finalName = if (mode == Mode.SAVE) binding.etPlaceMemo.text.toString() else null
+            if (mode == Mode.SAVE) {
+                val inputName = binding.etPlaceMemo.text.toString()
 
-            onConfirm(selectedGroupId, finalName)
+                if (inputName.isBlank()) {
+                    Toast.makeText(context, "장소 이름을 입력해주세요.", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+
+                val regex = "^[a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣ\\s]+$".toRegex()
+
+                if (!regex.matches(inputName)) {
+                    Toast.makeText(context, "특수문자는 사용할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+
+                onConfirm(selectedGroupId, inputName)
+            } else {
+                onConfirm(selectedGroupId, null)
+            }
             dismiss()
         }
     }

@@ -2,6 +2,7 @@ package com.example.pace.data.repository.repositoryImpl
 
 import com.example.pace.data.api.PlaceGroupService
 import com.example.pace.data.model.request.CreateGroupRequest
+import com.example.pace.data.model.request.DeleteGroupRequest
 import com.example.pace.data.model.request.UpdateGroupRequest
 import com.example.pace.data.model.response.CreateGroupResponse
 import com.example.pace.data.model.response.GroupListResponse
@@ -28,8 +29,10 @@ class PlaceGroupRepositoryImpl @Inject constructor(
     override suspend fun deleteGroups(
         accessToken: String,
         groupIds: List<Long>
-    ): RawDefaultResponse<Unit> {
-        return safeApiCall { api.deleteGroups(accessToken, groupIds) }
+    ): RawDefaultResponse<String> {
+        val request = DeleteGroupRequest(groupIdList = groupIds)
+
+        return safeApiCall { api.deleteGroups(accessToken, request) }
     }
 
     override suspend fun updateGroup(

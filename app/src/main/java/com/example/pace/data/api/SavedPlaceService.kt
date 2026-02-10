@@ -32,13 +32,14 @@ interface SavedPlaceService {
 
     @PATCH("/api/v1/places/saved/move")
     suspend fun movePlaceGroup(
-        @Header("Authorization") accessToken: String,
+        @Header("Author ization") accessToken: String,
         @Body request: MovePlaceGroupRequest
     ): RawDefaultResponse<Unit>
 
     @GET("/api/v1/places/saved/{groupId}")
     suspend fun getSavedPlacesByGroup(
         @Header("Authorization") accessToken: String,
-        @Path("groupId") groupId: Long
+        @Path("groupId") groupId: Long,
+        @Query("sortType") sortType: String
     ): RawDefaultResponse<SavedPlaceListResponse>
 }
