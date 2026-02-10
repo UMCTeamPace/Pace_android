@@ -18,12 +18,19 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.example.pace.databinding.FragmentCalendarSelectBinding
 import com.example.pace.ui.main.MainActivity
+import androidx.fragment.app.activityViewModels // 추가
+import com.example.pace.data.viewmodel.OnboardingViewModel
+import dagger.hilt.android.AndroidEntryPoint // 추가
 
+
+@AndroidEntryPoint // 1. Hilt 사용을 위해 추가
 class CalendarSelectFragment : Fragment() {
     private var _binding: FragmentCalendarSelectBinding? = null
     private val binding get() = _binding!!
 
-    // 체크박스 단일 선택 관리를 위한 리스트
+    // 2. Activity 범위의 뷰모델 공유 (온보딩의 모든 데이터를 들고 있음)
+    private val viewModel: OnboardingViewModel by activityViewModels()
+
     private lateinit var calendarCheckBoxes: List<CheckBox>
 
     override fun onCreateView(
@@ -37,7 +44,6 @@ class CalendarSelectFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // 1. 체크박스 리스트 초기화
         calendarCheckBoxes = listOf(
             binding.rbMyphone, binding.rbSamsungac,
             binding.rbGoogleac, binding.rbGoogleac2
@@ -45,10 +51,9 @@ class CalendarSelectFragment : Fragment() {
 
         setupSingleSelectionLogic()
 
-        // 2. Pace 시작하기 버튼 클릭 리스너
+        // 3. 버튼 클릭 시 통합 저장 로직 실행
         binding.btnStart.setOnClickListener {
-            saveSelectedCalendar()
-            moveToMainActivity()
+            handleCompleteOnboarding()
         }
 
         binding.tvDescription.setBoldText(
@@ -57,6 +62,23 @@ class CalendarSelectFragment : Fragment() {
         )
     }
 
+    private fun handleCompleteOnboarding() {
+        // A. 선택된 캘린더 타입을 뷰모델 변수에 직접 할당
+        val selectedCalendar = when {
+            binding.rbGoogleac.isChecked || binding.rbGoogleac2.isChecked -> "GOOGLE"
+            binding.rbSamsungac.isChecked -> "SAMSUNG"
+            else -> "LOCAL"
+        }
+
+        // 에러 해결: 함수 대신 변수에 직접 저장합니다.
+        viewModel.calendarType = selectedCalendar
+
+        // B. 최종 저장 로직 실행
+        viewModel.completeOnboarding()
+
+        // C. 메인 화면으로 이동
+        moveToMainActivity()
+    }
     private fun setupSingleSelectionLogic() {
         calendarCheckBoxes.forEach { checkBox ->
             checkBox.setOnClickListener {
@@ -79,12 +101,9 @@ class CalendarSelectFragment : Fragment() {
     }
 
     private fun moveToMainActivity() {
-        // 메인 액티비티로 이동하며 이전 스택 모두 제거
         val intent = Intent(requireContext(), MainActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)
-
-        // 현재 온보딩 액티비티 종료
         requireActivity().finish()
     }
 

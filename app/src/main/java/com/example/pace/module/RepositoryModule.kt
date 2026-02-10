@@ -1,111 +1,99 @@
 package com.example.pace.module
 
 import android.content.Context
-import com.example.pace.data.api.AuthControllerService
-import com.example.pace.data.api.MemberControllerService
-import com.example.pace.data.api.OnboardingService
-import com.example.pace.data.api.PlaceGroupService
-import com.example.pace.data.api.SavedPlaceService
-import com.example.pace.data.api.ScheduleService
-import com.example.pace.data.api.SettingsService
-import com.example.pace.data.datasource.AuthDataStore
-import com.example.pace.data.datasource.NormalScheduleRemoteDataSource
-import com.example.pace.data.datasource.RouteScheduleRemoteDataSource
+import com.example.pace.data.api.*
+import com.example.pace.data.datasource.*
 import com.example.pace.data.db.ScheduleDao
-import com.example.pace.data.repository.repository.AuthControllerRepository
-import com.example.pace.data.repository.repository.MemberControllerRepository
-import com.example.pace.data.repository.repository.OnboardingRepository
-import com.example.pace.data.repository.repository.PlaceGroupRepository
-import com.example.pace.data.repository.repository.SavedPlaceRepository
-import com.example.pace.data.repository.repository.ScheduleRepository
-import com.example.pace.data.repository.repository.SettingsRepository
+import com.example.pace.data.db.UserSettingsDao
+import com.example.pace.data.repository.repository.*
+import com.example.pace.data.repository.repositoryImpl.*
 import com.example.pace.data.repository.repositoryImpl2.MemberControllerRepositoryImpl
-import com.example.pace.data.repository.repositoryImpl.OnboardingRepositoryImpl
-import com.example.pace.data.repository.repositoryImpl.PlaceGroupRepositoryImpl
-import com.example.pace.data.repository.repositoryImpl.SavedPlaceRepositoryImpl
-import com.example.pace.data.repository.repositoryImpl.ScheduleRepositoryImpl
-import com.example.pace.data.repository.repositoryImpl.SettingsRepositoryImpl
-import com.example.pace.data.repository.repositoryImpl.AuthControllerRepositoryImpl
-import com.example.pace.module.ServiceModule.provideSettingsService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.android.components.ViewModelComponent
 import dagger.hilt.android.qualifiers.ApplicationContext
-import dagger.hilt.android.scopes.ViewModelScoped
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
 
 @Module
-@InstallIn(ViewModelComponent::class)
+@InstallIn(SingletonComponent::class) // 1. 앱 전체 범위로 변경
 object RepositoryModule {
 
-    @ViewModelScoped
+    @Singleton // 2. @ViewModelScoped 대신 @Singleton 사용
     @Provides
     fun providesSettingsRepository(
         settingsService: SettingsService
     ) : SettingsRepository {
-        return SettingsRepositoryImpl(settingsService)}
+        return SettingsRepositoryImpl(settingsService)
+    }
 
-    @ViewModelScoped
+    @Singleton
     @Provides
     fun providesOnboardingRepository(
-        OnboardingService: OnboardingService
+        onboardingService: OnboardingService,
+        userSettingsDao: UserSettingsDao
     ) : OnboardingRepository {
-        return OnboardingRepositoryImpl(OnboardingService)
+        return OnboardingRepositoryImpl(
+            api = onboardingService,
+            dao = userSettingsDao
+        )
     }
 
-    @ViewModelScoped
+    @Singleton
     @Provides
     fun providesPlaceGroupRepository(
-        PlaceGroupService: PlaceGroupService
+        placeGroupService: PlaceGroupService
     ) : PlaceGroupRepository {
-        return PlaceGroupRepositoryImpl(PlaceGroupService)
+        return PlaceGroupRepositoryImpl(placeGroupService)
     }
 
-    @ViewModelScoped
+    @Singleton
     @Provides
     fun providesSavedPlaceRepository(
-        SavedPlaceService: SavedPlaceService
+        savedPlaceService: SavedPlaceService
     ) : SavedPlaceRepository {
-        return SavedPlaceRepositoryImpl(SavedPlaceService)
+        return SavedPlaceRepositoryImpl(savedPlaceService)
     }
 
-    @ViewModelScoped
+    @Singleton
     @Provides
     fun providesScheduleRepository(
         scheduleService: ScheduleService,
         scheduleDao: ScheduleDao,
         authDataStore: AuthDataStore,
-        routeRemoteDataSource: RouteScheduleRemoteDataSource, // 1. 추가: 서버용 데이터소스
-        normalDataSource: NormalScheduleRemoteDataSource,    // 2. 이름 수정: Impl 생성자와 일치시킴
+        routeRemoteDataSource: RouteScheduleRemoteDataSource,
+        normalDataSource: NormalScheduleRemoteDataSource,
         @ApplicationContext context: Context
     ): ScheduleRepository {
         return ScheduleRepositoryImpl(
             api = scheduleService,
             scheduleDao = scheduleDao,
-            routeRemoteDataSource = routeRemoteDataSource, // 3. 인자 추가
-            normalDataSource = normalDataSource,           // 4. 이름 수정
+            routeRemoteDataSource = routeRemoteDataSource,
+            normalDataSource = normalDataSource,
             authDataStore = authDataStore,
             context = context
         )
     }
 
-    @ViewModelScoped
+    @Singleton
     @Provides
     fun providesMemberControllerRepository(
-        MemberControllerService: MemberControllerService,
+        memberControllerService: MemberControllerService,
         authDataStore: AuthDataStore,
     ) : MemberControllerRepository {
-        return MemberControllerRepositoryImpl(MemberControllerService,authDataStore=authDataStore)
+        return MemberControllerRepositoryImpl(memberControllerService, authDataStore = authDataStore)
     }
 
-    @ViewModelScoped
+    @Singleton
     @Provides
     fun providesAuthControllerRepository(
-        AuthControllerService: AuthControllerService,
-        authDataStore: AuthDataStore,
+        authControllerService: AuthControllerService,
+        authDataStore: AuthDataStore, // 여기서 이미 객체를 주입받고 있습니다.
     ) : AuthControllerRepository {
-        return AuthControllerRepositoryImpl(AuthControllerService,authDataStore=authDataStore)
+        // .toString()을 지우고 authDataStore 객체를 그대로 전달하세요.
+        return AuthControllerRepositoryImpl(
+            authControllerService,
+            authDataStore = authDataStore
+        )
     }
-
-
 }
