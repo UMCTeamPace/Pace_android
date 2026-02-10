@@ -100,10 +100,6 @@ class NormalScheduleRemoteDataSource @Inject constructor(
 
                     val calendarColor = it.getInt(it.getColumnIndexOrThrow(CalendarContract.Events.CALENDAR_COLOR))
 
-                    Log.d("ScheduleDataSource", "Fetched colors for ${title}: eventColor=$eventColor, calendarColor=$calendarColor")
-
-    
-
                     val reminders = fetchReminders(id)
 
     

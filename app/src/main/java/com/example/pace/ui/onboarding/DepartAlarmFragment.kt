@@ -13,16 +13,21 @@ import android.widget.CheckBox
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.viewpager2.widget.ViewPager2
 import com.example.pace.R
+import com.example.pace.data.viewmodel.OnboardingViewModel
 import com.example.pace.databinding.FragmentDepartAlarmBinding
 
 class DepartAlarmFragment : Fragment() {
     private var _binding: FragmentDepartAlarmBinding? = null
     private val binding get() = _binding!!
 
-    // 체크박스 관리를 위한 리스트
-    private lateinit var departCheckBoxes: List<CheckBox>
+    // 공유 뷰모델 주입 (Activity 범위)
+    private val viewModel: OnboardingViewModel by activityViewModels()
+
+    // 체크박스 ID와 실제 '분(Minute)' 값 매핑
+    private lateinit var departAlarmMap: Map<CheckBox, Int>
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -35,15 +40,18 @@ class DepartAlarmFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // 1. 체크박스들을 리스트로 초기화 (rb_none 제외)
-        departCheckBoxes = listOf(
-            binding.rbStart5mago, binding.rbStart10mago, binding.rbStart15mago,
-            binding.rbStart20mago, binding.rbStart25mago, binding.rbStart30mago
+        // 1. 체크박스와 정수 값 매핑 (출발 알림용)
+        departAlarmMap = mapOf(
+            binding.rbStart5mago to 5,
+            binding.rbStart10mago to 10,
+            binding.rbStart15mago to 15,
+            binding.rbStart20mago to 20,
+            binding.rbStart25mago to 25,
+            binding.rbStart30mago to 30
         )
 
         setupCheckBoxLogic()
 
-        // 2. 다음 버튼 클릭 시 저장 및 페이지 이동
         binding.btnNext.setOnClickListener {
             saveDepartAlarms()
             navigateToNextPage()
@@ -51,27 +59,25 @@ class DepartAlarmFragment : Fragment() {
 
         binding.tvDescription.setBoldText(
             "출발 알림을 언제 보내 드릴까요?",
-            listOf("출발 알람")
+            listOf("출발 알림")
         )
     }
 
     private fun setupCheckBoxLogic() {
-        // "안함" 체크박스 클릭 시 나머지 해제
+        // "안함" 클릭 시 나머지 모두 해제
         binding.rbNone.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
-                departCheckBoxes.forEach { it.isChecked = false }
+                departAlarmMap.keys.forEach { it.isChecked = false }
             }
         }
 
-        // 개별 알림 체크박스 로직
-        departCheckBoxes.forEach { checkBox ->
+        // 개별 알림 클릭 시 로직 (최대 5개 제한)
+        departAlarmMap.keys.forEach { checkBox ->
             checkBox.setOnClickListener {
                 if (checkBox.isChecked) {
-                    // 개별 옵션 선택 시 "안함" 해제
-                    binding.rbNone.isChecked = false
+                    binding.rbNone.isChecked = false // "안함" 해제
 
-                    // 최대 5개 제한 체크
-                    val selectedCount = departCheckBoxes.count { it.isChecked }
+                    val selectedCount = departAlarmMap.keys.count { it.isChecked }
                     if (selectedCount > 5) {
                         checkBox.isChecked = false
                         Toast.makeText(context, "알림은 최대 5개까지 설정 가능합니다.", Toast.LENGTH_SHORT).show()
@@ -82,40 +88,34 @@ class DepartAlarmFragment : Fragment() {
     }
 
     private fun saveDepartAlarms() {
-        val selectedSet = mutableSetOf<String>()
+        val selectedMinutes = mutableListOf<Int>()
 
-        if (binding.rbNone.isChecked) {
-            selectedSet.add("NONE")
-        } else {
-            departCheckBoxes.filter { it.isChecked }.forEach {
-                selectedSet.add(it.text.toString())
+        // "안함"이 체크되어 있지 않을 때만 리스트를 채움
+        if (!binding.rbNone.isChecked) {
+            departAlarmMap.forEach { (checkBox, minutes) ->
+                if (checkBox.isChecked) {
+                    selectedMinutes.add(minutes)
+                }
             }
         }
 
-        // SharedPreferences에 저장
-        val sharedPref = requireActivity().getSharedPreferences("PaceSettings", Context.MODE_PRIVATE)
-        sharedPref.edit().putStringSet("depart_alarm_list", selectedSet).apply()
+        // 2. 뷰모델의 departureAlarms 교체
+        viewModel.departureAlarms.clear()
+        viewModel.departureAlarms.addAll(selectedMinutes)
     }
 
     private fun navigateToNextPage() {
         val viewPager = activity?.findViewById<ViewPager2>(R.id.app_setting_viewpager)
-        viewPager?.let {
-            it.currentItem = it.currentItem + 1
-        }
+        viewPager?.let { it.currentItem = it.currentItem + 1 }
     }
 
+    // TextView 확장 함수
     fun TextView.setBoldText(fullText: String, boldKeywords: List<String>) {
         val spannable = SpannableStringBuilder(fullText)
-
         boldKeywords.forEach { keyword ->
             val start = fullText.indexOf(keyword)
             if (start != -1) {
-                spannable.setSpan(
-                    StyleSpan(Typeface.BOLD),
-                    start,
-                    start + keyword.length,
-                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
+                spannable.setSpan(StyleSpan(Typeface.BOLD), start, start + keyword.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
             }
         }
         this.text = spannable

@@ -1,19 +1,11 @@
 package com.example.pace.data.model.response
 
-import com.google.gson.annotations.SerializedName
-
+// 💡 서버가 주는 'result' 내부의 데이터 구조와 일치시킵니다.
 data class OnboardingResponse(
-    @SerializedName("isSuccess") val isSuccess: Boolean,
-    @SerializedName("code") val code: String,
-    @SerializedName("message") val message: String,
-    @SerializedName("result") val result: OnboardingResult
-)
-
-data class OnboardingResult(
-    @SerializedName("onboarding_completed") val onboardingCompleted: Boolean,
-    @SerializedName("access_token") val accessToken: String,
-    @SerializedName("refresh_token") val refreshToken: String,
-    @SerializedName("early_arrival_time") val earlyArrivalTime: Int,
-    @SerializedName("is_reminder_active") val isReminderActive: Boolean,
-    @SerializedName("role") val role: String
+    val onboardingCompleted: Boolean,
+    val accessToken: String,
+    val refreshToken: String,
+    val earlyArrivalTime: Int,
+    val isReminderActive: Boolean,
+    val role: String
 )

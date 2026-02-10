@@ -40,75 +40,11 @@
         app:layout_constraintTop_toBottomOf="@+id/tv_description2">
 
         <LinearLayout
-            android:id="@+id/layout_checkbox_container"
+            android:id="@+id/layout_calendar_list"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="8dp">
-
-            <CheckBox
-                android:id="@+id/rb_myphone"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="24dp"
-                android:text="내 휴대전화"
-                android:button="@null"
-                android:drawableEnd="@drawable/selector_circle_checkbox"
-                android:paddingEnd="16dp"
-                android:background="@null" />
-
-            <View android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="#F1F3F5" />
-
-            <CheckBox
-                android:id="@+id/rb_samsungac"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="24dp"
-                android:text="삼성계정\n(pace12345678@gmail.com)"
-                android:button="@null"
-                android:drawableEnd="@drawable/selector_circle_checkbox"
-                android:paddingEnd="16dp"
-                android:background="@null" />
-
-            <View android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="#F1F3F5" />
-
-            <CheckBox
-                android:id="@+id/rb_googleac"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="24dp"
-                android:text="구글계정\n(pace1234@gmail.com)"
-                android:button="@null"
-                android:drawableEnd="@drawable/selector_circle_checkbox"
-                android:paddingEnd="16dp"
-                android:background="@null" />
-
-            <View android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="#F1F3F5" />
-
-            <CheckBox
-                android:id="@+id/rb_googleac2"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="24dp"
-                android:text="구글계정\n(pace1234@gmail.com)"
-                android:button="@null"
-                android:drawableEnd="@drawable/selector_circle_checkbox"
-                android:paddingEnd="16dp"
-                android:background="@null" />
-
-            <View android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="#F1F3F5" />
-
-
-
-
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 

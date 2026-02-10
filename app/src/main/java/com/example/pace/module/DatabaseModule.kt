@@ -26,7 +26,7 @@ object DatabaseModule {
         return Room.databaseBuilder(
             context,
             ScheduleDatabase::class.java,
-            "pace_database" // 실제 DB 파일 이름
+            "schedule_database" // 실제 DB 파일 이름
         )
             .fallbackToDestructiveMigration()
             .build()

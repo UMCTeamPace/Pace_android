@@ -6,12 +6,10 @@ import com.example.pace.data.model.response.OnboardingResponse
 import com.example.pace.data.model.response.RawDefaultResponse
 
 interface OnboardingRepository {
-    // 1. 로컬 DB에 저장하는 함수 추가
-    suspend fun saveSettingsToLocal(settings: UserSettingsEntity)
-
-    // 2. 기존 서버 전송 함수
     suspend fun saveOnboardingSettings(
         accessToken: String,
-        request: OnboardingRequest
+        request: OnboardingRequest // 💡 파라미터 삭제
     ): RawDefaultResponse<OnboardingResponse>
+
+    suspend fun saveSettingsToLocal(settings: UserSettingsEntity)
 }

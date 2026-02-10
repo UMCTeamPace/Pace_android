@@ -3,6 +3,7 @@ package com.example.pace.data.db
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import com.example.pace.data.converter.Converters
 import com.example.pace.data.model.UserSettingsEntity
 
 @Database(entities = [UserSettingsEntity::class], version = 1)

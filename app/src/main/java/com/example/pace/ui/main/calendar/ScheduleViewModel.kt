@@ -201,27 +201,34 @@ class ScheduleViewModel @Inject constructor(
 
 
     fun refreshSchedules() {
-        android.util.Log.d("API_TEST", "ViewModel: refreshSchedules() 진입")
+        android.util.Log.d("API_SYNC", "통합 동기화 프로세스 시작")
 
         viewModelScope.launch {
             try {
-                // 2. AuthDataStore에서 저장된 토큰을 가져옵니다.
-                val token = authDataStore.getAccessToken()
-                Log.d("API_TEST", "ViewModel: 불러온 토큰 -> $token")
+                // 1. 토큰 준비
+                val token = authDataStore.getAccessToken() ?: return@launch
+                val fullToken = if (token.startsWith("Bearer ")) token else "Bearer $token"
 
-                if (token != null) {
-                    // 3. 불러온 토큰을 사용하여 API 호출
-                    val response = repository.getScheduleList(token,"2026-02-01","2026-02-28",null,null)
-                    Log.d("API_TEST", "ViewModel: 리포지토리 호출 완료 -> $response")
-                } else {
-                    Log.e("API_TEST", "ViewModel: 저장된 토큰이 없습니다. 로그인이 필요합니다.")
+                // 2. 서버 일정 동기화 (네트워크 호출 1회)
+                // 이 함수 내부에서 이미 Room DB 저장이 이루어집니다.
+                val serverResponse = repository.getScheduleList(fullToken, "2026-02-01", "2026-02-28", null, null)
+
+                if (serverResponse.isSuccess) {
+                    Log.d("API_SYNC", "서버 일정 가져오기 성공")
                 }
 
+                // 3. 기기 캘린더 일정 동기화 (로컬 데이터 병합)
+                // 서버 저장이 끝난 직후에 실행하여 데이터 충돌을 방지합니다.
+                withContext(Dispatchers.IO) {
+                    repository.refreshSchedules()
+                }
+
+                Log.d("API_SYNC", "모든 동기화 작업 완료")
+
             } catch (e: Exception) {
-                Log.e("API_TEST", "ViewModel: 에러 발생 -> ${e.message}")
+                Log.e("API_SYNC", "동기화 실패: ${e.message}")
             }
         }
-        viewModelScope.launch(Dispatchers.IO) { repository.refreshSchedules() }
     }
 
     fun updateSchedule(schedule: Schedule) {

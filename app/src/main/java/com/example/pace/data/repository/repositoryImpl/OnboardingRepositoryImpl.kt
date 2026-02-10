@@ -12,7 +12,7 @@ import javax.inject.Inject
 
 class OnboardingRepositoryImpl @Inject constructor(
     private val api: OnboardingService,
-    private val dao: UserSettingsDao // 로컬 DB 주입
+    private val dao: UserSettingsDao
 ) : OnboardingRepository {
 
     override suspend fun saveSettingsToLocal(settings: UserSettingsEntity) {
@@ -23,6 +23,7 @@ class OnboardingRepositoryImpl @Inject constructor(
         accessToken: String,
         request: OnboardingRequest
     ): RawDefaultResponse<OnboardingResponse> {
+        // 💡 api 호출부에서도 memberId 삭제
         return safeApiCall { api.saveOnboardingSettings(accessToken, request) }
     }
 }
