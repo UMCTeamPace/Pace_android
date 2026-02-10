@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
-    android:background="@color/white"
+    android:background="@color/background"
     tools:context=".ui.settings.SettingsActivity"
     >
     <androidx.appcompat.widget.Toolbar
@@ -13,6 +13,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
+        android:background="@android:color/white"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent">
         <ImageView
@@ -28,7 +29,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="설정"
-            android:textAppearance="@style/TextAppearance.App.BodyMd.Medium"
+            android:textAppearance="@style/TextAppearance.App.HeadlineSm"
+            android:textStyle="bold"
             android:layout_gravity="center"/>
     </androidx.appcompat.widget.Toolbar>
 

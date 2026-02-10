@@ -6,9 +6,10 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import com.example.pace.databinding.DialogSignoutBinding
+import com.example.pace.databinding.DialogWithdrawalBinding
 
-class SignoutDialog(context: Context) : Dialog(context) {
-    private lateinit var binding: DialogSignoutBinding
+class WithdrawalDialog(context: Context) : Dialog(context) {
+    private lateinit var binding: DialogWithdrawalBinding
     private var okClick: (() -> Unit)? = null
 
     // 프래그먼트에서 '로그아웃' 버튼 클릭 시 실행할 동작을 넘겨받는 함수
@@ -18,19 +19,19 @@ class SignoutDialog(context: Context) : Dialog(context) {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = DialogSignoutBinding.inflate(layoutInflater)
+        binding = DialogWithdrawalBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         // 배경 투명하게 (XML의 둥근 모서리가 보이게 설정)
         window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
 
         // 취소 버튼
-        binding.signoutCancelBtn.setOnClickListener {
+        binding.withdrawalCancelBtn.setOnClickListener {
             dismiss()
         }
 
         // 확인(로그아웃) 버튼
-        binding.signoutOkBtn.setOnClickListener {
+        binding.withdrawalOkBtn.setOnClickListener {
             okClick?.invoke() // 설정한 로그아웃 로직 실행
             dismiss()
         }
@@ -47,4 +48,5 @@ class SignoutDialog(context: Context) : Dialog(context) {
             attributes = params
         }
     }
+
 }
