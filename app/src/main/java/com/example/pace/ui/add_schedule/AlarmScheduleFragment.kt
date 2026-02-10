@@ -32,61 +32,68 @@ class AlarmScheduleFragment : Fragment() {
             parentFragmentManager.popBackStack()
         }
 
-        // 시스템 뒤로가기 버튼 처리
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 parentFragmentManager.popBackStack()
             }
         })
 
-        val checkBoxes = listOf(
-            binding.rbStarttime, binding.rbStart5mago, binding.rbStart10mago, binding.rbStart15mago,
-            binding.rbStart30mago, binding.rbStart1hago, binding.rbStart2hago,
-            binding.rbStart1dago, binding.rbStart2dago, binding.rbStart1wago
+        // "안함"을 제외한 알림 옵션 리스트
+        val alarmOptions = listOf(
+            binding.rbStarttime, binding.rbStart5mago, binding.rbStart10mago,
+            binding.rbStart15mago, binding.rbStart30mago, binding.rbStart1hago,
+            binding.rbStart2hago, binding.rbStart1dago, binding.rbStart2dago, binding.rbStart1wago
         )
 
-
-        checkBoxes.forEach { checkBox ->
-            checkBox.setOnCheckedChangeListener { buttonView, isChecked ->
-                val text = buttonView.text.toString()
+        // 1. 알림 옵션들 클릭 리스너
+        alarmOptions.forEach { checkBox ->
+            checkBox.setOnClickListener {
+                val isChecked = checkBox.isChecked
+                val text = checkBox.text.toString()
 
                 if (isChecked) {
-
+                    // 5개 제한 체크
                     if (selectedOptions.size >= 5) {
-                        buttonView.isChecked = false
-
-                        return@setOnCheckedChangeListener
+                        checkBox.isChecked = false
+                        return@setOnClickListener
                     }
+                    // 알림 옵션을 선택하면 "안함"은 해제
+                    binding.rbNone.isChecked = false
                     selectedOptions.add(text)
                 } else {
                     selectedOptions.remove(text)
                 }
-
-
                 updateUIAndResult()
             }
         }
 
-        // 안함(rb_none) 버튼 클릭 시 모든 체크 해제
+        // 2. "안함" 버튼 클릭 리스너
         binding.rbNone.setOnClickListener {
-            checkBoxes.forEach { it.isChecked = false }
-            selectedOptions.clear()
+            if (binding.rbNone.isChecked) {
+                // "안함" 체크 시 모든 옵션 해제
+                alarmOptions.forEach { it.isChecked = false }
+                selectedOptions.clear()
+            }
             updateUIAndResult()
         }
-
     }
 
     private fun updateUIAndResult() {
-
+        // 5개 꽉 찼을 때 설명 텍스트 색상 변경
         if (selectedOptions.size >= 5) {
             binding.tvAlarmDescription.setTextColor(Color.RED)
         } else {
             binding.tvAlarmDescription.setTextColor(Color.parseColor("#666666"))
         }
 
-        val resultText = selectedOptions.joinToString(", ")
-        val bundle = Bundle().apply { putString("selectedAlarm", resultText) }
+        // 결과 전달
+        val resultText = if (binding.rbNone.isChecked || selectedOptions.isEmpty()) {
+            "일정 알림 안함"
+        } else {
+            selectedOptions.joinToString(", ")
+        }
 
+        val bundle = Bundle().apply { putString("selectedAlarm", resultText) }
         parentFragmentManager.setFragmentResult("scheduleAlarmKey", bundle)
     }
 

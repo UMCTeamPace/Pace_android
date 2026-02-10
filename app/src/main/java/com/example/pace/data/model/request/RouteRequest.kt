@@ -2,7 +2,7 @@ package com.example.pace.data.model.request
 
 import com.google.gson.annotations.SerializedName
 
-data class RouteRequest(
+data class RouteSearchRequest(
     @SerializedName("originLat") val originLat: Double,
     @SerializedName("originLng") val originLng: Double,
     @SerializedName("destLat") val destLat: Double,
