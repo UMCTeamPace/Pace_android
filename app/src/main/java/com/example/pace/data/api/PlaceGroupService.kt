@@ -1,20 +1,19 @@
 package com.example.pace.data.api
 
 import com.example.pace.data.model.request.CreateGroupRequest
+import com.example.pace.data.model.request.DeleteGroupRequest
 import com.example.pace.data.model.request.UpdateGroupRequest
 import com.example.pace.data.model.response.CreateGroupResponse
 import com.example.pace.data.model.response.GroupListResponse
-import com.example.pace.data.model.response.MemberSettingsResponse
 import com.example.pace.data.model.response.RawDefaultResponse
 import com.example.pace.data.model.response.UpdateGroupResponse
 import retrofit2.http.Body
-import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.HTTP
 import retrofit2.http.Header
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
-import retrofit2.http.Query
 
 interface PlaceGroupService {
 
@@ -29,11 +28,11 @@ interface PlaceGroupService {
         @Body request: CreateGroupRequest
     ): RawDefaultResponse<CreateGroupResponse>
 
-    @DELETE("/api/v1/groups")
+    @HTTP(method = "DELETE", path = "/api/v1/groups", hasBody = true)
     suspend fun deleteGroups(
         @Header("Authorization") accessToken: String,
-        @Query("groupIds") groupIds: List<Long>
-    ): RawDefaultResponse<Unit> // 삭제는 결과 데이터가 없는 경우가 많아 Unit 권장
+        @Body request: DeleteGroupRequest
+    ): RawDefaultResponse<String>
 
     @PATCH("/api/v1/groups/{groupId}")
     suspend fun updateGroup(

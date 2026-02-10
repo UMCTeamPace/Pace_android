@@ -555,7 +555,7 @@ class RouteFragment : Fragment() {
                 putExtra("endPlaceName", selectedEndPlace?.first)
                 putExtra("endPlaceId", selectedEndPlace?.second)
                 //백엔드 연동 후 5분단위로 보정해서 넣기
-                responseArrivelTime ="02:03"
+                responseArrivelTime ="02:05"
                 putExtra("scheduleStartTime", responseArrivelTime)
                 putExtra("routeData", Gson().toJson(item))
                 putExtra("earlyArriveTime", 0)

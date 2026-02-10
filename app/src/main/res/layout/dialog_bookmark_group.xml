@@ -47,7 +47,7 @@
         android:fontFamily="@font/pretendard_medium"
         android:gravity="center"
         android:text="*이미 존재하는 폴더명입니다."
-        android:textColor="#FF5252"
+        android:textColor="@color/semantic_warning"
         android:textSize="12sp"
         android:visibility="gone" />
 

@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.pace.R
 import com.example.pace.data.model.response.SavePlaceResponse
 import com.example.pace.databinding.ActivityGroupEditBinding
+import com.example.pace.ui.search_box.DeleteConfirmDialogFragment
 
 class GroupEditActivity : AppCompatActivity() {
     private lateinit var binding: ActivityGroupEditBinding
@@ -35,7 +36,6 @@ class GroupEditActivity : AppCompatActivity() {
 
         receivedList?.let { placeList.addAll(it) }
 
-        // 3. UI 초기화 및 리스너 설정
         setupRecyclerView()
         setupListeners()
     }
@@ -53,7 +53,7 @@ class GroupEditActivity : AppCompatActivity() {
             binding.btnMovePlace.isEnabled = isEnabled
             binding.btnDeletePlace.isEnabled = isEnabled
 
-            // 전체 선택 상태 업데이트 (개별 선택으로 전체가 찼을 때)
+            // 전체 선택 상태 업데이트
             isAllSelected = (selectedCount == placeList.size && placeList.isNotEmpty())
             updateSelectAllIcon()
         }
@@ -88,58 +88,34 @@ class GroupEditActivity : AppCompatActivity() {
     }
 
     private fun showDeleteConfirmDialog(count: Int) {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_delete_confirm, null)
-        val dialog = AlertDialog.Builder(this)
-            .setView(dialogView)
-            .create()
+        val message = "총 ${count}곳의 장소를\n그룹에서 삭제하시겠습니까?"
 
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        // DialogFragment 띄우기
+        val dialog = DeleteConfirmDialogFragment(message) {
+            // [확인] 버튼 눌렀을 때 실행될 로직 (기존 로직 유지)
+            performLocalDelete(count)
+        }
+        dialog.show(supportFragmentManager, "DeleteConfirmDialog")
+    }
 
-        dialog.show()
-
-        val displayMetrics = resources.displayMetrics
-        val screenWidth = displayMetrics.widthPixels
-
-        val layoutParams = android.view.WindowManager.LayoutParams()
-        layoutParams.copyFrom(dialog.window?.attributes)
-
-        layoutParams.width = (screenWidth * 0.75).toInt()
-        layoutParams.height = android.view.WindowManager.LayoutParams.WRAP_CONTENT
-
-        dialog.window?.attributes = layoutParams
-
-        val tvMessage = dialogView.findViewById<android.widget.TextView>(R.id.tv_delete_dialog_message)
-        val btnCancel = dialogView.findViewById<android.widget.Button>(R.id.btn_delete_cancel)
-        val btnConfirm = dialogView.findViewById<android.widget.Button>(R.id.btn_delete_confirm)
-
-        tvMessage.text = "총 ${count}곳의 장소를\n그룹에서 삭제하시겠습니까?"
-
-        btnCancel.setOnClickListener {
-            dialog.dismiss()
+    private fun performLocalDelete(count: Int) {
+        val sortedIndices = adapter.selectedPositions.sortedDescending()
+        sortedIndices.forEach { index ->
+            // TODO: 나중에 API 연동 시 여기서 placeList[index].savedPlaceId를 사용하여 서버 요청
+            placeList.removeAt(index)
         }
 
-        btnConfirm.setOnClickListener {
-            val sortedIndices = adapter.selectedPositions.sortedDescending()
-            sortedIndices.forEach { index ->
-                // TODO: 서버 삭제 API 호출 (placeList[index].savedPlaceId 사용)
-                placeList.removeAt(index)
-            }
+        adapter.selectedPositions.clear()
+        adapter.notifyDataSetChanged()
 
-            adapter.selectedPositions.clear()
-            adapter.notifyDataSetChanged()
+        isAllSelected = false
+        updateSelectAllIcon()
 
-            isAllSelected = false
-            updateSelectAllIcon()
+        binding.tvEditTitle.text = "편집"
+        binding.btnMovePlace.isEnabled = false
+        binding.btnDeletePlace.isEnabled = false
 
-            binding.tvEditTitle.text = "편집"
-            binding.btnMovePlace.isEnabled = false
-            binding.btnDeletePlace.isEnabled = false
-
-            Toast.makeText(this, "${count}개의 장소가 삭제되었습니다.", Toast.LENGTH_SHORT).show()
-            dialog.dismiss()
-        }
-
-        dialog.show()
+        Toast.makeText(this, "${count}개의 장소가 삭제되었습니다.", Toast.LENGTH_SHORT).show()
     }
 
     private fun showMoveBottomSheet() {

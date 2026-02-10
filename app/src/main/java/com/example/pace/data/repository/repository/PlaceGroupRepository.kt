@@ -30,7 +30,7 @@ interface PlaceGroupRepository {
     suspend fun deleteGroups(
          accessToken: String,
          groupIds: List<Long>
-    ): RawDefaultResponse<Unit> // 삭제는 결과 데이터가 없는 경우가 많아 Unit 권장
+    ): RawDefaultResponse<String> // 삭제는 결과 데이터가 없는 경우가 많아 Unit 권장
 
 
     suspend fun updateGroup(

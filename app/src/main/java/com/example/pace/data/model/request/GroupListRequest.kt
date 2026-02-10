@@ -11,3 +11,7 @@ data class UpdateGroupRequest(
     @SerializedName("groupName") val groupName: String,
     @SerializedName("groupColor") val groupColor: String
 )
+
+data class DeleteGroupRequest(
+    val groupIdList: List<Long>
+)

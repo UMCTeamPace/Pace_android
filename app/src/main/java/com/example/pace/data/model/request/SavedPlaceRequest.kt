@@ -4,9 +4,7 @@ import com.google.gson.annotations.SerializedName
 
 data class SavePlaceRequest(
     @SerializedName("placeName") val placeName: String,
-    @SerializedName("latitude") val latitude: Double,
-    @SerializedName("longitude") val longitude: Double,
-    @SerializedName("address") val address: String,
+    @SerializedName("placeId") val placeId: String,
     @SerializedName("groupId") val groupId: Long
 )
 
