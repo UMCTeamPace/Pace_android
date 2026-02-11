@@ -21,51 +21,46 @@ import kotlinx.coroutines.Dispatchers // 추가
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOn // 추가
 import kotlinx.coroutines.withContext
+import com.example.pace.data.repository.repository.SettingsRepository // 세팅 레포지토리 임포트
+import com.example.pace.data.model.UserSettingsEntity // 유저 설정 모델
+import com.example.pace.data.model.request.PlaceRequest
+import com.example.pace.data.model.request.ReminderRequest
+import com.example.pace.data.model.request.RepeatInfo
+import com.example.pace.data.model.request.RouteRequest
 
 import javax.inject.Inject
-
 
 @HiltViewModel
 class ScheduleViewModel @Inject constructor(
     private val repository: ScheduleRepository,
-    private val authDataStore: AuthDataStore
+    private val authDataStore: AuthDataStore,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
     private val rangeFormatter = DateTimeFormatter.ofPattern("yyyy. MM. dd")
 
-    // 마지막 검색어 저장 (필터 변경 시 재사용)
     private var lastQuery: String = ""
-
-    // 1. 검색 날짜 범위 상태 (초기값: 오늘 기준 앞뒤 1년)
     private var searchStartDate = LocalDate.now().minusYears(1)
     private var searchEndDate = LocalDate.now().plusYears(1)
 
-    // UI에 표시할 날짜 범위 텍스트
     private val _searchRangeText = MutableStateFlow("")
     val searchRangeText: StateFlow<String> = _searchRangeText
-
-    // 2. 필터 상태 (StateFlow로 노출해야 바텀시트에서 체크 표시를 유지할 수 있음)
-    private val _filterColor = MutableStateFlow<String?>(null)
-    val filterColor: StateFlow<String?> = _filterColor
-
-    private val _filterIncludeRoute = MutableStateFlow(true)
-    val filterIncludeRoute: StateFlow<Boolean> = _filterIncludeRoute
-
-    // 검색 결과 상태
-    private val _searchResults = MutableStateFlow<List<Schedule>>(emptyList())
-    val searchResults: StateFlow<List<Schedule>> = _searchResults
-
-    // 선택된 날짜 (캘린더용)
-    private val _selectedDate = MutableStateFlow<LocalDate>(LocalDate.now())
-    val selectedDate: StateFlow<LocalDate> = _selectedDate
 
     private val _filterColors = MutableStateFlow<Set<String>>(emptySet())
     val filterColors: StateFlow<Set<String>> = _filterColors
 
+    private val _filterIncludeRoute = MutableStateFlow(true)
+    val filterIncludeRoute: StateFlow<Boolean> = _filterIncludeRoute
+
+    private val _searchResults = MutableStateFlow<List<Schedule>>(emptyList())
+    val searchResults: StateFlow<List<Schedule>> = _searchResults
+
+    private val _selectedDate = MutableStateFlow<LocalDate>(LocalDate.now())
+    val selectedDate: StateFlow<LocalDate> = _selectedDate
+
     private val _isEditMode = MutableStateFlow(false)
     val isEditMode: StateFlow<Boolean> = _isEditMode
-
 
     private val _selectedIds = MutableStateFlow<Set<Long>>(emptySet())
     val selectedIds: StateFlow<Set<Long>> = _selectedIds
@@ -73,12 +68,101 @@ class ScheduleViewModel @Inject constructor(
     private val _createScheduleEvent = MutableStateFlow<Boolean?>(null)
     val createScheduleEvent: StateFlow<Boolean?> = _createScheduleEvent
 
-    private val _scheduleRouteInfo= MutableStateFlow<RouteInfo?>(null)
-    val scheduleRouteInfo = _scheduleRouteInfo.value
+    // 사용자 설정 (온보딩 시 설정한 알람 등)
+    val userSettings: StateFlow<UserSettingsEntity?> = settingsRepository.getUserSettings()
+        .flowOn(Dispatchers.IO)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    // 사용 중인 색상 리스트
+    val usedColors: StateFlow<List<String>> = repository.getUsedColors()
+        .flowOn(Dispatchers.IO)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    init {
+        updateRangeText()
+        refreshSchedules()
+    }
+
+    // --- 동기화 로직 (Clean-up 포함) ---
+    fun refreshSchedules() {
+        android.util.Log.d("API_SYNC", "통합 동기화 프로세스 시작")
+        viewModelScope.launch {
+            try {
+                val token = authDataStore.getAccessToken() ?: return@launch
+                val fullToken = if (token.startsWith("Bearer ")) token else "Bearer $token"
+
+                // 1. 서버 일정 동기화
+                repository.getScheduleList(fullToken, "2026-02-01", "2026-02-28", null, null)
+
+                // 2. [중요] 시스템 삭제분 정리 (유령 일정 제거)
+                withContext(Dispatchers.IO) {
+                    repository.cleanUpSystemDeletedSchedules()
+                }
+
+                // 3. 기기 캘린더 최신화
+                withContext(Dispatchers.IO) {
+                    repository.refreshSchedules()
+                }
+            } catch (e: Exception) {
+                Log.e("API_SYNC", "동기화 실패: ${e.message}")
+            }
+        }
+    }
+
+    // --- 검색 및 필터 로직 ---
+    fun searchSchedules(query: String) {
+        lastQuery = query
+        val dbQuery = if (query.isBlank()) "%" else "%$query%"
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val results = repository.searchSchedules(
+                query = dbQuery,
+                colors = _filterColors.value,
+                includeRoute = _filterIncludeRoute.value,
+                startDate = searchStartDate.format(dateFormatter),
+                endDate = searchEndDate.format(dateFormatter)
+            )
+            _searchResults.value = results
+        }
+    }
+
+    fun toggleFilterColor(color: String) {
+        val current = _filterColors.value.toMutableSet()
+        if (current.contains(color)) current.remove(color) else current.add(color)
+        _filterColors.value = current
+        searchSchedules(lastQuery)
+    }
+
+    // --- 생성 로직 ---
+    fun createSchedule(request: CreateScheduleRequest, placeId: String? = null, calendarId: Long? = null) {
+        viewModelScope.launch {
+            try {
+                val token = authDataStore.getAccessToken()
+                val fullToken = token?.let { if (it.startsWith("Bearer ")) it else "Bearer $it" }
+
+                // 경로 일정인데 토큰이 없는 경우 차단
+                if (request.route != null && fullToken == null) {
+                    _createScheduleEvent.value = false
+                    return@launch
+                }
+
+                val response = repository.createSchedule(fullToken, request, placeId, calendarId)
+                if (response.isSuccess) {
+                    withContext(Dispatchers.IO) { repository.refreshSchedules() }
+                    _createScheduleEvent.value = true
+                } else {
+                    _createScheduleEvent.value = false
+                }
+            } catch (e: Exception) {
+                _createScheduleEvent.value = false
+            }
+        }
+    }
+
+    // --- 편집 모드 및 삭제 ---
     fun setEditMode(enabled: Boolean) {
         _isEditMode.value = enabled
-        if (!enabled) _selectedIds.value = emptySet() // 편집 모드 종료 시 선택 초기화
+        if (!enabled) _selectedIds.value = emptySet()
     }
 
     fun toggleSelection(id: Long) {
@@ -89,104 +173,79 @@ class ScheduleViewModel @Inject constructor(
 
     fun deleteSelected() {
         viewModelScope.launch(Dispatchers.IO) {
-            // 실제 삭제 로직 (repository 호출 등)
             val idsToDelete = _selectedIds.value.toList()
-            // repository.deleteSchedules(idsToDelete) // 이 함수는 repository에 있어야 합니다.
+            // 서버/로컬 삭제 로직 구현 필요 (Repository에 deleteSchedules(ids) 추가 권장)
+            // repository.deleteLocalSchedules(idsToDelete)
 
             withContext(Dispatchers.Main) {
-                setEditMode(false) // 삭제 후 편집 모드 종료
+                setEditMode(false)
+                refreshSchedules() // 삭제 후 목록 갱신
             }
         }
     }
-    val usedColors: StateFlow<List<String>> = repository.getUsedColors()
-        .flowOn(Dispatchers.IO)
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
 
-
-    init {
-        updateRangeText()
-        refreshSchedules()
-    }
-
-
-    fun searchWithCurrentQuery() {
-        searchSchedules(lastQuery)
-    }
-
-    // 날짜 텍스트 업데이트 함수
     private fun updateRangeText() {
         _searchRangeText.value = "${searchStartDate.format(rangeFormatter)} ~ ${searchEndDate.format(rangeFormatter)}"
     }
 
-    // 3. 범위 넓혀 재검색 (6개월씩 확장)
-    fun expandSearchRange() {
-        searchStartDate = searchStartDate.minusMonths(6)
-        searchEndDate = searchEndDate.plusMonths(6)
-        updateRangeText()
-        searchSchedules(lastQuery) // 확장된 범위로 다시 검색
-    }
+    fun resetCreateEvent() { _createScheduleEvent.value = null }
 
-    fun setSelectedDate(date: LocalDate) {
-        _selectedDate.value = date
-    }
-
-    // [수정] 색상 토글 함수
-    fun toggleFilterColor(color: String) {
-        val current = _filterColors.value.toMutableSet()
-        if (current.contains(color)) {
-            current.remove(color)
-        } else {
-            current.add(color)
-        }
-        _filterColors.value = current
-
-        // 로그 4: 색상 변경 확인
-        android.util.Log.d("SearchFlow", "색상 필터 변경됨: ${_filterColors.value}")
-
-        searchSchedules(lastQuery)
-    }
-
-    fun searchSchedules(query: String) {
-        lastQuery = query
-
-        // [수정] 검색어가 비어있어도 return하지 않습니다.
-        // 대신 DB가 "모든 텍스트"를 찾을 수 있도록 와일드카드를 준비합니다.
-        val dbQuery = if (query.isBlank()) "%" else "%$query%"
-
-        android.util.Log.d("SearchFlow", "검색 실행 - 입력값: '$query', DB쿼리: '$dbQuery'")
-
-        viewModelScope.launch(Dispatchers.IO) {
-            val currentColors = _filterColors.value
-            val includeRoute = _filterIncludeRoute.value
-
-            val results = repository.searchSchedules(
-                query = dbQuery, // %를 포함한 쿼리 전달
-                colors = currentColors,
-                includeRoute = includeRoute,
-                startDate = searchStartDate.format(dateFormatter),
-                endDate = searchEndDate.format(dateFormatter)
-            )
-
-            android.util.Log.d("SearchFlow", "최종 검색 결과 개수: ${results.size}")
-            _searchResults.value = results
+    fun getCalendarNameById(calendarId: Long): String {
+        return try {
+            repository.getCalendarName(calendarId) ?: "내 일정"
+        } catch (e: Exception) {
+            "내 일정"
         }
     }
+    fun createScheduleWithDefaultSettings(
+        title: String,
+        memo: String?,
+        isAllDay: Boolean,
+        startDate: String,
+        startTime: String?,
+        endDate: String,
+        endTime: String?,
+        place: PlaceRequest?,
+        repeatRule: String? = null,
+        placeId: String? = null,
+        customAlarms: List<Int>? = null,
+        calendarId: Long? = null
+    ) {
+        val settings = userSettings.value
+        val reminders = mutableListOf<ReminderRequest>()
 
-    fun setFilterColor(color: String?) {
-        _filterColor.value = color
-        searchSchedules(lastQuery)
+        // 1. 알람 리스트 결정 (사용자 선택 우선 -> 없으면 설정값)
+        val alarmList = customAlarms ?: settings?.scheduleAlarms ?: emptyList()
+
+        alarmList.forEach { minutes ->
+            reminders.add(ReminderRequest(reminderType = "SCHEDULE", minutesBefore = minutes))
+        }
+
+        // 2. 출발 알람 설정이 있다면 추가
+        settings?.departureAlarms?.forEach { minutes ->
+            reminders.add(ReminderRequest(reminderType = "DEPARTURE", minutesBefore = minutes))
+        }
+
+        val request = CreateScheduleRequest(
+            title = title,
+            isAllDay = isAllDay,
+            startDate = startDate,
+            endDate = endDate,
+            startTime = startTime,
+            endTime = endTime,
+            memo = memo,
+            isPathIncluded = (place != null),
+            isRepeat = repeatRule != null,
+            repeatInfo = null,
+            place = place,
+            reminders = reminders,
+            route = null, // 일반 일정이므로 route는 null
+        )
+
+        // 기존에 만들어둔 createSchedule 호출
+        createSchedule(request, placeId, calendarId)
     }
 
-    fun setIncludeRouteFilter(include: Boolean) {
-        _filterIncludeRoute.value = include
-        searchSchedules(lastQuery)
-    }
-
-    // --- 기존 리스트 가공 및 기타 함수들 ---
     val scheduleMap: StateFlow<Map<LocalDate, List<Schedule>>> = repository.allSchedules
         .map { schedules ->
             schedules.groupBy { schedule ->
@@ -200,92 +259,50 @@ class ScheduleViewModel @Inject constructor(
             initialValue = emptyMap()
         )
 
-    // 기존의 raw 리스트가 필요한 경우를 위해 유지 (선택 사항)
-    val allSchedules = repository.allSchedules
-    val calendarEvents = repository.calendarEvents
-
-
-    fun refreshSchedules() {
-        android.util.Log.d("API_SYNC", "통합 동기화 프로세스 시작")
-
-        viewModelScope.launch {
-            try {
-                // 1. 토큰 준비
-                val token = authDataStore.getAccessToken() ?: return@launch
-                val fullToken = if (token.startsWith("Bearer ")) token else "Bearer $token"
-
-                // 2. 서버 일정 동기화 (네트워크 호출 1회)
-                // 이 함수 내부에서 이미 Room DB 저장이 이루어집니다.
-                val serverResponse = repository.getScheduleList(fullToken, "2026-02-01", "2026-02-28", null, null)
-
-                if (serverResponse.isSuccess) {
-                    Log.d("API_SYNC", "서버 일정 가져오기 성공")
-                }
-
-                // 3. 기기 캘린더 일정 동기화 (로컬 데이터 병합)
-                // 서버 저장이 끝난 직후에 실행하여 데이터 충돌을 방지합니다.
-                withContext(Dispatchers.IO) {
-                    repository.refreshSchedules()
-                }
-
-                Log.d("API_SYNC", "모든 동기화 작업 완료")
-
-            } catch (e: Exception) {
-                Log.e("API_SYNC", "동기화 실패: ${e.message}")
-            }
+    // 2. CalendarPageFragment.kt:100 라인 에러 해결 (날짜 선택 함수)
+    fun setSelectedDate(date: LocalDate) {
+        _selectedDate.value = date
+    }
+    fun updateSchedule(schedule: Schedule) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.updateSchedule(schedule)
         }
     }
-
-    fun updateSchedule(schedule: Schedule) {
-        viewModelScope.launch(Dispatchers.IO) { repository.updateSchedule(schedule) }
+    fun searchWithCurrentQuery() {
+        searchSchedules(lastQuery)
     }
+
+    // 2. SearchFilterBottomSheet.kt:98 라인 에러 해결
+    // 필터에서 '경로 일정 포함' 여부를 설정하고 바로 검색을 갱신합니다.
+    fun setIncludeRouteFilter(include: Boolean) {
+        _filterIncludeRoute.value = include
+        searchSchedules(lastQuery)
+    }
+
+    // SearchFragment.kt:202 라인 에러 해결
+    fun expandSearchRange() {
+        // 검색 시작 날짜는 6개월 전으로, 종료 날짜는 6개월 후로 확장
+        searchStartDate = searchStartDate.minusMonths(6)
+        searchEndDate = searchEndDate.plusMonths(6)
+
+        // UI에 표시되는 날짜 범위 텍스트 업데이트
+        updateRangeText()
+
+        // 확장된 범위로 현재 검색어 다시 검색
+        searchSchedules(lastQuery)
+
+        android.util.Log.d("SearchFlow", "검색 범위 확장됨: ${searchStartDate} ~ ${searchEndDate}")
+    }
+
+    // SearchFragment.kt:127 라인 에러 해결
     fun clearSearch() {
-        // 1. 마지막 검색어 변수도 반드시 비워야 합니다. (가장 중요!)
+        // 1. 마지막 검색어 변수 초기화
         lastQuery = ""
 
         // 2. 검색 결과 리스트 비우기
         _searchResults.value = emptyList()
 
-        android.util.Log.d("SearchFlow", "ScheduleViewModel: 검색어 및 데이터 완전 초기화 완료")
+        android.util.Log.d("SearchFlow", "검색 데이터 초기화 완료")
     }
 
-    fun createSchedule(request: CreateScheduleRequest) {
-        viewModelScope.launch {
-            try {
-                // 1. 토큰 가져오기
-                val token = authDataStore.getAccessToken()
-                if (token != null) {
-                    val fullToken = if (token.startsWith("Bearer ")) token else "Bearer $token"
-
-                    // 2. 리포지토리를 통해 서버 전송
-                    val response = repository.createSchedule(fullToken, request)
-
-                    // [수정 완료] success -> isSuccess / data -> result
-                    if (response.isSuccess) {
-                        // response.result는 CreateScheduleResponse 객체입니다.
-                        Log.d("API_CREATE", "일정 생성 성공: ${response.result}")
-
-                        // 3. 로컬 DB(Room) 새로고침 및 성공 알림
-                        repository.refreshSchedules()
-                        _createScheduleEvent.value = true
-                    } else {
-                        // 서버에서 내려준 에러 메시지 출력
-                        Log.e("API_CREATE", "일정 생성 실패: ${response.message}")
-                        _createScheduleEvent.value = false
-                    }
-                } else {
-                    Log.e("API_CREATE", "인증 토큰이 없습니다.")
-                    _createScheduleEvent.value = false
-                }
-            } catch (e: Exception) {
-                Log.e("API_CREATE", "네트워크 에러 발생: ${e.message}")
-                _createScheduleEvent.value = false
-            }
-        }
-    }
-
-    // 이벤트 초기화 함수 (연속 호출 방지)
-    fun resetCreateEvent() {
-        _createScheduleEvent.value = null
-    }
 }

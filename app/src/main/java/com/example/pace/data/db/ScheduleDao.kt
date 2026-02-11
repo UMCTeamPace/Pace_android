@@ -53,4 +53,10 @@ interface ScheduleDao {
         SELECT calendar_color AS color FROM schedules WHERE calendar_color IS NOT NULL
     """)
         fun getUsedColorsRaw(): Flow<List<ColorResult>>
+
+
+    @Query("SELECT * FROM schedules WHERE source_type = 'DEVICE' AND id IS NOT NULL")
+    suspend fun getSchedulesWithSystemId(): List<Schedule>
+    @Query("DELETE FROM schedules WHERE id = :scheduleId")
+    suspend fun deleteScheduleById(scheduleId: Long)
 }

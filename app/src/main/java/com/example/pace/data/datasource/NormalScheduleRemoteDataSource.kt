@@ -5,6 +5,7 @@ import android.database.Cursor
 import android.provider.CalendarContract
 import android.util.Log
 import com.example.pace.data.model.Schedule
+import com.example.pace.data.model.request.CreateScheduleRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -14,6 +15,30 @@ import javax.inject.Inject // 추가
 class NormalScheduleRemoteDataSource @Inject constructor(
     @ApplicationContext private val applicationContext: Context
 ) {
+
+    suspend fun insertToCalendarProvider(request: CreateScheduleRequest): Long = withContext(Dispatchers.IO) {
+        val contentResolver = applicationContext.contentResolver // applicationContext로 수정
+
+        // 시간 계산 로직
+        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+        val startMillis = sdf.parse("${request.startDate} ${request.startTime ?: "00:00"}")?.time ?: System.currentTimeMillis()
+
+        // 종료 시간이 없으면 시작 시간 + 1시간으로 설정
+        val endMillis = sdf.parse("${request.endDate} ${request.endTime ?: "23:59"}")?.time ?: (startMillis + 3600000)
+
+        val values = android.content.ContentValues().apply {
+            put(CalendarContract.Events.TITLE, request.title)
+            put(CalendarContract.Events.DESCRIPTION, request.memo)
+            put(CalendarContract.Events.DTSTART, startMillis)
+            put(CalendarContract.Events.DTEND, endMillis)
+            put(CalendarContract.Events.ALL_DAY, if (request.isAllDay) 1 else 0)
+            put(CalendarContract.Events.CALENDAR_ID, 1)
+            put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
+        }
+
+        val uri = contentResolver.insert(CalendarContract.Events.CONTENT_URI, values)
+        uri?.lastPathSegment?.toLong() ?: -1L
+    }
     suspend fun getSchedules(): List<Schedule> = withContext(Dispatchers.IO) {
         val scheduleList = mutableListOf<Schedule>()
 

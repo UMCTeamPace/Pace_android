@@ -30,4 +30,8 @@ interface UserSettingsDao {
 
     @Query("SELECT * FROM user_settings WHERE id = :memberId")
     fun getSettingsFlow(memberId: Long): Flow<UserSettingsEntity?>
+
+    @Query("SELECT * FROM user_settings LIMIT 1") // 테이블명은 본인의 엔티티에 맞게 수정
+    fun getUserSettings(): Flow<UserSettingsEntity?>
+
 }

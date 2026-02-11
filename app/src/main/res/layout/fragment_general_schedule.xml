@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -7,494 +6,265 @@
     android:layout_height="match_parent"
     android:background="#F5F5F5">
 
-<androidx.core.widget.NestedScrollView
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:fitsSystemWindows="true"
-    android:background="#F5F5F5"
-    app:layout_constraintTop_toTopOf="parent"
-    app:layout_constraintBottom_toTopOf="@id/layoutBottomButtons">
-
-    <LinearLayout
-        android:id="@+id/layout_schedule_name"
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/nestedScrollView"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical" >
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        android:fitsSystemWindows="true"
+        android:background="#F5F5F5"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/layoutBottomButtons">
 
         <LinearLayout
+            android:id="@+id/layout_contents"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="20dp"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/box_schedule"
             android:orientation="vertical"
-            android:padding="16dp"
-            android:animateLayoutChanges="true">
+            android:paddingBottom="24dp">
 
             <LinearLayout
+                android:id="@+id/layout_schedule_name"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-            <View
-                android:id="@+id/view_color_dot"
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:padding="8dp"
-                android:background="@drawable/circle_schedulecolor"
-                android:backgroundTint="@color/schedule_5"
-                />
-
-
-            <EditText
-                android:id="@+id/et_schedule_name"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="10dp"
-                android:background="@null"
-                android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                android:hint="일정명"
-                android:importantForAutofill="no"
-                android:inputType="text"
-                android:textColor="@color/black" />
-
-        </LinearLayout>
-            <LinearLayout
-                android:id="@+id/layout_color_selector"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="12dp"
-                android:layout_marginTop="4dp"
+                android:layout_marginHorizontal="20dp"
+                android:layout_marginTop="12dp"
                 android:background="@drawable/box_schedule"
-                android:orientation="horizontal"
-                android:padding="4dp"
-                android:gravity="start"
-                android:visibility="gone">
-
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/rvColors"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:overScrollMode="never"
-                    android:paddingStart="4dp"
-                    android:clipToPadding="false"
-                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="20dp"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/box_schedule"
-            android:padding="16dp"
-            android:orientation="vertical"
-            android:gravity="center_vertical"
-            app:layout_constraintTop_toBottomOf="@id/addsche_toolbar"
-            app:layout_constraintStart_toStartOf="parent">
-
-            <RelativeLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical">
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:animateLayoutChanges="true">
 
                 <LinearLayout
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
 
-                    <ImageView
-                        android:id="@+id/btn_all_day"
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:src="@drawable/ic_time" />
+                    <View
+                        android:id="@+id/view_color_dot"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:background="@drawable/circle_schedulecolor"
+                        android:backgroundTint="@color/schedule_5" />
 
-                    <TextView
-                        android:id="@+id/tv_all_day"
+                    <EditText
+                        android:id="@+id/et_schedule_name"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="4dp"
+                        android:layout_marginStart="10dp"
+                        android:background="@null"
                         android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                        android:text="하루 종일"
+                        android:hint="일정명"
+                        android:importantForAutofill="no"
+                        android:inputType="text"
                         android:textColor="@color/black" />
                 </LinearLayout>
 
-                <ImageView
-                    android:id="@+id/addsche_my_phone_iv"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:clickable="true"
-                    android:src="@drawable/ic_toggle_selected"
-                    android:layout_alignParentRight="true"
-                    android:layout_centerVertical="true"/>
-
-            </RelativeLayout>
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginVertical="16dp"
-                android:background="#F1F3F5" />
-
-            <LinearLayout
-                android:id="@+id/layout_date_display"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:orientation="horizontal">
-
                 <LinearLayout
-                    android:id="@+id/btn_start_date"
-                    android:layout_width="0dp"
+                    android:id="@+id/layout_color_selector"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:gravity="center"
-                    android:orientation="vertical">
-                    <TextView
-                        android:id="@+id/tv_start_date"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                        android:text="2월 20일 (금)" />
-                    <TextView
-                        android:id="@+id/tv_start_time"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                        android:text="10:00" />
-                </LinearLayout>
+                    android:layout_marginTop="12dp"
+                    android:visibility="gone">
 
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:src="@drawable/ic_arrow_indicate_selected" />
-
-                <LinearLayout
-                    android:id="@+id/btn_end_date"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:gravity="center"
-                    android:orientation="vertical">
-                    <TextView
-                        android:id="@+id/tv_end_date"
-                        android:layout_width="wrap_content"
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvColors"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                        android:text="2월 20일 (금)" />
-                    <TextView
-                        android:id="@+id/tv_end_time"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                        android:text="11:00" />
+                        android:overScrollMode="never" />
                 </LinearLayout>
             </LinearLayout>
 
             <LinearLayout
-                android:id="@+id/calendarContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:layout_marginTop="16dp"
-                android:visibility="gone">
+                android:layout_marginHorizontal="20dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/box_schedule"
+                android:padding="16dp"
+                android:orientation="vertical">
 
                 <RelativeLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="8dp"
-                    android:paddingHorizontal="4dp">
+                    android:layout_height="wrap_content">
 
                     <LinearLayout
-                        android:id="@+id/layout_month_title"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_centerVertical="true"
                         android:gravity="center_vertical"
                         android:orientation="horizontal">
-
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_time" />
                         <TextView
-                            android:id="@+id/tv_current_month"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="2026년 2월"
-                            android:textAppearance="@style/TextAppearance.App.BodySm.Medium"
-                            android:textColor="@color/black"
-                            android:textSize="16sp" />
-
-                        <ImageView
-                            android:layout_width="14dp"
-                            android:layout_height="14dp"
                             android:layout_marginStart="4dp"
-                            android:src="@drawable/ic_arrow_down" />
+                            android:text="하루 종일"
+                            android:textColor="@color/black" />
                     </LinearLayout>
 
-                    <LinearLayout
+                    <ImageView
+                        android:id="@+id/addsche_my_phone_iv"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_alignParentEnd="true"
-                        android:orientation="horizontal">
-
-                        <ImageButton
-                            android:id="@+id/btn_prev_month"
-                            android:layout_width="32dp"
-                            android:layout_height="32dp"
-                            android:padding="8dp"
-                            android:scaleType="fitCenter"
-                            android:background="?attr/selectableItemBackgroundBorderless"
-                            android:src="@drawable/ic_arrow_opened" />
-
-                        <ImageButton
-                            android:id="@+id/btn_next_month"
-                            android:layout_width="32dp"
-                            android:layout_height="32dp"
-                            android:layout_marginStart="8dp"
-                            android:padding="8dp"
-                            android:scaleType="fitCenter"
-                            android:background="?attr/selectableItemBackgroundBorderless"
-                            android:src="@drawable/ic_arrow_closed" />
-                    </LinearLayout>
+                        android:src="@drawable/ic_toggle_selected"
+                        android:layout_alignParentRight="true" />
                 </RelativeLayout>
 
-                <include
-                    android:id="@+id/legendLayout"
-                    layout="@layout/layout_calendar_day_legend" />
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginVertical="16dp"
+                    android:background="#F1F3F5" />
 
-                <com.kizitonwose.calendar.view.CalendarView
-                    android:id="@+id/calendarPicker"
+                <LinearLayout
+                    android:id="@+id/layout_date_display"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    app:cv_dayViewResource="@layout/item_calendar_day_addschedule"
-                    app:cv_orientation="horizontal"
-                    app:cv_scrollPaged="true" />
-            </LinearLayout>
+                    android:gravity="center"
+                    android:orientation="horizontal">
 
-            <LinearLayout
-                android:id="@+id/timePickerContainer"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:orientation="horizontal"
-                android:visibility="gone">
+                    <LinearLayout
+                        android:id="@+id/btn_start_date"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:orientation="vertical">
+                        <TextView android:id="@+id/tv_start_date" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="2월 11일 (수)" />
+                        <TextView android:id="@+id/tv_start_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="10:00" />
+                    </LinearLayout>
 
-                <NumberPicker
-                    android:id="@+id/picker_hour"
-                    android:layout_width="wrap_content"
-                    android:layout_height="120dp"
-                    android:selectionDividerHeight="1dp"
-                    android:theme="@style/CustomNumberPicker" />
+                    <ImageView android:layout_width="16dp" android:layout_height="16dp" android:src="@drawable/ic_arrow_indicate_selected" />
 
-                <TextView
-                    android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:id="@+id/btn_end_date"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:orientation="vertical">
+                        <TextView android:id="@+id/tv_end_date" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="2월 11일 (수)" />
+                        <TextView android:id="@+id/tv_end_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="11:00" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/calendarContainer"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:layout_marginEnd="16dp"
-                    android:text=":"
-                    android:textColor="@color/text_primary"
-                    android:textSize="18sp" />
+                    android:orientation="vertical"
+                    android:layout_marginTop="16dp"
+                    android:visibility="visible">
 
-                <NumberPicker
-                    android:id="@+id/picker_minute"
-                    android:layout_width="wrap_content"
-                    android:layout_height="120dp"
-                    android:selectionDividerHeight="1dp"
-                    android:theme="@style/CustomNumberPicker" />
+                    <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingHorizontal="4dp">
+                        <TextView android:id="@+id/tv_current_month" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="2026년 2월" android:textColor="@color/black" android:textSize="16sp" />
+                        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true">
+                            <ImageButton android:id="@+id/btn_prev_month" android:layout_width="32dp" android:layout_height="32dp" android:background="?attr/selectableItemBackgroundBorderless" android:src="@drawable/ic_arrow_opened" />
+                            <ImageButton android:id="@+id/btn_next_month" android:layout_width="32dp" android:layout_height="32dp" android:background="?attr/selectableItemBackgroundBorderless" android:src="@drawable/ic_arrow_closed" />
+                        </LinearLayout>
+                    </RelativeLayout>
 
-            </LinearLayout>
+                    <include
+                        android:id="@+id/legendLayout"  layout="@layout/layout_calendar_day_legend" />
+                    <com.kizitonwose.calendar.view.CalendarView
+                        android:id="@+id/calendarPicker"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:cv_dayViewResource="@layout/item_calendar_day_addschedule" />
+                </LinearLayout>
 
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginVertical="16dp"
-                android:background="#F1F3F5" />
-
-            <LinearLayout
-                android:id="@+id/btn_repeat"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:src="@drawable/ic_arrow_change" />
-
-                <TextView
-                    android:id="@+id/tv_repeat_status"
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:id="@+id/timePickerContainer"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                    android:text="반복 안함"
-                    android:textColor="@color/gray_500" />
-            </LinearLayout>
+                    android:gravity="center"
+                    android:layout_marginTop="16dp"
+                    android:visibility="gone">
+                    <NumberPicker android:id="@+id/picker_hour" android:layout_width="wrap_content" android:layout_height="120dp" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=":" android:textSize="18sp" android:layout_marginHorizontal="8dp"/>
+                    <NumberPicker android:id="@+id/picker_minute" android:layout_width="wrap_content" android:layout_height="120dp" />
+                </LinearLayout>
 
-        </LinearLayout>
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginVertical="16dp" android:background="#F1F3F5" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="20dp"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/box_schedule"
-            android:orientation="horizontal"
-            android:padding="16dp">
-
-            <LinearLayout
-                android:id="@+id/btn_route"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:clickable="true"
-                android:focusable="true"
-                android:focusableInTouchMode="false"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:src="@drawable/ic_route_unselected" />
-
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:id="@+id/btn_repeat"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                    android:text="장소"
-                    android:textColor="@color/gray_500" />
+                    android:gravity="center_vertical">
+                    <ImageView android:layout_width="16dp" android:layout_height="16dp" android:src="@drawable/ic_arrow_change" />
+                    <TextView android:id="@+id/tv_repeat_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:text="반복 안함" />
+                </LinearLayout>
             </LinearLayout>
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="20dp"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/box_schedule"
-            android:orientation="horizontal"
-            android:padding="16dp">
-
-            <LinearLayout
-                android:id="@+id/btn_remindalarm"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:src="@drawable/ic_alarm_schedule" />
-
-                <TextView
-                    android:id="@+id/tv_remind_status"  android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                    android:text="일정 알림 안함"
-                    android:textColor="@color/gray_500" />
-            </LinearLayout>
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="20dp"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/box_schedule"
-            android:orientation="vertical"
-            android:padding="16dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:src="@drawable/ic_memo" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:text="메모"
-                    android:textAppearance="@style/TextAppearance.App.BodySm.Medium"
-                    android:textColor="@color/gray_500" />
-            </LinearLayout>
-
-            <EditText
-                android:id="@+id/et_memo"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="20dp"
                 android:layout_marginTop="12dp"
-                android:background="@null"
-                android:gravity="top"
-                android:inputType="textMultiLine"
-                android:minLines="3"
-                android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                android:textSize="14sp"
-                android:padding="4dp" />
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="20dp"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/box_schedule"
-            android:orientation="horizontal"
-            android:padding="16dp">
+                android:background="@drawable/box_schedule"
+                android:padding="16dp">
+                <LinearLayout android:id="@+id/btn_route" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+                    <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_route_unselected" />
+                    <TextView android:id="@+id/tv_location_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:text="장소" />
+                </LinearLayout>
+            </LinearLayout>
 
             <LinearLayout
-                android:id="@+id/btn_calendar"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:layout_marginHorizontal="20dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/box_schedule"
+                android:padding="16dp">
+                <LinearLayout android:id="@+id/btn_remindalarm" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+                    <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_alarm_schedule" />
+                    <TextView android:id="@+id/tv_remind_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:text="일정 알림 안함" />
+                </LinearLayout>
+            </LinearLayout>
 
-                <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:src="@drawable/ic_day_unselected" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="20dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/box_schedule"
+                android:orientation="vertical"
+                android:padding="16dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+                    <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_memo" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:text="메모" />
+                </LinearLayout>
+                <EditText android:id="@+id/et_memo" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:background="@null" android:hint="메모를 입력하세요" android:minLines="3" android:gravity="top" android:inputType="textMultiLine" />
+            </LinearLayout>
 
-                <TextView
-                    android:id="@+id/tv_calendar_status"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                    android:text="캘린더"
-                    android:textColor="@color/gray_500" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="20dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/box_schedule"
+                android:padding="16dp">
+                <LinearLayout android:id="@+id/btn_calendar" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+                    <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_day_unselected" />
+                    <TextView android:id="@+id/tv_calendar_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:text="캘린더" />
+                </LinearLayout>
             </LinearLayout>
 
         </LinearLayout>
-
-    </LinearLayout>
-</androidx.core.widget.NestedScrollView>
+    </androidx.core.widget.NestedScrollView>
 
     <LinearLayout
         android:id="@+id/layoutBottomButtons"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="18dp"
-        android:layout_marginBottom="12dp"
         android:layout_marginHorizontal="20dp"
+        android:layout_marginVertical="12dp"
         android:orientation="horizontal"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        app:layout_constraintBottom_toBottomOf="parent">
 
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btn_cancel"
@@ -503,9 +273,7 @@
             android:layout_marginEnd="8dp"
             android:layout_weight="1"
             android:background="@drawable/btn_cancel_bg"
-            android:backgroundTint="@null"
-            android:text="취소"
-            android:textColor="@color/text_secondary"/>
+            android:text="취소" />
 
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btn_confirm"
