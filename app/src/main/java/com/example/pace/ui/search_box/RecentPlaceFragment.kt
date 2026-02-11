@@ -43,9 +43,6 @@ class RecentPlaceFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        val touchHelper = CommonSwipeTouchHelper()
-        val itemTouchHelper = ItemTouchHelper(touchHelper)
-
         historyAdapter = RecentHistoryAdapter(
             onItemClick = { item ->
                 (parentFragment?.parentFragment as? RouteFragment)?.handleHistoryItemClick(item)
@@ -53,6 +50,12 @@ class RecentPlaceFragment : Fragment() {
             onDeleteClick = { item ->
                 searchViewModel.deleteHistoryItem(item) }
         )
+
+        val touchHelper = CommonSwipeTouchHelper(
+            adapter = historyAdapter,
+            clampWidthDp = 60
+        )
+        val itemTouchHelper = ItemTouchHelper(touchHelper)
 
         historyAdapter.setHelper(touchHelper)
 
@@ -65,7 +68,7 @@ class RecentPlaceFragment : Fragment() {
             addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
                 override fun onScrollStateChanged(recyclerView: androidx.recyclerview.widget.RecyclerView, newState: Int) {
                     if (newState == androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_DRAGGING) {
-                        touchHelper.closeSwipedMenu()
+                        touchHelper.closeAllMenus(this@apply)
                     }
                 }
             })

@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import com.example.pace.data.model.response.GroupItem
 import com.example.pace.data.viewmodel.GroupViewModel
@@ -26,7 +27,7 @@ class GroupSelectBottomSheet(
 
     private var _binding: BottomSheetGroupSelectBinding? = null
     private val binding get() = _binding!!
-    private val groupViewModel: GroupViewModel by viewModels()
+    private val groupViewModel: GroupViewModel by activityViewModels()
     private lateinit var radioAdapter: GroupRadioAdapter
     private val groupList = mutableListOf<GroupItem>()
 
@@ -57,18 +58,37 @@ class GroupSelectBottomSheet(
         }
 
         groupViewModel.errorMessage.observe(viewLifecycleOwner) { msg ->
-            if(msg.isNotBlank()) Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+            if (!msg.isNullOrBlank() && groupViewModel.errorCode.value != "PLACE400_1") {
+                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        groupViewModel.errorCode.observe(viewLifecycleOwner) { code ->
+            when (code) {
+                "PLACE400_1" -> {
+                    binding.tvErrorMsg.text = "*해당 그룹에 장소가 존재합니다."
+                    binding.tvErrorMsg.visibility = View.VISIBLE
+
+                    binding.btnSave.isEnabled = true
+                }
+                else -> {
+                    binding.tvErrorMsg.visibility = View.GONE
+                }
+            }
         }
 
         groupViewModel.isOperationSuccess.observe(viewLifecycleOwner) { isSuccess ->
             if(isSuccess) {
-                val dialog = parentFragmentManager.findFragmentByTag("AddGroupDialog") as? AddGroupDialogFragment
-                dialog?.dismiss()
+//                val dialog = parentFragmentManager.findFragmentByTag("AddGroupDialog") as? AddGroupDialogFragment
+//                dialog?.dismiss()
+                dismiss()
             }
         }
     }
 
     private fun setupUI() {
+        binding.btnSave.isEnabled = false
+        binding.tvErrorMsg.visibility = View.GONE
         if (mode == Mode.MOVE) {
             binding.tvSheetTitle.text = "이동"
             binding.layoutInputContainer.visibility = View.GONE
@@ -83,12 +103,19 @@ class GroupSelectBottomSheet(
     }
 
     private fun setupRecyclerView() {
-        radioAdapter = GroupRadioAdapter(groupList) {
-            val dialog = AddGroupDialogFragment { request ->
-                groupViewModel.createGroup(request.groupName, request.groupColor)
+        radioAdapter = GroupRadioAdapter(
+            items = groupList,
+            onAddClick = { // 기존의 그룹 추가 다이얼로그 콜백
+                val dialog = AddGroupDialogFragment { request ->
+                    groupViewModel.createGroup(request.groupName, request.groupColor)
+                }
+                dialog.show(parentFragmentManager, "AddGroupDialog")
+            },
+            onItemClick = {
+                binding.btnSave.isEnabled = true
+                binding.tvErrorMsg.visibility = View.GONE
             }
-            dialog.show(parentFragmentManager, "AddGroupDialog")
-        }
+        )
 
         binding.rvGroupList.adapter = radioAdapter
     }
@@ -99,6 +126,8 @@ class GroupSelectBottomSheet(
         }
 
         binding.btnSave.setOnClickListener {
+            binding.tvErrorMsg.visibility = View.GONE
+
             val selectedGroupId = radioAdapter.getSelectedGroupId()
 
             if (selectedGroupId == -1L) {
@@ -125,7 +154,6 @@ class GroupSelectBottomSheet(
             } else {
                 onConfirm(selectedGroupId, null)
             }
-            dismiss()
         }
     }
 

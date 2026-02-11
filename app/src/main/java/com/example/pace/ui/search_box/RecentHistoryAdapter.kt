@@ -4,6 +4,7 @@ import com.example.pace.R
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -32,6 +33,7 @@ class RecentHistoryAdapter(
 
     inner class ViewHolder(private val binding: ItemRecentHistoryBinding)
         : RecyclerView.ViewHolder(binding.root), SwipeableViewHolder {
+        override fun getSwipeView(): ConstraintLayout = binding.viewForeground
         override fun setSwiped(isSwiped: Boolean) {
             // 필요하면 여기에 배경색 변경 등 추가 로직 작성
         }
@@ -49,14 +51,21 @@ class RecentHistoryAdapter(
             binding.viewForeground.translationX = 0f
 
             binding.viewForeground.setOnClickListener {
-                touchHelper?.closeSwipedMenu()
+                val recyclerView = itemView.parent as? RecyclerView ?: return@setOnClickListener
 
-                onItemClick(item)
+                // [리팩토링] 메뉴가 열려있다면 닫고, 닫혀있다면 클릭 이벤트 수행
+                if (touchHelper?.isAnyMenuOpened(recyclerView) == true) {
+                    touchHelper?.closeAllMenus(recyclerView)
+                } else {
+                    onItemClick(item)
+                }
             }
 
             binding.ivDelete.setOnClickListener {
+                val recyclerView = itemView.parent as? RecyclerView ?: return@setOnClickListener
+
+                touchHelper?.closeAllMenus(recyclerView)
                 onDeleteClick(item)
-                touchHelper?.closeSwipedMenu() // 삭제 후 닫기
             }
         }
     }
