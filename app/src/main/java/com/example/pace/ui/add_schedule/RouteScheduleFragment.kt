@@ -42,7 +42,6 @@ class RouteScheduleFragment : Fragment() {
     // 경로 탐색에서 받아온 데이터
     private var routeJson: String? = null
     private var earlyArriveTime: Int = 0
-    private var sortOption: String = "최적 경로순"
 
     // [수정] 런처에서 받아온 경로 정보를 저장할 멤버 변수 선언
     private var lastDestName: String? = null
@@ -56,23 +55,39 @@ class RouteScheduleFragment : Fragment() {
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             val data = result.data ?: return@registerForActivityResult
 
-            // [수정] 결과값을 멤버 변수에 저장 (나중에 확인 버튼 누를 때 사용)
-            lastDestName = data.getStringExtra("endPlaceName")
-            lastDestLat = data.getDoubleExtra("endPlaceLat", 0.0)
-            lastDestLng = data.getDoubleExtra("endPlaceLng", 0.0)
-            lastRouteJson = data.getStringExtra("routeData")
+            val startName = data.getStringExtra("START_NAME")
+            val startLat = data.getDoubleExtra("START_LAT", Double.NaN)
+            val startLng = data.getDoubleExtra("START_LNG", Double.NaN)
 
-            val startName = data.getStringExtra("startPlaceName")
-            val startId = data.getStringExtra("startPlaceId")
-            val endName = data.getStringExtra("endPlaceName")
-            val endId = data.getStringExtra("endPlaceId")
+            val endName = data.getStringExtra("END_NAME")
+            val endLat = data.getDoubleExtra("END_LAT", Double.NaN)
+            val endLng = data.getDoubleExtra("END_LNG", Double.NaN)
 
-            val routeJson = data.getStringExtra("routeData")
-            val earlyTime = data.getIntExtra("earlyArriveTime", 10)
-            val sortOpt = data.getIntExtra("sortOption", 0)
+            val earlyArriveTime = data.getStringExtra("EARLY_ARRIVE_TIME")?.toIntOrNull()
 
-//            Toast.makeText(context, "출발 장소: $startName - $startId", Toast.LENGTH_SHORT).show()
-            Toast.makeText(context, "정렬: $sortOpt", Toast.LENGTH_SHORT).show()
+            val routeDetailJson = data.getStringExtra("ROUTE_DETAIL")
+
+            lastDestName = endName
+            lastDestLat = endLat ?: 0.0
+            lastDestLng = endLng ?: 0.0
+            lastRouteJson = routeDetailJson
+
+            Toast.makeText(
+                context,
+                """
+            출발지: $startName
+            출발좌표: $startLat , $startLng
+            
+            도착지: $endName
+            도착좌표: $endLat , $endLng
+            
+            빠른 도착 시간: $earlyArriveTime
+            
+            ROUTE_DETAIL:
+            $routeDetailJson
+            """.trimIndent(),
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
 
@@ -89,18 +104,20 @@ class RouteScheduleFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // 1. Activity에서 넘겨준 데이터 가져오기
-        val selectedDate = arguments?.getString("selected_date")
-        val mode = arguments?.getString("mode")
+        val startName = arguments?.getString("START_NAME") ?: "미지정"
+        val endName = arguments?.getString("END_NAME") ?: "미지정"
+        val earlyTime = arguments?.getInt("EARLY_ARRIVE_TIME", 0)
+        val routeDetail = arguments?.getString("ROUTE_DETAIL") ?: "데이터 없음"
 
-        // 2. 토스트 메시지 띄우기 (경로 일정 탭임을 명시)
-        if (selectedDate != null) {
-            val message = "[경로 일정] 날짜: $selectedDate\n모드: $mode"
-            Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
 
-            // 팁: 시작 날짜 버튼 등에 바로 텍스트를 세팅할 수도 있습니다.
-            // binding.tvStartDate.text = selectedDate
-        }
+        val toastMessage = """
+     출발: $startName
+     도착: $endName
+     미리 도착: ${earlyTime}분
+     경로 상세: ${if (routeDetail.length > 20) routeDetail.take(20) + "..." else routeDetail}
+""".trimIndent()
+
+        Toast.makeText(requireContext(), toastMessage, Toast.LENGTH_LONG).show()
 
         initTimePickers()
 
@@ -320,13 +337,21 @@ class RouteScheduleFragment : Fragment() {
 
                 putExtra("SCHEDULE_NAME", scheduleName)
                 putExtra("SCHEDULE_COLOR", selectedColor)
-                putExtra("SCHEDULE_TIME", startTime)
-                //여기부터 저장되어 있는 값으로 수정 필요
-                putExtra("SEARCH_TIME", "") // 년도까지 반영된  구글 Directions API는 Unix Timestamp 형식(String)
-                putExtra("EARLY_ARRIVE_TIME", 20) // 디폴트는 온보딩값으로 넣어주세여
-                // "최적 경로순" -> 0, "최소 시간순"->1, "최소 환승순"->2, "최소 도보순"->3
-                // data/util/RouteConstants 에 상수로 저장해놨습니당
-                putExtra("SORT_OPTION", RouteConstants.SORT_OPTION_TRANSFER)
+                putExtra("SCHEDULE_TIME", "12:21:11") // "hh:mm:ss”
+
+                putExtra("SCHEDULE_DATE", "2026-02-12") // “yyyy-mm-dd”
+                putExtra("EARLY_ARRIVE_TIME", earlyArriveTime)
+
+                // ⭐ 좌표 & 장소명 같이 넘기기
+                putExtra("START_NAME", "스타벅스 사당")
+                putExtra("END_NAME", "강남역")
+
+                putExtra("START_LAT", 37.33)
+                putExtra("START_LNG", 126.84)
+
+                putExtra("END_LAT", 37.56)
+                putExtra("END_LNG", 126.99)
+
             }
             routeSearchLauncher.launch(intent)
         }

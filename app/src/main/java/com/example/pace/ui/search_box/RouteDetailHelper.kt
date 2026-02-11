@@ -13,7 +13,8 @@ import androidx.core.text.color
 import androidx.core.view.setPadding
 import androidx.core.view.updatePadding
 import com.example.pace.R
-import com.example.pace.data.model.RouteResponse
+import com.example.pace.data.model.RouteResponseSample
+import com.example.pace.data.model.response.RouteResponse
 import com.example.pace.databinding.BottomSheetRouteDetailBinding
 import com.example.pace.databinding.ItemRouteDetailArrivalBinding
 import com.example.pace.databinding.ItemRouteDetailBriefBinding
@@ -33,11 +34,15 @@ object RouteDetailHelper {
             append("총 ")
             color(context.resources.getColor(R.color.primary_500)){
                 if(item.totalTime / 3600 > 0){
-                    append("${item.totalTime / 3600}시간 ")
-                }
-                if(item.totalTime / 60 > 0){
+                    val time = item.totalTime % 3600
+                    append("${item.totalTime / 3600} 시간 ")
+                    if(time / 60 > 0){
+                        append("${time / 60}분")
+                    }
+                }else{
                     append("${item.totalTime / 60}분")
                 }
+
             }
             append(" 소요")
         }
@@ -47,7 +52,7 @@ object RouteDetailHelper {
         binding.routeDetailExpandedLl.removeAllViews()
 
         // 데이터 동적 바인딩
-        item.routeDetailInfoResDTOList.forEach { data ->
+        item.routeDetails.forEach { data ->
             val briefBinding = ItemRouteDetailBriefBinding.inflate(LayoutInflater.from(context))
             val expandedVehicleBinding = ItemRouteDetailVehicleBinding.inflate(LayoutInflater.from(context), binding.routeDetailExpandedLl, false)
             val expandedWalkBinding = ItemRouteDetailWalkBinding.inflate(LayoutInflater.from(context), binding.routeDetailExpandedLl, false)
@@ -109,11 +114,13 @@ object RouteDetailHelper {
                     expandedVehicleBinding.itemRouteDetailVehicleTv.text = data.description
                     expandedVehicleBinding.itemRouteDetailVehicleTimeTv.text = data.transitDetail.departureTime.split("T").last().take(5)
                     expandedVehicleBinding.itemRouteDetailVehicleLineTv.text = data.transitDetail.shortName
+
                     if(data.transitDetail.stationPath.isNullOrEmpty()){
-                        expandedVehicleBinding.itemRouteDetailVehicleDirectionTv.text = data.transitDetail.headsign ?: "제공 불가"
+                        expandedVehicleBinding.itemRouteDetailVehicleDirectionTv.text = data.transitDetail.headsign + "행" ?: "방면 정보 없음"
                     }else{
                         expandedVehicleBinding.itemRouteDetailVehicleDirectionTv.text = data.transitDetail.stationPath[0] + "행 방면"
                     }
+
                     expandedVehicleBinding.itemRouteDetailVehicleStationsTv.text = "${data.transitDetail.stopCount}개 정류장 이동"
                     expandedVehicleBinding.itemRouteDetailVehicleStationsTimeTv.text = "${data.duration / 60}분"
                     expandedVehicleBinding.itemRouteDetailVehicleStationsLl.setOnClickListener {
@@ -144,7 +151,7 @@ object RouteDetailHelper {
         }
 
         val arrivalBinding = ItemRouteDetailArrivalBinding.inflate(LayoutInflater.from(context))
-        arrivalBinding.itemRouteDetailArrivalTv.text = item.arrivalTime.split("T").last().take(5)
+        arrivalBinding.itemRouteDetailArrivalTimeTv.text = item.arrivalTime.split("T").last().take(5)
         arrivalBinding.itemRouteDetailArrivalTv.text = destination
         binding.routeDetailExpandedLl.addView(arrivalBinding.root)
     }

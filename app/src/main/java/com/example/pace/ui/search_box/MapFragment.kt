@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -13,6 +14,7 @@ import android.widget.ImageButton
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.example.pace.R
+import com.example.pace.data.model.response.RouteResponse
 import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.main.route.RouteFragment
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -21,10 +23,14 @@ import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.Dash
+import com.google.android.gms.maps.model.Gap
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.gms.maps.model.PolylineOptions
+import com.google.maps.android.PolyUtil
 
 class MapFragment : Fragment(), OnMapReadyCallback {
     private var googleMap: GoogleMap? = null
@@ -73,6 +79,118 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         }
 
         checkLocationPermission(isAnimate = false)
+    }
+
+    fun clearRoute() {
+        googleMap?.clear()
+        setMapPadding(0)
+    }
+
+    fun drawRouteOnMap(routeItem: RouteResponse, finalStart: LatLng?, finalEnd: LatLng?) {
+        // 1. 데이터 검증 (DTO의 실제 리스트 변수명으로 설정하세요)
+        val details = routeItem.routeDetails
+
+        if (details.isNullOrEmpty()) {
+            android.widget.Toast.makeText(requireContext(), "표시할 경로 데이터가 없습니다.", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        googleMap?.clear() // 기존 마커 및 선 초기화
+        val boundsBuilder = LatLngBounds.Builder()
+
+        // 2. [추가] 실제 출발지 마커 및 첫 번째 데이터 지점까지 연결
+        if (finalStart != null) {
+            googleMap?.addMarker(MarkerOptions().position(finalStart).title("출발지"))
+            boundsBuilder.include(finalStart)
+
+            val firstDetail = details.first()
+            val firstPoint = LatLng(firstDetail.startLat, firstDetail.startLng)
+
+            // 실제 내 위치와 첫 번째 경로 시작점이 다를 경우 직선(점선) 연결
+            if (finalStart != firstPoint && firstDetail.startLat != 0.0) {
+                googleMap?.addPolyline(PolylineOptions()
+                    .add(finalStart, firstPoint)
+                    .color(Color.GRAY)
+                    .width(10f)
+                    .zIndex(10f)
+                    .pattern(listOf(Dash(20f), Gap(10f))))
+            }
+        }
+
+        // 3. 경로 리스트 순회 (도보 + 대중교통 모두 그리기)
+        for (i in details.indices) {
+            val detail = details[i]
+
+            // 데이터 내의 모든 points를 디코딩 (도보 구간 포함)
+            val decodedPoints = PolyUtil.decode(detail.points)
+            if (decodedPoints.isEmpty()) continue
+
+            if (detail.transitDetail != null) {
+                // A. 대중교통 구간: 노선 색상으로 굵게 그리기
+                val lineColor = try {
+                    Color.parseColor(detail.transitDetail.lineColor ?: "#0000FF")
+                } catch (e: Exception) {
+                    Color.BLUE // 파싱 실패 시 기본 파랑
+                }
+
+                googleMap?.addPolyline(PolylineOptions()
+                    .addAll(decodedPoints)
+                    .color(lineColor)
+                    .width(15f)
+                    .zIndex(5f))
+            } else {
+                // B. 도보 구간 (transitDetail == null): 회색 점선으로 정밀하게 그리기
+                googleMap?.addPolyline(PolylineOptions()
+                    .addAll(decodedPoints)
+                    .color(Color.GRAY)
+                    .width(10f)
+                    .zIndex(3f)
+                    .pattern(listOf(Dash(20f), Gap(10f))))
+            }
+
+            // 경로에 포함된 모든 좌표를 카메라 범위에 포함
+            decodedPoints.forEach { boundsBuilder.include(it) }
+
+            // C. [연결] 현재 세그먼트의 끝점과 다음 세그먼트의 시작점 사이 공백 연결
+            if (i < details.size - 1) {
+                val currentEnd = LatLng(detail.endLat, detail.endLng)
+                val nextStart = LatLng(details[i + 1].startLat, details[i + 1].startLng)
+
+                if (currentEnd != nextStart && nextStart.latitude != 0.0) {
+                    googleMap?.addPolyline(PolylineOptions()
+                        .add(currentEnd, nextStart)
+                        .color(Color.GRAY)
+                        .width(10f)
+                        .pattern(listOf(Dash(20f), Gap(10f))))
+                }
+            }
+        }
+
+        // 4. [추가] 마지막 데이터 지점에서 실제 도착지 마커까지 연결
+        if (finalEnd != null) {
+            googleMap?.addMarker(MarkerOptions().position(finalEnd).title("도착지"))
+            boundsBuilder.include(finalEnd)
+
+            val lastDetail = details.last()
+            val lastPoint = LatLng(lastDetail.endLat, lastDetail.endLng)
+
+            if (lastPoint != finalEnd && lastDetail.endLat != 0.0) {
+                googleMap?.addPolyline(PolylineOptions()
+                    .add(lastPoint, finalEnd)
+                    .color(Color.GRAY)
+                    .width(10f)
+                    .zIndex(10f)
+                    .pattern(listOf(Dash(20f), Gap(10f))))
+            }
+        }
+
+        // 5. 모든 경로가 보이도록 카메라 이동
+        try {
+            val bounds = boundsBuilder.build()
+            googleMap?.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 150))
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     fun showMultipleMarkers(items: List<SearchItem>, onMarkerClick: (SearchItem) -> Unit){

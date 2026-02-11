@@ -2,7 +2,7 @@ package com.example.pace.data.model
 
 import java.io.Serializable
 
-data class RouteResponse(
+data class RouteResponseSample(
     val totalDistance: Int,
     val totalTime: Int,
     val arrivalTime: String,

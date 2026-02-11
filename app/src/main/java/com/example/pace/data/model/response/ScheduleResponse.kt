@@ -2,6 +2,7 @@ package com.example.pace.data.model.response
 
 
 import com.google.gson.annotations.SerializedName
+import java.io.Serial
 
 data class ScheduleListResponse(
     @SerializedName("schedules") val schedules: List<ScheduleDetailResponse>
@@ -73,6 +74,8 @@ data class RouteInfo(
     @SerializedName("destLng") val destLng: Double,
     @SerializedName("totalTime") val totalTime: Int,
     @SerializedName("totalDistance") val totalDistance: Int,
+    @SerializedName("arrivalTime") val arrivalTime: String?,
+    @SerializedName("departureTime") val departureTime: String?,
     @SerializedName("routeDetails") val routeDetails: List<RouteDetailResponse>
 )
 

@@ -5,7 +5,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import com.example.pace.R
 import com.example.pace.databinding.ActivitySettingsBinding
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class SettingsActivity: AppCompatActivity() {
     lateinit var binding: ActivitySettingsBinding
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -15,7 +17,7 @@ class SettingsActivity: AppCompatActivity() {
         setContentView(binding.root)
 
         binding.settingsBackIv.setOnClickListener {
-            onBackPressed()
+            onBackPressedDispatcher.onBackPressed()
         }
 
         supportFragmentManager.beginTransaction()

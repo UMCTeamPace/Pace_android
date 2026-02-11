@@ -2,6 +2,7 @@ package com.example.pace.ui.main.route
 
 import android.Manifest
 import android.content.Context
+import android.content.Context.MODE_PRIVATE
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -28,14 +29,16 @@ import androidx.lifecycle.lifecycleScope
 import com.example.pace.BuildConfig
 import com.example.pace.PaceApplication
 import com.example.pace.R
-import com.example.pace.data.model.RouteResponse
 import com.example.pace.data.db.SearchDatabase
 import com.example.pace.data.model.MyPlace
 import com.example.pace.data.model.RecentHistoryItem
 import com.example.pace.data.model.RecentPlace
 import com.example.pace.data.model.RecentRoute
+import com.example.pace.data.model.request.RouteSearchRequest
+import com.example.pace.data.model.response.RouteResponse
 import com.example.pace.data.repository.SearchRepository
 import com.example.pace.data.util.RouteConstants
+import com.example.pace.data.viewmodel.RouteViewModel
 import com.example.pace.data.viewmodel.SearchViewModel
 import com.example.pace.data.viewmodel.SearchViewModelFactory
 import com.example.pace.databinding.FragmentRouteBinding
@@ -57,6 +60,7 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.tabs.TabLayout
 import com.google.gson.Gson
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -64,11 +68,17 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.util.ArrayList
 import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
+@AndroidEntryPoint
 class RouteFragment : Fragment() {
     private var _binding: FragmentRouteBinding? = null
     private val binding get() = _binding!!
@@ -79,6 +89,11 @@ class RouteFragment : Fragment() {
     private val searchViewModel: SearchViewModel by viewModels {
         SearchViewModelFactory((requireActivity().application as PaceApplication).searchRepository)
     }
+
+    private val routeViewModel: RouteViewModel by viewModels()
+
+    private var currentTransitType: String? = null // 칩 선택 값
+    private var isStart: Boolean = true
 
     private lateinit var placesClient: PlacesClient
 
@@ -122,7 +137,7 @@ class RouteFragment : Fragment() {
     private var scheduleColor: String = ""
     private var scheduleName: String = ""
     private var scheduleTime: String = "00:00"
-    private var searchTime: String = ""
+    private var scheduleDate: String = "2026-11-11"
     private var requestSearchTime: String = ""
     private var responseArrivelTime: String = ""
     private lateinit var bottomSheetBehavior: BottomSheetBehavior<View>
@@ -176,11 +191,36 @@ class RouteFragment : Fragment() {
         val actionMode = activityIntent?.getStringExtra("ACTION_MODE")
         if (actionMode == "SCHEDULE") {
             startScheduleMode()
-            activityIntent.removeExtra("ACTION_MODE")
-        } else if(actionMode == "SCHEDULE_ROUTE") {
+//            activityIntent.removeExtra("ACTION_MODE")
+        } else if(actionMode == "SCHEDULE_ROUTE" || actionMode == "ROUTE_RESEARCH") {
             startScheduleRouteMode()
-            activityIntent.removeExtra("ACTION_MODE")
+//            activityIntent.removeExtra("ACTION_MODE")
         }
+
+        observeRouteViewModel()
+    }
+
+    private fun observeRouteViewModel() {
+        // 결과 데이터 관찰
+        routeViewModel.routeResult.observe(viewLifecycleOwner) { routes ->
+            // RouteResultFragment를 찾아서 데이터 넘겨줌
+            val fragment = childFragmentManager.findFragmentByTag("ROUTE_RESULT") as? RouteResultFragment
+            fragment?.updateRoutes(routes)
+        }
+
+        // 에러 메시지 관찰
+        routeViewModel.errorMessage.observe(viewLifecycleOwner) { msg ->
+            if (msg.isNotEmpty()) {
+                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        // 로딩 상태 관찰 (필요 시 ProgressBar 연동)
+        /*
+        routeViewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
+            binding.progressBar.isVisible = isLoading // 프로그레스바가 있다면
+        }
+        */
     }
 
     private fun setupMainActivityListeners() {
@@ -216,6 +256,90 @@ class RouteFragment : Fragment() {
             if (mainBinding?.searchEt?.text?.isNotEmpty() == true) mainBinding?.searchEt?.setText("")
         }
     }
+    private fun FinalfetchRouteData(){
+        lifecycleScope.launch {
+            // 출발지 좌표가 없다면 ID로 조회
+            if (startLatLng == null && selectedStartPlace != null) {
+                startLatLng = fetchLatLngFromPlaceId(selectedStartPlace!!.second)
+            }
+
+            // 도착지 좌표가 없다면 ID로 조회
+            if (endLatLng == null && selectedEndPlace != null) {
+                endLatLng = fetchLatLngFromPlaceId(selectedEndPlace!!.second)
+            }
+
+            // 좌표 확보 후 API 호출
+            fetchRouteData()
+        }
+    }
+
+    private fun fetchRouteData() {
+
+        val start = startLatLng
+        val end = endLatLng
+
+        if (start == null || end == null) {
+            return
+        }
+
+        if(requestSearchTime.isNullOrEmpty()){
+            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
+            sdf.timeZone = TimeZone.getTimeZone("UTC")
+            requestSearchTime = sdf.format(Date())
+        }
+
+        val request = RouteSearchRequest(
+            originLat = start.latitude,
+            originLng = start.longitude,
+            destLat = end.latitude,
+            destLng = end.longitude,
+            arrivalTime = if (isStart) requestSearchTime else null,
+            departureTime = if (!isStart) requestSearchTime else null,
+            transitType = currentTransitType,
+            searchWay = currentSortOption.apiValue?:"EFFICIENT"
+        )
+
+        Log.d("RouteApi", "================= API REQUEST START =================")
+        Log.d("RouteApi", "Origin      : ${request.originLat}, ${request.originLng}")
+        Log.d("RouteApi", "Dest        : ${request.destLat}, ${request.destLng}")
+        Log.d("RouteApi", "Time        : ${request.departureTime ?: request.arrivalTime} (IsDeparture: $isStart + $requestSearchTime)")
+        Log.d("RouteApi", "TransitType : ${request.transitType ?: "ALL"}")
+        Log.d("RouteApi", "SortOption  : ${request.searchWay}")
+        Log.d("RouteApi", "Full Request: $request")
+        Log.d("RouteApi", "=====================================================")
+
+        val token = BuildConfig.BEARER_TOKEN
+
+        routeViewModel.searchRoutes(token, request)
+    }
+
+    private suspend fun fetchLatLngFromPlaceId(placeId: String): LatLng? = suspendCancellableCoroutine { continuation ->
+        if (!::placesClient.isInitialized) {
+            Log.e("PlaceApi", "PlacesClient not initialized")
+            continuation.resume(null, null)
+            return@suspendCancellableCoroutine
+        }
+
+        // 위도/경도 정보만 요청
+        val placeFields = listOf(Place.Field.LAT_LNG)
+        val request = FetchPlaceRequest.newInstance(placeId, placeFields)
+
+        placesClient.fetchPlace(request)
+            .addOnSuccessListener { response ->
+                val latLng = response.place.latLng
+                if (latLng != null) {
+                    Log.d("PlaceApi", "Success fetch LatLng: $latLng for ID: $placeId")
+                    continuation.resume(latLng, null)
+                } else {
+                    Log.e("PlaceApi", "LatLng is null for ID: $placeId")
+                    continuation.resume(null, null)
+                }
+            }
+            .addOnFailureListener { exception ->
+                Log.e("PlaceApi", "Failed to fetch place: ${exception.message}")
+                continuation.resume(null, null)
+            }
+    }
 
     fun startScheduleMode() {
         if (_binding == null || !isAdded || view == null) return
@@ -233,19 +357,30 @@ class RouteFragment : Fragment() {
         val nameExtra = intent.getStringExtra("SCHEDULE_NAME")
         scheduleName = if(nameExtra.isNullOrBlank()) "일정명" else nameExtra
         scheduleColor = intent.getStringExtra("SCHEDULE_COLOR") ?: "#DC354B"
-        scheduleTime = intent.getStringExtra("SCHEDULE_TIME") ?: "00:00"
-        earlyArriveTime = intent.getIntExtra("EARLY_ARRIVE_TIME", 10)
-        val sortNum = intent.getIntExtra("SORT_OPTION", 0)
-        val sortString = when (sortNum) {
-            RouteConstants.SORT_OPTION_BEST -> "최적 경로순"
-            RouteConstants.SORT_OPTION_TIME -> "최소 시간순"
-            RouteConstants.SORT_OPTION_TRANSFER -> "최소 환승순"
-            RouteConstants.SORT_OPTION_WALK -> "최소 도보순"
-            else -> "최적 경로순"
+        var tmpDate = intent.getStringExtra("SCHEDULE_DATE") ?: "2032-12-02"
+        scheduleDate = tmpDate
+        var tmpTime = intent.getStringExtra("SCHEDULE_TIME")
+        scheduleTime = tmpTime?.substring(0, 5) ?: ""
+        val combinedTimeStr = "$tmpDate $tmpTime"
+        val inputSdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        val outputSdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
+        outputSdf.timeZone = TimeZone.getTimeZone("UTC")
+        val date = inputSdf.parse(combinedTimeStr)
+        requestSearchTime = outputSdf.format(date ?: Date())
+        var tmplat = intent.getDoubleExtra("START_LAT", Double.NaN)
+        var tmplng = intent.getDoubleExtra("START_LNG", Double.NaN)
+        if (!tmplat.isNaN() && !tmplng.isNaN()) {
+            startLatLng = LatLng(tmplat, tmplng)
         }
-        currentSortOption = RouteSortOption.values().find { it.uiText == sortString }
-            ?: RouteSortOption.BEST
-        searchTime = intent.getStringExtra("SEARCH_TIME") ?: ""
+        tmplat = intent.getDoubleExtra("END_LAT", Double.NaN)
+        tmplng = intent.getDoubleExtra("END_LNG", Double.NaN)
+        if (!tmplat.isNaN() && !tmplng.isNaN()) {
+            endLatLng = LatLng(tmplat, tmplng)
+        }
+        binding.layoutRouteInputHeader.tvRouteStart.text = intent.getStringExtra("START_NAME")
+        binding.layoutRouteInputHeader.tvRouteEnd.text = intent.getStringExtra("END_NAME")
+
+        earlyArriveTime = intent.getIntExtra("EARLY_ARRIVE_TIME", 0) //todo 기본 검색이 온보딩값을 미리도착
 
         binding.layoutMapSelectOverlay.root.visibility = View.GONE
         if (::bottomSheetBehavior.isInitialized) {
@@ -280,6 +415,10 @@ class RouteFragment : Fragment() {
                 swapLocations()
             }
             selectedStartPlace = Pair(itemName, placeId)
+            lifecycleScope.launch {
+                startLatLng = fetchLatLngFromPlaceId(selectedStartPlace!!.second)
+            }
+
             binding.layoutRouteInputHeader.tvRouteStart.setText(itemName)
             updateClearButtonVisibility()
         } else {
@@ -287,6 +426,9 @@ class RouteFragment : Fragment() {
                 swapLocations()
             }
             selectedEndPlace = Pair(itemName, placeId)
+            lifecycleScope.launch {
+                endLatLng = fetchLatLngFromPlaceId(selectedEndPlace!!.second)
+            }
             binding.layoutRouteInputHeader.tvRouteEnd.setText(itemName)
             updateClearButtonVisibility()
         }
@@ -494,6 +636,14 @@ class RouteFragment : Fragment() {
                 bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
             }
 
+            android.widget.Toast.makeText(
+                requireContext(),
+                "전달 좌표 - 출발:${startLatLng != null}, 도착:${endLatLng != null}",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+
+            val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+            mapFrag?.drawRouteOnMap(item, startLatLng, endLatLng)
             binding.layoutRouteDetailOverlay.root.visibility = View.VISIBLE
             binding.layoutRouteDetailOverlay.root.bringToFront()
             if(currentEntryMode == EntryMode.SCHEDULE_ROUTE){
@@ -530,35 +680,24 @@ class RouteFragment : Fragment() {
     fun onRouteSelectedFinal(item: RouteResponse){
         if(currentEntryMode == EntryMode.SCHEDULE_ROUTE){
             val resultIntent = android.content.Intent().apply {
-                putExtra("startPlaceName", selectedStartPlace?.first)
-                putExtra("startPlaceId", selectedStartPlace?.second)
-                putExtra("endPlaceName", selectedEndPlace?.first)
-                putExtra("endPlaceId", selectedEndPlace?.second)
-                putExtra("earlyArriveTime", earlyArriveTime)
-                val sortNum = when (currentSortOption) {
-                    RouteSortOption.BEST -> RouteConstants.SORT_OPTION_BEST
-                    RouteSortOption.TIME -> RouteConstants.SORT_OPTION_TIME
-                    RouteSortOption.TRANSFER -> RouteConstants.SORT_OPTION_TRANSFER
-                    RouteSortOption.WALK -> RouteConstants.SORT_OPTION_WALK
-                    else -> RouteConstants.SORT_OPTION_BEST
-                }
-                putExtra("sortOption", sortNum)
-                putExtra("routeData", Gson().toJson(item))
+                putExtra("START_NAME", binding.layoutRouteInputHeader.tvRouteStart.text)
+                putExtra("START_LAT", startLatLng?.latitude)
+                putExtra("START_LNG", startLatLng?.longitude)
+                putExtra("END_NAME", binding.layoutRouteInputHeader.tvRouteEnd.text)
+                putExtra("END_LAT", endLatLng?.latitude)
+                putExtra("END_LNG", endLatLng?.longitude)
+                putExtra("EARLY_ARRIVE_TIME", responseArrivelTime)
+                putExtra("ROUTE_DETAIL", Gson().toJson(item))
             }
 
             requireActivity().setResult(android.app.Activity.RESULT_OK, resultIntent)
             requireActivity().finish()
         }else {
             val intent = android.content.Intent(requireContext(), AddScheduleActivity::class.java).apply {
-                putExtra("startPlaceName", selectedStartPlace?.first)
-                putExtra("startPlaceId", selectedStartPlace?.second)
-                putExtra("endPlaceName", selectedEndPlace?.first)
-                putExtra("endPlaceId", selectedEndPlace?.second)
-                //백엔드 연동 후 5분단위로 보정해서 넣기
-                responseArrivelTime ="02:05"
-                putExtra("scheduleStartTime", responseArrivelTime)
-                putExtra("routeData", Gson().toJson(item))
-                putExtra("earlyArriveTime", 0)
+                putExtra("START_NAME", binding.layoutRouteInputHeader.tvRouteStart.text)
+                putExtra("END_NAME", binding.layoutRouteInputHeader.tvRouteEnd.text)
+                putExtra("EARLY_ARRIVE_TIME", earlyArriveTime)
+                putExtra("ROUTE_DETAIL", Gson().toJson(item))
 
                 // 일반 일정이 아닌 '경로 일정' 탭으로 바로 보내기 위한 플래그
                 putExtra("OPEN_ROUTE_TAB", true)
@@ -629,7 +768,9 @@ class RouteFragment : Fragment() {
         searchJob?.cancel()
 
         selectedStartPlace = null
+        startLatLng = null
         selectedEndPlace = null
+        endLatLng = null
         selectedOnMapPlace = null
         if(currentEntryMode == EntryMode.ROUTE_PLAN){
             currentEntryMode = EntryMode.MAIN
@@ -955,6 +1096,9 @@ private fun selectCurrentLocation() {
         selectedStartPlace = Pair(route.startPlaceName, route.startPlaceId)
         selectedEndPlace = Pair(route.endPlaceName, route.endPlaceId)
 
+        startLatLng = null
+        endLatLng = null
+
         binding.layoutRouteInputHeader.tvRouteStart.text = route.startPlaceName
         binding.layoutRouteInputHeader.tvRouteEnd.text = route.endPlaceName
 
@@ -984,33 +1128,51 @@ private fun selectCurrentLocation() {
         if(currentEntryMode != EntryMode.SCHEDULE_ROUTE){
             val currentTime = SimpleDateFormat("HH시 mm분", Locale.KOREAN).format(calendar.time)
             binding.layoutRouteInputHeader.tvTimeFilter.text = "오늘 $currentTime 출발"
-        } else{
-            //todo 스케쥴루트 모드일 때 필터 초기 텍스트 여기 아니면 스케쥴루트 시작할떄 설정
         }
 
-        val existingRouteFrag = childFragmentManager.findFragmentByTag("ROUTE_RESULT")
+        val existingRouteFrag = childFragmentManager.findFragmentByTag("ROUTE_RESULT") as? RouteResultFragment
 
-        if (selectedStartPlace != null && selectedEndPlace != null) {
+        if ((selectedStartPlace != null && selectedEndPlace != null) || (startLatLng != null && endLatLng != null)) {
             saveCurrentRoute()
-                // 칩겹침 문제로 이곳 고침 숨김->제거로 만약 문제 생긴다면 참고 칩겹침 문제는 해결됨!!!!!!! 헤
-//            if (historyFragment.isAdded) transaction.hide(historyFragment)
-//            if (recommendFragment.isAdded) transaction.hide(recommendFragment)
             if (historyFragment.isAdded) transaction.remove(historyFragment)
             if (recommendFragment.isAdded) transaction.remove(recommendFragment)
 
             if (existingRouteFrag != null) {
                 transaction.show(existingRouteFrag)
+
+                existingRouteFrag.onChipSelected = { type ->
+                    this.currentTransitType = type
+                    FinalfetchRouteData()
+                }
             } else {
-                val newRouteFrag = RouteResultFragment()
+                val newRouteFrag = RouteResultFragment(selectedEndPlace?.first ?: "도착지 없음")
+
+                newRouteFrag.onChipSelected = { type ->
+                    this.currentTransitType = type
+                    FinalfetchRouteData()
+                }
+
                 transaction.add(R.id.route_search_fcv, newRouteFrag, "ROUTE_RESULT")
             }
 
             binding.layoutRouteInputHeader.layoutFilterOptions.visibility = View.VISIBLE
 
             if (currentEntryMode == EntryMode.SCHEDULE_ROUTE) {
-                binding.layoutRouteInputHeader.tvTimeFilter.text = "${earlyArriveTime}분 전 도착"
+                val date = LocalDate.parse(scheduleDate)
+                val today = LocalDate.now()
+
+                val datePrefix = when (date) {
+                    today -> "오늘"
+                    today.plusDays(1) -> "내일"
+                    else -> date.format(DateTimeFormatter.ofPattern("M월 d일"))
+                }
+
+                val timeText = scheduleTime
+
+                binding.layoutRouteInputHeader.tvTimeFilter.text = "$datePrefix $timeText 도착"
                 binding.layoutRouteInputHeader.tvSortFilter.text = currentSortOption.uiText
             }
+            FinalfetchRouteData()
 
         } else {
             binding.layoutRouteInputHeader.layoutFilterOptions.visibility = View.GONE
@@ -1316,7 +1478,6 @@ private fun selectCurrentLocation() {
             if (isBookmarkSearchMode) {
                 exitBookmarkSearchMode()
                 return
-
             }
         }
 
@@ -1341,6 +1502,8 @@ private fun selectCurrentLocation() {
         if (binding.layoutRouteDetailOverlay.root.visibility == View.VISIBLE) {
             binding.layoutRouteDetailOverlay.root.visibility = View.GONE
 
+            val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+            mapFrag?.clearRoute()
             binding.routeSearchFcv.visibility = View.VISIBLE
             binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
 
@@ -1585,8 +1748,10 @@ private fun selectCurrentLocation() {
             }
             val timeString = SimpleDateFormat("HH시 mm분", Locale.KOREAN).format(selectedCalendar.time)
             val modeString = if (mode == 0) "출발" else "도착"
+            isStart = if (mode == 0) true else false
 
             binding.layoutRouteInputHeader.tvTimeFilter.text = "$datePrefix $timeString $modeString"
+            FinalfetchRouteData()
         }
         bottomSheet.show(childFragmentManager, "RoutePlanFilter")
     }
@@ -1615,7 +1780,33 @@ private fun selectCurrentLocation() {
             val selectedMinute = npMinute.value
             earlyArriveTime = selectedMinute
 
-            binding.layoutRouteInputHeader.tvTimeFilter.text = "${selectedMinute}분 전 도착"
+            // 1. 문자열 조합 및 LocalDateTime 생성
+            // scheduleData: "2026-02-11", scheduleTime: "13:30"
+            val dateTimeString = "${scheduleDate}T${scheduleTime}:00"
+            val scheduledDateTime = LocalDateTime.parse(dateTimeString)
+
+            // 2. earlyArriveTime(분)만큼 차감하여 requestSearchTime 생성
+            val adjustedDateTime = scheduledDateTime.minusMinutes(selectedMinute.toLong())
+
+            // ISO 8601 형식으로 변환 (예: 2026-02-11T01:34:48.825Z)
+            // .atZone(ZoneId.of("UTC"))를 사용하여 Z(Zulu) 표시를 포함합니다.
+            requestSearchTime = adjustedDateTime.atZone(ZoneOffset.UTC)
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"))
+
+            // 3. UI 텍스트 설정 (오늘/내일 판단)
+            val today = LocalDate.now()
+            val targetDate = scheduledDateTime.toLocalDate()
+
+            val datePrefix = when (targetDate) {
+                today -> "오늘"
+                today.plusDays(1) -> "내일"
+                else -> targetDate.format(DateTimeFormatter.ofPattern("MM월 dd일"))
+            }
+
+            binding.layoutRouteInputHeader.tvTimeFilter.text =
+                "$datePrefix ${scheduledDateTime.format(DateTimeFormatter.ofPattern("HH:mm"))} 도착"
+
+            FinalfetchRouteData()
 
             bottomSheetDialog.dismiss()
         }
@@ -1656,7 +1847,7 @@ private fun selectCurrentLocation() {
 
             currentSortOption = selectedOption
             binding.layoutRouteInputHeader.tvSortFilter.text = selectedOption.uiText
-
+            FinalfetchRouteData()
             // 실제 정렬 로직 추가
 
             bottomSheetDialog.dismiss()

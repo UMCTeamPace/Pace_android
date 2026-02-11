@@ -21,6 +21,13 @@ class AuthDataStore(private val sharedPreferences: SharedPreferences) {
             apply()
         }
     }
+    fun saveAuthData(accessToken: String, refreshToken: String) {
+        sharedPreferences.edit().apply {
+            putString("ACCESS_TOKEN", accessToken)
+            putString("REFRESH_TOKEN", refreshToken)
+            apply()
+        }
+    }
 
     fun getAccessToken(): String? {
         BuildConfig.BEARER_TOKEN

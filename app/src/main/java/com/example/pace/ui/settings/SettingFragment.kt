@@ -16,11 +16,20 @@ import com.example.pace.R
 import com.example.pace.databinding.FragmentSettingBinding
 import com.example.pace.ui.onboarding.OnboardingActivity
 import com.kakao.sdk.user.UserApiClient
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
+import com.example.pace.data.viewmodel.SettingsViewModel // 아까 만든 뷰모델
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
+
+@AndroidEntryPoint // 💡 Hilt를 사용한다면 꼭 추가하세요!
 class SettingFragment: Fragment() {
     private var _binding: FragmentSettingBinding? = null
     private val binding get() = _binding!!
-    private var selectedEarlyTime: String = "10분"
+
+    // 💡 뷰모델 주입
+    private val viewModel: SettingsViewModel by viewModels()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -96,31 +105,111 @@ class SettingFragment: Fragment() {
         val title = activity?.findViewById<TextView>(R.id.settings_tv)
         title?.text = "설정"
 
-        binding.settingsRouteMinuteTv.text = selectedEarlyTime
+        observeRoomData()
 
+        // --- Result Listeners ---
         setFragmentResultListener("earlyDepartureKey") { _, bundle ->
             val resultText = bundle.getString("selectedMinutes") ?: "10분"
-            selectedEarlyTime = resultText
-
-            _binding?.let {
-                it.settingsRouteMinuteTv.text = resultText
-            }
+            val minutes = resultText.replace("분", "").toIntOrNull() ?: 10
+            viewModel.updateEarlyArrival(minutes)
         }
 
-        binding.settingsRouteLl.setOnClickListener {
-            title?.text = "미리 도착"
+        setFragmentResultListener("scheduleAlarmKey") { _, bundle ->
+            val alarmList = bundle.getIntegerArrayList("selectedAlarms") ?: arrayListOf()
+            viewModel.updateScheduleAlarms(alarmList)
+        }
 
-            parentFragmentManager.beginTransaction()
-                .replace(R.id.settings_fcv, SettingEarlyarrivedFragment())
-                .addToBackStack(null)
-                .commit()
+        setFragmentResultListener("departureAlarmKey") { _, bundle ->
+            val alarmList = bundle.getIntegerArrayList("selectedAlarms") ?: arrayListOf()
+            viewModel.updateDepartureAlarms(alarmList)
+        }
+
+        // --- Click Listeners ---
+
+        // 1. 일정 알림
+        binding.settingsReminderAlarmIv.setOnClickListener {
+            val currentAlarms = viewModel.userSettings.value?.scheduleAlarms ?: emptyList()
+            val fragment = SettingReminderFragment().apply {
+                arguments = Bundle().apply { putIntegerArrayList("currentAlarms", ArrayList(currentAlarms)) }
+            }
+            activity?.findViewById<TextView>(R.id.settings_tv)?.text = "일정 알림"
+            parentFragmentManager.beginTransaction().replace(R.id.settings_fcv, fragment).addToBackStack(null).commit()
+        }
+
+        // 2. 미리 도착 (바깥으로 분리)
+        binding.settingsRouteLl.setOnClickListener {
+            activity?.findViewById<TextView>(R.id.settings_tv)?.text = "미리 도착"
+            val currentMinutes = binding.settingsRouteMinuteTv.text.toString().replace("분", "").toIntOrNull() ?: 10
+            val fragment = SettingEarlyarrivedFragment().apply {
+                arguments = Bundle().apply { putInt("currentMinutes", currentMinutes) }
+            }
+            parentFragmentManager.beginTransaction().replace(R.id.settings_fcv, fragment).addToBackStack(null).commit()
+        }
+
+        // 3. 출발 알림 (바깥으로 분리 - 이게 중요합니다!)
+        binding.settingsDepartureAlarmIv.setOnClickListener {
+            val currentAlarms = viewModel.userSettings.value?.departureAlarms ?: emptyList()
+            val fragment = SettingDepartureFragment().apply {
+                arguments = Bundle().apply { putIntegerArrayList("currentAlarms", ArrayList(currentAlarms)) }
+            }
+            activity?.findViewById<TextView>(R.id.settings_tv)?.text = "출발 알림"
+            parentFragmentManager.beginTransaction().replace(R.id.settings_fcv, fragment).addToBackStack(null).commit()
         }
 
         parentFragmentManager.addOnBackStackChangedListener {
             if (parentFragmentManager.backStackEntryCount == 0) {
-                val title = activity?.findViewById<TextView>(R.id.settings_tv)
-                title?.text = "설정"
+                activity?.findViewById<TextView>(R.id.settings_tv)?.text = "설정"
             }
+        }
+    }
+
+    private fun observeRoomData() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.userSettings.collect { settings ->
+                settings?.let {
+                    // 1. 기본 캘린더 이름
+                    binding.settingsCalendarDefaultTv.text = getCalendarNameById(it.calendarId)
+
+                    // 2. 미리 도착 시간
+                    binding.settingsRouteMinuteTv.text = "${it.earlyArrivalTime}분"
+
+                    // 💡 3. 일정 알림 (숫자 -> 문자열 매핑)
+                    binding.settingsReminderAlarmTv.text = if (it.scheduleAlarms.isEmpty()) {
+                        "없음"
+                    } else {
+                        it.scheduleAlarms.joinToString(", ") { minutes ->
+                            formatAlarmText(minutes)
+                        }
+                    }
+
+                    // 💡 4. 출발 알림 (숫자 -> 문자열 매핑)
+                    binding.settingsDepartureAlarmTv.text = if (it.departureAlarms.isEmpty()) {
+                        "없음"
+                    } else {
+                        it.departureAlarms.joinToString(", ") { minutes ->
+                            formatAlarmText(minutes)
+                        }
+                    }
+
+                    Log.d("SETTINGS_LOCAL", "UI 업데이트 완료: $it")
+                }
+            }
+        }
+    }
+
+    private fun formatAlarmText(minutes: Int): String {
+        return when (minutes) {
+            0 -> "일정 시작 시간"
+            5 -> "5분 전"
+            10 -> "10분 전"
+            15 -> "15분 전"
+            30 -> "30분 전"
+            60 -> "1시간 전"
+            120 -> "2시간 전"
+            1440 -> "1일 전"
+            2880 -> "2일 전"
+            10080 -> "1주일 전"
+            else -> "${minutes}분 전" // 매핑되지 않은 값이 있을 경우 대비
         }
     }
 
@@ -170,6 +259,39 @@ class SettingFragment: Fragment() {
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)
         requireActivity().finish()
+    }
+
+
+    private fun getCalendarNameById(calendarId: Long): String {
+        // 만약 온보딩에서 선택 안 함(-1) 상태라면 기본값 반환
+        if (calendarId == -1L) return "내 캘린더"
+
+        val projection = arrayOf(
+            android.provider.CalendarContract.Calendars.CALENDAR_DISPLAY_NAME
+        )
+        val uri = android.provider.CalendarContract.Calendars.CONTENT_URI
+        val selection = "${android.provider.CalendarContract.Calendars._ID} = ?"
+        val selectionArgs = arrayOf(calendarId.toString())
+
+        return try {
+            // ContentResolver를 이용해 캘린더 DB 조회
+            val cursor = requireContext().contentResolver.query(
+                uri, projection, selection, selectionArgs, null
+            )
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val nameIndex = it.getColumnIndex(android.provider.CalendarContract.Calendars.CALENDAR_DISPLAY_NAME)
+                    it.getString(nameIndex)
+                } else {
+                    "내 캘린더" // ID는 있는데 결과가 없는 경우
+                }
+            } ?: "내 캘린더"
+        } catch (e: SecurityException) {
+            // 캘린더 권한이 없을 경우
+            "권한 없음"
+        } catch (e: Exception) {
+            "내 캘린더"
+        }
     }
 
     override fun onDestroyView() {

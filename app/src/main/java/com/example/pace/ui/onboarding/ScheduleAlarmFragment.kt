@@ -13,7 +13,10 @@ import android.widget.CheckBox
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
+import androidx.viewpager2.widget.ViewPager2
 import com.example.pace.R
+import com.example.pace.data.viewmodel.OnboardingViewModel
 import com.example.pace.databinding.FragmentScheduleAlarmBinding
 
 
@@ -21,6 +24,8 @@ class ScheduleAlarmFragment : Fragment() {
     private var _binding: FragmentScheduleAlarmBinding? = null
     private val binding get() = _binding!!
 
+    private val viewModel: OnboardingViewModel by activityViewModels()
+    private lateinit var alarmMap: Map<CheckBox, Int>
     // 체크박스 리스트 관리
     private lateinit var checkBoxes: List<CheckBox>
 
@@ -32,15 +37,19 @@ class ScheduleAlarmFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // 1. 체크박스들을 리스트로 묶어서 관리
-        checkBoxes = listOf(
-            binding.rbStarttime, binding.rbStart5mago, binding.rbStart10mago,
-            binding.rbStart15mago, binding.rbStart30mago, binding.rbStart1hago, binding.rbStart2hago
+        // 1. 체크박스와 정수 값 매핑 초기화
+        alarmMap = mapOf(
+            binding.rbStarttime to 0,
+            binding.rbStart5mago to 5,
+            binding.rbStart10mago to 10,
+            binding.rbStart15mago to 15,
+            binding.rbStart30mago to 30,
+            binding.rbStart1hago to 60,
+            binding.rbStart2hago to 120
         )
 
         setupCheckBoxLogic()
 
-        // 2. 다음 버튼 클릭 리스너
         binding.btnNext.setOnClickListener {
             saveSelectedAlarms()
             navigateToNextPage()
@@ -53,24 +62,21 @@ class ScheduleAlarmFragment : Fragment() {
     }
 
     private fun setupCheckBoxLogic() {
-        // "안함" 체크박스 로직
+        // "안함" 클릭 시 나머지 모두 해제
         binding.rbNone.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
-                // "안함"을 누르면 나머지 모든 체크박스 해제
-                checkBoxes.forEach { it.isChecked = false }
+                alarmMap.keys.forEach { it.isChecked = false }
             }
         }
 
-        // 나머지 체크박스들 로직 (최대 5개 제한)
-        checkBoxes.forEach { checkBox ->
+        // 개별 알림 클릭 시 로직
+        alarmMap.keys.forEach { checkBox ->
             checkBox.setOnClickListener {
-                val selectedCount = checkBoxes.count { it.isChecked }
-
                 if (checkBox.isChecked) {
-                    // "안함"은 해제
-                    binding.rbNone.isChecked = false
+                    binding.rbNone.isChecked = false // "안함" 해제
 
-                    // 5개 초과 시 체크 방지
+                    // 최대 5개 제한
+                    val selectedCount = alarmMap.keys.count { it.isChecked }
                     if (selectedCount > 5) {
                         checkBox.isChecked = false
                         Toast.makeText(context, "알림은 최대 5개까지 설정 가능합니다.", Toast.LENGTH_SHORT).show()
@@ -81,38 +87,36 @@ class ScheduleAlarmFragment : Fragment() {
     }
 
     private fun saveSelectedAlarms() {
-        val selectedAlarms = mutableSetOf<String>()
+        val selectedMinutes = mutableListOf<Int>()
 
         if (binding.rbNone.isChecked) {
-            selectedAlarms.add("NONE")
+            // "안함" 선택 시 빈 리스트 혹은 특정 처리 (현재 ViewModel 구조상 빈 리스트 전달)
+            viewModel.isReminderActive = false // 필요 시 Reminder 비활성화
         } else {
-            checkBoxes.filter { it.isChecked }.forEach {
-                selectedAlarms.add(it.text.toString())
+            viewModel.isReminderActive = true
+            // 체크된 항목의 '분' 값만 추출하여 리스트 생성
+            alarmMap.forEach { (checkBox, minutes) ->
+                if (checkBox.isChecked) {
+                    selectedMinutes.add(minutes)
+                }
             }
         }
 
-        // SharedPreferences에 Set 형태로 저장
-        val sharedPref = requireActivity().getSharedPreferences("PaceSettings", Context.MODE_PRIVATE)
-        sharedPref.edit().putStringSet("schedule_alarm_list", selectedAlarms).apply()
+        // 2. 뷰모델의 scheduleAlarms(MutableList<Int>) 교체
+        viewModel.scheduleAlarms.clear()
+        viewModel.scheduleAlarms.addAll(selectedMinutes)
     }
 
     private fun navigateToNextPage() {
-        val viewPager = activity?.findViewById<androidx.viewpager2.widget.ViewPager2>(R.id.app_setting_viewpager)
+        val viewPager = activity?.findViewById<ViewPager2>(R.id.app_setting_viewpager)
         viewPager?.let { it.currentItem = it.currentItem + 1 }
     }
-
     fun TextView.setBoldText(fullText: String, boldKeywords: List<String>) {
         val spannable = SpannableStringBuilder(fullText)
-
         boldKeywords.forEach { keyword ->
             val start = fullText.indexOf(keyword)
             if (start != -1) {
-                spannable.setSpan(
-                    StyleSpan(Typeface.BOLD),
-                    start,
-                    start + keyword.length,
-                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
+                spannable.setSpan(StyleSpan(Typeface.BOLD), start, start + keyword.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
             }
         }
         this.text = spannable

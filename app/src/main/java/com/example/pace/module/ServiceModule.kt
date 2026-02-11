@@ -60,6 +60,14 @@ object ServiceModule {
 
     @Provides
     @Singleton
+    fun provideRouteService(
+        @BaseRetrofit retrofit: Retrofit
+    ): com.example.pace.data.api.RouteService {
+        return retrofit.create(com.example.pace.data.api.RouteService::class.java)
+    }
+
+    @Provides
+    @Singleton
     fun provideMemberControllerService(
         @BaseRetrofit retrofit: Retrofit
     ): MemberControllerService {

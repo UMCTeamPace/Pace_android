@@ -3,10 +3,10 @@ package com.example.pace.data.model.response
 import com.google.gson.annotations.SerializedName
 
 data class RouteApiResponse(
-    @SerializedName("routeApiResDtoList") val routeList: List<RouteItem>
+    @SerializedName("routeApiResDtoList") val routeApiResDtoList: List<RouteResponse>?
 )
 
-data class RouteItem(
+data class RouteResponse(
     @SerializedName("totalDistance") val totalDistance: Int,
     @SerializedName("totalTime") val totalTime: Int,
     @SerializedName("arrivalTime") val arrivalTime: String,
@@ -38,6 +38,6 @@ data class TransitDetail(
     @SerializedName("shortName") val shortName: String,
     @SerializedName("locationLat") val locationLat: Double,
     @SerializedName("locationLng") val locationLng: Double,
-    @SerializedName("headsign") val headsign: String,
-    @SerializedName("stationPath") val stationPath: List<String>
+    @SerializedName("headsign") val headsign: String?,
+    @SerializedName("stationPath") val stationPath: List<String>?
 )
