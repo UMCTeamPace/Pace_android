@@ -2,13 +2,19 @@ package com.example.pace.ui.add_schedule
 
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
 import android.widget.NumberPicker
 import android.widget.Toast
+import androidx.core.content.ContextCompat
+import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResultListener
 import androidx.fragment.app.viewModels
@@ -17,13 +23,19 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.room.Delete
 import com.example.pace.R
 import com.example.pace.data.model.request.CreateScheduleRequest
 import com.example.pace.data.model.request.PlaceRequest
 import com.example.pace.data.model.request.ReminderRequest
+import com.example.pace.data.model.request.RouteDetail
 import com.example.pace.data.model.request.RouteRequest
+import com.example.pace.data.model.response.RouteResponse
 import com.example.pace.data.util.RouteConstants
 import com.example.pace.databinding.FragmentRouteScheduleBinding
+import com.example.pace.databinding.ItemRouteDetailBriefBinding
+import com.example.pace.databinding.ItemRouteVehicleBinding
+import com.example.pace.ui.WeightCalculator
 import com.example.pace.ui.main.calendar.ScheduleViewModel
 import com.google.gson.Gson
 import dagger.hilt.android.AndroidEntryPoint
@@ -34,6 +46,9 @@ class RouteScheduleFragment : Fragment() {
 
     private var _binding: FragmentRouteScheduleBinding? = null
     private val binding get() = _binding!!
+
+    // 경로 검색 -> 일정 추가 시 받는 ROUTE_DETAIL
+    private var route: RouteResponse? = null
 
     private var isEditingStartTime: Boolean = true
     // 경로탐색으로 전환될 때 같이 보낼 색깔(선택된 일정 색)
@@ -109,12 +124,28 @@ class RouteScheduleFragment : Fragment() {
         val earlyTime = arguments?.getInt("EARLY_ARRIVE_TIME", 0)
         val routeDetail = arguments?.getString("ROUTE_DETAIL") ?: "데이터 없음"
 
+        // routeDetail 파싱해 경로 동적 바인딩 + route의 값에 따라 UI 업데이트
+        val gson = Gson()
+        route = gson.fromJson(routeDetail, RouteResponse::class.java)
+        updateRouteInfo(startName, endName, route)
+        if(route != null){
+            // 삭제 버튼 활성화
+            binding.deleteRouteIv.visibility = View.VISIBLE
+            binding.deleteRouteIv.setOnClickListener {
+                val dialog = DeleteRouteDialog(requireContext()) {
+                    setRouteToNull()
+                    Log.d("DEBUG_TAG", route.toString())
+                    updateRouteInfo(startName, endName, route)
+                }
+                dialog.show()
+            }
+        }
 
         val toastMessage = """
      출발: $startName
      도착: $endName
      미리 도착: ${earlyTime}분
-     경로 상세: ${if (routeDetail.length > 20) routeDetail.take(20) + "..." else routeDetail}
+     경로 상세: ${if (routeDetail!!.length > 20) routeDetail!!.take(20) + "..." else routeDetail}
 """.trimIndent()
 
         Toast.makeText(requireContext(), toastMessage, Toast.LENGTH_LONG).show()
@@ -340,6 +371,7 @@ class RouteScheduleFragment : Fragment() {
 
         updateTimeVisibility()
 
+        // 일정 추가 -> 루트 프래그먼트로 데이터 전달
         binding.btnRoute.setOnClickListener {
             val scheduleName = binding.etScheduleName.text.toString()
             val startTime = binding.tvStartTime.text.toString()
@@ -507,5 +539,117 @@ class RouteScheduleFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    fun setRouteToNull(){
+        this.route = null
+    }
+    // 데이터 동적 바인딩
+    private fun updateRouteInfo(startName: String, endName: String, route: RouteResponse?){
+        if(route != null){
+            // 경로 출발, 도착지 추가
+            binding.routeIv.setColorFilter(R.color.black)
+            binding.routeTv.text = startName + " -> " + endName
+            binding.routeTv.setTextColor(requireContext().getColor(R.color.text_primary))
+            // 일직선 경로 추가
+            binding.routeInfoCl.visibility = View.VISIBLE
+            binding.timeTv.text = route.departureTime.split("T").last().take(5) + " - " + route.arrivalTime.split("T").last().take(5)
+            binding.totalTimeTv.text = if(route.totalTime / 3600L > 0 ){
+                val time = route.totalTime % 3600L
+                if(time / 60L > 0){
+                    "${route.totalTime / 3600L}시간 ${time / 60L}분"
+                }else{
+                    "${route.totalTime / 3600L}시간"
+                }
+            }else{
+                "${route.totalTime / 60L}분"
+            }
+
+            route.routeDetails.forEachIndexed { index, data ->
+                val briefBinding = ItemRouteDetailBriefBinding.inflate(LayoutInflater.from(context), binding.routeBriefLl, false)
+
+                // 3-1. 걷기 (TransitDetail이 null인 경우)
+                if (data.transitDetail == null) {
+                    if (data.sequence == 1) { // 첫 번째 순서면 사람 아이콘
+                        briefBinding.itemRouteDetailBriefIv.setImageResource(R.drawable.ic_people)
+                    } else {
+                        briefBinding.itemRouteDetailBriefIv.visibility = View.GONE
+                        briefBinding.itemRouteDetailBriefTv.updatePadding(0)
+                    }
+                    briefBinding.itemRouteDetailBriefTv.text = "${data.duration / 60}분"
+                    briefBinding.itemRouteDetailBriefTv.setTextColor(ContextCompat.getColor(context, R.color.gray_600))
+
+                    // 마지막 단계(하차) 처리
+                    // 리스트의 마지막 인덱스인지 확인
+                    if (index == route.routeDetails.size - 1) {
+                        val vehicleBinding = ItemRouteVehicleBinding.inflate(LayoutInflater.from(context), binding.routeVehicleLl, false)
+                        vehicleBinding.itemRouteVehicleIv.setImageResource(R.drawable.ic_route_item_arrival_icon)
+                        vehicleBinding.itemRouteVehicleLineTv.text = "도착"
+                        vehicleBinding.itemRouteVehicleLineTv.setTextColor(ContextCompat.getColor(context, R.color.black))
+                        vehicleBinding.itemRouteVehicleView.visibility = View.GONE
+                        vehicleBinding.itemRouteVehicleTv.text = endName
+
+                        binding.routeVehicleLl.addView(vehicleBinding.root)
+                    }
+                }
+                // 3-2. 대중교통 (버스, 지하철)
+                else {
+                    val vehicleBinding = ItemRouteVehicleBinding.inflate(LayoutInflater.from(context), binding.routeVehicleLl, false)
+
+                    // 아이콘 및 색상 설정
+                    val layoutDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.ic_route_detail)?.mutate() as LayerDrawable
+                    val iconShape = layoutDrawable.findDrawableByLayerId(R.id.ic_route_detail_color).mutate() as GradientDrawable
+                    val briefBg = briefBinding.itemRouteDetailBriefTv.background.mutate() as GradientDrawable
+
+                    // 색상 파싱 (서버에서 #RRGGBB 형태로 온다고 가정, 실패 시 기본값 검정)
+                    val lineColorCode = try {
+                        Color.parseColor(data.transitDetail.lineColor ?: "#000000")
+                    } catch (e: Exception) {
+                        Color.BLACK
+                    }
+
+                    // 교통 수단별 아이콘 변경
+                    when (data.transitDetail.transitType) {
+                        "BUS" -> {
+                            val busDrawable = ContextCompat.getDrawable(context, R.drawable.ic_bus)
+                            layoutDrawable.setDrawableByLayerId(R.id.ic_route_detail_vehicle, busDrawable)
+                        }
+                        "SUBWAY" -> {
+                            val subwayDrawable = ContextCompat.getDrawable(context, R.drawable.ic_subway)
+                            layoutDrawable.setDrawableByLayerId(R.id.ic_route_detail_vehicle, subwayDrawable)
+                        }
+                    }
+
+                    // 색상 적용
+                    iconShape.setColor(lineColorCode)
+                    briefBg.setColor(lineColorCode)
+
+                    // [상단 바] 정보 설정
+                    briefBinding.itemRouteDetailBriefIv.setImageDrawable(layoutDrawable)
+                    briefBinding.itemRouteDetailBriefTv.text = "${data.duration / 60}분"
+
+                    // [하단 리스트] 상세 정보 설정
+                    vehicleBinding.itemRouteVehicleIv.setImageDrawable(layoutDrawable)
+                    vehicleBinding.itemRouteVehicleLineTv.text = data.transitDetail.lineName // shortName -> lineName (데이터 모델 확인 필요)
+                    vehicleBinding.itemRouteVehicleLineTv.setTextColor(lineColorCode)
+                    vehicleBinding.itemRouteVehicleTv.text = "${data.transitDetail.departureStop} 승차"
+
+                    binding.routeVehicleLl.addView(vehicleBinding.root)
+                }
+
+                // 상단 바(Brief) 뷰 추가 (Weight 적용)
+                val weight = WeightCalculator.forRouteDetailBrief(data.duration)
+                val params = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, weight)
+                binding.routeBriefLl.addView(briefBinding.root, params)
+            }
+        }else{
+            Log.d("DEBUG_TAG", "route == null")
+            // 기본 상태
+            binding.deleteRouteIv.visibility = View.GONE
+            binding.routeTv.text = "경로"
+            binding.routeTv.setTextColor(requireContext().getColor(R.color.gray_500))
+            binding.divider.visibility = View.GONE
+            binding.routeInfoCl.visibility = View.GONE
+        }
     }
 }
