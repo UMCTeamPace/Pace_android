@@ -61,6 +61,20 @@
             android:visibility="gone" />
     </FrameLayout>
 
+    <TextView
+        android:id="@+id/tv_error_msg"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="이동하려는 그룹에 이미 해당 장소가 존재합니다."
+        android:textColor="@color/semantic_warning"
+        android:visibility="gone"
+        android:textSize="12sp"
+        android:paddingTop="4dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layout_input_container"
+        app:layout_constraintBottom_toTopOf="@id/rv_group_list" />
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_group_list"
         android:layout_width="match_parent"
@@ -71,7 +85,7 @@
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
         app:layout_constrainedHeight="true"
         app:layout_constraintBottom_toTopOf="@id/layout_buttons"
-        app:layout_constraintTop_toBottomOf="@id/layout_input_container"
+        app:layout_constraintTop_toBottomOf="@id/tv_error_msg"
         app:layout_constraintVertical_bias="0.0" />
 
     <LinearLayout
