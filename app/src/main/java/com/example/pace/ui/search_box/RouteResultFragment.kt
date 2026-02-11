@@ -1,5 +1,6 @@
 package com.example.pace.ui.search_box
 
+import android.content.Context.MODE_PRIVATE
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -8,11 +9,14 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.pace.R
 import com.example.pace.data.model.RouteResponseSample
+import com.example.pace.data.model.request.Destination
 import com.example.pace.data.model.response.RouteResponse
 import com.example.pace.databinding.FragmentRouteResultBinding
 import com.example.pace.ui.main.route.RouteFragment
 
-class RouteResultFragment : Fragment(){
+class RouteResultFragment(
+    private val destination: String
+) : Fragment(){
     private var _binding: FragmentRouteResultBinding? = null
     private val binding get() = _binding!!
 
@@ -43,6 +47,7 @@ class RouteResultFragment : Fragment(){
             onItemClick = { item ->
                 (parentFragment as? RouteFragment)?.showRouteDetailOverlay(item)
             },
+            destination = destination,
             onSelectClick = { item ->
                 (parentFragment as? RouteFragment)?.onRouteSelectedFinal(item)
             }
@@ -73,6 +78,7 @@ class RouteResultFragment : Fragment(){
         adapter = RouteAdapter(
             context = requireContext(),
             items = newItems,
+            destination = destination,
             onItemClick = { (parentFragment as? RouteFragment)?.showRouteDetailOverlay(it) },
             onSelectClick = { (parentFragment as? RouteFragment)?.onRouteSelectedFinal(it) }
         )
