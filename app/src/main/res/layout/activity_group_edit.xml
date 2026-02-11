@@ -82,7 +82,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
             android:layout_weight="1"
-            android:background="@drawable/btn_delete_schedule_red"
+            android:background="@color/text_disabled"
             android:fontFamily="@font/pretendard_semibold"
             android:text="삭제"
             android:textColor="@android:color/white" />

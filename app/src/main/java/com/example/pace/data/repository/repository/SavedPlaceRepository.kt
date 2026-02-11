@@ -1,5 +1,6 @@
 package com.example.pace.data.repository.repository
 
+import com.example.pace.data.model.request.DeletePlacesRequest
 import com.example.pace.data.model.request.MovePlaceGroupRequest
 import com.example.pace.data.model.request.SavePlaceRequest
 import com.example.pace.data.model.response.RawDefaultResponse
@@ -24,14 +25,14 @@ interface SavedPlaceRepository {
 
     suspend fun deleteSavedPlaces(
         accessToken: String,
-        placeIds: List<Long>
-    ): RawDefaultResponse<Unit>
+        request: DeletePlacesRequest
+    ): RawDefaultResponse<String>
 
 
     suspend fun movePlaceGroup(
         accessToken: String,
         request: MovePlaceGroupRequest
-    ): RawDefaultResponse<Unit>
+    ): RawDefaultResponse<String>
 
     suspend fun getSavedPlacesByGroup(
         accessToken: String,

@@ -10,6 +10,10 @@ data class SavePlaceRequest(
 
 
 data class MovePlaceGroupRequest(
-    @SerializedName("placeIds") val placeIds: List<Long>,
+    @SerializedName("placeIdList") val placeIdList: List<Long>,
     @SerializedName("targetGroupId") val targetGroupId: Long
+)
+
+data class DeletePlacesRequest(
+    val placeIdList: List<Long>
 )
