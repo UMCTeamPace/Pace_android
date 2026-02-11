@@ -26,6 +26,7 @@ import java.util.TimeZone
 class RouteAdapter(
     private val context: Context,
     private val items: List<RouteResponse>,
+    private val destination: String,
     private val onItemClick: (RouteResponse) -> Unit,
     private val onSelectClick: (RouteResponse) -> Unit
 ) : RecyclerView.Adapter<RouteAdapter.RouteViewHolder>() {
@@ -47,7 +48,16 @@ class RouteAdapter(
             binding.routeBriefLl.removeAllViews()
             binding.routeVehicleLl.removeAllViews()
 
-            binding.routeTotalTv.text = "총 ${item.totalTime / 60}분 소요"
+            binding.routeTotalTv.text = if(item.totalTime / 3600L > 0 ){
+                val time = item.totalTime % 3600L
+                if(time / 60L > 0){
+                    "${item.totalTime / 3600L}시간 ${time / 60L}분"
+                }else{
+                    "${item.totalTime / 3600L}시간"
+                }
+            }else{
+                "${item.totalTime / 60L}분"
+            }
 
             // 시간 자르기 (2026-02-03T09:00:00 -> 09:00)
             // 서버 데이터가 null이거나 형식이 다를 경우를 대비해 안전하게 처리
@@ -79,6 +89,7 @@ class RouteAdapter(
                         vehicleBinding.itemRouteVehicleLineTv.text = "도착"
                         vehicleBinding.itemRouteVehicleLineTv.setTextColor(ContextCompat.getColor(context, R.color.black))
                         vehicleBinding.itemRouteVehicleView.visibility = View.GONE
+                        vehicleBinding.itemRouteVehicleTv.text = destination
 
                         binding.routeVehicleLl.addView(vehicleBinding.root)
                     }

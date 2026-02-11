@@ -36,5 +36,6 @@ class ModalCaseDialog(
     override fun onStart() {
         super.onStart()
         window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        window?.setDimAmount(0.3f)
     }
 }
