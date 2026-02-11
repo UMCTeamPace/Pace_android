@@ -82,8 +82,8 @@ class BookmarkPlaceFragment : Fragment(){
     }
 
     private fun setupRecyclerView() {
-        val touchHelper = CommonSwipeTouchHelper(clampWidthDp = 120)
-        val itemTouchHelper = ItemTouchHelper(touchHelper)
+//        val touchHelper = CommonSwipeTouchHelper(clampWidthDp = 120)
+//        val itemTouchHelper = ItemTouchHelper(touchHelper)
 
         groupAdapter = BookmarkGroupAdapter(
             onGroupClick = { groupItem ->
@@ -110,6 +110,11 @@ class BookmarkPlaceFragment : Fragment(){
                 dialog.show(parentFragmentManager, "AddGroupDialog")
             }
         )
+        val touchHelper = CommonSwipeTouchHelper(
+            adapter = groupAdapter,
+            clampWidthDp = 120
+        )
+        val itemTouchHelper = ItemTouchHelper(touchHelper)
 
         groupAdapter.setHelper(touchHelper)
 
@@ -122,7 +127,7 @@ class BookmarkPlaceFragment : Fragment(){
             addOnScrollListener(object : RecyclerView.OnScrollListener() {
                 override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
                     if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
-                        touchHelper.closeSwipedMenu()
+                        touchHelper.closeAllMenus(this@apply)
                     }
                 }
             })
