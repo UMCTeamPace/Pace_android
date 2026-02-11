@@ -132,7 +132,6 @@ class GroupDetailBottomSheet(
     }
 
     private fun showFilterDialog() {
-        // [수정] 만드신 XML 파일명(dialog_place_filter) 사용
         val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_place_filter, null)
         val builder = AlertDialog.Builder(requireContext())
         builder.setView(dialogView)
@@ -183,15 +182,13 @@ class GroupDetailBottomSheet(
         _binding = null
     }
 
-    private fun findRouteFragmentRecursively(fragment: androidx.fragment.app.Fragment?): com.example.pace.ui.main.route.RouteFragment? {
+    private fun findRouteFragmentRecursively(fragment: androidx.fragment.app.Fragment?): RouteFragment? {
         if (fragment == null) return null
 
-        // 1. 내 부모가 RouteFragment인가?
-        if (fragment.parentFragment is com.example.pace.ui.main.route.RouteFragment) {
-            return fragment.parentFragment as com.example.pace.ui.main.route.RouteFragment
+        if (fragment.parentFragment is RouteFragment) {
+            return fragment.parentFragment as RouteFragment
         }
 
-        // 2. 아니면 부모의 부모를 찾아보자 (재귀 호출)
         return findRouteFragmentRecursively(fragment.parentFragment)
     }
 }
