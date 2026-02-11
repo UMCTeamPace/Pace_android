@@ -3,6 +3,7 @@ package com.example.pace.ui.add_schedule
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -14,21 +15,33 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.setFragmentResultListener
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.R
 import com.example.pace.databinding.FragmentGeneralScheduleBinding
+import com.example.pace.ui.main.calendar.ScheduleViewModel
 import com.kizitonwose.calendar.core.CalendarDay
 import com.kizitonwose.calendar.view.MonthDayBinder
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import com.example.pace.data.model.request.PlaceRequest
+import com.example.pace.data.model.request.RepeatInfo
+import com.example.pace.ui.onboarding.CalendarSelectFragment
 
+@AndroidEntryPoint
 class GeneralScheduleFragment : Fragment() {
 
     private var _binding: FragmentGeneralScheduleBinding? = null
     private val binding get() = _binding!!
+
+    private val viewModel: ScheduleViewModel by activityViewModels()
+
 
     private var isEditingStartTime: Boolean = true
 
@@ -36,26 +49,42 @@ class GeneralScheduleFragment : Fragment() {
 
     private var startDate: LocalDate? = null
     private var endDate: LocalDate? = null
+    private var selectedColorHex: String = "#53B332" // 기본 색상
 
+    private var selectedPlaceId: String? = null
+    private var selectedPlaceName: String? = null
+    private var selectedLat: Double = 0.0
+    private var selectedLng: Double = 0.0
+
+    private var currentSelectedAlarms: IntArray? = null
+    private var currentSelectedCalendarId: Long? = null
+    private var currentSelectedCalendarName: String? = null
+
+    private val dateFormatter = DateTimeFormatter.ofPattern("M월 d일 (E)", Locale.KOREAN)
+    val colorInt = android.graphics.Color.parseColor(selectedColorHex)
+    private var currentRepeatInfo: RepeatInfo? = null
     private val routeSearchLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             val data = result.data
-            val name = data?.getStringExtra("placeName")
-            val id = data?.getStringExtra("placeId")
-            //여기서 업데이트! 받아온 정보 여기서 써요!
-            Toast.makeText(context, "선택된 장소: $name, 선택된 아이디: $id", Toast.LENGTH_SHORT).show()
+            selectedPlaceName = data?.getStringExtra("placeName")
+            selectedPlaceId = data?.getStringExtra("placeId")
+            selectedLat = data?.getDoubleExtra("placeLat", 0.0) ?: 0.0
+            selectedLng = data?.getDoubleExtra("placeLng", 0.0) ?: 0.0
+
+            // UI 반영: XML에 정의된 정확한 ID인 tv_location_status를 사용합니다.
+            binding.tvLocationStatus.apply {
+                text = selectedPlaceName
+                setTextColor(ContextCompat.getColor(requireContext(), R.color.black))
+            }
+
+            Toast.makeText(context, "장소 선택: $selectedPlaceName", Toast.LENGTH_SHORT).show()
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setFragmentResultListener("repeatKey") { _, bundle ->
-            val result = bundle.getString("selectedRepeat")
-            binding.tvRepeatStatus.text = result
-        }
-
     }
 
     override fun onCreateView(
@@ -76,6 +105,44 @@ class GeneralScheduleFragment : Fragment() {
         setupMonthNavigation()  // 화살표 셋업
         initTimePickers()
         updateTimeVisibility()
+        observeUserSettings()
+
+        if (currentSelectedAlarms == null) {
+            viewLifecycleOwner.lifecycleScope.launch {
+                viewModel.userSettings.collect { settings ->
+                    settings?.let {
+                        // 1. 알람 초기화 (기본 유지)
+                        if (currentSelectedAlarms == null) {
+                            currentSelectedAlarms = it.scheduleAlarms.toIntArray()
+                            updateAlarmText(currentSelectedAlarms!!)
+                        }
+
+                        // 2. 캘린더 초기화 (오류 해결 및 이름 조회)
+                        if (currentSelectedCalendarId == null) {
+                            currentSelectedCalendarId = it.calendarId // 💡 it.calendarId로 수정됨
+
+                            // 💡 ID를 바탕으로 시스템에서 이름을 조회해옵니다.
+                            val calendarName = viewModel.getCalendarNameById(it.calendarId)
+                            currentSelectedCalendarName = calendarName
+
+                            binding.tvCalendarStatus.text = calendarName
+                            binding.tvCalendarStatus.setTextColor(
+                                ContextCompat.getColor(
+                                    requireContext(),
+                                    R.color.black
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        val today = LocalDate.now()
+        startDate = today
+        endDate = today
+        binding.tvStartDate.text = today.format(dateFormatter)
+        binding.tvEndDate.text = today.format(dateFormatter)
 
         val selectedDate = arguments?.getString("selected_date")
         val mode = arguments?.getString("mode")
@@ -97,31 +164,51 @@ class GeneralScheduleFragment : Fragment() {
         binding.btnConfirm.setOnClickListener {
             val scheduleName = binding.etScheduleName.text.toString().trim()
 
+            // 1. 필수 유효성 체크 (일정명)
             if (scheduleName.isEmpty()) {
                 Toast.makeText(context, "일정명을 입력해 주세요.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
-            if (!isAllDay) {
-                val start = binding.tvStartTime.text.toString()
-                val end = binding.tvEndTime.text.toString()
-                val isSameDay = startDate != null && endDate != null && startDate == endDate
-
-                // [수정] 같은 날짜일 때만 시간 선후 관계를 엄격하게 체크
-                if (isSameDay && isTimeAfter(start, end)) {
-                    Toast.makeText(context, "종료 시간이 시작 시간보다 빨라야 합니다.", Toast.LENGTH_SHORT).show()
-                    return@setOnClickListener
-                }
+            // 2. 날짜 유효성 체크
+            if (startDate == null) {
+                Toast.makeText(context, "시작 날짜를 선택해 주세요.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
             }
 
-            Toast.makeText(context, "일정이 저장되었습니다.", Toast.LENGTH_SHORT).show()
-            if (parentFragmentManager.backStackEntryCount > 0) {
-                parentFragmentManager.popBackStack()
-            } else {
-                requireActivity().finish()
+
+            // 만약 장소 검색 결과로 받은 데이터가 있다면 여기에 PlaceRequest 객체를 생성해 넣어주세요.
+            val placeRequest = selectedPlaceName?.let { name ->
+                PlaceRequest(
+                    targetName = name,
+                    targetLat = selectedLat,
+                    targetLng = selectedLng
+                )
             }
+
+            val selectedColorInt = try {
+                android.graphics.Color.parseColor(selectedColorHex) // String -> Int 변환
+            } catch (e: Exception) {
+                android.graphics.Color.parseColor("#DC354B") // 실패 시 기본값
+            }
+
+            viewModel.createScheduleWithDefaultSettings(
+                title = scheduleName,
+                memo = binding.etMemo.text?.toString(),
+                isAllDay = isAllDay,
+                startDate = startDate.toString(),
+                startTime = if (isAllDay) null else binding.tvStartTime.text.toString(),
+                endDate = (endDate ?: startDate).toString(),
+                endTime = if (isAllDay) null else binding.tvEndTime.text.toString(),
+                place = placeRequest,      // 서버로 보낼 위도/경도 객체
+                placeId = selectedPlaceId,  // 룸 DB에 저장할 ID (추가)
+                customAlarms = currentSelectedAlarms?.toList(),
+                calendarId = currentSelectedCalendarId,
+                selectedColor = selectedColorInt, // Int 타입으로 전달
+                repeatInfo = currentRepeatInfo    // 이 변수가 상단에 선언되어 있어야 함
+            )
         }
-
+        observeCreateEvent()
         binding.btnCancel.setOnClickListener {
             androidx.appcompat.app.AlertDialog.Builder(requireContext())
                 .setTitle("작성 취소")
@@ -140,10 +227,21 @@ class GeneralScheduleFragment : Fragment() {
         setupKeyboardVisibilityListener()
 
         setFragmentResultListener("repeatKey") { _, bundle ->
-            val result = bundle.getString("selectedRepeat")
-            binding.tvRepeatStatus.text = result
-        }
+            val resultText = bundle.getString("selectedRepeat")
+            binding.tvRepeatStatus.text = resultText
 
+            // 안전한 추출 방법
+            currentRepeatInfo = try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                    bundle.getSerializable("repeatInfo", RepeatInfo::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    bundle.getSerializable("repeatInfo") as? RepeatInfo
+                }
+            } catch (e: Exception) {
+                null
+            }
+        }
 
         binding.btnRepeat.setOnClickListener {
             val repeatFragment = ScheduleRepeatFragment()
@@ -190,14 +288,17 @@ class GeneralScheduleFragment : Fragment() {
 
         binding.viewColorDot.setOnClickListener {
             if (binding.layoutColorSelector.visibility == View.GONE) {
+                animateLayoutChange()
                 binding.layoutColorSelector.visibility = View.VISIBLE
-                binding.calendarPicker.visibility = View.GONE
+
+                // 캘린더를 아예 닫고 싶지 않다면 아래 줄을 주석 처리하세요.
+                // 만약 닫아야 한다면, 나중에 다시 열 때 확실히 VISIBLE로 만들어야 합니다.
+                binding.calendarContainer.visibility = View.GONE
                 binding.timePickerContainer.visibility = View.GONE
             } else {
                 binding.layoutColorSelector.visibility = View.GONE
             }
         }
-
 
         val colorList = listOf(
             ColorItem(R.color.schedule_5,"#DC354B"),
@@ -281,9 +382,12 @@ class GeneralScheduleFragment : Fragment() {
 
         binding.btnRemindalarm.setOnClickListener {
             val fragment = AlarmScheduleFragment()
+            val bundle = Bundle().apply {
+                // 온보딩 값이 아닌, 현재 화면에서 들고 있는 변수를 넘김
+                putIntArray("currentAlarms", currentSelectedAlarms)
+            }
+            fragment.arguments = bundle
 
-            // 1. requireActivity().supportFragmentManager를 써야 액티비티 전체를 씁니다.
-            // 2. replace 대상은 반복 버튼과 동일하게 android.R.id.content 혹은 R.id.add_schedule_root_layout
             requireActivity().supportFragmentManager.beginTransaction()
                 .setCustomAnimations(
                     android.R.anim.slide_in_left,
@@ -297,18 +401,16 @@ class GeneralScheduleFragment : Fragment() {
         }
         // [추가] AlarmScheduleFragment에서 보낸 결과 수신
         parentFragmentManager.setFragmentResultListener("scheduleAlarmKey", viewLifecycleOwner) { _, bundle ->
-            val selectedAlarm = bundle.getString("selectedAlarm")
+            val resultText = bundle.getString("selectedAlarm")
+            val resultMinutes = bundle.getIntArray("selectedAlarmMinutes") // 💡 숫자로 된 리스트도 받아야 함
 
-            if (!selectedAlarm.isNullOrEmpty() && selectedAlarm != "일정 알림 안함") {
-                // 알람이 설정된 경우: 검정색 텍스트로 변경
-                binding.tvRemindStatus.text = selectedAlarm
+            if (resultMinutes != null) {
+                currentSelectedAlarms = resultMinutes // 💡 여기서 임시 변수 업데이트!
+                binding.tvRemindStatus.text = resultText // UI는 텍스트로 표시
                 binding.tvRemindStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.black))
-            } else {
-                // 알람이 없는 경우: 회색 텍스트로 변경
-                binding.tvRemindStatus.text = "일정 알림 안함"
-                binding.tvRemindStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.gray_500))
             }
         }
+
 
 
         val currentMonth = java.time.YearMonth.now()
@@ -369,22 +471,48 @@ class GeneralScheduleFragment : Fragment() {
                 }
             }
         }
-
+        binding.etScheduleName.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                // 이름을 입력할 때는 복잡한 피커들을 잠시 접어두는 것이 좋습니다.
+                binding.calendarContainer.visibility = View.GONE
+                binding.timePickerContainer.visibility = View.GONE
+                binding.layoutColorSelector.visibility = View.GONE
+            }
+        }
         binding.btnCalendar.setOnClickListener {
-            val selectCalendarFragment = SelectCalendarFragment() // 프래그먼트 이름 확인 필요
+            val fragment = CalendarSelectFragment()
+            val bundle = Bundle().apply {
+                putLong("currentCalendarId", currentSelectedCalendarId ?: -1L)
+            }
+            fragment.arguments = bundle
 
-            requireActivity().supportFragmentManager.beginTransaction()
+            parentFragmentManager.beginTransaction()
                 .setCustomAnimations(
                     android.R.anim.slide_in_left,
                     android.R.anim.slide_out_right,
                     android.R.anim.slide_in_left,
                     android.R.anim.slide_out_right
                 )
-                // 다른 버튼들과 마찬가지로 최상위 컨테이너(android.R.id.content)를 교체
-                .replace(android.R.id.content, selectCalendarFragment)
+                // android.R.id.content는 액티비티의 최상위 컨테이너입니다.
+                .replace(android.R.id.content, fragment)
                 .addToBackStack(null)
                 .commit()
         }
+
+        // 결과 리스너 (onViewCreated 내부)
+        parentFragmentManager.setFragmentResultListener("calendarSelectKey", viewLifecycleOwner) { _, bundle ->
+            val selectedId = bundle.getLong("calendarId")
+            val selectedName = bundle.getString("calendarName") ?: "내 일정"
+
+            if (selectedId != -1L) {
+                currentSelectedCalendarId = selectedId
+                currentSelectedCalendarName = selectedName
+
+                binding.tvCalendarStatus.text = selectedName
+                binding.tvCalendarStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.black))
+            }
+        }
+
 
         // [추가 선택사항] SelectCalendarFragment에서 돌아올 때 결과 수신
         // GeneralScheduleFragment의 onViewCreated 내부
@@ -412,11 +540,17 @@ class GeneralScheduleFragment : Fragment() {
     }
 
     private fun changeSelectedColor(colorStr: String) {
+        selectedColorHex = colorStr
+
         val color = Color.parseColor(colorStr)
         binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(color)
-        binding.layoutColorSelector.visibility = View.GONE
-    }
 
+        // 2. UI 처리
+        binding.layoutColorSelector.visibility = View.GONE
+
+        // 로그로 값이 바뀌는지 확인해보세요
+        Log.d("COLOR_CHECK", "선택된 색상: $selectedColorHex")
+    }
     private fun initTimePickers() {
 
         binding.pickerHour.apply {
@@ -465,20 +599,39 @@ class GeneralScheduleFragment : Fragment() {
 
     private fun showCalendar() {
         animateLayoutChange()
-        binding.calendarContainer.visibility = View.VISIBLE
-        binding.timePickerContainer.visibility = View.GONE // 시간 피커 강제 종료
-        binding.layoutColorSelector.visibility = View.GONE
 
+        // 1. 방해 요소 제거
+        binding.layoutColorSelector.visibility = View.GONE
+        binding.timePickerContainer.visibility = View.GONE
+
+        // 2. 컨테이너와 캘린더 본체를 모두 VISIBLE로
+        binding.calendarContainer.visibility = View.VISIBLE
+        binding.calendarPicker.visibility = View.VISIBLE // 💡 명시적으로 추가
+
+        // 3. 키보드 숨기기 및 포커스 제거
         val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-        imm.hideSoftInputFromWindow(view?.windowToken, 0)
+        view?.let {
+            imm.hideSoftInputFromWindow(it.windowToken, 0)
+            it.clearFocus()
+        }
+
+        // 4. 재계산 요청
+        binding.calendarPicker.post {
+            binding.calendarPicker.requestLayout()
+            binding.nestedScrollView.smoothScrollTo(0, binding.calendarContainer.top)
+        }
     }
 
     private fun showTimePicker() {
         if (isAllDay) return
+
+        // 1. 레이아웃 가시성 조절
         animateLayoutChange()
         binding.timePickerContainer.visibility = View.VISIBLE
         binding.calendarContainer.visibility = View.GONE
+        binding.layoutColorSelector.visibility = View.GONE
 
+        // 2. 현재 선택된 시간 텍스트를 파싱하여 피커 초기값 설정
         val timeText = if (isEditingStartTime) {
             binding.tvStartTime.text.toString()
         } else {
@@ -492,14 +645,21 @@ class GeneralScheduleFragment : Fragment() {
                 val m = parts[1].trim().toInt()
 
                 binding.pickerHour.value = h
-                // [수정] 분을 5로 나눠서 인덱스 값으로 설정 (예: 15분 -> index 3)
+                // 5분 단위 인덱스 계산 (예: 15분 -> index 3)
                 binding.pickerMinute.value = (m / 5).coerceIn(0, 11)
             }
         } catch (e: Exception) {
             binding.pickerHour.value = 10
             binding.pickerMinute.value = 0
         }
+
+        // 3. 스크롤을 시간 피커 위치로 이동
+        binding.timePickerContainer.post {
+            binding.nestedScrollView.smoothScrollTo(0, binding.timePickerContainer.top)
+        }
     }
+
+
     private fun updateTimeVisibility() {
         if (isAllDay) {
             binding.tvStartTime.visibility = View.GONE
@@ -554,19 +714,24 @@ class GeneralScheduleFragment : Fragment() {
     }
 
     private fun selectDate(date: LocalDate) {
-        if (startDate != null && endDate == null) {
+        // 1. 이미 범위 선택이 완료되었거나(start/end 둘 다 있음), 아예 없는 경우 -> 새로 시작
+        if (startDate != null && endDate != null) {
+            startDate = date
+            endDate = null // 종료일만 null로 비워서 다음 클릭을 기다림
+        }
+        // 2. 시작일만 있고 종료일은 없는 상태 -> 종료일 확정
+        else if (startDate != null && endDate == null) {
             if (date.isBefore(startDate)) {
-                startDate = date
+                startDate = date // 시작일보다 이전이면 시작일을 변경
             } else {
                 endDate = date
-                // [추가] 날짜 선택 완료 시점
                 onDateSelectionComplete()
             }
-        } else {
+        }
+        // 3. 혹시나 둘 다 null인 경우 (방어 코드)
+        else {
             startDate = date
             endDate = null
-            // 만약 '하루종일'이 꺼져있는데 시작일만 찍어도 시간을 설정하게 하고 싶다면 여기서도 호출 가능하지만,
-            // 보통은 종료일까지 선택된 후에 시간을 설정하는 것이 자연스럽습니다.
         }
 
         binding.calendarPicker.notifyCalendarChanged()
@@ -744,6 +909,74 @@ class GeneralScheduleFragment : Fragment() {
         )
     }
 
+    private fun observeCreateEvent() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.createScheduleEvent.collect { isSuccess ->
+                when (isSuccess) {
+                    true -> {
+                        Toast.makeText(context, "일정이 성공적으로 저장되었습니다.", Toast.LENGTH_SHORT).show()
+                        viewModel.resetCreateEvent()
+                        requireActivity().finish()
+                    }
+                    false -> {
+                        Toast.makeText(context, "일정 저장에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                        viewModel.resetCreateEvent()
+                    }
+                    null -> {}
+                }
+            }
+        }
+    }
+
+    private fun observeUserSettings() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.userSettings.collect { settings ->
+                settings?.let {
+                    val alarms = it.scheduleAlarms
+                    if (alarms.isNotEmpty()) {
+                        // 모든 알람 시간을 변환하여 쉼표로 연결 (예: "정시, 10분 전, 1시간 전")
+                        val alarmTexts = alarms.sorted().map { minutes ->
+                            when {
+                                minutes == 0 -> "정시"
+                                minutes >= 60 && minutes % 60 == 0 -> "${minutes / 60}시간 전"
+                                else -> "${minutes}분 전"
+                            }
+                        }
+
+                        binding.tvRemindStatus.text = alarmTexts.joinToString(", ")
+                        binding.tvRemindStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.black))
+                    } else {
+                        binding.tvRemindStatus.text = "일정 알림 안함"
+                        binding.tvRemindStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.gray_500))
+                    }
+                }
+            }
+        }
+    }
+
+    private fun updateAlarmText(alarms: IntArray) {
+        if (alarms.isEmpty()) {
+            binding.tvRemindStatus.text = "일정 알림 안함"
+        } else {
+            val texts = alarms.map { minutesToText(it) } // minutesToText 함수를 여기도 복사하거나 유틸로 분리
+            binding.tvRemindStatus.text = texts.joinToString(", ")
+        }
+    }
+    private fun minutesToText(minutes: Int): String {
+        return when (minutes) {
+            0 -> "정시"
+            5 -> "5분 전"
+            10 -> "10분 전"
+            15 -> "15분 전"
+            30 -> "30분 전"
+            60 -> "1시간 전"
+            120 -> "2시간 전"
+            1440 -> "1일 전"
+            2880 -> "2일 전"
+            10080 -> "1주일 전"
+            else -> "${minutes}분 전"
+        }
+    }
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null

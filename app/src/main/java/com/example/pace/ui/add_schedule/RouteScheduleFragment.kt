@@ -168,32 +168,43 @@ class RouteScheduleFragment : Fragment() {
                 return@setOnClickListener
             }
 
+            val selectedColorInt = try {
+                android.graphics.Color.parseColor(selectedColor)
+            } catch (e: Exception) {
+                android.graphics.Color.parseColor("#DC354B") // 기본 레드
+            }
+
             // 2. Request 객체 생성
             val request = CreateScheduleRequest(
                 title = scheduleName,
                 isAllDay = false,
                 startDate = selectedDate,
                 endDate = selectedDate,
-                startTime = "$start:00",
-                endTime = "$end:00",
+                startTime = start, // HH:mm 형식 유지
+                endTime = end,     // HH:mm 형식 유지
                 memo = binding.etMemo.text.toString(),
                 isPathIncluded = true,
                 isRepeat = false,
                 repeatInfo = null,
                 place = PlaceRequest(
-                    targetName = lastDestName ?: "",
+                    targetName = lastDestName ?: "미지정 장소",
                     targetLat = lastDestLat,
                     targetLng = lastDestLng
                 ),
                 reminders = listOf(
                     ReminderRequest(
-                        "EVENT",
+                        "SCHEDULE", // "EVENT" 대신 인터페이스 규격에 맞게 "SCHEDULE" 사용 권장
                         mapAlarmTextToMinutes(binding.tvAlarmStatus.text.toString())
                     )
                 ),
-                route = parseRouteData(lastRouteJson)
+                route = parseRouteData(lastRouteJson) // 경로 데이터 주입
             )
-            viewModel.createSchedule(request)
+            viewModel.createSchedule(
+                request = request,
+                placeId = null, // Route는 별도의 placeId를 쓰지 않거나 필요시 전달
+                calendarId = null, // 기본 캘린더 사용 시 null
+                selectedColor = selectedColorInt // 변환된 색상 전달
+            )
             // TODO: 여기서 ViewModel.createSchedule(request) 호출
             android.util.Log.d("RouteSchedule", """
     [일정 데이터 추출 결과]

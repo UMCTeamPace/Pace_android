@@ -6,7 +6,11 @@ import androidx.lifecycle.viewModelScope
 import com.example.pace.data.api.AuthControllerService
 import com.example.pace.data.datasource.AuthDataStore
 import com.example.pace.data.model.Schedule
+import com.example.pace.data.model.UserSettingsEntity
 import com.example.pace.data.model.request.CreateScheduleRequest
+import com.example.pace.data.model.request.PlaceRequest
+import com.example.pace.data.model.request.ReminderRequest
+import com.example.pace.data.model.request.RepeatInfo
 import com.example.pace.data.model.response.RouteInfo
 import com.example.pace.data.model.response.ScheduleDetailResponse
 import com.example.pace.data.repository.repository.ScheduleRepository
@@ -22,6 +26,7 @@ import kotlinx.coroutines.Dispatchers // 추가
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOn // 추가
 import kotlinx.coroutines.withContext
+import com.example.pace.data.repository.repository.SettingsRepository
 
 import javax.inject.Inject
 
@@ -29,7 +34,8 @@ import javax.inject.Inject
 @HiltViewModel
 class ScheduleViewModel @Inject constructor(
     private val repository: ScheduleRepository,
-    private val authDataStore: AuthDataStore
+    private val authDataStore: AuthDataStore,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
@@ -75,8 +81,8 @@ class ScheduleViewModel @Inject constructor(
     val createScheduleEvent: StateFlow<Boolean?> = _createScheduleEvent
 
     // 일정 상세 조회
-    private val _scheduleDetailInfo= MutableStateFlow<ScheduleDetailResponse?>(null)
-    val scheduleDetailInfo = _scheduleDetailInfo.value
+    private val _scheduleDetailInfo = MutableStateFlow<ScheduleDetailResponse?>(null)
+    val scheduleDetailInfo: StateFlow<ScheduleDetailResponse?> = _scheduleDetailInfo
 
     fun setEditMode(enabled: Boolean) {
         _isEditMode.value = enabled
@@ -108,7 +114,9 @@ class ScheduleViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-
+    val userSettings: StateFlow<UserSettingsEntity?> = settingsRepository.getUserSettings()
+        .flowOn(Dispatchers.IO)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     init {
         updateRangeText()
         refreshSchedules()
@@ -154,26 +162,15 @@ class ScheduleViewModel @Inject constructor(
 
     fun searchSchedules(query: String) {
         lastQuery = query
-
-        // [수정] 검색어가 비어있어도 return하지 않습니다.
-        // 대신 DB가 "모든 텍스트"를 찾을 수 있도록 와일드카드를 준비합니다.
         val dbQuery = if (query.isBlank()) "%" else "%$query%"
-
-        android.util.Log.d("SearchFlow", "검색 실행 - 입력값: '$query', DB쿼리: '$dbQuery'")
-
         viewModelScope.launch(Dispatchers.IO) {
-            val currentColors = _filterColors.value
-            val includeRoute = _filterIncludeRoute.value
-
             val results = repository.searchSchedules(
-                query = dbQuery, // %를 포함한 쿼리 전달
-                colors = currentColors,
-                includeRoute = includeRoute,
+                query = dbQuery,
+                colors = _filterColors.value,
+                includeRoute = _filterIncludeRoute.value,
                 startDate = searchStartDate.format(dateFormatter),
                 endDate = searchEndDate.format(dateFormatter)
             )
-
-            android.util.Log.d("SearchFlow", "최종 검색 결과 개수: ${results.size}")
             _searchResults.value = results
         }
     }
@@ -208,29 +205,27 @@ class ScheduleViewModel @Inject constructor(
 
 
     fun refreshSchedules() {
-        android.util.Log.d("API_SYNC", "통합 동기화 프로세스 시작")
-
         viewModelScope.launch {
             try {
-                // 1. 토큰 준비
                 val token = authDataStore.getAccessToken() ?: return@launch
                 val fullToken = if (token.startsWith("Bearer ")) token else "Bearer $token"
 
-                // 2. 서버 일정 동기화 (네트워크 호출 1회)
-                // 이 함수 내부에서 이미 Room DB 저장이 이루어집니다.
-                val serverResponse = repository.getScheduleList(fullToken, "2026-02-01", "2026-02-28", null, null)
+                // 1. 서버 데이터를 최신화 (서버->로컬)
+                repository.getScheduleList(fullToken, "2026-02-01", "2026-02-28", null, null)
 
-                if (serverResponse.isSuccess) {
-                    Log.d("API_SYNC", "서버 일정 가져오기 성공")
-                }
-
-                // 3. 기기 캘린더 일정 동기화 (로컬 데이터 병합)
-                // 서버 저장이 끝난 직후에 실행하여 데이터 충돌을 방지합니다.
+                // 2. [수정] 찌꺼기 청소와 기기 데이터 로드를 순차적으로 실행
                 withContext(Dispatchers.IO) {
+                    // 먼저 시스템 캘린더에서 실제 삭제된 녀석들을 DB에서 제거
+                    repository.cleanUpSystemDeletedSchedules()
+
+                    // 그 다음 현재 시스템 캘린더에 남아있는 최신본을 DB에 덮어쓰기
                     repository.refreshSchedules()
                 }
 
-                Log.d("API_SYNC", "모든 동기화 작업 완료")
+                // 3. 만약 검색 중이었다면 검색 결과도 리프레시
+                if (lastQuery.isNotEmpty()) {
+                    searchSchedules(lastQuery)
+                }
 
             } catch (e: Exception) {
                 Log.e("API_SYNC", "동기화 실패: ${e.message}")
@@ -251,41 +246,96 @@ class ScheduleViewModel @Inject constructor(
         android.util.Log.d("SearchFlow", "ScheduleViewModel: 검색어 및 데이터 완전 초기화 완료")
     }
 
-    fun createSchedule(request: CreateScheduleRequest) {
+    fun createSchedule(
+        request: CreateScheduleRequest,
+        placeId: String? = null,
+        calendarId: Long? = null,
+        selectedColor: Int?
+    ) {
         viewModelScope.launch {
             try {
-                // 1. 토큰 가져오기
-                val token = authDataStore.getAccessToken()
-                if (token != null) {
-                    val fullToken = if (token.startsWith("Bearer ")) token else "Bearer $token"
+                // 1. 토큰 준비
+                val token = authDataStore.getAccessToken() ?: ""
+                val fullToken = if (token.isNotEmpty() && !token.startsWith("Bearer ")) "Bearer $token" else token
 
-                    // 2. 리포지토리를 통해 서버 전송
-                    val response = repository.createSchedule(fullToken, request)
+                // 2. Repository 호출 (이제 Result가 아닌 RawDefaultResponse를 반환함)
+                val response = repository.createSchedule(
+                    accessToken = if (token.isEmpty()) null else fullToken,
+                    request = request,
+                    placeId = placeId,
+                    calendarId = calendarId,
+                    selectedColor = selectedColor // 인자 전달
+                )
 
-                    // [수정 완료] success -> isSuccess / data -> result
-                    if (response.isSuccess) {
-                        // response.result는 CreateScheduleResponse 객체입니다.
-                        Log.d("API_CREATE", "일정 생성 성공: ${response.result}")
-
-                        // 3. 로컬 DB(Room) 새로고침 및 성공 알림
+                // 3. 결과 처리 (response.isSuccess 직접 확인)
+                if (response.isSuccess) {
+                    withContext(Dispatchers.IO) {
                         repository.refreshSchedules()
-                        _createScheduleEvent.value = true
-                    } else {
-                        // 서버에서 내려준 에러 메시지 출력
-                        Log.e("API_CREATE", "일정 생성 실패: ${response.message}")
-                        _createScheduleEvent.value = false
                     }
+                    _createScheduleEvent.value = true
                 } else {
-                    Log.e("API_CREATE", "인증 토큰이 없습니다.")
+                    Log.e("ScheduleViewModel", "저장 실패: ${response.message}")
                     _createScheduleEvent.value = false
                 }
             } catch (e: Exception) {
-                Log.e("API_CREATE", "네트워크 에러 발생: ${e.message}")
+                Log.e("ScheduleViewModel", "예외 발생: ${e.message}")
                 _createScheduleEvent.value = false
             }
         }
     }
 
+    fun createScheduleWithDefaultSettings(
+        title: String,
+        memo: String?,
+        isAllDay: Boolean,
+        startDate: String,
+        startTime: String?,
+        endDate: String,
+        endTime: String?,
+        place: PlaceRequest?,
+        repeatInfo: RepeatInfo? = null,
+        placeId: String? = null,
+        customAlarms: List<Int>? = null,
+        calendarId: Long? = null,
+        selectedColor: Int // 스펠링 수정: selecetedColor -> selectedColor
+    ) {
+        val settings = userSettings.value
+        val reminders = mutableListOf<ReminderRequest>()
+
+        // 1. 알림 설정 로직 (기존 유지)
+        val alarmList = customAlarms ?: settings?.scheduleAlarms ?: emptyList()
+        alarmList.forEach { minutes ->
+            reminders.add(ReminderRequest(reminderType = "SCHEDULE", minutesBefore = minutes))
+        }
+        settings?.departureAlarms?.forEach { minutes ->
+            reminders.add(ReminderRequest(reminderType = "DEPARTURE", minutesBefore = minutes))
+        }
+
+        // 2. Request 객체 생성
+        val request = CreateScheduleRequest(
+            title = title,
+            isAllDay = isAllDay,
+            startDate = startDate,
+            endDate = endDate,
+            startTime = startTime,
+            endTime = endTime,
+            memo = memo,
+            isPathIncluded = (place != null),
+            isRepeat = (repeatInfo != null),
+            repeatInfo = repeatInfo,
+            place = place,
+            reminders = reminders,
+            route = null
+        )
+
+        // 3. 위에서 정의한 createSchedule 함수 호출
+        createSchedule(
+            request = request,
+            placeId = placeId,
+            calendarId = calendarId,
+            selectedColor = selectedColor // 색상 전달
+        )
+    }
     // 이벤트 초기화 함수 (연속 호출 방지)
     fun resetCreateEvent() {
         _createScheduleEvent.value = null
@@ -298,6 +348,15 @@ class ScheduleViewModel @Inject constructor(
                 val response = repository.getScheduleDetail(token, id)
                 _scheduleDetailInfo.value = response.result
             }
+        }
+    }
+
+    fun getCalendarNameById(calendarId: Long): String {
+        return try {
+            // 레포지토리에 이 함수가 정의되어 있어야 합니다.
+            repository.getCalendarName(calendarId) ?: "내 일정"
+        } catch (e: Exception) {
+            "내 일정"
         }
     }
 

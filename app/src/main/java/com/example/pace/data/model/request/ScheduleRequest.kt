@@ -1,6 +1,7 @@
 package com.example.pace.data.model.request
 
 import com.google.gson.annotations.SerializedName
+import java.io.Serializable
 
 data class ScheduleRequest(
     @SerializedName("title") val title: String,
@@ -41,9 +42,9 @@ data class CreateScheduleRequest(
     @SerializedName("repeatInfo") val repeatInfo: RepeatInfo?,
     @SerializedName("place") val place: PlaceRequest?,
     @SerializedName("reminders") val reminders: List<ReminderRequest>,
-    @SerializedName("route") val route: RouteRequest?
+    @SerializedName("route") val route: RouteRequest?,
+    @SerializedName("color") val color: String? = "#DC354B"
 )
-
 data class RepeatInfo(
     @SerializedName("repeatType") val repeatType: String,
     @SerializedName("repeatInterval") val repeatInterval: Int,
@@ -51,7 +52,7 @@ data class RepeatInfo(
     @SerializedName("endType") val endType: String,
     @SerializedName("endCount") val endCount: Int,
     @SerializedName("repeatEndDate") val repeatEndDate: String?
-)
+): java.io.Serializable
 
 data class PlaceRequest(
     @SerializedName("targetName") val targetName: String,
