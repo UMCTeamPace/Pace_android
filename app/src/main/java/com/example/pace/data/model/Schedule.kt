@@ -101,7 +101,7 @@ data class Schedule(
     val serverId: Long? = null,
 
     @ColumnInfo(name = "source_type")
-    val sourceType: String = "DEVICE",
+    val sourceType: String = "SYSTEM",
 
     @ColumnInfo(name = "place_json")
     val placeJson: String? = null,
