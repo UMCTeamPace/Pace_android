@@ -15,16 +15,18 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.data.model.Schedule
 import com.example.pace.databinding.ItemModalBinding
 import com.example.pace.R
-import com.example.pace.data.model.response.RouteDetail
 import com.example.pace.data.model.response.RouteDetailResponse
 import com.example.pace.data.model.response.RouteInfo
 import com.example.pace.databinding.ItemRouteDetailBriefBinding
 import com.example.pace.databinding.ItemRouteVehicleBinding
 import com.example.pace.ui.WeightCalculator
+import com.example.pace.ui.main.calendar.ScheduleViewModel
+import dagger.hilt.android.qualifiers.ActivityContext
 
 class ModalVPAdapter(
     private val context: Context,
     private val scheduleList:List<Schedule>,
+    private val viewModel: ScheduleViewModel
 ): RecyclerView.Adapter<ModalVPAdapter.ViewHolder>() {
     lateinit var binding: ItemModalBinding
     override fun onCreateViewHolder(
@@ -46,6 +48,7 @@ class ModalVPAdapter(
 
     inner class ViewHolder(val binding: ItemModalBinding): RecyclerView.ViewHolder(binding.root) {
         fun bind(schedule: Schedule) {
+
             // 기본 정보
             val categoryIv = ContextCompat.getDrawable(context, R.drawable.ic_schedule_category)
                 .mutate() as GradientDrawable
@@ -84,11 +87,33 @@ class ModalVPAdapter(
                         binding.modalNormalLocationLl.visibility = View.VISIBLE
                         binding.modalNormalLocationTv.text = schedule.location
                     }
+                    // 일정 알림
+                    if (schedule.reminders.isNotEmpty()) {
+                        Log.d("reminder/schedule", schedule.reminders.toString())
+                        val reminder = mutableListOf<String>()
+                        schedule.reminders.forEach {
+                            if (it < 60) {
+                                reminder.add(" " + it.toString() + "분 전")
+                            } else {
+                                reminder.add(" " + (it / 60).toString() + "시간 전")
+                            }
+                        }
+                        binding.modalScheduleReminderTv.text = reminder.joinToString(",")
+                    } else {
+                        binding.modalScheduleReminderTv.text = "안함"
+                    }
+
+                    // 출발 알림
                     binding.modalDepartureReminderTv.text = "안함"
                 }
                 // 장소 일정일 때
-                // todo: API에서 실제 데이터 받아오기
                 "ROUTE" -> {
+                    // 경로 일정 얻어오기
+                    viewModel.getScheduleDetail(schedule.id)
+                    val routeSchedule = viewModel.scheduleDetailInfo
+                    val route = routeSchedule?.route
+                    val reminders = routeSchedule?.reminders
+
                     binding.modalNormalLocationLl.visibility = View.GONE
                     binding.modalRouteBriefView.visibility = View.VISIBLE
                     binding.modalRouteLocationLl.visibility = View.VISIBLE
@@ -97,16 +122,19 @@ class ModalVPAdapter(
 
                     // 데이터 바인딩
                     // 기본 정보 세팅
-                    binding.modalRouteTv.text = route.originName + " -> " + route.destName
-                    // todo: 비니에게 추가 요청
-//                    val startTime = route.departureTime.split("T").last().take(5)
-//                    val endTime = route.arrivalTime.split("T").last().take(5)
-//                    binding.modalRouteTimeTv.text = startTime + " -> " + endTime
-                    binding.modalTotalTimeTv.text = "총 ${route.totalTime / 60}분 소요"
+                    binding.modalRouteTv.text = route?.originName + " -> " + route?.destName
+                    val startTime = route?.departureTime?.split("T")?.last()?.take(5)
+                    val endTime = route?.arrivalTime?.split("T")?.last()?.take(5)
+                    binding.modalRouteTimeTv.text = startTime + " -> " + endTime
+                    binding.modalTotalTimeTv.text = "총 ${route?.totalTime?.div(60)}분 소요"
+
+                    // 기존 경로 데이터 삭제
+                    binding.modalRouteBriefLl.removeAllViews()
+                    binding.modalRouteVehicleLl.removeAllViews()
 
                     var index = 0
                     // 동적으로 데이터 가져오기
-                    route.routeDetails.forEach { data ->
+                    route?.routeDetails?.forEach { data ->
                         val briefBinding = ItemRouteDetailBriefBinding.inflate(LayoutInflater.from(context), binding.modalRouteBriefLl, false)
                         val vehicleBinding = ItemRouteVehicleBinding.inflate(LayoutInflater.from(context), binding.modalRouteVehicleLl, false)
 
@@ -179,8 +207,36 @@ class ModalVPAdapter(
                         index++
                         Log.d("check/condition", (index == route.routeDetails.size -1).toString() )
                     }
+
+                    // 경로 일정 알림
+                    if(reminders.isNullOrEmpty()){
+                        binding.modalScheduleReminderTv.text = "안함"
+                        binding.modalDepartureReminderTv.text = "안함"
+                    }else{
+                        reminders?.forEach { reminder ->
+                            when(reminder.reminderType){
+                                // 일정 알림
+                                "EVENT" -> {
+                                    if(reminder.minutesBefore < 60){
+                                        binding.modalScheduleReminderTv.text = reminder.minutesBefore.toString() + "분 전"
+                                    }else{
+                                        binding.modalScheduleReminderTv.text = (reminder.minutesBefore/60).toString() + "시간 전"
+                                    }
+                                }
+                                // 출발 알림
+                                "DEPARTURE" -> {
+                                    if(reminder.minutesBefore < 60){
+                                        binding.modalDepartureReminderTv.text = reminder.minutesBefore.toString() + "분 전"
+                                    }else{
+                                        binding.modalDepartureReminderTv.text = (reminder.minutesBefore/60).toString() + "시간 전"
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
+
             // 메모
             if (schedule.memo.isNullOrEmpty()) {
                 binding.modalMemoTv.visibility = View.INVISIBLE
@@ -188,87 +244,6 @@ class ModalVPAdapter(
                 binding.modalMemoTv.visibility = View.VISIBLE
                 binding.modalMemoTv.text = schedule.memo
             }
-
-            // 알람 여부
-            if (schedule.reminders.isNotEmpty()) {
-                Log.d("reminder/schedule", schedule.reminders.toString())
-                val reminder = mutableListOf<String>()
-                schedule.reminders.forEach {
-                    if (it < 60) {
-                        reminder.add(" " + it.toString() + "분 전")
-                    } else {
-                        reminder.add(" " + (it / 60).toString() + "시간 전")
-                    }
-                }
-                binding.modalScheduleReminderTv.text = reminder.joinToString(",")
-            } else {
-                binding.modalScheduleReminderTv.text = "안함"
-            }
         }
     }
 }
-
-// 더미 데이터
-val route = RouteInfo(
-    originName = "서울역",
-    originLat = 37.5546,
-    originLng = 126.9706,
-    destName = "롯데월드타워",
-    destLat = 37.5133,
-    destLng = 127.1028,
-    totalTime = 3600,
-    totalDistance = 15500,
-    routeDetails = listOf(
-        RouteDetailResponse(
-            sequence = 1,
-            duration = 1200,
-            distance = 10200,
-            description = "지하철 4호선 승차 후 동작역 이동",
-            startLat = 37.5546,
-            startLng = 126.9706,
-            endLat = 37.5029,
-            endLng = 126.9793,
-            transitType = "SUBWAY",
-            lineName = "4호선",
-            lineColor = "#00a2d1",
-            stopCount = 6,
-            departureStop = "서울역",
-            arrivalStop = "동작역",
-            shortName = "4"
-        ),
-        RouteDetailResponse(
-            sequence = 2,
-            duration = 1500,
-            distance = 4800,
-            description = "350번 버스로 환승하여 잠실역 이동",
-            startLat = 37.5029,
-            startLng = 126.9793,
-            endLat = 37.5133,
-            endLng = 127.1001,
-            transitType = "BUS",
-            lineName = "350",
-            lineColor = "#33cc99",
-            stopCount = 12,
-            departureStop = "동작역하수처리장",
-            arrivalStop = "잠실역.롯데월드",
-            shortName = "350"
-        ),
-        RouteDetailResponse(
-            sequence = 3,
-            duration = 900,
-            distance = 500,
-            description = "롯데월드타워까지 도보 이동",
-            startLat = 37.5133,
-            startLng = 127.1001,
-            endLat = 37.5133,
-            endLng = 127.1028,
-            transitType = null,
-            lineName = null,
-            lineColor = "#cccccc",
-            stopCount = 0,
-            departureStop = "잠실역 2번출구",
-            arrivalStop = "롯데월드타워",
-            shortName = "WALK"
-        )
-    )
-)

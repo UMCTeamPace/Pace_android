@@ -2,6 +2,7 @@ package com.example.pace.ui.search_box
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -30,6 +31,7 @@ class RecentRouteAdapter(
     inner class ViewHolder(private val binding: ItemRecentRouteBinding)
         : RecyclerView.ViewHolder(binding.root), SwipeableViewHolder {
         override fun setSwiped(isSwiped: Boolean) { }
+        override fun getSwipeView(): ConstraintLayout = binding.viewForeground
 
         fun bind(item: RecentRoute) {
             binding.tvRouteStartText.text = item.startPlaceName
@@ -38,13 +40,23 @@ class RecentRouteAdapter(
             binding.viewForeground.translationX = 0f
 
             binding.viewForeground.setOnClickListener {
-                touchHelper?.closeSwipedMenu()
-                onItemClick(item)
+                val recyclerView = itemView.parent as? RecyclerView ?: return@setOnClickListener
+
+                // 1. 만약 스와이프 메뉴가 열려있다면 닫기만 수행
+                if (touchHelper?.isAnyMenuOpened(recyclerView) == true) {
+                    touchHelper?.closeAllMenus(recyclerView)
+                } else {
+                    // 2. 닫혀있는 상태라면 아이템 클릭 이벤트 실행
+                    onItemClick(item)
+                }
             }
 
             binding.ivDelete.setOnClickListener {
+                val recyclerView = itemView.parent as? RecyclerView ?: return@setOnClickListener
+
+                // 메뉴를 닫으면서 삭제 실행
+                touchHelper?.closeAllMenus(recyclerView)
                 onDeleteClick(item)
-                touchHelper?.closeSwipedMenu()
             }
         }
     }

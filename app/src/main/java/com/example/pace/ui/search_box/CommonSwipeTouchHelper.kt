@@ -10,21 +10,34 @@ import com.example.pace.R
 import kotlin.math.max
 
 class CommonSwipeTouchHelper(
+    private val adapter: RecyclerView.Adapter<*>,
     private val clampWidthDp: Int = 60
-): ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT){
-    private val deleteButtonWidth = dpToPx(clampWidthDp)
+): ItemTouchHelper.Callback() {
+
+    private val clampWidth = dpToPx(clampWidthDp)
     private var currentScrollX = 0f
-    private var currentSwipedViewHolder: RecyclerView.ViewHolder? = null
-    private var lastInteractedViewHolder: RecyclerView.ViewHolder? = null
 
     override fun getMovementFlags(
         recyclerView: RecyclerView,
         viewHolder: RecyclerView.ViewHolder
     ): Int {
-        if (viewHolder !is SwipeableViewHolder) {
-            return makeMovementFlags(0, 0)
+        // SwipeableViewHolder를 상속받지 않은 홀더는 무시
+        if (viewHolder !is SwipeableViewHolder) return makeMovementFlags(0, 0)
+
+        // 1. 다른 아이템이 이미 열려 있는지 확인 (ScheduleTouchHelper 로직)
+        val isOtherSwiped = (0 until recyclerView.childCount).any { i ->
+            val child = recyclerView.getChildAt(i)
+            val childViewHolder = recyclerView.getChildViewHolder(child)
+            if (childViewHolder != viewHolder && childViewHolder is SwipeableViewHolder) {
+                childViewHolder.getSwipeView().translationX != 0f
+            } else false
         }
-        return super.getMovementFlags(recyclerView, viewHolder)
+
+        // 다른 게 열려있으면 내꺼 스와이프 금지
+        if (isOtherSwiped) return makeMovementFlags(0, 0)
+
+        // 왼쪽으로만 밀기 (ItemTouchHelper.LEFT)
+        return makeMovementFlags(0, ItemTouchHelper.LEFT)
     }
 
     override fun onMove(
@@ -33,9 +46,7 @@ class CommonSwipeTouchHelper(
         target: RecyclerView.ViewHolder
     ): Boolean = false
 
-    override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-
-    }
+    override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {}
 
     override fun onChildDraw(
         c: Canvas,
@@ -46,62 +57,76 @@ class CommonSwipeTouchHelper(
         actionState: Int,
         isCurrentlyActive: Boolean
     ) {
-        if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE) {
-            val viewForeground = viewHolder.itemView.findViewById<ConstraintLayout>(R.id.view_foreground) ?: return
+        if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE && viewHolder is SwipeableViewHolder) {
+            val swipeView = viewHolder.getSwipeView()
             var translationX: Float
 
             if (isCurrentlyActive) {
-                lastInteractedViewHolder = viewHolder
-
-                if (currentSwipedViewHolder != null && currentSwipedViewHolder != viewHolder) {
-                    closeSwipedMenu()
-                }
-
-                // 왼쪽으로만 밀리게 제한
-                translationX = if (dX < 0) max(dX, -deleteButtonWidth) else 0f
+                // 사용자가 밀고 있는 중
+                translationX = if (dX < 0) max(dX, -clampWidth) else 0f
                 currentScrollX = translationX
-                viewForeground.translationX = translationX
+                swipeView.translationX = translationX
             } else {
-                if (viewHolder == lastInteractedViewHolder) {
-                    val isSwipedEnough = currentScrollX < -deleteButtonWidth / 2
-
-                    if (isSwipedEnough) {
-                        // 고정 (열림)
-                        translationX = -deleteButtonWidth
-                        currentSwipedViewHolder = viewHolder
-                        if (viewHolder is SwipeableViewHolder) viewHolder.setSwiped(true)
-                    } else {
-                        // 원위치 (닫힘)
-                        translationX = 0f
-                        if (currentSwipedViewHolder == viewHolder) {
-                            currentSwipedViewHolder = null
-                        }
-                        if (viewHolder is SwipeableViewHolder) viewHolder.setSwiped(false)
-                    }
-                    viewForeground.translationX = translationX
+                // 손을 뗐을 때 고정 로직
+                val position = viewHolder.bindingAdapterPosition
+                if (position == RecyclerView.NO_POSITION || position >= adapter.itemCount) {
+                    super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+                    return
                 }
+
+                // 절반 이상 밀었으면 고정, 아니면 원위치
+                translationX = if (currentScrollX <= -clampWidth / 2) {
+                    viewHolder.setSwiped(true)
+                    -clampWidth
+                } else {
+                    viewHolder.setSwiped(false)
+                    0f
+                }
+                swipeView.translationX = translationX
             }
         }
     }
 
-    fun closeSwipedMenu() {
-        currentSwipedViewHolder?.let { holder ->
-            val viewForeground = holder.itemView.findViewById<ConstraintLayout>(R.id.view_foreground)
-            viewForeground?.animate()?.translationX(0f)?.setDuration(200)?.start()
+    override fun getSwipeThreshold(viewHolder: RecyclerView.ViewHolder): Float = 2f
 
+    // 외부에서 메뉴를 닫을 때 사용
+    fun closeSwipedMenu(recyclerView: RecyclerView) {
+        for (i in 0 until recyclerView.childCount) {
+            val child = recyclerView.getChildAt(i)
+            val holder = recyclerView.getChildViewHolder(child)
             if (holder is SwipeableViewHolder) {
+                holder.getSwipeView().translationX = 0f
                 holder.setSwiped(false)
             }
         }
-        currentSwipedViewHolder = null
         currentScrollX = 0f
     }
 
-    fun hasSwipedItem(): Boolean {
-        return currentSwipedViewHolder != null
+    fun closeAllMenus(recyclerView: RecyclerView) {
+        for (i in 0 until recyclerView.childCount) {
+            val child = recyclerView.getChildAt(i)
+            val holder = recyclerView.getChildViewHolder(child)
+            if (holder is SwipeableViewHolder) {
+                val swipeView = holder.getSwipeView()
+                if (swipeView.translationX != 0f) {
+                    swipeView.animate().translationX(0f).setDuration(200).start()
+                    holder.setSwiped(false)
+                }
+            }
+        }
+        currentScrollX = 0f
     }
 
-    override fun getSwipeThreshold(viewHolder: RecyclerView.ViewHolder): Float = 0.5f
+    fun isAnyMenuOpened(recyclerView: RecyclerView): Boolean {
+        for (i in 0 until recyclerView.childCount) {
+            val child = recyclerView.getChildAt(i)
+            val holder = recyclerView.getChildViewHolder(child)
+            if (holder is SwipeableViewHolder && holder.getSwipeView().translationX != 0f) {
+                return true
+            }
+        }
+        return false
+    }
 
     private fun dpToPx(dp: Int): Float {
         return dp * Resources.getSystem().displayMetrics.densityDpi.toFloat() / DisplayMetrics.DENSITY_DEFAULT

@@ -55,6 +55,11 @@ class GroupDetailBottomSheet(
 
     }
 
+    override fun onResume() {
+        super.onResume()
+        groupViewModel.getSavedPlaces(groupItem.groupId, groupViewModel.currentSortType)
+    }
+
     private fun observeViewModel() {
         groupViewModel.savedPlaces.observe(viewLifecycleOwner) { list ->
             android.util.Log.d("DEBUG_LIST", "받은 데이터 개수: ${list?.size}")

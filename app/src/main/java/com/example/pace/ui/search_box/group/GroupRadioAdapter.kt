@@ -11,7 +11,8 @@ import com.example.pace.databinding.ItemGroupRadioBinding
 
 class GroupRadioAdapter(
     private var items: List<GroupItem>,
-    private val onAddClick: () -> Unit
+    private val onAddClick: () -> Unit,
+    private val onItemClick: () -> Unit
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>(){
     private var selectedPosition = -1
 
@@ -58,16 +59,25 @@ class GroupRadioAdapter(
 
             binding.rbSelect.isChecked = (position == selectedPosition)
 
-            val clickListener = {
-                if (selectedPosition != position) {
-                    val prevPos = selectedPosition
-                    selectedPosition = position
-                    notifyItemChanged(prevPos)
-                    notifyItemChanged(selectedPosition)
+            // 3) 클릭 이벤트 정의 (여기로 통합!)
+            val listener = {
+                // 클릭된 순간의 정확한 위치를 가져옴
+                val currentPos = bindingAdapterPosition
+
+                // 유효한 위치이고, 이미 선택된 게 아니라면 갱신
+                if (currentPos != RecyclerView.NO_POSITION && currentPos != selectedPosition) {
+                    selectedPosition = currentPos
+
+                    // 화면 갱신 (라디오 버튼 교체)
+                    notifyDataSetChanged()
+
+                    // [중요] Fragment에 "나 클릭됐어!" 하고 알려줌 -> 버튼 활성화용
+                    onItemClick()
                 }
             }
-            binding.root.setOnClickListener { clickListener() }
-            binding.rbSelect.setOnClickListener { clickListener() }
+
+            binding.root.setOnClickListener { listener() }
+            binding.rbSelect.setOnClickListener { listener() }
         }
     }
 

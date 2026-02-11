@@ -2,6 +2,7 @@ package com.example.pace.ui.main.route
 
 import android.Manifest
 import android.content.Context
+import android.content.Context.MODE_PRIVATE
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -1144,7 +1145,7 @@ private fun selectCurrentLocation() {
                     FinalfetchRouteData()
                 }
             } else {
-                val newRouteFrag = RouteResultFragment()
+                val newRouteFrag = RouteResultFragment(selectedEndPlace?.first ?: "도착지 없음")
 
                 newRouteFrag.onChipSelected = { type ->
                     this.currentTransitType = type
