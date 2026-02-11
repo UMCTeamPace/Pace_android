@@ -1,6 +1,7 @@
 package com.example.pace.ui.onboarding
 
 import android.content.Context
+import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
 import android.text.Spannable
@@ -48,11 +49,14 @@ class ScheduleAlarmFragment : Fragment() {
             binding.rbStart2hago to 120
         )
 
+        resetDescription()
         setupCheckBoxLogic()
 
         binding.btnNext.setOnClickListener {
-            saveSelectedAlarms()
-            navigateToNextPage()
+            if (validateSelection()) {
+                saveSelectedAlarms()
+                navigateToNextPage()
+            }
         }
 
         binding.tvDescription.setBoldText(
@@ -73,36 +77,62 @@ class ScheduleAlarmFragment : Fragment() {
         alarmMap.keys.forEach { checkBox ->
             checkBox.setOnClickListener {
                 if (checkBox.isChecked) {
-                    binding.rbNone.isChecked = false // "안함" 해제
-
-                    // 최대 5개 제한
-                    val selectedCount = alarmMap.keys.count { it.isChecked }
-                    if (selectedCount > 5) {
-                        checkBox.isChecked = false
-                        Toast.makeText(context, "알림은 최대 5개까지 설정 가능합니다.", Toast.LENGTH_SHORT).show()
-                    }
+                    binding.rbNone.isChecked = false
                 }
+
+                // 선택 상태가 변할 때마다 개수 체크
+                updateDescriptionBasedOnSelection()
             }
         }
     }
 
-    private fun saveSelectedAlarms() {
-        val selectedMinutes = mutableListOf<Int>()
+    private fun updateDescriptionBasedOnSelection() {
+        val selectedCount = alarmMap.keys.count { it.isChecked }
 
-        if (binding.rbNone.isChecked) {
-            // "안함" 선택 시 빈 리스트 혹은 특정 처리 (현재 ViewModel 구조상 빈 리스트 전달)
-            viewModel.isReminderActive = false // 필요 시 Reminder 비활성화
+        if (selectedCount > 5) {
+            binding.tvAlarmDescription.text = "*알림은 총 5개 까지 설정할 수 있습니다."
+            binding.tvAlarmDescription.setTextColor(Color.RED)
         } else {
-            viewModel.isReminderActive = true
-            // 체크된 항목의 '분' 값만 추출하여 리스트 생성
-            alarmMap.forEach { (checkBox, minutes) ->
-                if (checkBox.isChecked) {
-                    selectedMinutes.add(minutes)
-                }
-            }
+            resetDescription()
+        }
+    }
+
+    private fun resetDescription() {
+        binding.tvAlarmDescription.text = "*알림은 총 5개 까지 설정할 수 있습니다."
+        binding.tvAlarmDescription.setTextColor(Color.GRAY)
+    }
+
+    private fun validateSelection(): Boolean {
+        val selectedCount = alarmMap.keys.count { it.isChecked }
+        val isNoneChecked = binding.rbNone.isChecked
+
+        // 1. 아무것도 선택하지 않은 경우
+        if (selectedCount == 0 && !isNoneChecked) {
+            binding.tvAlarmDescription.text = "*최소 1개 이상 선택해야 합니다."
+            binding.tvAlarmDescription.setTextColor(Color.RED)
+            return false
         }
 
-        // 2. 뷰모델의 scheduleAlarms(MutableList<Int>) 교체
+        // 2. 5개를 초과한 경우
+        if (selectedCount > 5) {
+            binding.tvAlarmDescription.text = "*알림은 총 5개 까지 설정할 수 있습니다."
+            binding.tvAlarmDescription.setTextColor(Color.RED)
+            return false
+        }
+
+        return true
+    }
+
+    private fun saveSelectedAlarms() {
+        val selectedMinutes = mutableListOf<Int>()
+        if (binding.rbNone.isChecked) {
+            viewModel.isReminderActive = false
+        } else {
+            viewModel.isReminderActive = true
+            alarmMap.forEach { (checkBox, minutes) ->
+                if (checkBox.isChecked) selectedMinutes.add(minutes)
+            }
+        }
         viewModel.scheduleAlarms.clear()
         viewModel.scheduleAlarms.addAll(selectedMinutes)
     }
@@ -111,6 +141,7 @@ class ScheduleAlarmFragment : Fragment() {
         val viewPager = activity?.findViewById<ViewPager2>(R.id.app_setting_viewpager)
         viewPager?.let { it.currentItem = it.currentItem + 1 }
     }
+
     fun TextView.setBoldText(fullText: String, boldKeywords: List<String>) {
         val spannable = SpannableStringBuilder(fullText)
         boldKeywords.forEach { keyword ->

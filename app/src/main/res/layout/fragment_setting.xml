@@ -31,6 +31,7 @@
         app:layout_constraintStart_toStartOf="parent">
 
         <LinearLayout
+            android:id="@+id/settings_calendar_default_ll"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
@@ -66,6 +67,7 @@
             android:background="@color/gray_100" />
 
         <LinearLayout
+            android:id="@+id/settings_calendar_list_ll"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
@@ -113,6 +115,13 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
+        <LinearLayout
+            android:id="@+id/settings_route_minute_ll"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
         <TextView
             android:id="@+id/settings_route_minute_tv1"
             android:layout_width="0dp"
@@ -136,6 +145,7 @@
             android:layout_height="wrap_content"
             android:clickable="true"
             android:src="@drawable/ic_arrow_closed" />
+        </LinearLayout>
     </LinearLayout>
 
 
@@ -166,6 +176,7 @@
         app:layout_constraintEnd_toEndOf="parent">
 
         <LinearLayout
+            android:id="@+id/settings_reminder_alarm_ll"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
@@ -199,6 +210,7 @@
             android:background="@color/gray_100" />
 
         <LinearLayout
+            android:id="@+id/settings_departure_alarm_ll"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
