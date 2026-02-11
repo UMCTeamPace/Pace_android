@@ -23,30 +23,19 @@ class AddScheduleActivity : AppCompatActivity() {
         setContentView(binding.root)
 
 
-        val selectedDate = intent.getStringExtra("selected_date")
-        val mode = intent.getStringExtra("mode")
-
         // ViewPager2 어댑터 연결
         val pagerAdapter = object : FragmentStateAdapter(this) {
             override fun getItemCount(): Int = 2
             override fun createFragment(position: Int): Fragment {
                 val bundle = Bundle().apply {
-                    putString("selected_date", selectedDate)
-                    putString("mode", mode)
-
-                    putString("startPlaceName", intent.getStringExtra("startPlaceName"))
-                    putString("startPlaceId", intent.getStringExtra("startPlaceId"))
-                    putString("endPlaceName", intent.getStringExtra("endPlaceName"))
-                    putString("endPlaceId", intent.getStringExtra("endPlaceId"))
+                    putString("START_NAME", intent.getStringExtra("START_NAME"))
+                    putString("END_NAME", intent.getStringExtra("END_NAME"))
 
                     // 백엔드 응답 Gson 형태로
-                    putString("routeData", intent.getStringExtra("routeData"))
-
-                    // 경도 도착시간 = 일정 시작시간 "13:10" 이런 String 형태로 5분단위로 보정 해서 넘어옴
-                    putString("scheduleStartTime", intent.getStringExtra("scheduleStartTime"))
+                    putString("ROUTE_DETAIL", intent.getStringExtra("ROUTE_DETAIL"))
 
                     // 경로 선택에서 바로 넘어온거기 때문에 무조건 미리도착은 0으로
-                    putInt("earlyArriveTime", intent.getIntExtra("earlyArriveTime", 0))
+                    putInt("EARLY_ARRIVE_TIME", intent.getIntExtra("EARLY_ARRIVE_TIME", 0))
                 }
                 return when (position) {
                     0 -> GeneralScheduleFragment().apply { arguments = bundle }

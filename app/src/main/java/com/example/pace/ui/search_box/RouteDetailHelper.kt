@@ -110,7 +110,10 @@ object RouteDetailHelper {
                     expandedVehicleBinding.itemRouteDetailVehicleTv.text = data.description
                     expandedVehicleBinding.itemRouteDetailVehicleTimeTv.text = data.transitDetail.departureTime.split("T").last().take(5)
                     expandedVehicleBinding.itemRouteDetailVehicleLineTv.text = data.transitDetail.shortName
-                    expandedVehicleBinding.itemRouteDetailVehicleDirectionTv.text = data.transitDetail.stationPath?.get(0) + "행 방면"
+//                    expandedVehicleBinding.itemRouteDetailVehicleDirectionTv.text = data.transitDetail.stationPath?.get(0) + "행 방면"
+                    val direction = data.transitDetail.stationPath?.firstOrNull()
+                    expandedVehicleBinding.itemRouteDetailVehicleDirectionTv.text = direction?.let { "${it}행 방면" } ?: "방면 정보 없음"
+
                     expandedVehicleBinding.itemRouteDetailVehicleStationsTv.text = "${data.transitDetail.stopCount}개 정류장 이동"
                     expandedVehicleBinding.itemRouteDetailVehicleStationsTimeTv.text = "${data.duration / 60}분"
                     expandedVehicleBinding.itemRouteDetailVehicleStationsLl.setOnClickListener {

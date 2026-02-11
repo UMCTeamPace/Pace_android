@@ -28,30 +28,9 @@ class RouteResultFragment : Fragment(){
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // 1. 어댑터 초기화 (처음엔 빈 리스트)
         setupRecyclerView()
 
-        // 2. 칩 클릭 리스너 설정
         setupChipListener()
-
-//        val dummyData = createFullDummyData()
-//
-//        val adapter = RouteAdapter(
-//            context = requireContext(),
-//            items = dummyData,
-//
-//            onItemClick = { item ->
-//                (parentFragment as? RouteFragment)?.showRouteDetailOverlay(item)
-//            },
-//
-//            onSelectClick = { item ->
-//                (parentFragment as? RouteFragment)?.onRouteSelectedFinal(item)
-//
-//            }
-//        )
-//        val adapter = RouteAdapter(items = dummyData) { item ->
-//            (parentFragment as? RouteFragment)?.showRouteDetailOverlay(item)
-//        }
 
         binding.searchLocationRv.layoutManager = LinearLayoutManager(requireContext())
         binding.searchLocationRv.adapter = adapter
