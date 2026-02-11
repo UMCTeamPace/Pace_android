@@ -44,10 +44,7 @@ class RecentRouteFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        val touchHelper = CommonSwipeTouchHelper()
-        val itemTouchHelper = ItemTouchHelper(touchHelper)
 
-        // 2. 어댑터 생성
         routeAdapter = RecentRouteAdapter(
             onItemClick = { route ->
                 (parentFragment?.parentFragment as? RouteFragment)?.handleRecentRouteClick(route)
@@ -56,6 +53,11 @@ class RecentRouteFragment : Fragment() {
                 searchViewModel.deleteRecentRoute(route)
             }
         )
+        val touchHelper = CommonSwipeTouchHelper(
+            adapter = routeAdapter,
+            clampWidthDp = 60
+        )
+        val itemTouchHelper = ItemTouchHelper(touchHelper)
 
         routeAdapter.setHelper(touchHelper)
         binding.rvRecentRoute.apply {
@@ -67,7 +69,7 @@ class RecentRouteFragment : Fragment() {
             addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
                 override fun onScrollStateChanged(recyclerView: androidx.recyclerview.widget.RecyclerView, newState: Int) {
                     if (newState == androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_DRAGGING) {
-                        touchHelper.closeSwipedMenu()
+                        touchHelper.closeAllMenus(this@apply)
                     }
                 }
             })

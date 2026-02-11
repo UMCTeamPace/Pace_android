@@ -5,6 +5,7 @@ import android.content.res.ColorStateList
 import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.DrawableCompat
 import androidx.recyclerview.widget.DiffUtil
@@ -70,6 +71,8 @@ class BookmarkGroupAdapter(
 
         override fun setSwiped(isSwiped: Boolean) {}
 
+        override fun getSwipeView(): ConstraintLayout = binding.viewForeground
+
         fun bind(item: GroupItem) {
             binding.tvGroupName.text = item.groupName
             binding.tvPlaceCount.text = item.placeCount.toString()
@@ -79,26 +82,31 @@ class BookmarkGroupAdapter(
                 binding.ivGroupIconLine.imageTintList = ColorStateList.valueOf(themeColor)
             } catch (e: Exception) { }
 
+            binding.viewForeground.translationX = 0f
+
+            // 전면 레이아웃 클릭 리스너
             binding.viewForeground.setOnClickListener {
-                if (touchHelper?.hasSwipedItem() == true) {
-                    touchHelper?.closeSwipedMenu()
+                val recyclerView = itemView.parent as? RecyclerView ?: return@setOnClickListener
+
+                // 1. 열려있는 메뉴가 있다면 먼저 닫음
+                if (touchHelper?.isAnyMenuOpened(recyclerView) == true) {
+                    touchHelper?.closeAllMenus(recyclerView)
                 } else {
+                    // 2. 열려있는 게 없을 때만 클릭 이벤트 실행
                     onGroupClick(item)
                 }
             }
 
-            binding.viewForeground.translationX = 0f
-            binding.viewForeground.translationX = 0f
-
-            // 2. 수정 버튼 클릭
             binding.btnEdit.setOnClickListener {
-                touchHelper?.closeSwipedMenu()
+                val recyclerView = itemView.parent as? RecyclerView ?: return@setOnClickListener
+                touchHelper?.closeAllMenus(recyclerView)
                 onEditClick(item)
             }
 
-            // 3. 삭제 버튼 클릭
+            // 삭제 버튼 클릭
             binding.btnDelete.setOnClickListener {
-                touchHelper?.closeSwipedMenu()
+                val recyclerView = itemView.parent as? RecyclerView ?: return@setOnClickListener
+                touchHelper?.closeAllMenus(recyclerView)
                 onDeleteClick(item)
             }
         }
