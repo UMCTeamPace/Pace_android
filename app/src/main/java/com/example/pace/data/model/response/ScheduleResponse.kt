@@ -85,12 +85,13 @@ data class RouteDetailResponse(
     @SerializedName("start_lng") val startLng: Double,
     @SerializedName("end_lat") val endLat: Double,
     @SerializedName("end_lng") val endLng: Double,
-    @SerializedName("transit_type") val transitType: String,
+    @SerializedName("transit_type") val transitType: String?,
     @SerializedName("line_name") val lineName: String?,
     @SerializedName("line_color") val lineColor: String?,
     @SerializedName("stop_count") val stopCount: Int,
     @SerializedName("departure_stop") val departureStop: String?,
-    @SerializedName("arrival_stop") val arrivalStop: String?
+    @SerializedName("arrival_stop") val arrivalStop: String?,
+    @SerializedName("shortName") val shortName: String?,
 )
 
 data class CreateScheduleResponse(

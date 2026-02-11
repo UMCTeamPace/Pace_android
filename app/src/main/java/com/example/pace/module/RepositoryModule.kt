@@ -19,12 +19,17 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class) // 1. 앱 전체 범위로 변경
 object RepositoryModule {
 
-    @Singleton // 2. @ViewModelScoped 대신 @Singleton 사용
+    @Singleton
     @Provides
     fun providesSettingsRepository(
-        settingsService: SettingsService
+        settingsService: SettingsService,
+        userSettingsDao: UserSettingsDao // 👈 DAO 주입 추가
     ) : SettingsRepository {
-        return SettingsRepositoryImpl(settingsService)
+        // 구현체 생성자에 DAO와 Service를 순서대로 전달
+        return SettingsRepositoryImpl(
+            dao = userSettingsDao,
+            api = settingsService
+        )
     }
 
     @Singleton

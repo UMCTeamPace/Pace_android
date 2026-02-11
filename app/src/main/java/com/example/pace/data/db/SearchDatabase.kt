@@ -5,11 +5,12 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import com.example.pace.data.converter.Converters
 import com.example.pace.data.model.MyPlace
 import com.example.pace.data.model.RecentPlace
 import com.example.pace.data.model.RecentRoute
 import com.example.pace.data.model.RecentSearch
-import com.example.pace.data.model.UserSettingsEntity // 1. 엔티티 임포트 확인
+import com.example.pace.data.model.UserSettingsEntity
 
 @Database(
     entities = [
@@ -17,19 +18,20 @@ import com.example.pace.data.model.UserSettingsEntity // 1. 엔티티 임포트 
         RecentPlace::class,
         RecentRoute::class,
         MyPlace::class,
-        UserSettingsEntity::class // 3. 여기에 UserSettingsEntity 추가!
+        UserSettingsEntity::class
     ],
-    version = 5, // 4. 엔티티가 추가되었으므로 버전을 올려야 합니다 (4 -> 5)
+    version = 11, // 👈 [수정] 기존 10에서 11로 버전을 올리세요.
     exportSchema = false
 )
-@TypeConverters(Converters::class) // 5. List<Int> 등을 저장하려면 컨버터가 필요합니다
+
+@TypeConverters(Converters::class)
 abstract class SearchDatabase : RoomDatabase() {
 
     abstract fun searchDao(): SearchDao
     abstract fun recentRouteDao(): RecentRouteDao
     abstract fun myPlaceDao(): MyPlaceDao
 
-    // 6. 이 함수를 추가해야 Hilt에서 UserSettingsDao를 주입할 수 있습니다!
+    // 💡 [추가] Hilt가 이 추상 함수를 보고 UserSettingsDao 구현체를 찾아냅니다.
     abstract fun userSettingsDao(): UserSettingsDao
 
     companion object {
@@ -41,7 +43,7 @@ abstract class SearchDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     SearchDatabase::class.java,
-                    "pace_database"
+                    "pace_database" // DB 파일 이름 확인
                 )
                     .fallbackToDestructiveMigration()
                     .build()

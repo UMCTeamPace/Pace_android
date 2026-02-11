@@ -1,11 +1,14 @@
 package com.example.pace.ui.onboarding
 
 import android.Manifest
+import android.graphics.Color
+import com.example.pace.R
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Typeface
 import android.os.Bundle
+import android.provider.CalendarContract
 import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.style.StyleSpan
@@ -13,8 +16,9 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.CheckBox
+import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.core.content.ContextCompat
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.example.pace.databinding.FragmentCalendarSelectBinding
 import com.example.pace.ui.main.MainActivity
@@ -23,20 +27,17 @@ import com.example.pace.data.viewmodel.OnboardingViewModel
 import dagger.hilt.android.AndroidEntryPoint // 추가
 
 
-@AndroidEntryPoint // 1. Hilt 사용을 위해 추가
+@AndroidEntryPoint
 class CalendarSelectFragment : Fragment() {
     private var _binding: FragmentCalendarSelectBinding? = null
     private val binding get() = _binding!!
-
-    // 2. Activity 범위의 뷰모델 공유 (온보딩의 모든 데이터를 들고 있음)
     private val viewModel: OnboardingViewModel by activityViewModels()
 
-    private lateinit var calendarCheckBoxes: List<CheckBox>
+    // 선택된 캘린더 ID 저장용 (동적 생성되므로 리스트 대신 변수로 관리)
+    private var selectedId: Long = -1L
+    private val checkBoxMap = mutableMapOf<Long, CheckBox>()
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentCalendarSelectBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -44,60 +45,83 @@ class CalendarSelectFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        calendarCheckBoxes = listOf(
-            binding.rbMyphone, binding.rbSamsungac,
-            binding.rbGoogleac, binding.rbGoogleac2
-        )
+        loadCalendars() // 시스템 캘린더 불러오기
 
-        setupSingleSelectionLogic()
-
-        // 3. 버튼 클릭 시 통합 저장 로직 실행
         binding.btnStart.setOnClickListener {
+            if (selectedId == -1L) {
+                Toast.makeText(requireContext(), "사용하실 캘린더를 선택해주세요.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
             handleCompleteOnboarding()
         }
+    }
 
-        binding.tvDescription.setBoldText(
-            "어떤 캘린더에 일정을 담아 드릴까요?",
-            listOf("어떤 캘린더")
+    private fun loadCalendars() {
+        val projection = arrayOf(
+            CalendarContract.Calendars._ID,
+            CalendarContract.Calendars.CALENDAR_DISPLAY_NAME,
+            CalendarContract.Calendars.ACCOUNT_NAME
         )
-    }
 
-    private fun handleCompleteOnboarding() {
-        // A. 선택된 캘린더 타입을 뷰모델 변수에 직접 할당
-        val selectedCalendar = when {
-            binding.rbGoogleac.isChecked || binding.rbGoogleac2.isChecked -> "GOOGLE"
-            binding.rbSamsungac.isChecked -> "SAMSUNG"
-            else -> "LOCAL"
-        }
+        val cursor = requireContext().contentResolver.query(
+            CalendarContract.Calendars.CONTENT_URI,
+            projection,
+            null, null, null
+        )
 
-        // 에러 해결: 함수 대신 변수에 직접 저장합니다.
-        viewModel.calendarType = selectedCalendar
+        cursor?.use {
+            val idColumn = it.getColumnIndexOrThrow(CalendarContract.Calendars._ID)
+            val nameColumn = it.getColumnIndexOrThrow(CalendarContract.Calendars.CALENDAR_DISPLAY_NAME)
+            val accountColumn = it.getColumnIndexOrThrow(CalendarContract.Calendars.ACCOUNT_NAME)
 
-        // B. 최종 저장 로직 실행
-        viewModel.completeOnboarding()
+            while (it.moveToNext()) {
+                val id = it.getLong(idColumn)
+                val name = it.getString(nameColumn)
+                val account = it.getString(accountColumn)
 
-        // C. 메인 화면으로 이동
-        moveToMainActivity()
-    }
-    private fun setupSingleSelectionLogic() {
-        calendarCheckBoxes.forEach { checkBox ->
-            checkBox.setOnClickListener {
-                if (checkBox.isChecked) {
-                    // 하나를 선택하면 나머지는 모두 해제 (단일 선택 구현)
-                    calendarCheckBoxes.forEach { other ->
-                        if (other != checkBox) other.isChecked = false
-                    }
-                }
+                addCalendarCheckBox(id, name, account)
             }
         }
     }
 
-    private fun saveSelectedCalendar() {
-        // 선택된 캘린더의 텍스트 저장
-        val selected = calendarCheckBoxes.find { it.isChecked }?.text?.toString() ?: "내 휴대전화"
+    private fun addCalendarCheckBox(id: Long, name: String, account: String) {
+        val checkBox = CheckBox(requireContext()).apply {
+            text = "$name\n($account)"
+            buttonDrawable = null // 기본 체크박스 제거
+            setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.selector_circle_checkbox, 0)
+            setPadding(48, 32, 48, 32)
+            background = null
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
 
-        val sharedPref = requireActivity().getSharedPreferences("PaceSettings", Context.MODE_PRIVATE)
-        sharedPref.edit().putString("default_calendar", selected).apply()
+        checkBox.setOnClickListener {
+            // 단일 선택 로직
+            checkBoxMap.values.forEach { it.isChecked = false }
+            checkBox.isChecked = true
+            selectedId = id
+        }
+
+        checkBoxMap[id] = checkBox
+        binding.layoutCalendarList.addView(checkBox)
+
+        // 구분선 추가
+        val divider = View(requireContext()).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1)
+            setBackgroundColor(Color.parseColor("#F1F3F5"))
+        }
+        binding.layoutCalendarList.addView(divider)
+    }
+
+    private fun handleCompleteOnboarding() {
+        val allCalendarIds = checkBoxMap.keys.toList()
+
+        viewModel.selectedCalendarId = selectedId
+
+        viewModel.completeOnboarding(allCalendarIds)
+        moveToMainActivity()
     }
 
     private fun moveToMainActivity() {
