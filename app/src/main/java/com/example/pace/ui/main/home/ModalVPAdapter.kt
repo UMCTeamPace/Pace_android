@@ -110,7 +110,7 @@ class ModalVPAdapter(
                 "ROUTE" -> {
                     // 경로 일정 얻어오기
                     viewModel.getScheduleDetail(schedule.id)
-                    val routeSchedule = viewModel.scheduleDetailInfo
+                    val routeSchedule = viewModel.scheduleDetailInfo.value
                     val route = routeSchedule?.route
                     val reminders = routeSchedule?.reminders
 

@@ -30,6 +30,7 @@ import com.example.pace.BuildConfig
 import com.example.pace.PaceApplication
 import com.example.pace.R
 import com.example.pace.data.db.SearchDatabase
+import com.example.pace.data.model.MarkScheduleProvider
 import com.example.pace.data.model.MyPlace
 import com.example.pace.data.model.RecentHistoryItem
 import com.example.pace.data.model.RecentPlace
@@ -92,6 +93,7 @@ class RouteFragment : Fragment() {
 
     private val routeViewModel: RouteViewModel by viewModels()
 
+    private var hasSchedule: Boolean = true
     private var currentTransitType: String? = null // 칩 선택 값
     private var isStart: Boolean = true
 
@@ -196,22 +198,129 @@ class RouteFragment : Fragment() {
             startScheduleRouteMode()
 //            activityIntent.removeExtra("ACTION_MODE")
         }
+        if(currentEntryMode == EntryMode.MAIN){
+            if (hasSchedule) {
+                lifecycleScope.launch {
+                    delay(500) // Map 로딩 대기 (임시)
+                    showDefaultScheduleOverlay()
+                }
+            }
+        }
 
         observeRouteViewModel()
+    }
+
+    private fun showDefaultScheduleOverlay() {
+        if (!hasSchedule) return
+
+        // 1. 목데이터 가져오기
+        val mockSchedule = MarkScheduleProvider.getMockSchedule()
+        val json = mockSchedule.placeJson ?: return
+
+        // 6. UI 가시성 설정 (검색 UI 숨기고 오버레이 보이기)
+        binding.routeSearchFcv.visibility = View.GONE
+        binding.layoutRouteInputHeader.root.visibility = View.GONE
+        mainBinding?.mainToolbar?.visibility = View.VISIBLE // 메인 툴바는 보이게
+        mainBinding?.mainBnv?.visibility = View.VISIBLE     // 바텀 네비도 보이게
+
+        binding.layoutRouteDetailOverlay.root.visibility = View.VISIBLE
+        binding.layoutRouteDetailOverlay.btnRouteDetailBackDetail.visibility = View.GONE
+        binding.layoutRouteDetailOverlay.root.bringToFront()
+
+        // 일정 모드 UI 세팅
+        binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.VISIBLE
+        scheduleName = mockSchedule.title ?: "일정 없음"
+        scheduleTime = mockSchedule.startTime
+        binding.layoutRouteDetailOverlay.tvScheduleRouteDetailName.text = scheduleName
+        binding.layoutRouteDetailOverlay.tvScheduleRouteDetailTime.text = scheduleTime
+
+        try {
+            // 2. 데이터 파싱
+            val routeResponse = Gson().fromJson(json, RouteResponse::class.java)
+
+            // 3. 시작/도착 좌표 추출 (경로의 첫번째와 마지막 포인트)
+            val firstDetail = routeResponse.routeDetails.firstOrNull()
+            val lastDetail = routeResponse.routeDetails.lastOrNull()
+
+            if (firstDetail != null && lastDetail != null) {
+                this.startLatLng = LatLng(firstDetail.startLat, firstDetail.startLng)
+                this.endLatLng = LatLng(lastDetail.endLat, lastDetail.endLng)
+            }
+
+            // 4. UI 텍스트 설정
+            scheduleColor = String.format("#%06X", (0xFFFFFF and (mockSchedule.eventColor ?: Color.RED)))
+
+            // 5. 지도에 경로 그리기
+            val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+            mapFrag?.drawRouteOnMap(routeResponse, startLatLng, endLatLng)
+
+
+            try {
+                val colorInt = Color.parseColor(scheduleColor)
+                binding.layoutRouteDetailOverlay.viewColorDotRouteDetail.backgroundTintList = ColorStateList.valueOf(colorInt)
+            } catch (e: Exception) {
+                binding.layoutRouteDetailOverlay.viewColorDotRouteDetail.backgroundTintList = ColorStateList.valueOf(Color.RED)
+            }
+
+            // 7. 바텀시트(상세 경로 리스트) 설정
+            val bottomSheetView = binding.layoutRouteDetailOverlay.root.findViewById<View>(R.id.sheet_route_detail)
+            val behavior = BottomSheetBehavior.from(bottomSheetView)
+
+            behavior.isHideable = false
+            behavior.state = BottomSheetBehavior.STATE_COLLAPSED
+            behavior.peekHeight = (250 * resources.displayMetrics.density).toInt()
+
+            // 헬퍼를 이용해 리사이클러뷰 데이터 채우기
+            RouteDetailHelper.setupData(requireContext(), bottomSheetView, routeResponse, mockSchedule.location ?: "")
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Log.e("RouteFragment", "Schedule Overlay Error: ${e.message}")
+        }
     }
 
     private fun observeRouteViewModel() {
         // 결과 데이터 관찰
         routeViewModel.routeResult.observe(viewLifecycleOwner) { routes ->
-            // RouteResultFragment를 찾아서 데이터 넘겨줌
-            val fragment = childFragmentManager.findFragmentByTag("ROUTE_RESULT") as? RouteResultFragment
-            fragment?.updateRoutes(routes)
+            if (routes.isNullOrEmpty()) {
+                android.widget.Toast.makeText(requireContext(), "검색 기록 없음", android.widget.Toast.LENGTH_SHORT).show()
+                // 1. 검색 결과가 없을 때 -> '결과 없음' 뷰 표시
+                binding.layoutNoSearchResult.visibility = View.VISIBLE
+                binding.layoutNoSearchResult.bringToFront()
+
+//                // 기존 결과 프래그먼트는 숨김 (선택 사항, 덮어씌워진다면 안 해도 됨)
+//                val fragment = childFragmentManager.findFragmentByTag("ROUTE_RESULT")
+//                if (fragment != null) {
+//                    childFragmentManager.beginTransaction().hide(fragment).commitAllowingStateLoss()
+//                }
+
+                 binding.layoutRouteInputHeader.layoutFilterOptions.visibility = View.GONE
+
+            }else{
+                binding.layoutNoSearchResult.visibility = View.GONE
+                val fragment = childFragmentManager.findFragmentByTag("ROUTE_RESULT") as? RouteResultFragment
+                fragment?.updateRoutes(routes)
+
+                binding.layoutRouteInputHeader.layoutFilterOptions.visibility = View.VISIBLE
+            }
+
         }
 
         // 에러 메시지 관찰
         routeViewModel.errorMessage.observe(viewLifecycleOwner) { msg ->
             if (msg.isNotEmpty()) {
-                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                android.util.Log.d("RouteFragment", "검색 에러 발생: $msg")
+
+                binding.layoutNoSearchResult.visibility = View.VISIBLE
+                binding.layoutNoSearchResult.bringToFront()
+
+//                // 기존 결과 프래그먼트는 숨김 (선택 사항, 덮어씌워진다면 안 해도 됨)
+//                val fragment = childFragmentManager.findFragmentByTag("ROUTE_RESULT")
+//                if (fragment != null) {
+//                    childFragmentManager.beginTransaction().hide(fragment).commitAllowingStateLoss()
+//                }
+
+                binding.layoutRouteInputHeader.layoutFilterOptions.visibility = View.GONE
             }
         }
 
@@ -293,8 +402,8 @@ class RouteFragment : Fragment() {
             originLng = start.longitude,
             destLat = end.latitude,
             destLng = end.longitude,
-            arrivalTime = if (isStart) requestSearchTime else null,
-            departureTime = if (!isStart) requestSearchTime else null,
+            arrivalTime = if (!isStart) requestSearchTime else null,
+            departureTime = if (isStart) requestSearchTime else null,
             transitType = currentTransitType,
             searchWay = currentSortOption.apiValue?:"EFFICIENT"
         )
@@ -645,6 +754,8 @@ class RouteFragment : Fragment() {
             val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
             mapFrag?.drawRouteOnMap(item, startLatLng, endLatLng)
             binding.layoutRouteDetailOverlay.root.visibility = View.VISIBLE
+            binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.VISIBLE
+            binding.layoutRouteDetailOverlay.btnRouteDetailBackDetail.visibility = View.VISIBLE
             binding.layoutRouteDetailOverlay.root.bringToFront()
             if(currentEntryMode == EntryMode.SCHEDULE_ROUTE){
                 binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.VISIBLE
@@ -707,6 +818,8 @@ class RouteFragment : Fragment() {
     }
 
     private fun enterSearchMode() {
+        binding.layoutRouteDetailOverlay.root.visibility = View.GONE
+
         binding.layoutRouteInputHeader.layoutFilterOptions.visibility = View.GONE
         binding.layoutRouteInputHeader.root.visibility = View.GONE
 
@@ -795,6 +908,7 @@ class RouteFragment : Fragment() {
         mainBinding?.mainToolbar?.visibility = View.VISIBLE
         mainBinding?.mainBnv?.visibility = View.VISIBLE
         binding.routeSearchFcv.visibility = View.GONE
+        binding.layoutBookmarkHeader.root.visibility = View.GONE
         binding.layoutRouteInputHeader.root.visibility = View.GONE
 
         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
@@ -965,8 +1079,12 @@ private fun selectCurrentLocation() {
         })
     }
 
-    fun onSavedPlaceClick(placeId: String) {
+        fun onSavedPlaceClick(placeId: String) {
         val ctx = context ?: return
+
+        if(binding.layoutBookmarkHeader.root.visibility == View.VISIBLE){
+            return
+        }
 
         if (!::placesClient.isInitialized) {
             return
@@ -1020,9 +1138,7 @@ private fun selectCurrentLocation() {
 
                     return@addOnCompleteListener
                 }
-
                 exitSearchMode()
-
                 isDetailFromRecommend = true
                 showLocationDetail(item)
 
@@ -1418,6 +1534,9 @@ private fun selectCurrentLocation() {
             }
             else{
                 exitSearchMode()
+                if (hasSchedule) {
+                    showDefaultScheduleOverlay()
+                }
             }
         }
 
@@ -1496,6 +1615,10 @@ private fun selectCurrentLocation() {
     private fun handleMainBackClick() {
         if (binding.layoutRouteInputHeader.root.visibility == View.VISIBLE) {
             exitSearchMode()
+            android.widget.Toast.makeText(requireContext(), "나감", android.widget.Toast.LENGTH_SHORT).show()
+            if (hasSchedule && currentEntryMode == EntryMode.MAIN) {
+                showDefaultScheduleOverlay()
+            }
             return // 앱 종료 방지
         }
 
@@ -1574,6 +1697,9 @@ private fun selectCurrentLocation() {
             }
 
             exitSearchMode()
+            if (hasSchedule) {
+                showDefaultScheduleOverlay()
+            }
             return
         }
 
@@ -1593,7 +1719,6 @@ private fun selectCurrentLocation() {
 
             binding.routeSearchFcv.visibility = View.VISIBLE
             binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
-
             return
         }
 
