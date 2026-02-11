@@ -17,7 +17,7 @@ class SettingsActivity: AppCompatActivity() {
         setContentView(binding.root)
 
         binding.settingsBackIv.setOnClickListener {
-            onBackPressed()
+            onBackPressedDispatcher.onBackPressed()
         }
 
         supportFragmentManager.beginTransaction()

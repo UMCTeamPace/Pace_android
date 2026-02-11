@@ -116,8 +116,11 @@ class CalendarSelectFragment : Fragment() {
     }
 
     private fun handleCompleteOnboarding() {
+        val allCalendarIds = checkBoxMap.keys.toList()
+
         viewModel.selectedCalendarId = selectedId
-        viewModel.completeOnboarding()
+
+        viewModel.completeOnboarding(allCalendarIds)
         moveToMainActivity()
     }
 
