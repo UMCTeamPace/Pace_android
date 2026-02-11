@@ -1,6 +1,7 @@
 package com.example.pace.data.api
 
 import androidx.room.Delete
+import com.example.pace.data.model.request.DeletePlacesRequest
 import com.example.pace.data.model.request.MovePlaceGroupRequest
 import com.example.pace.data.model.request.SavePlaceRequest
 import com.example.pace.data.model.response.RawDefaultResponse
@@ -9,6 +10,7 @@ import com.example.pace.data.model.response.SavedPlaceListResponse
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.HTTP
 import retrofit2.http.Header
 import retrofit2.http.PATCH
 import retrofit2.http.POST
@@ -23,18 +25,18 @@ interface SavedPlaceService {
         @Body request: SavePlaceRequest
     ): RawDefaultResponse<SavePlaceResponse>
 
-    @DELETE("/api/v1/places/saved")
+    @HTTP(method = "DELETE", path = "/api/v1/places/saved", hasBody = true)
     suspend fun deleteSavedPlaces(
         @Header("Authorization") accessToken: String,
-        @Query("placeIds") placeIds: List<Long>
-    ): RawDefaultResponse<Unit>
+        @Body request: DeletePlacesRequest
+    ): RawDefaultResponse<String>
 
 
     @PATCH("/api/v1/places/saved/move")
     suspend fun movePlaceGroup(
         @Header("Authorization") accessToken: String,
         @Body request: MovePlaceGroupRequest
-    ): RawDefaultResponse<Unit>
+    ): RawDefaultResponse<String>
 
     @GET("/api/v1/places/saved/{groupId}")
     suspend fun getSavedPlacesByGroup(

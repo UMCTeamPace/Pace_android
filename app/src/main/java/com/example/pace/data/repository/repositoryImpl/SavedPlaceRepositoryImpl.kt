@@ -1,6 +1,7 @@
 package com.example.pace.data.repository.repositoryImpl
 
 import com.example.pace.data.api.SavedPlaceService
+import com.example.pace.data.model.request.DeletePlacesRequest
 import com.example.pace.data.model.request.MovePlaceGroupRequest
 import com.example.pace.data.model.request.SavePlaceRequest
 import com.example.pace.data.model.response.RawDefaultResponse
@@ -21,15 +22,15 @@ class SavedPlaceRepositoryImpl @Inject constructor(
 
     override suspend fun deleteSavedPlaces(
         accessToken: String,
-        placeIds: List<Long>
-    ): RawDefaultResponse<Unit> {
-        return api.deleteSavedPlaces(accessToken, placeIds)
+        request: DeletePlacesRequest
+    ): RawDefaultResponse<String> {
+        return api.deleteSavedPlaces(accessToken, request)
     }
 
     override suspend fun movePlaceGroup(
         accessToken: String,
         request: MovePlaceGroupRequest
-    ): RawDefaultResponse<Unit> {
+    ): RawDefaultResponse<String> {
         return api.movePlaceGroup(accessToken, request)
     }
 

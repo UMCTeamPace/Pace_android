@@ -54,10 +54,12 @@ class ArrivalTimeFragment : Fragment() {
         binding.numberPicker.apply {
             minValue = 0
             maxValue = 60
-            value = 60
+            value = 0
 
             //0~60 순환되게
             wrapSelectorWheel = true
+            setFormatter { String.format("%02d", it) }
+            descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
         }
     }
 
