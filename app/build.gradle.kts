@@ -112,6 +112,8 @@ dependencies {
     implementation("com.google.android.libraries.places:places:3.5.0")
     // Coroutines (디바운싱 - 시간 지연용) 장소 검색
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1")
+    //polyline 디코딩
+    implementation("com.google.maps.android:android-maps-utils:3.4.0")
 
     //Material Dialogs 라이브러리 주석 처리
     implementation("com.afollestad.material-dialogs:core:3.3.0")

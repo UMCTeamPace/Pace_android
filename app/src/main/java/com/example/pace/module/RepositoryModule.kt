@@ -101,4 +101,12 @@ object RepositoryModule {
             authDataStore = authDataStore
         )
     }
+
+    @Singleton
+    @Provides
+    fun providesRouteRepository(
+        routeRepositoryImpl: RouteRepositoryImpl
+    ): RouteRepository {
+        return routeRepositoryImpl
+    }
 }
