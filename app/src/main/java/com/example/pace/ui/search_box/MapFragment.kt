@@ -128,7 +128,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             if (detail.transitDetail != null) {
                 // A. 대중교통 구간: 노선 색상으로 굵게 그리기
                 val lineColor = try {
-                    Color.parseColor(detail.transitDetail.lineColor)
+                    Color.parseColor(detail.transitDetail.lineColor ?: "#0000FF")
                 } catch (e: Exception) {
                     Color.BLUE // 파싱 실패 시 기본 파랑
                 }

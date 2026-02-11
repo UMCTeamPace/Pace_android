@@ -368,14 +368,12 @@ class RouteFragment : Fragment() {
         requestSearchTime = outputSdf.format(date ?: Date())
         var tmplat = intent.getDoubleExtra("START_LAT", Double.NaN)
         var tmplng = intent.getDoubleExtra("START_LNG", Double.NaN)
-        startLatLng = if (!tmplat.isNaN() && !tmplng.isNaN()) {
-            LatLng(tmplat, tmplng)
-        } else {
-            null
+        if (!tmplat.isNaN() && !tmplng.isNaN()) {
+            startLatLng = LatLng(tmplat, tmplng)
         }
         tmplat = intent.getDoubleExtra("END_LAT", Double.NaN)
         tmplng = intent.getDoubleExtra("END_LNG", Double.NaN)
-        if (tmplat != null && tmplng != null) {
+        if (!tmplat.isNaN() && !tmplng.isNaN()) {
             endLatLng = LatLng(tmplat, tmplng)
         }
         binding.layoutRouteInputHeader.tvRouteStart.text = intent.getStringExtra("START_NAME")
