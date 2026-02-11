@@ -37,64 +37,6 @@ class SettingFragment: Fragment() {
         savedInstanceState: Bundle?
     ): View? {
         _binding = FragmentSettingBinding.inflate(inflater, container, false)
-        val title = activity?.findViewById<TextView>(R.id.settings_tv)
-        title?.text = "설정"
-
-        // Todo: 미리 출발 레이아웃 및 프래그먼트 구현해 연결
-        // Todo: 클릭 시 상호 작용하는 코드 작성(현재는 단순 뷰)
-        binding.settingsCalendarDefaultIv.setOnClickListener {
-            parentFragmentManager.beginTransaction()
-                .replace(R.id.settings_fcv, DefaultCalendarFragment())
-                .addToBackStack(null)
-                .commit()
-            title?.text = "기본 캘린더"
-        }
-        binding.settingsCalendarListIv.setOnClickListener {
-            parentFragmentManager.beginTransaction()
-                .replace(R.id.settings_fcv, SyncWithCalendarFragment())
-                .addToBackStack(null)
-                .commit()
-            title?.text = "캘린더 목록"
-        }
-        binding.settingsReminderAlarmIv.setOnClickListener {
-            parentFragmentManager.beginTransaction()
-                .replace(R.id.settings_fcv, SettingReminderFragment())
-                .addToBackStack(null)
-                .commit()
-            title?.text = "일정 알림"
-        }
-        binding.settingsDepartureAlarmIv.setOnClickListener {
-            parentFragmentManager.beginTransaction()
-                .replace(R.id.settings_fcv, SettingDepartureFragment())
-                .addToBackStack(null)
-                .commit()
-            title?.text = "출발 알림"
-        }
-
-        // --- 권한 설정 부분 ---
-        binding.settingsPermissionAlarmIv.setOnClickListener { showPermissionDialog("알림") }
-        binding.settingsPermissionLocationIv.setOnClickListener { showPermissionDialog("위치") }
-        binding.settingsPermissionCalendarIv.setOnClickListener { showPermissionDialog("캘린더") }
-
-
-        binding.settingsSignoutLl.setOnClickListener {
-            // 커스텀 다이얼로그 호출 (확인 버튼 클릭 시 카카오 로그아웃 실행)
-            val signoutDialog = SignoutDialog(requireContext())
-            signoutDialog.setOnOkClickListener {
-                kakaoLogout()
-            }
-            signoutDialog.show()
-        }
-
-        // --- 탈퇴하기 ---
-        binding.settingsWithdrawalLl.setOnClickListener {
-            val withdrawalDialog = WithdrawalDialog(requireContext()) // 탈퇴 전용 다이얼로그가 있다면
-            withdrawalDialog.setOnOkClickListener {
-                kakaoUnlink()
-            }
-            withdrawalDialog.show()
-        }
-
         return binding.root
     }
 
@@ -106,6 +48,19 @@ class SettingFragment: Fragment() {
         title?.text = "설정"
 
         observeRoomData()
+
+        setupFragmentResultListeners()
+
+        setupClickListeners(title)
+
+        parentFragmentManager.addOnBackStackChangedListener {
+            if(parentFragmentManager.backStackEntryCount == 0) {
+                activity?.findViewById<TextView>(R.id.settings_tv)?.text = "설정"
+            }
+        }
+    }
+
+    private fun setupFragmentResultListeners() {
 
         // --- Result Listeners ---
         setFragmentResultListener("earlyDepartureKey") { _, bundle ->
@@ -123,44 +78,73 @@ class SettingFragment: Fragment() {
             val alarmList = bundle.getIntegerArrayList("selectedAlarms") ?: arrayListOf()
             viewModel.updateDepartureAlarms(alarmList)
         }
+    }
 
-        // --- Click Listeners ---
+    private fun setupClickListeners(title: TextView?) {
 
-        // 1. 일정 알림
-        binding.settingsReminderAlarmIv.setOnClickListener {
+        // 캘린더 설정
+        binding.settingsCalendarDefaultLl.setOnClickListener {
+            navigateTo(DefaultCalendarFragment(), "기본 캘린더", title)
+        }
+        binding.settingsCalendarListLl.setOnClickListener {
+            navigateTo(SyncWithCalendarFragment(), "캘린더 목록", title)
+        }
+
+        // 일정 알림
+        binding.settingsReminderAlarmLl.setOnClickListener {
             val currentAlarms = viewModel.userSettings.value?.scheduleAlarms ?: emptyList()
             val fragment = SettingReminderFragment().apply {
                 arguments = Bundle().apply { putIntegerArrayList("currentAlarms", ArrayList(currentAlarms)) }
             }
-            activity?.findViewById<TextView>(R.id.settings_tv)?.text = "일정 알림"
-            parentFragmentManager.beginTransaction().replace(R.id.settings_fcv, fragment).addToBackStack(null).commit()
+            navigateTo(fragment, "일정 알림", title)
         }
 
-        // 2. 미리 도착 (바깥으로 분리)
         binding.settingsRouteLl.setOnClickListener {
-            activity?.findViewById<TextView>(R.id.settings_tv)?.text = "미리 도착"
-            val currentMinutes = binding.settingsRouteMinuteTv.text.toString().replace("분", "").toIntOrNull() ?: 10
+            val currentMinutes = binding.settingsRouteMinuteTv.text.toString()
+                .replace("분", "").let { if (it == "안함") 0 else it.toIntOrNull() ?: 10 }
             val fragment = SettingEarlyarrivedFragment().apply {
                 arguments = Bundle().apply { putInt("currentMinutes", currentMinutes) }
             }
-            parentFragmentManager.beginTransaction().replace(R.id.settings_fcv, fragment).addToBackStack(null).commit()
+            navigateTo(fragment, "미리 도착", title)
         }
 
-        // 3. 출발 알림 (바깥으로 분리 - 이게 중요합니다!)
-        binding.settingsDepartureAlarmIv.setOnClickListener {
+        binding.settingsDepartureAlarmLl.setOnClickListener {
             val currentAlarms = viewModel.userSettings.value?.departureAlarms ?: emptyList()
             val fragment = SettingDepartureFragment().apply {
                 arguments = Bundle().apply { putIntegerArrayList("currentAlarms", ArrayList(currentAlarms)) }
             }
-            activity?.findViewById<TextView>(R.id.settings_tv)?.text = "출발 알림"
-            parentFragmentManager.beginTransaction().replace(R.id.settings_fcv, fragment).addToBackStack(null).commit()
+            navigateTo(fragment, "출발 알림", title)
         }
 
-        parentFragmentManager.addOnBackStackChangedListener {
-            if (parentFragmentManager.backStackEntryCount == 0) {
-                activity?.findViewById<TextView>(R.id.settings_tv)?.text = "설정"
+        // --- 권한 설정 ---
+        binding.settingsPermissionAlarmIv.setOnClickListener { showPermissionDialog("알림") }
+        binding.settingsPermissionLocationIv.setOnClickListener { showPermissionDialog("위치") }
+        binding.settingsPermissionCalendarIv.setOnClickListener { showPermissionDialog("캘린더") }
+
+        // --- 계정 관리 ---
+        binding.settingsSignoutLl.setOnClickListener {
+            val signoutDialog = SignoutDialog(requireContext())
+            signoutDialog.setOnOkClickListener {
+                kakaoLogout()
             }
+            signoutDialog.show()
         }
+
+        binding.settingsWithdrawalLl.setOnClickListener {
+            val withdrawalDialog = WithdrawalDialog(requireContext())
+            withdrawalDialog.setOnOkClickListener {
+                kakaoUnlink()
+            }
+            withdrawalDialog.show()
+        }
+    }
+
+    private fun navigateTo(fragment: Fragment, titleText: String, titleView: TextView?) {
+        titleView?.text = titleText
+        parentFragmentManager.beginTransaction()
+            .replace(R.id.settings_fcv, fragment)
+            .addToBackStack(null)
+            .commit()
     }
 
     private fun observeRoomData() {

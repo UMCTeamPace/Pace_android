@@ -1,6 +1,7 @@
 package com.example.pace.ui.onboarding
 
 import android.content.Context
+import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
 import android.text.Spannable
@@ -42,6 +43,7 @@ class DepartAlarmFragment : Fragment() {
 
         // 1. 체크박스와 정수 값 매핑 (출발 알림용)
         departAlarmMap = mapOf(
+            binding.rbDepartureTime to 0,
             binding.rbStart5mago to 5,
             binding.rbStart10mago to 10,
             binding.rbStart15mago to 15,
@@ -50,11 +52,15 @@ class DepartAlarmFragment : Fragment() {
             binding.rbStart30mago to 30
         )
 
+        resetDescription()
         setupCheckBoxLogic()
 
         binding.btnNext.setOnClickListener {
-            saveDepartAlarms()
-            navigateToNextPage()
+            // 검증 통과 시에만 이동
+            if (validateSelection()) {
+                saveDepartAlarms()
+                navigateToNextPage()
+            }
         }
 
         binding.tvDescription.setBoldText(
@@ -68,38 +74,60 @@ class DepartAlarmFragment : Fragment() {
         binding.rbNone.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
                 departAlarmMap.keys.forEach { it.isChecked = false }
+                resetDescription()
             }
         }
 
-        // 개별 알림 클릭 시 로직 (최대 5개 제한)
         departAlarmMap.keys.forEach { checkBox ->
             checkBox.setOnClickListener {
                 if (checkBox.isChecked) {
-                    binding.rbNone.isChecked = false // "안함" 해제
-
-                    val selectedCount = departAlarmMap.keys.count { it.isChecked }
-                    if (selectedCount > 5) {
-                        checkBox.isChecked = false
-                        Toast.makeText(context, "알림은 최대 5개까지 설정 가능합니다.", Toast.LENGTH_SHORT).show()
-                    }
+                    binding.rbNone.isChecked = false
                 }
+                updateDescriptionBasedOnSelection()
             }
         }
     }
 
-    private fun saveDepartAlarms() {
-        val selectedMinutes = mutableListOf<Int>()
+    private fun updateDescriptionBasedOnSelection() {
+        val selectedCount = departAlarmMap.keys.count { it.isChecked }
+        if (selectedCount > 5) {
+            binding.tvAlarmDescription.text = "*알림은 총 5개 까지 설정할 수 있습니다."
+            binding.tvAlarmDescription.setTextColor(Color.RED)
+        } else {
+            resetDescription()
+        }
+    }
 
-        // "안함"이 체크되어 있지 않을 때만 리스트를 채움
-        if (!binding.rbNone.isChecked) {
-            departAlarmMap.forEach { (checkBox, minutes) ->
-                if (checkBox.isChecked) {
-                    selectedMinutes.add(minutes)
-                }
-            }
+    private fun resetDescription() {
+        binding.tvAlarmDescription.text = "*알림은 총 5개 까지 설정할 수 있습니다."
+        binding.tvAlarmDescription.setTextColor(Color.GRAY)
+    }
+
+    private fun validateSelection(): Boolean {
+        val selectedCount = departAlarmMap.keys.count { it.isChecked }
+        val isNoneChecked = binding.rbNone.isChecked
+
+        if (selectedCount == 0 && !isNoneChecked) {
+            binding.tvAlarmDescription.text = "*최소 1개 이상 선택해야 합니다."
+            binding.tvAlarmDescription.setTextColor(Color.RED)
+            return false
         }
 
-        // 2. 뷰모델의 departureAlarms 교체
+        if (selectedCount > 5) {
+            binding.tvAlarmDescription.text = "*알림은 총 5개 까지 설정할 수 있습니다."
+            binding.tvAlarmDescription.setTextColor(Color.RED)
+            return false
+        }
+
+        return true
+    }
+    private fun saveDepartAlarms() {
+        val selectedMinutes = mutableListOf<Int>()
+        if (!binding.rbNone.isChecked) {
+            departAlarmMap.forEach { (checkBox, minutes) ->
+                if (checkBox.isChecked) selectedMinutes.add(minutes)
+            }
+        }
         viewModel.departureAlarms.clear()
         viewModel.departureAlarms.addAll(selectedMinutes)
     }
@@ -109,7 +137,7 @@ class DepartAlarmFragment : Fragment() {
         viewPager?.let { it.currentItem = it.currentItem + 1 }
     }
 
-    // TextView 확장 함수
+
     fun TextView.setBoldText(fullText: String, boldKeywords: List<String>) {
         val spannable = SpannableStringBuilder(fullText)
         boldKeywords.forEach { keyword ->
