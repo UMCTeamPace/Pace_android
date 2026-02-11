@@ -90,37 +90,48 @@ class ScheduleRepositoryImpl @Inject constructor(
 
     override suspend fun refreshSchedules() {
         try {
-            // 1. 캘린더 프로바이더(시스템)에서 가져온 목록
+            // 1. 시스템 캘린더에서 현재 '살아있는' 일정들 가져오기
             val systemSchedules = normalDataSource.getSchedules()
             val systemIds = systemSchedules.map { it.id }
 
             withContext(Dispatchers.IO) {
-                // 2. 현재 내 룸 DB에 있는 전체 목록 (핀 상태 유지용)
-                val localSchedules = scheduleDao.getAllSchedulesOnce()
+                // 2. 먼저 DB에 최신 데이터를 삽입/업데이트 (이게 먼저 수행되어야 함)
+                if (systemSchedules.isNotEmpty()) {
+                    // 기존의 isPinned 상태를 유지하기 위한 맵핑
+                    val localSchedulesOnce = scheduleDao.getAllSchedulesOnce()
+                    val localScheduleMap = localSchedulesOnce.associateBy { it.id }
 
-                // 3. 시스템에서 삭제된 일정들을 DB에서도 제거
-                // (DAO에서 sourceType을 'SYSTEM'으로 수정하셨으므로 정상 작동합니다)
+                    val mergedSchedules = systemSchedules.map { remote ->
+                        val local = localScheduleMap[remote.id]
+                        if (local != null) remote.copy(isPinned = local.isPinned) else remote
+                    }
+
+                    // DB에 먼저 반영
+                    scheduleDao.insertAll(mergedSchedules)
+                    Log.d("SYNC_LOG", "1. 시스템 일정 ${mergedSchedules.size}개 DB 삽입/업데이트 완료")
+                } else {
+                    Log.d("SYNC_LOG", "시스템에서 가져온 리스트가 비어있습니다.")
+                }
+
+                // 3. 이제 DB에 들어간 SYSTEM 데이터와 방금 가져온 systemIds를 비교해서 삭제
+                // NOT IN (시스템ID목록) 쿼리를 실행하여 시스템에 없는 로컬 데이터를 날림
                 if (systemIds.isNotEmpty()) {
                     scheduleDao.deleteRemovedDeviceSchedules(systemIds)
+                    Log.d("SYNC_LOG", "2. 시스템에서 삭제된 일정들 로컬 DB에서 정리 완료")
+                } else {
+                    // 만약 시스템에 일정이 하나도 없다면, 로컬의 모든 SYSTEM 일정을 지워야 함
+                    // 이 부분은 필요에 따라 안전장치를 고려하세요. (전체 삭제 방지 등)
+                    // scheduleDao.deleteAllSystemSchedules() // 필요한 경우 추가
                 }
 
-                // 4. 기존 로컬의 핀(isPinned) 상태를 유지하며 병합
-                val localScheduleMap = localSchedules.associateBy { it.id }
-                val mergedSchedules = systemSchedules.map { remote ->
-                    val local = localScheduleMap[remote.id]
-                    // 로컬에 이미 있던 데이터라면 핀 상태를 복사, 없으면 새로 추가
-                    if (local != null) remote.copy(isPinned = local.isPinned) else remote
-                }
-
-                // 5. 최종 데이터 삽입 및 업데이트
-                scheduleDao.insertAll(mergedSchedules)
+                // 4. 최종 확인 로그
+                val checkCount = scheduleDao.getSchedulesWithSystemId().size
+                Log.d("SYNC_LOG", "3. 동기화 최종 완료 후 로컬 SYSTEM 개수: $checkCount")
             }
         } catch (e: Exception) {
-            // 에러 로그는 디버깅을 위해 남겨두는 것이 좋습니다.
-            Log.e("SYNC_CHECK", "동기화 중 에러 발생: ${e.message}")
+            Log.e("SYNC_LOG", "❌ 동기화 중 오류 발생: ${e.message}")
         }
     }
-
     override fun getUsedColors(): Flow<List<String>> = scheduleDao.getUsedColorsRaw().map { list ->
         list.mapNotNull { it.color }
     }
@@ -221,7 +232,7 @@ class ScheduleRepositoryImpl @Inject constructor(
                     type = "NORMAL",
                     eventColor = finalColor,
                     calendarColor = finalColor,
-                    sourceType = "DEVICE",
+                    sourceType = "SYSTEM",
                     serverId = null,
                     routeId = null,
                     repeatRule = generatedRRule,
