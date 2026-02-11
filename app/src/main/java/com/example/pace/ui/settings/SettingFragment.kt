@@ -105,83 +105,55 @@ class SettingFragment: Fragment() {
         val title = activity?.findViewById<TextView>(R.id.settings_tv)
         title?.text = "설정"
 
-        // 1. Room DB 데이터 관찰하여 UI 업데이트
         observeRoomData()
 
-        // 2. Fragment Result Listener (미리 도착 시간 변경 시)
+        // --- Result Listeners ---
         setFragmentResultListener("earlyDepartureKey") { _, bundle ->
             val resultText = bundle.getString("selectedMinutes") ?: "10분"
             val minutes = resultText.replace("분", "").toIntOrNull() ?: 10
-
-            // 그러면 observeRoomData가 감지해서 UI를 바꿔줍니다.
             viewModel.updateEarlyArrival(minutes)
         }
 
         setFragmentResultListener("scheduleAlarmKey") { _, bundle ->
             val alarmList = bundle.getIntegerArrayList("selectedAlarms") ?: arrayListOf()
-            // ViewModel에 알람 리스트 업데이트 함수를 호출하세요
             viewModel.updateScheduleAlarms(alarmList)
         }
 
         setFragmentResultListener("departureAlarmKey") { _, bundle ->
             val alarmList = bundle.getIntegerArrayList("selectedAlarms") ?: arrayListOf()
-            // ViewModel에 출발 알람 업데이트 함수 호출
             viewModel.updateDepartureAlarms(alarmList)
         }
 
+        // --- Click Listeners ---
+
+        // 1. 일정 알림
         binding.settingsReminderAlarmIv.setOnClickListener {
             val currentAlarms = viewModel.userSettings.value?.scheduleAlarms ?: emptyList()
-
             val fragment = SettingReminderFragment().apply {
-                arguments = Bundle().apply {
-                    // 현재 알람 리스트를 ArrayList로 변환해서 전달
-                    putIntegerArrayList("currentAlarms", ArrayList(currentAlarms))
-                }
+                arguments = Bundle().apply { putIntegerArrayList("currentAlarms", ArrayList(currentAlarms)) }
             }
-
             activity?.findViewById<TextView>(R.id.settings_tv)?.text = "일정 알림"
-            parentFragmentManager.beginTransaction()
-                .replace(R.id.settings_fcv, fragment)
-                .addToBackStack(null)
-                .commit()
+            parentFragmentManager.beginTransaction().replace(R.id.settings_fcv, fragment).addToBackStack(null).commit()
         }
-        binding.settingsRouteLl.setOnClickListener { // IV 대신 LL 전체를 클릭 범위로 잡는 게 UX상 좋습니다.
+
+        // 2. 미리 도착 (바깥으로 분리)
+        binding.settingsRouteLl.setOnClickListener {
             activity?.findViewById<TextView>(R.id.settings_tv)?.text = "미리 도착"
-
-            // 현재 화면에 표시된 텍스트에서 숫자만 가져옴 (예: "15분" -> 15)
-            val currentMinutes = binding.settingsRouteMinuteTv.text.toString()
-                .replace("분", "")
-                .toIntOrNull() ?: 10 // 실패 시 기본값 10
-
-            // 번들에 담기
+            val currentMinutes = binding.settingsRouteMinuteTv.text.toString().replace("분", "").toIntOrNull() ?: 10
             val fragment = SettingEarlyarrivedFragment().apply {
-                arguments = Bundle().apply {
-                    putInt("currentMinutes", currentMinutes)
-                }
+                arguments = Bundle().apply { putInt("currentMinutes", currentMinutes) }
             }
+            parentFragmentManager.beginTransaction().replace(R.id.settings_fcv, fragment).addToBackStack(null).commit()
+        }
 
-            binding.settingsDepartureAlarmIv.setOnClickListener {
-                // 현재 저장된 출발 알람 리스트 가져오기
-                val currentAlarms = viewModel.userSettings.value?.departureAlarms ?: emptyList()
-
-                val fragment = SettingDepartureFragment().apply {
-                    arguments = Bundle().apply {
-                        // 현재 데이터를 넘겨줌 (ArrayList로 변환)
-                        putIntegerArrayList("currentAlarms", ArrayList(currentAlarms))
-                    }
-                }
-
-                activity?.findViewById<TextView>(R.id.settings_tv)?.text = "출발 알림"
-                parentFragmentManager.beginTransaction()
-                    .replace(R.id.settings_fcv, fragment)
-                    .addToBackStack(null)
-                    .commit()
+        // 3. 출발 알림 (바깥으로 분리 - 이게 중요합니다!)
+        binding.settingsDepartureAlarmIv.setOnClickListener {
+            val currentAlarms = viewModel.userSettings.value?.departureAlarms ?: emptyList()
+            val fragment = SettingDepartureFragment().apply {
+                arguments = Bundle().apply { putIntegerArrayList("currentAlarms", ArrayList(currentAlarms)) }
             }
-
-            parentFragmentManager.beginTransaction()
-                .replace(R.id.settings_fcv, fragment)
-                .addToBackStack(null)
-                .commit()
+            activity?.findViewById<TextView>(R.id.settings_tv)?.text = "출발 알림"
+            parentFragmentManager.beginTransaction().replace(R.id.settings_fcv, fragment).addToBackStack(null).commit()
         }
 
         parentFragmentManager.addOnBackStackChangedListener {
