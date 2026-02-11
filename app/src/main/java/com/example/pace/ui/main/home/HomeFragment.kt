@@ -66,7 +66,7 @@ class HomeFragment: Fragment() {
         binding.homeScheduleRv.adapter = scheduleAdapter
         scheduleAdapter.setMyOnClickListener(object: ScheduleRVAdapter.MyOnClickListener{
             override fun showModalCase(scheduleList: List<Schedule>, position: Int) {
-                val modalCaseDialog = ModalCaseDialog(requireContext(), scheduleList, position, selectedDate)
+                val modalCaseDialog = ModalCaseDialog(requireContext(), scheduleList, position, selectedDate, viewModel)
                 modalCaseDialog.show()
             }
         })

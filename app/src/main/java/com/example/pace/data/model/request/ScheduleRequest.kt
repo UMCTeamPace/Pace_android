@@ -16,6 +16,8 @@ data class UpdateScheduleRouteRequest(
     @SerializedName("routeDetails") val routeDetails: List<RouteDetail>,
     @SerializedName("start_time") val startTime: String,
     @SerializedName("end_time") val endTime: String,
+    @SerializedName("arrival_time") val arrivalTime:String?,
+    @SerializedName("departure_time") val departureStop: String?,
     @SerializedName("total_time") val totalTime: Int,
     @SerializedName("total_distance") val totalDistance: Int
 )

@@ -8,6 +8,7 @@ import com.example.pace.data.datasource.AuthDataStore
 import com.example.pace.data.model.Schedule
 import com.example.pace.data.model.request.CreateScheduleRequest
 import com.example.pace.data.model.response.RouteInfo
+import com.example.pace.data.model.response.ScheduleDetailResponse
 import com.example.pace.data.repository.repository.ScheduleRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -73,8 +74,9 @@ class ScheduleViewModel @Inject constructor(
     private val _createScheduleEvent = MutableStateFlow<Boolean?>(null)
     val createScheduleEvent: StateFlow<Boolean?> = _createScheduleEvent
 
-    private val _scheduleRouteInfo= MutableStateFlow<RouteInfo?>(null)
-    val scheduleRouteInfo = _scheduleRouteInfo.value
+    // 일정 상세 조회
+    private val _scheduleDetailInfo= MutableStateFlow<ScheduleDetailResponse?>(null)
+    val scheduleDetailInfo = _scheduleDetailInfo.value
 
     fun setEditMode(enabled: Boolean) {
         _isEditMode.value = enabled
@@ -288,4 +290,15 @@ class ScheduleViewModel @Inject constructor(
     fun resetCreateEvent() {
         _createScheduleEvent.value = null
     }
+
+    fun getScheduleDetail(id: Long){
+        viewModelScope.launch {
+            val token = authDataStore.getAccessToken()
+            if(token != null){
+                val response = repository.getScheduleDetail(token, id)
+                _scheduleDetailInfo.value = response.result
+            }
+        }
+    }
+
 }
