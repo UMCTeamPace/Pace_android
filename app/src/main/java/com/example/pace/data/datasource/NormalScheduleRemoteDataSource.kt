@@ -107,7 +107,6 @@ class NormalScheduleRemoteDataSource @Inject constructor(
 
         // 2. 쿼리 조건 수정 (시작일과 종료일 사이의 이벤트를 가져옴)
         // 과거 데이터도 가져오고 싶다면 단순히 >= 조건을 바꾸거나 범위를 지정합니다.
-
         val selection = "(${CalendarContract.Events.DTSTART} >= ? AND ${CalendarContract.Events.DTSTART} <= ?) AND " +
                 "(${CalendarContract.Events.DELETED} = 0) AND " +
                 "(${CalendarContract.Events.STATUS} IS NULL OR ${CalendarContract.Events.STATUS} != ${CalendarContract.Events.STATUS_CANCELED})"
@@ -134,15 +133,22 @@ class NormalScheduleRemoteDataSource @Inject constructor(
 
 
         try {
+            // 2. 권한 확인이 통과된 경우에만 쿼리를 실행
             val cursor: Cursor? = applicationContext.contentResolver.query(
+
                 CalendarContract.Events.CONTENT_URI,
+
                 projection,
+
                 selection,
+
                 selectionArgs,
+
                 CalendarContract.Events.DTSTART + " ASC"
+
             )
 
-
+    
 
             cursor?.use {
                 // 인덱스 먼저 다 뽑기 (성능 및 안전성)
@@ -186,28 +192,44 @@ class NormalScheduleRemoteDataSource @Inject constructor(
 
                     // 4. 리스트에 추가
                     scheduleList.add(
+
                         Schedule(
+
                             id = id,
+
                             title = title,
+
                             startDate = formatMillisToDate(dtStart),
+
                             endDate = formatMillisToDate(dtEnd),
+
                             startTime = formatMillisToTime(dtStart),
+
                             endTime = formatMillisToTime(dtEnd),
+
                             isAllDay = isAllDay,
+
                             memo = memo,
+
                             location = location,
+
                             repeatRule = rrule,
                             exdate = exdate,
                             calendarId = calendarId,
+
                             calendarDisplayName = calendarName,
+
                             calendarAccountName = null,
+
                             reminders = reminders,
                             eventColor = if (eventColor != 0) eventColor else null,
                             calendarColor = if (calendarColor != 0) calendarColor else null,
                             type = "NORMAL",
                             sourceType = "SYSTEM"
                         )
+
                     )
+
                 }
             }
     } catch (e: SecurityException) {
