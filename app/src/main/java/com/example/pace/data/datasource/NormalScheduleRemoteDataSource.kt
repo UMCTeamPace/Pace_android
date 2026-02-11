@@ -108,12 +108,10 @@ class NormalScheduleRemoteDataSource @Inject constructor(
         // 2. 쿼리 조건 수정 (시작일과 종료일 사이의 이벤트를 가져옴)
         // 과거 데이터도 가져오고 싶다면 단순히 >= 조건을 바꾸거나 범위를 지정합니다.
         val selection = "(${CalendarContract.Events.DTSTART} >= ? AND ${CalendarContract.Events.DTSTART} <= ?) AND " +
-                "(${CalendarContract.Events.DELETED} != '1') AND " +
+                "(${CalendarContract.Events.DELETED} = 0) AND " +
                 "(${CalendarContract.Events.STATUS} IS NULL OR ${CalendarContract.Events.STATUS} != ${CalendarContract.Events.STATUS_CANCELED})"
-        val selectionArgs = arrayOf(
-            startRange.toString(),
-            endRange.toString()
-        )
+
+        val selectionArgs = arrayOf(startRange.toString(), endRange.toString())
 
         val projection = arrayOf(
             CalendarContract.Events._ID,
@@ -124,11 +122,12 @@ class NormalScheduleRemoteDataSource @Inject constructor(
             CalendarContract.Events.DESCRIPTION,
             CalendarContract.Events.EVENT_LOCATION,
             CalendarContract.Events.RRULE,
-            CalendarContract.Events.EXDATE, // EXDATE 추가
+            CalendarContract.Events.EXDATE,
             CalendarContract.Events.CALENDAR_ID,
             CalendarContract.Events.CALENDAR_DISPLAY_NAME,
             CalendarContract.Events.EVENT_COLOR,
-            CalendarContract.Events.CALENDAR_COLOR
+            CalendarContract.Events.CALENDAR_COLOR,
+            CalendarContract.Events.DELETED
         )
 
 
@@ -152,38 +151,46 @@ class NormalScheduleRemoteDataSource @Inject constructor(
     
 
             cursor?.use {
+                // 인덱스 먼저 다 뽑기 (성능 및 안전성)
+                val idIdx = it.getColumnIndexOrThrow(CalendarContract.Events._ID)
+                val titleIdx = it.getColumnIndexOrThrow(CalendarContract.Events.TITLE)
+                val dtStartIdx = it.getColumnIndexOrThrow(CalendarContract.Events.DTSTART)
+                val dtEndIdx = it.getColumnIndexOrThrow(CalendarContract.Events.DTEND)
+                val allDayIdx = it.getColumnIndexOrThrow(CalendarContract.Events.ALL_DAY)
+                val descIdx = it.getColumnIndexOrThrow(CalendarContract.Events.DESCRIPTION)
+                val locIdx = it.getColumnIndexOrThrow(CalendarContract.Events.EVENT_LOCATION)
+                val rruleIdx = it.getColumnIndexOrThrow(CalendarContract.Events.RRULE)
+                val exdateIdx = it.getColumnIndexOrThrow(CalendarContract.Events.EXDATE)
+                val calIdIdx = it.getColumnIndexOrThrow(CalendarContract.Events.CALENDAR_ID)
+                val calNameIdx = it.getColumnIndexOrThrow(CalendarContract.Events.CALENDAR_DISPLAY_NAME)
+                val eventColorIdx = it.getColumnIndexOrThrow(CalendarContract.Events.EVENT_COLOR)
+                val calColorIdx = it.getColumnIndexOrThrow(CalendarContract.Events.CALENDAR_COLOR)
+                val deletedIdx = it.getColumnIndexOrThrow(CalendarContract.Events.DELETED)
 
                 while (it.moveToNext()) {
+                    // 1. 삭제 여부 확인
+                    val isDeleted = it.getInt(deletedIdx)
+                    if (isDeleted == 1) continue
 
-                    val id = it.getLong(it.getColumnIndexOrThrow(CalendarContract.Events._ID))
+                    // 2. 값 추출 (이 부분이 빠져있었습니다!)
+                    val id = it.getLong(idIdx)
+                    val title = it.getString(titleIdx) ?: ""
+                    val dtStart = it.getLong(dtStartIdx)
+                    val dtEnd = it.getLong(dtEndIdx)
+                    val isAllDay = it.getInt(allDayIdx) == 1
+                    val memo = it.getString(descIdx)
+                    val location = it.getString(locIdx)
+                    val rrule = it.getString(rruleIdx)
+                    val exdate = it.getString(exdateIdx)
+                    val calendarId = it.getLong(calIdIdx)
+                    val calendarName = it.getString(calNameIdx)
+                    val eventColor = it.getInt(eventColorIdx)
+                    val calendarColor = it.getInt(calColorIdx)
 
-                    val title = it.getString(it.getColumnIndexOrThrow(CalendarContract.Events.TITLE))
-
-                    val dtStart = it.getLong(it.getColumnIndexOrThrow(CalendarContract.Events.DTSTART))
-
-                    val dtEnd = it.getLong(it.getColumnIndexOrThrow(CalendarContract.Events.DTEND))
-
-                    val isAllDay = it.getInt(it.getColumnIndexOrThrow(CalendarContract.Events.ALL_DAY)) == 1
-
-                    val memo = it.getString(it.getColumnIndexOrThrow(CalendarContract.Events.DESCRIPTION))
-
-                    val location = it.getString(it.getColumnIndexOrThrow(CalendarContract.Events.EVENT_LOCATION))
-
-                    val rrule = it.getString(it.getColumnIndexOrThrow(CalendarContract.Events.RRULE))
-                    val exdate = it.getString(it.getColumnIndexOrThrow(CalendarContract.Events.EXDATE)) // EXDATE 추출
-
-                    val calendarId = it.getLong(it.getColumnIndexOrThrow(CalendarContract.Events.CALENDAR_ID))
-
-                    val calendarName = it.getString(it.getColumnIndexOrThrow(CalendarContract.Events.CALENDAR_DISPLAY_NAME))
-
-                    val eventColor = it.getInt(it.getColumnIndexOrThrow(CalendarContract.Events.EVENT_COLOR))
-
-                    val calendarColor = it.getInt(it.getColumnIndexOrThrow(CalendarContract.Events.CALENDAR_COLOR))
-
+                    // 3. 알림 데이터 가져오기
                     val reminders = fetchReminders(id)
 
-    
-
+                    // 4. 리스트에 추가
                     scheduleList.add(
 
                         Schedule(
@@ -207,8 +214,7 @@ class NormalScheduleRemoteDataSource @Inject constructor(
                             location = location,
 
                             repeatRule = rrule,
-                            exdate = exdate, // EXDATE 전달
-
+                            exdate = exdate,
                             calendarId = calendarId,
 
                             calendarDisplayName = calendarName,
@@ -216,19 +222,16 @@ class NormalScheduleRemoteDataSource @Inject constructor(
                             calendarAccountName = null,
 
                             reminders = reminders,
-
                             eventColor = if (eventColor != 0) eventColor else null,
                             calendarColor = if (calendarColor != 0) calendarColor else null,
-
-                            type = "NORMAL" // Set the type for schedules from this source
-
+                            type = "NORMAL",
+                            sourceType = "SYSTEM"
                         )
 
                     )
 
                 }
-
-        }
+            }
     } catch (e: SecurityException) {
         // 3. 만약의 경우를 대비한 2중 방어막
         android.util.Log.e("ScheduleDataSource", "SecurityException 발생: ${e.message}")
