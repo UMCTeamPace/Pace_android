@@ -78,4 +78,39 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun updateScheduleAlarms(alarms: List<Int>) {
+        viewModelScope.launch {
+            // 1. 현재 StateFlow에 담긴 최신 설정값을 가져옵니다.
+            val currentSettings = userSettings.value
+
+            currentSettings?.let { settings ->
+                // 2. 알람 리스트만 변경한 복사본(copy)을 만듭니다.
+                // take(5)를 통해 DB 저장 직전에도 한 번 더 개수를 방어합니다.
+                val updated = settings.copy(
+                    scheduleAlarms = alarms.take(5),
+                    isSynced = false // 서버와 동기화가 필요하다면 false로 설정
+                )
+
+                // 3. Repository를 통해 로컬 DB 업데이트 및 서버 전송 로직 실행
+                repository.updateSettings(updated)
+
+                Log.d("SETTINGS_DEBUG", "일정 알림 업데이트 성공: ${updated.scheduleAlarms}")
+            }
+        }
+    }
+
+    fun updateDepartureAlarms(alarms: List<Int>) {
+        viewModelScope.launch {
+            val currentSettings = userSettings.value
+            currentSettings?.let { settings ->
+                val updated = settings.copy(
+                    departureAlarms = alarms.take(5), // 여기서도 5개 제한
+                    isSynced = false
+                )
+                repository.updateSettings(updated)
+                Log.d("SETTINGS_DEBUG", "출발 알림 업데이트 완료: ${updated.departureAlarms}")
+            }
+        }
+    }
+
 }

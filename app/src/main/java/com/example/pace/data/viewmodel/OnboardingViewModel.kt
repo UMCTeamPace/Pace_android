@@ -40,13 +40,14 @@ class OnboardingViewModel @Inject constructor(
     val onboardingSuccess = _onboardingSuccess.asSharedFlow()
 
     // --- 온보딩 완료 시 실행 ---
-    fun completeOnboarding() {
+    fun completeOnboarding(allCalendarIds: List<Long>) {
         viewModelScope.launch {
             val tempEntity = UserSettingsEntity(
                 id = 1L,
                 isReminderActive = isReminderActive,
                 earlyArrivalTime = earlyArrivalTime,
                 calendarId = selectedCalendarId,
+                syncedCalendarIds = allCalendarIds, // 👈 캘린더 동기화 목록에 전체 추가 (기본값 ON)
                 departureAlarms = departureAlarms,
                 scheduleAlarms = scheduleAlarms,
                 isSynced = false

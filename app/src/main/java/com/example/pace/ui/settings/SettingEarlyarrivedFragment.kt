@@ -29,23 +29,18 @@ class SettingEarlyarrivedFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        binding.pickerYear.visibility = View.VISIBLE
-        setupNumberPicker()
+        val initialValue = arguments?.getInt("currentMinutes") ?: 10
 
-        activity?.findViewById<View>(R.id.settings_back_iv)?.setOnClickListener {
-            parentFragmentManager.popBackStack()
-        }
+        binding.pickerYear.visibility = View.VISIBLE
+        setupNumberPicker(initialValue)
+
     }
 
-    private fun setupNumberPicker() {
+    private fun setupNumberPicker(initialValue: Int) {
         binding.pickerYear.apply {
             minValue = 0
             maxValue = 60
-            value = 10
-
-            setOnValueChangedListener { _, _, _ ->
-                sendCurrentValue()
-            }
+            value = initialValue // 💡 넘겨받은 숫자로 시작 위치 설정
 
             setOnValueChangedListener { _, _, newVal ->
                 val resultText = if (newVal == 0) "안함" else "${newVal}분"
@@ -58,12 +53,6 @@ class SettingEarlyarrivedFragment : Fragment() {
         }
     }
 
-    private fun sendCurrentValue() {
-        val selectedMinutes = binding.pickerYear.value
-        val resultText = if (selectedMinutes == 0) "안함" else "${selectedMinutes}분"
-
-        setFragmentResult("earlyDepartureKey", bundleOf("selectedMinutes" to resultText))
-    }
 
     override fun onDestroyView() {
         super.onDestroyView()

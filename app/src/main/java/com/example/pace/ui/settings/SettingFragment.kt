@@ -105,27 +105,55 @@ class SettingFragment: Fragment() {
         val title = activity?.findViewById<TextView>(R.id.settings_tv)
         title?.text = "설정"
 
-        // 1. Room DB 데이터 관찰하여 UI 업데이트
         observeRoomData()
 
-        // 2. Fragment Result Listener (미리 도착 시간 변경 시)
+        // --- Result Listeners ---
         setFragmentResultListener("earlyDepartureKey") { _, bundle ->
             val resultText = bundle.getString("selectedMinutes") ?: "10분"
             val minutes = resultText.replace("분", "").toIntOrNull() ?: 10
-
-            // 💡 직접 텍스트를 바꾸지 말고 DB만 업데이트하세요.
-            // 그러면 observeRoomData가 감지해서 UI를 바꿔줍니다.
             viewModel.updateEarlyArrival(minutes)
         }
 
-        binding.settingsRouteLl.setOnClickListener {
-            // 💡 여기서 title을 안전하게 참조합니다.
-            activity?.findViewById<TextView>(R.id.settings_tv)?.text = "미리 도착"
+        setFragmentResultListener("scheduleAlarmKey") { _, bundle ->
+            val alarmList = bundle.getIntegerArrayList("selectedAlarms") ?: arrayListOf()
+            viewModel.updateScheduleAlarms(alarmList)
+        }
 
-            parentFragmentManager.beginTransaction()
-                .replace(R.id.settings_fcv, SettingEarlyarrivedFragment())
-                .addToBackStack(null)
-                .commit()
+        setFragmentResultListener("departureAlarmKey") { _, bundle ->
+            val alarmList = bundle.getIntegerArrayList("selectedAlarms") ?: arrayListOf()
+            viewModel.updateDepartureAlarms(alarmList)
+        }
+
+        // --- Click Listeners ---
+
+        // 1. 일정 알림
+        binding.settingsReminderAlarmIv.setOnClickListener {
+            val currentAlarms = viewModel.userSettings.value?.scheduleAlarms ?: emptyList()
+            val fragment = SettingReminderFragment().apply {
+                arguments = Bundle().apply { putIntegerArrayList("currentAlarms", ArrayList(currentAlarms)) }
+            }
+            activity?.findViewById<TextView>(R.id.settings_tv)?.text = "일정 알림"
+            parentFragmentManager.beginTransaction().replace(R.id.settings_fcv, fragment).addToBackStack(null).commit()
+        }
+
+        // 2. 미리 도착 (바깥으로 분리)
+        binding.settingsRouteLl.setOnClickListener {
+            activity?.findViewById<TextView>(R.id.settings_tv)?.text = "미리 도착"
+            val currentMinutes = binding.settingsRouteMinuteTv.text.toString().replace("분", "").toIntOrNull() ?: 10
+            val fragment = SettingEarlyarrivedFragment().apply {
+                arguments = Bundle().apply { putInt("currentMinutes", currentMinutes) }
+            }
+            parentFragmentManager.beginTransaction().replace(R.id.settings_fcv, fragment).addToBackStack(null).commit()
+        }
+
+        // 3. 출발 알림 (바깥으로 분리 - 이게 중요합니다!)
+        binding.settingsDepartureAlarmIv.setOnClickListener {
+            val currentAlarms = viewModel.userSettings.value?.departureAlarms ?: emptyList()
+            val fragment = SettingDepartureFragment().apply {
+                arguments = Bundle().apply { putIntegerArrayList("currentAlarms", ArrayList(currentAlarms)) }
+            }
+            activity?.findViewById<TextView>(R.id.settings_tv)?.text = "출발 알림"
+            parentFragmentManager.beginTransaction().replace(R.id.settings_fcv, fragment).addToBackStack(null).commit()
         }
 
         parentFragmentManager.addOnBackStackChangedListener {
@@ -139,29 +167,49 @@ class SettingFragment: Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.userSettings.collect { settings ->
                 settings?.let {
-                    // 💡 추가된 부분: ID를 이름으로 변환하여 UI에 적용
+                    // 1. 기본 캘린더 이름
                     binding.settingsCalendarDefaultTv.text = getCalendarNameById(it.calendarId)
 
                     // 2. 미리 도착 시간
                     binding.settingsRouteMinuteTv.text = "${it.earlyArrivalTime}분"
 
-                    // 3. 일정 알림
+                    // 💡 3. 일정 알림 (숫자 -> 문자열 매핑)
                     binding.settingsReminderAlarmTv.text = if (it.scheduleAlarms.isEmpty()) {
                         "없음"
                     } else {
-                        it.scheduleAlarms.joinToString(", ") + "분 전"
+                        it.scheduleAlarms.joinToString(", ") { minutes ->
+                            formatAlarmText(minutes)
+                        }
                     }
 
-                    // 4. 출발 알림
+                    // 💡 4. 출발 알림 (숫자 -> 문자열 매핑)
                     binding.settingsDepartureAlarmTv.text = if (it.departureAlarms.isEmpty()) {
                         "없음"
                     } else {
-                        it.departureAlarms.joinToString(", ") + "분 전"
+                        it.departureAlarms.joinToString(", ") { minutes ->
+                            formatAlarmText(minutes)
+                        }
                     }
 
                     Log.d("SETTINGS_LOCAL", "UI 업데이트 완료: $it")
                 }
             }
+        }
+    }
+
+    private fun formatAlarmText(minutes: Int): String {
+        return when (minutes) {
+            0 -> "일정 시작 시간"
+            5 -> "5분 전"
+            10 -> "10분 전"
+            15 -> "15분 전"
+            30 -> "30분 전"
+            60 -> "1시간 전"
+            120 -> "2시간 전"
+            1440 -> "1일 전"
+            2880 -> "2일 전"
+            10080 -> "1주일 전"
+            else -> "${minutes}분 전" // 매핑되지 않은 값이 있을 경우 대비
         }
     }
 
