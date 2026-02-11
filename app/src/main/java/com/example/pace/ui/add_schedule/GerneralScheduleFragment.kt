@@ -3,6 +3,7 @@ package com.example.pace.ui.add_schedule
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -30,6 +31,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import com.example.pace.data.model.request.PlaceRequest
+import com.example.pace.data.model.request.RepeatInfo
 import com.example.pace.ui.onboarding.CalendarSelectFragment
 
 @AndroidEntryPoint
@@ -45,8 +47,8 @@ class GeneralScheduleFragment : Fragment() {
 
     private var isAllDay = true
 
-    private var startDate: LocalDate = LocalDate.now()
-    private var endDate: LocalDate = LocalDate.now()
+    private var startDate: LocalDate? = null
+    private var endDate: LocalDate? = null
     private var selectedColorHex: String = "#53B332" // 기본 색상
 
     private var selectedPlaceId: String? = null
@@ -59,7 +61,8 @@ class GeneralScheduleFragment : Fragment() {
     private var currentSelectedCalendarName: String? = null
 
     private val dateFormatter = DateTimeFormatter.ofPattern("M월 d일 (E)", Locale.KOREAN)
-
+    val colorInt = android.graphics.Color.parseColor(selectedColorHex)
+    private var currentRepeatInfo: RepeatInfo? = null
     private val routeSearchLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -82,11 +85,6 @@ class GeneralScheduleFragment : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setFragmentResultListener("repeatKey") { _, bundle ->
-            val result = bundle.getString("selectedRepeat")
-            binding.tvRepeatStatus.text = result
-        }
-
     }
 
     override fun onCreateView(
@@ -178,16 +176,7 @@ class GeneralScheduleFragment : Fragment() {
                 return@setOnClickListener
             }
 
-            // 3. 데이터 수집 및 가공
-            val memo = binding.etMemo.text?.toString()?.trim()
-            val finalStartDate = startDate.toString()
-            val finalEndDate = (endDate ?: startDate).toString()
 
-            // 하루종일 여부에 따른 시간 설정
-            val finalStartTime = if (isAllDay) null else binding.tvStartTime.text.toString()
-            val finalEndTime = if (isAllDay) null else binding.tvEndTime.text.toString()
-
-            // [중요] 장소/경로 정보 추출 (현재는 Toast로만 보여주고 있으나 변수에 저장했다고 가정)
             // 만약 장소 검색 결과로 받은 데이터가 있다면 여기에 PlaceRequest 객체를 생성해 넣어주세요.
             val placeRequest = selectedPlaceName?.let { name ->
                 PlaceRequest(
@@ -195,6 +184,12 @@ class GeneralScheduleFragment : Fragment() {
                     targetLat = selectedLat,
                     targetLng = selectedLng
                 )
+            }
+
+            val selectedColorInt = try {
+                android.graphics.Color.parseColor(selectedColorHex) // String -> Int 변환
+            } catch (e: Exception) {
+                android.graphics.Color.parseColor("#DC354B") // 실패 시 기본값
             }
 
             viewModel.createScheduleWithDefaultSettings(
@@ -208,7 +203,9 @@ class GeneralScheduleFragment : Fragment() {
                 place = placeRequest,      // 서버로 보낼 위도/경도 객체
                 placeId = selectedPlaceId,  // 룸 DB에 저장할 ID (추가)
                 customAlarms = currentSelectedAlarms?.toList(),
-                calendarId = currentSelectedCalendarId //
+                calendarId = currentSelectedCalendarId,
+                selectedColor = selectedColorInt, // Int 타입으로 전달
+                repeatInfo = currentRepeatInfo    // 이 변수가 상단에 선언되어 있어야 함
             )
         }
         observeCreateEvent()
@@ -230,10 +227,21 @@ class GeneralScheduleFragment : Fragment() {
         setupKeyboardVisibilityListener()
 
         setFragmentResultListener("repeatKey") { _, bundle ->
-            val result = bundle.getString("selectedRepeat")
-            binding.tvRepeatStatus.text = result
-        }
+            val resultText = bundle.getString("selectedRepeat")
+            binding.tvRepeatStatus.text = resultText
 
+            // 안전한 추출 방법
+            currentRepeatInfo = try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                    bundle.getSerializable("repeatInfo", RepeatInfo::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    bundle.getSerializable("repeatInfo") as? RepeatInfo
+                }
+            } catch (e: Exception) {
+                null
+            }
+        }
 
         binding.btnRepeat.setOnClickListener {
             val repeatFragment = ScheduleRepeatFragment()
@@ -532,14 +540,16 @@ class GeneralScheduleFragment : Fragment() {
     }
 
     private fun changeSelectedColor(colorStr: String) {
+        selectedColorHex = colorStr
+
         val color = Color.parseColor(colorStr)
         binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(color)
 
-        // 💡 캘린더나 시간 피커와 충돌하지 않도록 명확히 처리
+        // 2. UI 처리
         binding.layoutColorSelector.visibility = View.GONE
 
-        // 만약 캘린더가 켜져 있어야 한다면 유지, 아니라면 명시적으로 조절
-        // animateLayoutChange() // 필요 시 애니메이션 추가
+        // 로그로 값이 바뀌는지 확인해보세요
+        Log.d("COLOR_CHECK", "선택된 색상: $selectedColorHex")
     }
     private fun initTimePickers() {
 
@@ -704,24 +714,24 @@ class GeneralScheduleFragment : Fragment() {
     }
 
     private fun selectDate(date: LocalDate) {
-        // 1. 이미 시작일이 있고 종료일이 없는 상태에서 새로운 날짜를 선택한 경우
-        if (startDate != null && endDate == null) {
+        // 1. 이미 범위 선택이 완료되었거나(start/end 둘 다 있음), 아예 없는 경우 -> 새로 시작
+        if (startDate != null && endDate != null) {
+            startDate = date
+            endDate = null // 종료일만 null로 비워서 다음 클릭을 기다림
+        }
+        // 2. 시작일만 있고 종료일은 없는 상태 -> 종료일 확정
+        else if (startDate != null && endDate == null) {
             if (date.isBefore(startDate)) {
-                // 시작일보다 이전 날짜를 선택하면 시작일을 변경
-                startDate = date
-            } else if (date == startDate) {
-                // 같은 날짜를 선택하면 시작일=종료일로 간주
-                endDate = date
-                onDateSelectionComplete()
+                startDate = date // 시작일보다 이전이면 시작일을 변경
             } else {
-                // 시작일 이후 날짜를 선택하면 종료일로 지정
                 endDate = date
                 onDateSelectionComplete()
             }
-        } else {
-            // 2. 처음 선택하거나, 이미 범위 선택이 완료된 상태에서 다시 선택할 때
+        }
+        // 3. 혹시나 둘 다 null인 경우 (방어 코드)
+        else {
             startDate = date
-            endDate = date // 새로 선택을 시작하므로 종료일은 일단 비움
+            endDate = null
         }
 
         binding.calendarPicker.notifyCalendarChanged()

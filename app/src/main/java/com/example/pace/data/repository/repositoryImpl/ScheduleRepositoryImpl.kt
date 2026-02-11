@@ -90,25 +90,34 @@ class ScheduleRepositoryImpl @Inject constructor(
 
     override suspend fun refreshSchedules() {
         try {
-            // 기기 캘린더 최신 데이터 로드
-            val normalSchedules = normalDataSource.getSchedules()
+            // 1. 캘린더 프로바이더(시스템)에서 가져온 목록
+            val systemSchedules = normalDataSource.getSchedules()
+            val systemIds = systemSchedules.map { it.id }
 
-            // 현재 로컬 DB 데이터 조회
-            val localSchedules = scheduleDao.getAllSchedulesOnce()
-            val localScheduleMap = localSchedules.associateBy { it.id }
+            withContext(Dispatchers.IO) {
+                // 2. 현재 내 룸 DB에 있는 전체 목록 (핀 상태 유지용)
+                val localSchedules = scheduleDao.getAllSchedulesOnce()
 
-            // 기기 데이터 기준으로 병합 (핀 고정 상태 유지)
-            val mergedSchedules = normalSchedules.map { remote ->
-                val local = localScheduleMap[remote.id]
-                if (local != null) remote.copy(isPinned = local.isPinned) else remote
+                // 3. 시스템에서 삭제된 일정들을 DB에서도 제거
+                // (DAO에서 sourceType을 'SYSTEM'으로 수정하셨으므로 정상 작동합니다)
+                if (systemIds.isNotEmpty()) {
+                    scheduleDao.deleteRemovedDeviceSchedules(systemIds)
+                }
+
+                // 4. 기존 로컬의 핀(isPinned) 상태를 유지하며 병합
+                val localScheduleMap = localSchedules.associateBy { it.id }
+                val mergedSchedules = systemSchedules.map { remote ->
+                    val local = localScheduleMap[remote.id]
+                    // 로컬에 이미 있던 데이터라면 핀 상태를 복사, 없으면 새로 추가
+                    if (local != null) remote.copy(isPinned = local.isPinned) else remote
+                }
+
+                // 5. 최종 데이터 삽입 및 업데이트
+                scheduleDao.insertAll(mergedSchedules)
             }
-
-            // DB 반영
-            scheduleDao.insertAll(mergedSchedules)
-            Log.d("REPO_SYNC", "로컬 일정 ${mergedSchedules.size}개 동기화 완료")
-
         } catch (e: Exception) {
-            Log.e("REPO_SYNC", "새로고침 중 에러: ${e.message}")
+            // 에러 로그는 디버깅을 위해 남겨두는 것이 좋습니다.
+            Log.e("SYNC_CHECK", "동기화 중 에러 발생: ${e.message}")
         }
     }
 
@@ -173,14 +182,23 @@ class ScheduleRepositoryImpl @Inject constructor(
         accessToken: String?,
         request: CreateScheduleRequest,
         placeId: String?,
-        calendarId: Long?
+        calendarId: Long?,
+        selectedColor: Int?
     ) = safeApiCall {
-        val defaultColorStr = "#DC354B"
-        val colorInt = android.graphics.Color.parseColor(defaultColorStr)
+        val defaultColorInt = android.graphics.Color.parseColor("#DC354B")
+        val finalColor = selectedColor ?: defaultColorInt
 
         if (request.route == null) {
-            val systemId = normalDataSource.insertToCalendarProvider(request)
+            // 2. 시스템 캘린더에 저장
+            val systemId = normalDataSource.insertToCalendarProvider(
+                request = request,
+                selectedCalendarId = calendarId,
+                selectedColor = finalColor
+            )
             if (systemId != -1L) {
+                val generatedRRule = buildRRuleFromRequest(request.repeatInfo)
+
+                // 4. 로컬 DB(Room)에 저장할 객체 생성
                 val localSchedule = Schedule(
                     id = systemId,
                     title = request.title,
@@ -201,12 +219,12 @@ class ScheduleRepositoryImpl @Inject constructor(
                     isPinned = false,
                     isSwiped = false,
                     type = "NORMAL",
-                    eventColor = colorInt,
-                    calendarColor = colorInt,
+                    eventColor = finalColor,
+                    calendarColor = finalColor,
                     sourceType = "DEVICE",
                     serverId = null,
                     routeId = null,
-                    repeatRule = null,
+                    repeatRule = generatedRRule,
                     exdate = null
                 )
                 scheduleDao.insertAll(listOf(localSchedule))
@@ -219,7 +237,7 @@ class ScheduleRepositoryImpl @Inject constructor(
             val response = api.createSchedule(token, request)
             if (response.isSuccess && response.result != null) {
                 val serverResult = response.result
-                val newSchedule = serverResult.toEntity(defaultColorStr).copy(
+                val newSchedule = serverResult.toEntity("#DC354B").copy(
                     location = request.place?.targetName,
                     placeJson = if (placeId != null) "{\"placeId\":\"$placeId\"}" else null,
                     calendarId = calendarId ?: 1L
@@ -405,4 +423,34 @@ class ScheduleRepositoryImpl @Inject constructor(
             serverId = this.scheduleId
         )
     }
+
+    private fun buildRRuleFromRequest(info: RepeatInfo?): String? {
+        android.util.Log.d("RRULE_DEBUG", "전달받은 info: $info")
+
+        if (info == null) {
+            android.util.Log.d("RRULE_DEBUG", "info가 null이라 종료합니다.")
+            return null
+        }
+        return try {
+            val rrule = StringBuilder("FREQ=${info.repeatType.uppercase()}")
+            if (info.repeatInterval > 1) rrule.append(";INTERVAL=${info.repeatInterval}")
+            if (!info.daysOfWeek.isNullOrEmpty()) {
+                // "MON,TUE" -> "MO,TU"
+                val days = info.daysOfWeek.split(",")
+                    .map { it.trim().take(2).uppercase() }
+                    .joinToString(",")
+                rrule.append(";BYDAY=$days")
+            }
+            if (info.endType.uppercase() == "COUNT") {
+                rrule.append(";COUNT=${info.endCount}")
+            } else if (info.endType.uppercase() == "DATE" && !info.repeatEndDate.isNullOrEmpty()) {
+                val untilDate = info.repeatEndDate.replace("-", "")
+                rrule.append(";UNTIL=${untilDate}T235959Z")
+            }
+            rrule.toString()
+        } catch (e: Exception) {
+            null
+        }
+    }
+
 }

@@ -21,8 +21,9 @@ interface ScheduleRepository {
     suspend fun createSchedule(
         accessToken: String?,
         request: CreateScheduleRequest,
-        placeId: String? = null,
-        calendarId: Long? = null
+        placeId: String?,
+        calendarId: Long?,
+        selectedColor: Int?
     ): RawDefaultResponse<CreateScheduleResponse>
 
     // 서버 API 관련
