@@ -28,6 +28,7 @@ class AlarmScheduleFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+
         binding.alarmScheduleToolbar.setNavigationOnClickListener {
             parentFragmentManager.popBackStack()
         }
@@ -45,19 +46,30 @@ class AlarmScheduleFragment : Fragment() {
             binding.rbStart2hago, binding.rbStart1dago, binding.rbStart2dago, binding.rbStart1wago
         )
 
-        val initialAlarms = arguments?.getIntArray("currentAlarms")?.toList() ?: emptyList()
+        // 1. 번들 데이터 수신 (Key: "selectedAlarmMinutes")
+        // RouteScheduleFragment에서 넘겨준 이름과 일치해야 합니다.
+        val initialAlarms = arguments?.getIntArray("selectedAlarmMinutes")?.toList() ?: emptyList()
         if (initialAlarms.isNotEmpty()) {
             binding.rbNone.isChecked = false
             initialAlarms.forEach { minutes ->
-                // 분 단위를 텍스트로 변환하여 매칭되는 체크박스를 찾습니다.
                 val targetText = minutesToText(minutes)
-                alarmOptions.find { it.text.toString() == targetText }?.let { checkBox ->
-                    checkBox.isChecked = true
-                    selectedOptions.add(targetText)
+
+                // 💡 trim()을 추가하여 공백 차이를 방지합니다.
+                val foundCheckBox = alarmOptions.find {
+                    it.text.toString().trim() == targetText.trim()
+                }
+
+                if (foundCheckBox != null) {
+                    foundCheckBox.isChecked = true
+                    // 💡 체크박스에 실제로 적힌 텍스트를 담아야 나중에 textToMinutes가 인식합니다.
+                    selectedOptions.add(foundCheckBox.text.toString())
+                } else {
+                    // 여기에 로그를 찍어보세요. targetText가 체크박스 텍스트와 왜 다른지 알 수 있습니다.
+                    android.util.Log.e("ALARM_CHECK", "매칭 실패: $targetText")
                 }
             }
             updateUIAndResult()
-        } else {
+        }else {
             binding.rbNone.isChecked = true
         }
 
@@ -100,6 +112,7 @@ class AlarmScheduleFragment : Fragment() {
     }
 
     private fun updateUIAndResult() {
+        val requestKey = arguments?.getString("requestKey") ?: "scheduleAlarmKey" // 기본값 유지
         // 5개 꽉 찼을 때 설명 텍스트 색상 변경
         if (selectedOptions.size >= 5) {
             binding.tvAlarmDescription.setTextColor(Color.RED)
@@ -121,13 +134,13 @@ class AlarmScheduleFragment : Fragment() {
             putString("selectedAlarm", resultText)
             putIntArray("selectedAlarmMinutes", selectedMinutes) // 💡 숫자 데이터 추가!
         }
-        parentFragmentManager.setFragmentResult("scheduleAlarmKey", bundle)
+        parentFragmentManager.setFragmentResult(requestKey, bundle) // 💡 받은 키로 전달!
     }
 
 
     private fun textToMinutes(text: String): Int {
         return when (text) {
-            "정시" -> 0
+            "일정 시작 시간", "정시" -> 0 // XML 텍스트가 "일정 시작 시간"이므로 추가
             "5분 전" -> 5
             "10분 전" -> 10
             "15분 전" -> 15
@@ -143,7 +156,7 @@ class AlarmScheduleFragment : Fragment() {
 
     private fun minutesToText(minutes: Int): String {
         return when (minutes) {
-            0 -> "정시"
+            0 -> "일정 시작 시간" // XML 텍스트와 일치시킴
             5 -> "5분 전"
             10 -> "10분 전"
             15 -> "15분 전"
@@ -156,6 +169,7 @@ class AlarmScheduleFragment : Fragment() {
             else -> "${minutes}분 전"
         }
     }
+
 
     override fun onDestroyView() {
         super.onDestroyView()

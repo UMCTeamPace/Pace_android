@@ -204,7 +204,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="24dp"
-                android:text="1일 전"
+                android:text="1주일 전"
                 android:button="@null"
                 android:drawableEnd="@drawable/selector_circle_checkbox"
                 android:paddingEnd="16dp"

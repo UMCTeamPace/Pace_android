@@ -49,7 +49,7 @@ class SelectCalendarFragment : Fragment() {
 
     private fun loadCalendarProviders() {
         val calendarList = mutableListOf<CalendarAccount>()
-
+        val currentId = arguments?.getLong("currentCalendarId", -1L)
         val projection = arrayOf(
             CalendarContract.Calendars._ID,
             CalendarContract.Calendars.CALENDAR_DISPLAY_NAME,
@@ -75,26 +75,35 @@ class SelectCalendarFragment : Fragment() {
                 if (type == CalendarContract.ACCOUNT_TYPE_LOCAL || account.isNullOrEmpty()) {
                     account = "내 휴대전화"
                 }
-
                 calendarList.add(CalendarAccount(id, name, account, color))
             }
         }
 
-        // 2. 어댑터 초기화 및 리사이클러뷰 연결
-        calendarAdapter = CalendarSelectAdapter(calendarList)
+        // 호출한 곳에서 보낸 Key (없으면 기본값)
+        val requestKey = arguments?.getString("requestKey") ?: "calendarSelectKey"
+        android.util.Log.d("CALENDAR_SEND", "현재 설정된 RequestKey: $requestKey")
+
+        calendarAdapter = CalendarSelectAdapter(calendarList, currentId) { selected ->
+            // 💡 전송 직전 로그
+            android.util.Log.d("CALENDAR_SEND", "아이템 클릭됨: ${selected.displayName} (ID: ${selected.id})")
+
+            setFragmentResult(requestKey, bundleOf(
+                "calendarId" to selected.id.toLong(),
+                "calendarName" to selected.displayName,
+                "selectedCalendarColor" to selected.color
+            ))
+
+            android.util.Log.d("CALENDAR_SEND", "setFragmentResult 완료 (Key: $requestKey)")
+            parentFragmentManager.popBackStack()
+        }
+
         binding.rvCalendarList.apply {
             this.adapter = calendarAdapter
             layoutManager = LinearLayoutManager(requireContext())
         }
 
-        // 3. [업데이트] 뒤로가기 버튼 리스너 재설정 (데이터 전달 포함)
+        // 💡 2. 상단 뒤로가기 버튼은 이제 '단순 닫기' (취소) 역할만 수행
         binding.btnBack.setOnClickListener {
-            calendarAdapter?.getSelectedItem()?.let { selected ->
-                setFragmentResult("calendarSelectKey", bundleOf(
-                    "selectedCalendarName" to selected.displayName,
-                    "selectedCalendarColor" to selected.color
-                ))
-            }
             parentFragmentManager.popBackStack()
         }
     }
