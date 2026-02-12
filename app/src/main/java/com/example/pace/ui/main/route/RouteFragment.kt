@@ -213,19 +213,19 @@ class RouteFragment : Fragment() {
     private fun showDefaultScheduleOverlay() {
         if (!hasSchedule) return
 
-        // 1. 목데이터 가져오기
         val mockSchedule = MarkScheduleProvider.getMockSchedule()
         val json = mockSchedule.placeJson ?: return
 
-        // 6. UI 가시성 설정 (검색 UI 숨기고 오버레이 보이기)
         binding.routeSearchFcv.visibility = View.GONE
         binding.layoutRouteInputHeader.root.visibility = View.GONE
+        mainBinding?.mainBackIv?.visibility = View.GONE
         mainBinding?.mainToolbar?.visibility = View.VISIBLE // 메인 툴바는 보이게
         mainBinding?.mainBnv?.visibility = View.VISIBLE     // 바텀 네비도 보이게
 
         binding.layoutRouteDetailOverlay.root.visibility = View.VISIBLE
         binding.layoutRouteDetailOverlay.btnRouteDetailBackDetail.visibility = View.GONE
         binding.layoutRouteDetailOverlay.root.bringToFront()
+        binding.layoutRouteDetailOverlay.btnRouteSelect.visibility = View.GONE
 
         // 일정 모드 UI 세팅
         binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.VISIBLE
@@ -273,6 +273,9 @@ class RouteFragment : Fragment() {
             // 헬퍼를 이용해 리사이클러뷰 데이터 채우기
             RouteDetailHelper.setupData(requireContext(), bottomSheetView, routeResponse, mockSchedule.location ?: "")
 
+            startLatLng = null
+            endLatLng = null
+
         } catch (e: Exception) {
             e.printStackTrace()
             Log.e("RouteFragment", "Schedule Overlay Error: ${e.message}")
@@ -282,6 +285,7 @@ class RouteFragment : Fragment() {
     private fun observeRouteViewModel() {
         // 결과 데이터 관찰
         routeViewModel.routeResult.observe(viewLifecycleOwner) { routes ->
+            Log.d("RouteDebug", "데이터 수신: ${routes?.size}개")
             if (routes.isNullOrEmpty()) {
                 android.widget.Toast.makeText(requireContext(), "검색 기록 없음", android.widget.Toast.LENGTH_SHORT).show()
                 // 1. 검색 결과가 없을 때 -> '결과 없음' 뷰 표시
@@ -324,17 +328,23 @@ class RouteFragment : Fragment() {
             }
         }
 
-        // 로딩 상태 관찰 (필요 시 ProgressBar 연동)
-        /*
-        routeViewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            binding.progressBar.isVisible = isLoading // 프로그레스바가 있다면
-        }
-        */
     }
 
     private fun setupMainActivityListeners() {
-        mainBinding?.searchEt?.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus) enterSearchMode()
+        mainBinding?.searchEt?.apply {
+            setOnFocusChangeListener { _, hasFocus ->
+                if (hasFocus) {
+                    enterSearchMode()
+                }
+            }
+
+            setOnClickListener {
+                if (!hasFocus()) {
+                    requestFocus()
+                } else {
+                    enterSearchMode()
+                }
+            }
         }
 
         setupSearchTextWatcher()
@@ -378,6 +388,7 @@ class RouteFragment : Fragment() {
             }
 
             // 좌표 확보 후 API 호출
+            Log.d("Route", "66${selectedStartPlace.toString()}--${selectedEndPlace.toString()} +${startLatLng.toString()}--${endLatLng.toString()} ")
             fetchRouteData()
         }
     }
@@ -423,6 +434,10 @@ class RouteFragment : Fragment() {
     }
 
     private suspend fun fetchLatLngFromPlaceId(placeId: String): LatLng? = suspendCancellableCoroutine { continuation ->
+        if (placeId.isEmpty()) {
+            continuation.resume(null, null)
+            return@suspendCancellableCoroutine
+        }
         if (!::placesClient.isInitialized) {
             Log.e("PlaceApi", "PlacesClient not initialized")
             continuation.resume(null, null)
@@ -523,10 +538,12 @@ class RouteFragment : Fragment() {
             if(placeId == selectedEndPlace?.second || itemName == selectedEndPlace?.first){
                 swapLocations()
             }
+            Log.d("Route", "onLocationSelected 출발지로!")
             selectedStartPlace = Pair(itemName, placeId)
             lifecycleScope.launch {
                 startLatLng = fetchLatLngFromPlaceId(selectedStartPlace!!.second)
             }
+            Log.d("Route", "${selectedStartPlace.toString()}--${selectedEndPlace.toString()}  ")
 
             binding.layoutRouteInputHeader.tvRouteStart.setText(itemName)
             updateClearButtonVisibility()
@@ -551,6 +568,7 @@ class RouteFragment : Fragment() {
         binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
         binding.layoutRouteInputHeader.root.bringToFront()
         mainBinding?.mainToolbar?.visibility = View.GONE
+        mainBinding?.mainBackIv?.visibility = View.GONE
         mainBinding?.searchEt?.setText("")
 
         showSearchRouteFragment()
@@ -561,6 +579,10 @@ class RouteFragment : Fragment() {
         showNameConfirmDialog(name) { finalName ->
             if(isBookmarkSearchMode){
                 handleBookmarkSingleRegistration(finalName, placeId)
+
+                if (::bottomSheetBehavior.isInitialized) {
+                    bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+                }
 
                 binding.layoutMapSelectOverlay.root.visibility = View.GONE
 
@@ -664,6 +686,7 @@ class RouteFragment : Fragment() {
 
                 saveRecentPlace(selectedItem)
                 onLocationSelected(tempName, tempId, isSelectingStart)
+                startLatLng = currentMapCenter
 
                 binding.layoutMapSelectOverlay.root.visibility = View.GONE
                 val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
@@ -703,6 +726,7 @@ class RouteFragment : Fragment() {
         // 1. 기존 검색 UI 숨기기
         binding.routeSearchFcv.visibility = View.GONE
         mainBinding?.mainToolbar?.visibility = View.GONE
+        mainBinding?.mainBackIv?.visibility = View.GONE
         mainBinding?.mainBnv?.visibility = View.GONE
 
         if (::bottomSheetBehavior.isInitialized) {
@@ -722,6 +746,7 @@ class RouteFragment : Fragment() {
 
         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
         mapFrag?.initMapSelectionMode()
+        mapFrag?.clearRoute()
 
         val supportMapFrag = mapFrag?.childFragmentManager
             ?.findFragmentById(R.id.google_map_container) as? SupportMapFragment
@@ -756,7 +781,13 @@ class RouteFragment : Fragment() {
             binding.layoutRouteDetailOverlay.root.visibility = View.VISIBLE
             binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.VISIBLE
             binding.layoutRouteDetailOverlay.btnRouteDetailBackDetail.visibility = View.VISIBLE
+            binding.layoutRouteDetailOverlay.btnRouteSelect.visibility = View.VISIBLE
             binding.layoutRouteDetailOverlay.root.bringToFront()
+
+            binding.layoutRouteDetailOverlay.btnRouteSelect.setOnClickListener {
+                onRouteSelectedFinal(item)
+            }
+
             if(currentEntryMode == EntryMode.SCHEDULE_ROUTE){
                 binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.VISIBLE
             }else{
@@ -904,7 +935,7 @@ class RouteFragment : Fragment() {
 
         mainBinding?.mainSearchLl?.visibility = View.VISIBLE
         binding.routeSearchFcv.visibility = View.GONE
-        mainBinding?.mainBackIv?.visibility = View.GONE
+        mainBinding?.mainBackIv?.visibility = View.VISIBLE
         mainBinding?.mainToolbar?.visibility = View.VISIBLE
         mainBinding?.mainBnv?.visibility = View.VISIBLE
         binding.routeSearchFcv.visibility = View.GONE
@@ -1247,7 +1278,7 @@ private fun selectCurrentLocation() {
         }
 
         val existingRouteFrag = childFragmentManager.findFragmentByTag("ROUTE_RESULT") as? RouteResultFragment
-
+        Log.d("Route", "22${selectedStartPlace.toString()}--${selectedEndPlace.toString()} +${startLatLng.toString()}--${endLatLng.toString()} ")
         if ((selectedStartPlace != null && selectedEndPlace != null) || (startLatLng != null && endLatLng != null)) {
             saveCurrentRoute()
             if (historyFragment.isAdded) transaction.remove(historyFragment)
@@ -1258,6 +1289,7 @@ private fun selectCurrentLocation() {
 
                 existingRouteFrag.onChipSelected = { type ->
                     this.currentTransitType = type
+                    Log.d("Route", "33${selectedStartPlace.toString()}--${selectedEndPlace.toString()}  ")
                     FinalfetchRouteData()
                 }
             } else {
@@ -1265,6 +1297,7 @@ private fun selectCurrentLocation() {
 
                 newRouteFrag.onChipSelected = { type ->
                     this.currentTransitType = type
+                    Log.d("Route", "44${selectedStartPlace.toString()}--${selectedEndPlace.toString()}  ")
                     FinalfetchRouteData()
                 }
 
@@ -1288,6 +1321,7 @@ private fun selectCurrentLocation() {
                 binding.layoutRouteInputHeader.tvTimeFilter.text = "$datePrefix $timeText 도착"
                 binding.layoutRouteInputHeader.tvSortFilter.text = currentSortOption.uiText
             }
+            Log.d("Route", "55${selectedStartPlace.toString()}--${selectedEndPlace.toString()} +${startLatLng.toString()}--${endLatLng.toString()} ")
             FinalfetchRouteData()
 
         } else {
@@ -1345,7 +1379,7 @@ private fun selectCurrentLocation() {
     fun handleMyPlaceClick(myPlace: MyPlace) {
         val name = myPlace.name
         val placeId = myPlace.placeId
-
+        Log.d("Route", "시작${selectedStartPlace.toString()}--${selectedEndPlace.toString()} +${startLatLng.toString()}--${endLatLng.toString()} ")
         when {
             currentEntryMode == EntryMode.SCHEDULE -> {
                 onScheduleLocationSelected(name, placeId)
@@ -1353,6 +1387,7 @@ private fun selectCurrentLocation() {
 
             currentEntryMode == EntryMode.MAIN -> {
                 isSelectingStart = true
+                Log.d("Route", "메인${selectedStartPlace.toString()}--${selectedEndPlace.toString()} +${startLatLng.toString()}--${endLatLng.toString()} ")
                 onLocationSelected(name, placeId, isStart = true)
             }
 
@@ -1622,7 +1657,7 @@ private fun selectCurrentLocation() {
             return // 앱 종료 방지
         }
 
-        if (binding.layoutRouteDetailOverlay.root.visibility == View.VISIBLE) {
+        if (binding.layoutRouteDetailOverlay.root.visibility == View.VISIBLE && currentEntryMode!=EntryMode.MAIN) {
             binding.layoutRouteDetailOverlay.root.visibility = View.GONE
 
             val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
