@@ -81,7 +81,7 @@ class CalendarFragment: Fragment() {
         binding.calendarVp.adapter = calendarFragmentAdapter
         binding.calendarVp.isUserInputEnabled = false
 
-        val tabTitles = listOf("List", "Calendar")
+        val tabTitles = listOf("리스트", "캘린더")
         TabLayoutMediator(binding.calendarTabLayout, binding.calendarVp) { tab, position ->
             tab.text = tabTitles[position]
         }.attach()
