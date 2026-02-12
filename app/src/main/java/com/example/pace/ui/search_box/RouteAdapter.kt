@@ -17,7 +17,7 @@ import com.example.pace.data.model.response.RouteResponse
 import com.example.pace.databinding.ItemRouteBinding
 import com.example.pace.databinding.ItemRouteDetailBriefBinding
 import com.example.pace.databinding.ItemRouteVehicleBinding
-import com.example.pace.ui.WeightCalculator
+import com.example.pace.ui.RouteCalculator
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -61,8 +61,8 @@ class RouteAdapter(
 
             // 시간 자르기 (2026-02-03T09:00:00 -> 09:00)
             // 서버 데이터가 null이거나 형식이 다를 경우를 대비해 안전하게 처리
-            val startTime = convertUtcToKst(item.departureTime)
-            val endTime = convertUtcToKst(item.arrivalTime)
+            val startTime = RouteCalculator.convertUtcToKst(item.departureTime)
+            val endTime = RouteCalculator.convertUtcToKst(item.arrivalTime)
 
             binding.routeDepartureTimeTv.text = startTime
             binding.routeArrivalTimeTv.text = endTime
@@ -140,7 +140,7 @@ class RouteAdapter(
                 }
 
                 // 상단 바(Brief) 뷰 추가 (Weight 적용)
-                val weight = WeightCalculator.forRouteDetailBrief(data.duration)
+                val weight = RouteCalculator.calculateWeight(data.duration)
                 val params = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, weight)
                 binding.routeBriefLl.addView(briefBinding.root, params)
             }
@@ -148,29 +148,6 @@ class RouteAdapter(
             // 클릭 리스너 연결
             binding.root.setOnClickListener { onItemClick(item) }
             binding.routeDetailSelectBtn.setOnClickListener { onSelectClick(item) }
-        }
-        private fun convertUtcToKst(serverDateStr: String?): String {
-            if (serverDateStr.isNullOrEmpty()) return ""
-
-            try {
-                // 1. 서버가 주는 날짜 형식 정의 (예: 2026-02-03T09:00:00)
-                // 만약 서버가 초 단위 뒤에 .000 (밀리초)을 보낸다면 "yyyy-MM-dd'T'HH:mm:ss.SSS"로 수정해야 함
-                val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
-                inputFormat.timeZone = TimeZone.getTimeZone("UTC") // "이 시간은 UTC다"라고 명시
-
-                // 2. 문자열을 Date 객체로 변환
-                val date: Date = inputFormat.parse(serverDateStr) ?: return ""
-
-                // 3. 출력할 형식 정의 (예: 09:00)
-                val outputFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-                outputFormat.timeZone = TimeZone.getTimeZone("Asia/Seoul") // "한국 시간으로 바꿔라" (+9시간)
-
-                return outputFormat.format(date)
-
-            } catch (e: Exception) {
-                e.printStackTrace()
-                return "" // 에러 나면 빈 문자열 반환 (혹은 원래 문자열 반환)
-            }
         }
 
 
