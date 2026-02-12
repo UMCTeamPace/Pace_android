@@ -20,7 +20,7 @@ import com.example.pace.databinding.ItemRouteDetailArrivalBinding
 import com.example.pace.databinding.ItemRouteDetailBriefBinding
 import com.example.pace.databinding.ItemRouteDetailVehicleBinding
 import com.example.pace.databinding.ItemRouteDetailWalkBinding
-import com.example.pace.ui.WeightCalculator
+import com.example.pace.ui.RouteCalculator
 
 object RouteDetailHelper {
 
@@ -28,8 +28,8 @@ object RouteDetailHelper {
         val binding = BottomSheetRouteDetailBinding.bind(bottomSheetView)
 
         // 기본 정보
-        binding.routeDetailDepartureTimeTv.text = item.departureTime.split("T").last().take(5)
-        binding.routeDetailArrivalTimeTv.text = item.arrivalTime.split("T").last().take(5)
+        binding.routeDetailDepartureTimeTv.text = RouteCalculator.convertUtcToKst(item.departureTime)
+        binding.routeDetailArrivalTimeTv.text = RouteCalculator.convertUtcToKst(item.arrivalTime)
         binding.routeDetailTotalTv.text = buildSpannedString {
             append("총 ")
             color(context.resources.getColor(R.color.primary_500)){
@@ -144,7 +144,7 @@ object RouteDetailHelper {
                 }
             }
             // 일직선 데이터 추가
-            val weight = WeightCalculator.forRouteDetailBrief(data.duration)
+            val weight = RouteCalculator.calculateWeight(data.duration)
             val params = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, weight)
             binding.routeDetailBriefLl.addView(briefBinding.root, params)
 

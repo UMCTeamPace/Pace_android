@@ -35,7 +35,7 @@ import com.example.pace.data.util.RouteConstants
 import com.example.pace.databinding.FragmentRouteScheduleBinding
 import com.example.pace.databinding.ItemRouteDetailBriefBinding
 import com.example.pace.databinding.ItemRouteVehicleBinding
-import com.example.pace.ui.WeightCalculator
+import com.example.pace.ui.RouteCalculator
 import com.example.pace.ui.main.calendar.ScheduleViewModel
 import com.google.gson.Gson
 import dagger.hilt.android.AndroidEntryPoint
@@ -134,7 +134,6 @@ class RouteScheduleFragment : Fragment() {
             binding.deleteRouteIv.setOnClickListener {
                 val dialog = DeleteRouteDialog(requireContext()) {
                     setRouteToNull()
-                    Log.d("DEBUG_TAG", route.toString())
                     updateRouteInfo(startName, endName, route)
                 }
                 dialog.show()
@@ -553,7 +552,7 @@ class RouteScheduleFragment : Fragment() {
             binding.routeTv.setTextColor(requireContext().getColor(R.color.text_primary))
             // 일직선 경로 추가
             binding.routeInfoCl.visibility = View.VISIBLE
-            binding.timeTv.text = route.departureTime.split("T").last().take(5) + " - " + route.arrivalTime.split("T").last().take(5)
+            binding.timeTv.text = RouteCalculator.convertUtcToKst(route.departureTime) + " - " + RouteCalculator.convertUtcToKst(route.arrivalTime)
             binding.totalTimeTv.text = if(route.totalTime / 3600L > 0 ){
                 val time = route.totalTime % 3600L
                 if(time / 60L > 0){
@@ -638,7 +637,7 @@ class RouteScheduleFragment : Fragment() {
                 }
 
                 // 상단 바(Brief) 뷰 추가 (Weight 적용)
-                val weight = WeightCalculator.forRouteDetailBrief(data.duration)
+                val weight = RouteCalculator.calculateWeight(data.duration)
                 val params = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, weight)
                 binding.routeBriefLl.addView(briefBinding.root, params)
             }

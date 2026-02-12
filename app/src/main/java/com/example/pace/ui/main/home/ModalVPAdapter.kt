@@ -19,7 +19,7 @@ import com.example.pace.data.model.response.RouteDetailResponse
 import com.example.pace.data.model.response.RouteInfo
 import com.example.pace.databinding.ItemRouteDetailBriefBinding
 import com.example.pace.databinding.ItemRouteVehicleBinding
-import com.example.pace.ui.WeightCalculator
+import com.example.pace.ui.RouteCalculator
 import com.example.pace.ui.main.calendar.ScheduleViewModel
 import dagger.hilt.android.qualifiers.ActivityContext
 
@@ -123,8 +123,8 @@ class ModalVPAdapter(
                     // 데이터 바인딩
                     // 기본 정보 세팅
                     binding.modalRouteTv.text = route?.originName + " -> " + route?.destName
-                    val startTime = route?.departureTime?.split("T")?.last()?.take(5)
-                    val endTime = route?.arrivalTime?.split("T")?.last()?.take(5)
+                    val startTime = RouteCalculator.convertUtcToKst(route?.departureTime)
+                    val endTime = RouteCalculator.convertUtcToKst(route?.arrivalTime)
                     binding.modalRouteTimeTv.text = startTime + " -> " + endTime
                     binding.modalTotalTimeTv.text = "총 ${route?.totalTime?.div(60)}분 소요"
 
@@ -200,7 +200,7 @@ class ModalVPAdapter(
                         if(briefBinding.root.parent != null){
                             (briefBinding.root.parent as ViewGroup).removeView(briefBinding.root)
                         }
-                        val weight = WeightCalculator.forRouteDetailBrief(data.duration)
+                        val weight = RouteCalculator.calculateWeight(data.duration)
                         val params = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, weight)
                         binding.modalRouteBriefLl.addView(briefBinding.root, params)
 
