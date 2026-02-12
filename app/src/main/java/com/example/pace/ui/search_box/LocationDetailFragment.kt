@@ -1,26 +1,36 @@
 package com.example.pace.ui.search_box
 
 import android.graphics.Bitmap
+import android.location.Location
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import com.example.pace.databinding.FragmentLocationDetailBinding
 import com.example.pace.R
+import com.example.pace.data.viewmodel.GroupViewModel
 import com.example.pace.ui.main.route.RouteFragment
+import com.example.pace.ui.search_box.group.GroupSelectBottomSheet
+import com.google.android.gms.maps.model.LatLng
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.net.FetchPhotoRequest
 import com.google.android.libraries.places.api.net.FetchPlaceRequest
 import com.google.android.libraries.places.api.net.PlacesClient
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class LocationDetailFragment : Fragment() {
 
     private var _binding: FragmentLocationDetailBinding? = null
     private val binding get() = _binding!!
+    private val groupViewModel: GroupViewModel by viewModels()
     private lateinit var placesClient: PlacesClient
 
     override fun onCreateView(
@@ -35,14 +45,20 @@ class LocationDetailFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         placesClient = Places.createClient(requireContext())
 
+        observeViewModel()
+
         val name = arguments?.getString("name") ?: ""
-        val info = arguments?.getString("info") ?: ""
+        val category = arguments?.getString("category") ?: ""
+        val address = arguments?.getString("address") ?: ""
+        val defaultDistance = arguments?.getString("distance") ?: ""
         val placeId = arguments?.getString("placeId") ?: ""
         val openStatus = arguments?.getString("openStatus") ?: ""
-        val isCalendarMode = arguments?.getBoolean("isCalendarMode") ?: false
+        val isScheduleMode = arguments?.getBoolean("isScheduleMode") ?: false
+        val isBookmarkMode = arguments?.getBoolean("isBookmarkMode") ?: false
+        val argLat = arguments?.getDouble("lat", 0.0) ?: 0.0
+        val argLng = arguments?.getDouble("lng", 0.0) ?: 0.0
 
         binding.tvTitle.text = name
-        binding.tvMetaInfo.text = info
         binding.tvOpenStatus.text = openStatus
 
         val context = requireContext()
@@ -53,20 +69,45 @@ class LocationDetailFragment : Fragment() {
         }
         binding.tvOpenStatus.setTextColor(androidx.core.content.ContextCompat.getColor(context, colorResId))
 
+        val parent = parentFragment as? RouteFragment
+        var displayDistance = defaultDistance
+
+        if (argLat != 0.0 && argLng != 0.0) {
+            // 부모의 지도 업데이트 (마커 이동 등)
+            parent?.updateMapFromDetail(name, placeId, argLat, argLng)
+
+            // 내 위치와 타겟 좌표 사이의 거리 실시간 계산
+            val targetLatLng = LatLng(argLat, argLng)
+            val calculatedDist = parent?.calculateDistance(targetLatLng)
+
+            if (!calculatedDist.isNullOrEmpty()) {
+                displayDistance = calculatedDist
+            }
+        }
+        updateMetaInfoText(category, displayDistance, address)
+
         if (placeId.isNotEmpty()) {
             fetchPlacePhotos(placeId)
         } else {
             binding.svPhotos.visibility = View.GONE
         }
 
-        if (isCalendarMode) {
-            binding.icStart.visibility = View.GONE
-            binding.icArrive.visibility = View.GONE
-            binding.icSelectLocation.visibility = View.VISIBLE
-        } else {
-            binding.icStart.visibility = View.VISIBLE
-            binding.icArrive.visibility = View.VISIBLE
-            binding.icSelectLocation.visibility = View.GONE
+        when {
+            isBookmarkMode -> {
+                binding.icStart.visibility = View.GONE
+                binding.icArrive.visibility = View.GONE
+                binding.icSelectLocation.visibility = View.VISIBLE
+            }
+            isScheduleMode -> {
+                binding.icStart.visibility = View.GONE
+                binding.icArrive.visibility = View.GONE
+                binding.icSelectLocation.visibility = View.VISIBLE
+            }
+            else -> {
+                binding.icStart.visibility = View.VISIBLE
+                binding.icArrive.visibility = View.VISIBLE
+                binding.icSelectLocation.visibility = View.GONE
+            }
         }
 
         binding.icStart.setOnClickListener {
@@ -78,6 +119,52 @@ class LocationDetailFragment : Fragment() {
             val parent = parentFragment as? RouteFragment
             parent?.onLocationSelected(name, placeId, isStart = false)
         }
+
+        binding.icSelectLocation.setOnClickListener {
+            val parent = parentFragment as? RouteFragment
+            parent?.onScheduleLocationSelected(name, placeId)
+        }
+
+        binding.icStar.setOnClickListener {
+            val currentPlaceId = arguments?.getString("placeId") ?: ""
+            val originalName = binding.tvTitle.text.toString()
+
+            val bottomSheet = GroupSelectBottomSheet(
+                mode = GroupSelectBottomSheet.Mode.SAVE,
+                placeName = originalName
+            ) { selectedGroupId, userTypedName ->
+                groupViewModel.savePlace(
+                    groupId = selectedGroupId,
+                    placeId = currentPlaceId,
+                    placeName = userTypedName ?: originalName
+                )
+            }
+
+            bottomSheet.show(parentFragmentManager, "GroupSelectBottomSheet")
+        }
+    }
+
+    private fun observeViewModel() {
+        groupViewModel.errorMessage.observe(viewLifecycleOwner) { msg ->
+            if (!msg.isNullOrBlank()) {
+                Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        groupViewModel.isOperationSuccess.observe(viewLifecycleOwner) { isSuccess ->
+            if (isSuccess) {
+                Toast.makeText(requireContext(), "장소 저장 완료!", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun updateMetaInfoText(category: String, distance: String, address: String) {
+        val result = if (distance.isNotEmpty()) {
+            "$category · $distance · $address"
+        } else {
+            "$category · $address"
+        }
+        binding.tvMetaInfo.text = result
     }
 
     private fun fetchPlacePhotos(placeId: String) {
@@ -98,8 +185,10 @@ class LocationDetailFragment : Fragment() {
 
             if (metadataList.isNullOrEmpty()) {
                 binding.svPhotos.visibility = View.GONE
+                (parentFragment as? RouteFragment)?.setBottomSheetFixed(true)
             }else {
                 binding.svPhotos.visibility = View.VISIBLE
+                (parentFragment as? RouteFragment)?.setBottomSheetFixed(false)
                 binding.photoContainer.removeAllViews()
 
                 val count = minOf(metadataList.size, 3)
@@ -119,6 +208,7 @@ class LocationDetailFragment : Fragment() {
             }
         }.addOnFailureListener {
             binding.svPhotos.visibility = View.GONE
+            (parentFragment as? RouteFragment)?.setBottomSheetFixed(true)
         }
     }
 
@@ -164,15 +254,19 @@ class LocationDetailFragment : Fragment() {
     }
 
     companion object {
-        fun newInstance(item: SearchItem, isCalendarMode: Boolean): LocationDetailFragment {
+        fun newInstance(item: SearchItem, isScheduleMode: Boolean, isBookmarkMode: Boolean): LocationDetailFragment {
             val fragment = LocationDetailFragment()
             val bundle = Bundle().apply {
                 putString("name", item.name)
-                val infoString = "${item.category} · ${item.distance} · ${item.address}"
-                putString("info", infoString)
+                putString("category", item.category)
+                putString("address", item.address)
+                putString("distance", item.distance)
                 putString("placeId", item.placeId)
                 putString("openStatus", item.openStatus)
-                putBoolean("isCalendarMode", isCalendarMode)
+                putBoolean("isScheduleMode", isScheduleMode)
+                putBoolean("isBookmarkMode", isBookmarkMode)
+                putDouble("lat", item.lat)
+                putDouble("lng", item.lng)
             }
             fragment.arguments = bundle
             return fragment

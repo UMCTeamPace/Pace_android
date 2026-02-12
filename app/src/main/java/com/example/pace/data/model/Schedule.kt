@@ -26,6 +26,7 @@ import androidx.room.PrimaryKey
  * @param withRoute Pace 앱의 경로 포함 여부 (앱 고유 데이터)
  * @param isCompleted Pace 앱의 일정 완료 여부 (앱 고유 데이터)
  * @param isPinned Pace 앱의 일정 고정 여부 (앱 고유 데이터)
+ * @param type 일정의 종류 (e.g., "NORMAL", "ROUTE") (앱 고유 데이터)
  */
 @Entity(tableName = "schedules")
 data class Schedule(
@@ -60,6 +61,9 @@ data class Schedule(
     @ColumnInfo(name = "repeat_rule")
     val repeatRule: String?,
 
+    @ColumnInfo(name = "exdate")
+    val exdate: String? = null,
+
     @ColumnInfo(name = "calendar_id")
     val calendarId: Long,
 
@@ -76,8 +80,32 @@ data class Schedule(
     val withRoute: Boolean = false,
 
     @ColumnInfo(name = "is_completed")
-    val isCompleted: Boolean = false,
+    var isCompleted: Boolean = false,
     
     @ColumnInfo(name = "is_pinned")
-    val isPinned: Boolean = false
+    var isPinned: Boolean = false,
+
+    @ColumnInfo(name = "is_swiped", defaultValue = "0")
+    var isSwiped: Boolean = false,
+
+    @ColumnInfo(name = "type", defaultValue = "NORMAL")
+    val type: String = "NORMAL",
+
+    @ColumnInfo(name = "event_color")
+    val eventColor: Int?,
+
+    @ColumnInfo(name = "calendar_color")
+    val calendarColor: Int?,
+
+    @ColumnInfo(name = "server_id")
+    val serverId: Long? = null,
+
+    @ColumnInfo(name = "source_type")
+    val sourceType: String = "DEVICE",
+
+    @ColumnInfo(name = "place_json")
+    val placeJson: String? = null,
+
+    @ColumnInfo(name = "route_id")
+    val routeId: Long? = null
 )

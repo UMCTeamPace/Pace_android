@@ -3,83 +3,89 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white">
+    android:background="@color/background">
+
     <TextView
         android:id="@+id/settings_calendar_tv"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="캘린더"
-        android:textAppearance="@style/TextAppearance.App.CaptionLg.Medium"
-        android:layout_marginTop="29dp"
-        android:layout_marginStart="23dp"
+        android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+        android:textStyle="bold"
+        android:layout_marginTop="20dp"
+        android:layout_marginStart="28dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"/>
+
     <LinearLayout
         android:id="@+id/settings_calendar_ll"
         android:layout_width="match_parent"
-        android:layout_height="81dp"
-        android:layout_marginTop="6dp"
-        android:layout_marginStart="18dp"
-        android:layout_marginEnd="17dp"
-        android:background="@drawable/box_multiple_settings"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:layout_marginHorizontal="20dp"
+        android:background="@drawable/box_schedule"
         android:orientation="vertical"
         android:gravity="center"
+        android:padding="16dp"
         app:layout_constraintTop_toBottomOf="@id/settings_calendar_tv"
         app:layout_constraintStart_toStartOf="parent">
+
         <LinearLayout
+            android:id="@+id/settings_calendar_default_ll"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical">
+
             <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:text="기본 캘린더"
                 android:layout_weight="1"
-                android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
-                android:layout_marginStart="19dp"/>
+                android:textAppearance="@style/TextAppearance.App.BodySm.Regular" />
+
             <TextView
                 android:id="@+id/settings_calendar_default_tv"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="내 캘린더"
-                android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
+                android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                android:textColor="@color/text_secondary2"
                 android:layout_marginEnd="3dp"/>
             <ImageView
                 android:id="@+id/settings_calendar_default_iv"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:clickable="true"
-                android:src="@drawable/ic_arrow_closed"
-                android:layout_marginEnd="21dp" />
+                android:src="@drawable/ic_arrow_closed"/>
         </LinearLayout>
+
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:layout_marginTop="8dp"
-            android:layout_marginStart="11dp"
-            android:layout_marginEnd="9dp"
-            android:layout_marginBottom="8dp"
-            android:background="@color/setting_line"/>
+            android:layout_marginVertical="16dp"
+            android:background="@color/gray_100" />
+
         <LinearLayout
+            android:id="@+id/settings_calendar_list_ll"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical">
+
             <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:text="캘린더 목록"
                 android:layout_weight="1"
-                android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
-                android:layout_marginStart="19dp"/>
+                android:textAppearance="@style/TextAppearance.App.BodySm.Regular" />
+
             <ImageView
                 android:id="@+id/settings_calendar_list_iv"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:clickable="true"
-                android:src="@drawable/ic_arrow_closed"
-                android:layout_marginEnd="21dp" />
+                android:src="@drawable/ic_arrow_closed" />
         </LinearLayout>
     </LinearLayout>
 
@@ -88,70 +94,89 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="경로"
-        android:textAppearance="@style/TextAppearance.App.CaptionLg.Medium"
-        android:layout_marginTop="23dp"
-        android:layout_marginStart="23dp"
+        android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+        android:textStyle="bold"
+        android:layout_marginTop="12dp"
+        android:layout_marginStart="28dp"
         app:layout_constraintTop_toBottomOf="@id/settings_calendar_ll"
         app:layout_constraintStart_toStartOf="parent"/>
+
     <LinearLayout
         android:id="@+id/settings_route_ll"
         android:layout_width="match_parent"
-        android:layout_height="47dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="20dp"
         android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:background="@drawable/box_single_settings"
-        android:layout_marginTop="5dp"
-        android:layout_marginStart="18dp"
-        android:layout_marginEnd="17dp"
+        android:gravity="center"
+        android:background="@drawable/box_schedule"
+        android:layout_marginTop="12dp"
+        android:padding="16dp"
         app:layout_constraintTop_toBottomOf="@id/settings_route_tv"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:id="@+id/settings_route_minute_ll"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
         <TextView
             android:id="@+id/settings_route_minute_tv1"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="미리 도착"
             android:layout_weight="1"
-            android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
-            android:layout_marginStart="19dp"/>
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular" />
+
         <TextView
             android:id="@+id/settings_route_minute_tv"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="10분"
-            android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
-            android:layout_marginEnd="3dp"/>
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+            android:layout_marginEnd="2dp"
+            android:textColor="@color/text_secondary2"/>
+
         <ImageView
             android:id="@+id/settings_route_minute_iv"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:clickable="true"
-            android:src="@drawable/ic_arrow_closed"
-            android:layout_marginEnd="21dp" />
+            android:src="@drawable/ic_arrow_closed" />
+        </LinearLayout>
     </LinearLayout>
+
+
     <TextView
         android:id="@+id/settings_alarm_tv"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="알람"
-        android:textAppearance="@style/TextAppearance.App.CaptionLg.Medium"
-        android:layout_marginTop="25dp"
-        android:layout_marginStart="23dp"
+        android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+        android:textStyle="bold"
+        android:layout_marginTop="12dp"
+        android:layout_marginStart="28dp"
         app:layout_constraintTop_toBottomOf="@id/settings_route_ll"
         app:layout_constraintStart_toStartOf="parent"/>
+
     <LinearLayout
         android:id="@+id/settings_alarm_ll"
         android:layout_width="match_parent"
-        android:layout_height="81dp"
-        android:layout_marginTop="6dp"
-        android:layout_marginStart="18dp"
-        android:layout_marginEnd="17dp"
-        android:background="@drawable/box_multiple_settings"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="20dp"
         android:orientation="vertical"
         android:gravity="center"
+        android:background="@drawable/box_schedule"
+        android:layout_marginTop="12dp"
+        android:padding="16dp"
         app:layout_constraintTop_toBottomOf="@id/settings_alarm_tv"
-        app:layout_constraintStart_toStartOf="parent">
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
         <LinearLayout
+            android:id="@+id/settings_reminder_alarm_ll"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
@@ -159,59 +184,58 @@
             <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="리마인드 알림"
+                android:text="일정 알림"
                 android:layout_weight="1"
-                android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
-                android:layout_marginStart="19dp"/>
+                android:textAppearance="@style/TextAppearance.App.BodySm.Regular"/>
             <TextView
                 android:id="@+id/settings_reminder_alarm_tv"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="없음"
-                android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
-                android:layout_marginEnd="3dp"/>
+                android:textColor="@color/text_secondary2"
+                android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                android:layout_marginEnd="2dp"/>
             <ImageView
                 android:id="@+id/settings_reminder_alarm_iv"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:clickable="true"
-                android:src="@drawable/ic_arrow_closed"
-                android:layout_marginEnd="21dp" />
+                android:src="@drawable/ic_arrow_closed" />
         </LinearLayout>
+
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:layout_marginTop="8dp"
-            android:layout_marginStart="11dp"
-            android:layout_marginEnd="9dp"
-            android:layout_marginBottom="8dp"
-            android:background="@color/setting_line"/>
+            android:layout_marginVertical="16dp"
+            android:background="@color/gray_100" />
+
         <LinearLayout
+            android:id="@+id/settings_departure_alarm_ll"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical">
+
             <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:text="출발 알림"
                 android:layout_weight="1"
-                android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
-                android:layout_marginStart="19dp"/>
+                android:textAppearance="@style/TextAppearance.App.BodySm.Regular"/>
             <TextView
                 android:id="@+id/settings_departure_alarm_tv"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="사용자 지정"
-                android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
-                android:layout_marginEnd="3dp"/>
+                android:textColor="@color/text_secondary2"
+                android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                android:layout_marginEnd="2dp"/>
             <ImageView
                 android:id="@+id/settings_departure_alarm_iv"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:clickable="true"
-                android:src="@drawable/ic_arrow_closed"
-                android:layout_marginEnd="21dp" />
+                android:src="@drawable/ic_arrow_closed" />
         </LinearLayout>
     </LinearLayout>
 
@@ -220,129 +244,71 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="권한"
-        android:textAppearance="@style/TextAppearance.App.CaptionLg.Medium"
-        android:layout_marginTop="25dp"
-        android:layout_marginStart="23dp"
+        android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+        android:textStyle="bold"
+        android:layout_marginTop="12dp"
+        android:layout_marginStart="28dp"
         app:layout_constraintTop_toBottomOf="@id/settings_alarm_ll"
         app:layout_constraintStart_toStartOf="parent"/>
+
     <LinearLayout
         android:id="@+id/settings_permission_ll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:layout_marginStart="18dp"
-        android:layout_marginEnd="17dp"
-        android:background="@drawable/box_multiple_settings"
+        android:layout_marginHorizontal="20dp"
         android:orientation="vertical"
+        android:background="@drawable/box_schedule"
+        android:layout_marginTop="12dp"
+        android:padding="16dp"
         app:layout_constraintTop_toBottomOf="@id/settings_permission_tv"
         app:layout_constraintStart_toStartOf="parent">
+
         <TextView
+            android:id="@+id/settings_permission_alarm_iv"
+            android:text="알림 권한"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="알림 권한"
-            android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
-            style="@style/TextColor.Setting"
-            android:layout_marginTop="17dp"
-            android:layout_marginStart="19dp"/>
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular" />
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:layout_marginTop="8dp"
-            android:layout_marginStart="11dp"
-            android:layout_marginEnd="9dp"
-            android:background="@color/setting_line"/>
+            android:layout_marginVertical="16dp"
+            android:background="@color/gray_100" />
+
         <TextView
+            android:id="@+id/settings_permission_location_iv"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="위치 권한"
-            android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
-            style="@style/TextColor.Setting"
-            android:layout_marginTop="13dp"
-            android:layout_marginStart="19dp"/>
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+            />
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:layout_marginTop="8dp"
-            android:layout_marginStart="11dp"
-            android:layout_marginEnd="9dp"
-            android:background="@color/setting_line"/>
+            android:layout_marginVertical="16dp"
+            android:background="@color/gray_100" />
         <TextView
+            android:id="@+id/settings_permission_calendar_iv"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="캘린더 접근 권한"
-            android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
-            style="@style/TextColor.Setting"
-            android:layout_marginTop="13dp"
-            android:layout_marginStart="19dp"
-            android:layout_marginBottom="15dp"/>
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+            />
     </LinearLayout>
 
     <LinearLayout
         android:id="@+id/settings_others_ll"
         android:layout_width="match_parent"
-        android:layout_height="121dp"
-        android:layout_marginTop="17dp"
-        android:layout_marginStart="18dp"
-        android:layout_marginEnd="17dp"
-        android:background="@drawable/box_multiple_settings"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="20dp"
         android:orientation="vertical"
         android:gravity="center"
+        android:background="@drawable/box_schedule"
+        android:layout_marginTop="12dp"
+        android:padding="16dp"
         app:layout_constraintTop_toBottomOf="@id/settings_permission_ll"
         app:layout_constraintStart_toStartOf="parent">
-        <LinearLayout
-            android:id="@+id/settings_review_ll"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:clickable="true"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-            <ImageView
-                android:layout_width="15dp"
-                android:layout_height="15dp"
-                android:layout_marginStart="18dp"
-                android:src="@drawable/ic_review"/>
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="리뷰 남기기"
-                android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
-                android:layout_marginStart="8dp"/>
-        </LinearLayout>
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginTop="8dp"
-            android:layout_marginStart="11dp"
-            android:layout_marginEnd="9dp"
-            android:layout_marginBottom="8dp"
-            android:background="@color/setting_line"/>
-        <LinearLayout
-            android:id="@+id/settings_logout_ll"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:clickable="true"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-            <ImageView
-                android:layout_width="22dp"
-                android:layout_height="25dp"
-                android:layout_marginStart="14dp"
-                android:src="@drawable/ic_logout"/>
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="로그아웃"
-                android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
-                android:layout_marginStart="6dp"/>
-        </LinearLayout>
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginTop="8dp"
-            android:layout_marginStart="11dp"
-            android:layout_marginEnd="9dp"
-            android:layout_marginBottom="8dp"
-            android:background="@color/setting_line"/>
+
         <LinearLayout
             android:id="@+id/settings_signout_ll"
             android:layout_width="match_parent"
@@ -351,15 +317,39 @@
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <ImageView
+                android:layout_width="22dp"
+                android:layout_height="25dp"
+                android:src="@drawable/ic_logout"/>
+            <TextView
+
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="로그아웃"
+                android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                android:layout_marginStart="6dp"/>
+        </LinearLayout>
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginVertical="16dp"
+            android:background="@color/gray_100" />
+
+        <LinearLayout
+            android:id="@+id/settings_withdrawal_ll"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clickable="true"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <ImageView
                 android:layout_width="16dp"
                 android:layout_height="16dp"
-                android:layout_marginStart="17dp"
                 android:src="@drawable/ic_signout"/>
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="탈퇴하기"
-                android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
+                android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
                 android:layout_marginStart="9dp"/>
         </LinearLayout>
     </LinearLayout>

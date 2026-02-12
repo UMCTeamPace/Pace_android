@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/ic_route_detail_color"
+        android:height="28dp" android:width="28dp">
+        <shape xmlns:android="http://schemas.android.com/apk/res/android"
+            android:shape="oval">
+            <solid android:color="@color/route_metropolitan_bus"/>
+        </shape>
+    </item>
+    <item
+        android:id="@+id/ic_route_detail_vehicle"
+        android:drawable="@drawable/ic_bus"
+        android:width="15.07dp" android:height="14.53dp"
+        android:gravity="center"
+        android:top="1dp"
+        android:left="2dp"
+        android:right="1dp"
+        android:bottom="1dp"/>
+</layer-list>

@@ -5,16 +5,25 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import com.example.pace.data.converter.Converters
 import com.example.pace.data.model.Schedule
+import com.example.pace.data.model.UserSettingsEntity // 👈 1. Import 추가
 
-@Database(entities = [Schedule::class], version = 1, exportSchema = false)
+// 👈 2. entities에 UserSettingsEntity 추가
+@Database(
+    entities = [Schedule::class, UserSettingsEntity::class],
+    version = 11, // 👈 3. 구조가 바뀌었으므로 버전을 올립니다 (10 -> 11)
+    exportSchema = false
+)
 @TypeConverters(Converters::class)
 abstract class ScheduleDatabase : RoomDatabase() {
 
     abstract fun scheduleDao(): ScheduleDao
 
+    // 👈 4. UserSettingsDao 접근을 위한 추상 함수 추가
+    abstract fun userSettingsDao(): UserSettingsDao
+
     companion object {
-        // Singleton prevents multiple instances of database opening at the same time.
         @Volatile
         private var INSTANCE: ScheduleDatabase? = null
 
@@ -24,7 +33,9 @@ abstract class ScheduleDatabase : RoomDatabase() {
                     context.applicationContext,
                     ScheduleDatabase::class.java,
                     "schedule_database"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration() // 스키마 변경 시 기존 데이터 삭제 후 재생성
+                    .build()
                 INSTANCE = instance
                 instance
             }

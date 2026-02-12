@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto">
@@ -9,11 +10,12 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:backgroundTint="@color/white"
-        android:scrollbars="none"
+        android:clipToPadding="false"
         android:paddingStart="20dp"
         android:paddingEnd="20dp"
-        android:clipToPadding="false"
-        app:layout_constraintTop_toTopOf="parent">
+        android:scrollbars="none"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:layout_editor_absoluteX="0dp">
 
         <com.google.android.material.chip.ChipGroup
             android:id="@+id/route_chip_group"
@@ -21,47 +23,48 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:layout_marginBottom="8dp"
-            app:singleSelection="true"
-            app:selectionRequired="true">
+            app:selectionRequired="true"
+            app:singleSelection="true">
+
             <com.google.android.material.chip.Chip
-                android:id="@+id/chip_recent_search"
+                android:id="@+id/chip_all"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:checkable="true"
+                android:checked="true"
                 android:text="전체"
-                app:chipMinHeight="36dp"
-                app:chipCornerRadius="18dp"
-                android:checkable="true"
+                android:textColor="@color/selector_chip_text"
                 app:checkedIconVisible="false"
                 app:chipBackgroundColor="@color/selector_chip_background"
-                android:textColor="@color/selector_chip_text"
-                app:chipStrokeColor="@color/selector_chip_text"
-                android:checked="true"/>
+                app:chipCornerRadius="18dp"
+                app:chipMinHeight="36dp"
+                app:chipStrokeColor="@color/selector_chip_text" />
 
             <com.google.android.material.chip.Chip
-                android:id="@+id/chip_recent_place"
+                android:id="@+id/chip_bus"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:checkable="true"
                 android:text="버스"
-                app:chipMinHeight="36dp"
-                app:chipCornerRadius="18dp"
-                android:checkable="true"
+                android:textColor="@color/selector_chip_text"
                 app:checkedIconVisible="false"
                 app:chipBackgroundColor="@color/selector_chip_background"
-                android:textColor="@color/selector_chip_text"
-                app:chipStrokeColor="@color/selector_chip_text"/>
+                app:chipCornerRadius="18dp"
+                app:chipMinHeight="36dp"
+                app:chipStrokeColor="@color/selector_chip_text" />
 
             <com.google.android.material.chip.Chip
-                android:id="@+id/chip_recent_route"
+                android:id="@+id/chip_subway"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="지하철"
-                app:chipMinHeight="36dp"
-                app:chipCornerRadius="18dp"
                 android:checkable="true"
+                android:text="지하철"
+                android:textColor="@color/selector_chip_text"
                 app:checkedIconVisible="false"
                 app:chipBackgroundColor="@color/selector_chip_background"
-                android:textColor="@color/selector_chip_text"
-                app:chipStrokeColor="@color/selector_chip_text"/>
+                app:chipCornerRadius="18dp"
+                app:chipMinHeight="36dp"
+                app:chipStrokeColor="@color/selector_chip_text" />
         </com.google.android.material.chip.ChipGroup>
     </HorizontalScrollView>
 

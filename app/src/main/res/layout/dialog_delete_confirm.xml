@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/dialog_rounded_bg"
+    android:orientation="vertical"
+    android:padding="30dp">
+
+    <TextView
+        android:id="@+id/tv_delete_dialog_message"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        android:gravity="center"
+        android:text="총 3곳의 장소를\n그룹에서 삭제하시겠습니까?"
+        android:textColor="@color/text_primary"
+        android:textSize="14sp"
+        android:fontFamily="@font/pretendard_semibold" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_delete_cancel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:background="@drawable/btn_cancel_bg"
+            android:backgroundTint="@null"
+            android:text="취소"
+            android:textColor="@color/text_secondary"/>
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_delete_confirm"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:background="@drawable/btn_delete_schedule_red"
+            android:text="삭제"
+            android:textColor="@android:color/white" />
+    </LinearLayout>
+
+</LinearLayout>

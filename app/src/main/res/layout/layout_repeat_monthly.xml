@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:layout_marginBottom="8dp"
+        android:text="반복 주기"
+        android:textColor="@color/text_secondary"
+        android:textSize="14sp" />
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="0dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="24dp">
+
+            <EditText
+                android:id="@+id/et_month_interval"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@null"
+                android:inputType="number"
+                android:text="1"
+                android:minWidth="30dp"
+                android:textAlignment="center" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="개월마다"
+                android:textColor="@color/black" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <androidx.cardview.widget.CardView
+        android:layout_marginTop="20dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/box_schedule"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="0dp">
+
+        <RadioGroup
+            android:id="@+id/rg_monthly_detail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="8dp">
+
+            <RadioButton
+                android:id="@+id/rb_monthly_day_fixed"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:text="20일 마다 선택"
+                android:button="@null"
+                android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                android:paddingEnd="16dp"
+                android:drawableTint="@color/selector_radio_button"
+                android:background="@null"
+                android:backgroundTint="@android:color/transparent"
+                android:drawableTintMode="src_in" />
+
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#F1F3F5" />
+
+            <RadioButton
+                android:id="@+id/rb_monthly_ordinal_day"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:text="세번째 금요일 마다 선택"
+                android:button="@null"
+                android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                android:paddingEnd="16dp"
+                android:drawableTint="@color/selector_radio_button"
+                android:background="@null"
+                android:backgroundTint="@android:color/transparent"
+                android:drawableTintMode="src_in" />
+
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#F1F3F5" />
+
+            <RadioButton
+                android:id="@+id/rb_monthly_specific_date"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:text="반복 날짜 선택"
+                android:button="@null"
+                android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                android:paddingEnd="16dp"
+                android:drawableTint="@color/selector_radio_button"
+                android:background="@null"
+                android:backgroundTint="@android:color/transparent"
+                android:drawableTintMode="src_in" />
+
+            <GridLayout
+                android:id="@+id/grid_monthly_dates"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:layout_margin="16dp"
+                android:alignmentMode="alignMargins"
+                android:columnCount="7" />
+        </RadioGroup>
+
+    </androidx.cardview.widget.CardView>
+</LinearLayout>

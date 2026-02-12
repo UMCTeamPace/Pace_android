@@ -6,6 +6,9 @@
     android:layout_height="wrap_content"
     android:background="@color/white"
     android:orientation="vertical"
+    android:elevation="0dp"
+    android:stateListAnimator="@null"
+    android:outlineProvider="none"
     android:paddingBottom="16dp">
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -46,115 +49,164 @@
         android:paddingStart="20dp"
         android:paddingEnd="5dp">
 
-        <LinearLayout
-            android:id="@+id/layout_inputs"
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_start_input"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            app:layout_constraintEnd_toStartOf="@id/btn_swap_location"
+            android:layout_height="52dp"
+            android:background="@drawable/bg_route_edittext"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btn_swap_location"
+            android:layout_marginEnd="5dp">
 
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/layout_start_input"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:background="@drawable/bg_route_edittext">
-                <ImageView
-                    android:id="@+id/iv_start_location"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:src="@drawable/ic_location_pin"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
+            <ImageView
+                android:id="@+id/iv_start_location"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:src="@drawable/ic_location_pin"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
 
-                <TextView
-                    android:id="@+id/tv_route_start"
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:background="@android:color/transparent"
-                    android:hint="출발지 입력"
-                    android:gravity="center_vertical"
-                    android:paddingHorizontal="8dp"
-                    android:singleLine="true"
-                    android:textSize="16sp"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintEnd_toStartOf="@id/btn_start_clear"
-                    app:layout_constraintHorizontal_bias="0.0"
-                    app:layout_constraintStart_toEndOf="@id/iv_start_location"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:layout_constraintVertical_bias="0.0" />
+            <TextView
+                android:id="@+id/tv_route_start"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:background="@android:color/transparent"
+                android:hint="출발지 입력"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="8dp"
+                android:singleLine="true"
+                android:textSize="16sp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/btn_start_clear"
+                app:layout_constraintStart_toEndOf="@id/iv_start_location"
+                app:layout_constraintTop_toTopOf="parent" />
 
-                <ImageView
-                    android:id="@+id/btn_start_clear"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:padding="10dp"
-                    android:src="@drawable/ic_close"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
-            </androidx.constraintlayout.widget.ConstraintLayout>
+            <ImageView
+                android:id="@+id/btn_start_clear"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:padding="10dp"
+                android:src="@drawable/ic_close"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
-            <View android:layout_width="match_parent" android:layout_height="12dp" />
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_end_input"
+            android:layout_width="0dp"
+            android:layout_height="52dp"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_route_edittext"
+            app:layout_constraintTop_toBottomOf="@id/layout_start_input"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btn_swap_location"
+            android:layout_marginEnd="5dp">
 
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/layout_end_input"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:background="@drawable/bg_route_edittext">
-                <ImageView
-                    android:id="@+id/iv_end_location"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:src="@drawable/ic_location_pin"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
-                <TextView
-                    android:id="@+id/tv_route_end"
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:background="@android:color/transparent"
-                    android:hint="도착지 입력"
-                    android:gravity="center_vertical"
-                    android:paddingHorizontal="8dp"
-                    android:singleLine="true"
-                    android:textSize="16sp"
-                    app:layout_constraintEnd_toStartOf="@id/btn_end_clear"
-                    app:layout_constraintStart_toEndOf="@id/iv_end_location"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:layout_constraintBottom_toBottomOf="parent" />
-                <ImageView
-                    android:id="@+id/btn_end_clear"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:padding="10dp"
-                    android:src="@drawable/ic_close"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
-            </androidx.constraintlayout.widget.ConstraintLayout>
-        </LinearLayout>
+            <ImageView
+                android:id="@+id/iv_end_location"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:src="@drawable/ic_location_pin"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/tv_route_end"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:background="@android:color/transparent"
+                android:hint="도착지 입력"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="8dp"
+                android:singleLine="true"
+                android:textSize="16sp"
+                app:layout_constraintEnd_toStartOf="@id/btn_end_clear"
+                app:layout_constraintStart_toEndOf="@id/iv_end_location"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
+            <ImageView
+                android:id="@+id/btn_end_clear"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:padding="10dp"
+                android:src="@drawable/ic_close"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
         <ImageView
             android:id="@+id/btn_swap_location"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
             android:src="@drawable/ic_arrow_twoway"
             android:padding="10dp"
-
-            app:layout_constraintTop_toTopOf="@id/layout_inputs"
-            app:layout_constraintBottom_toBottomOf="@id/layout_inputs"
-
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/layout_inputs"/>
+            app:layout_constraintTop_toTopOf="@id/layout_start_input"
+            app:layout_constraintBottom_toBottomOf="@id/layout_start_input" />
+
+        <ImageView
+            android:id="@+id/btn_save_route"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_favorites"
+            android:padding="10dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="@id/btn_swap_location"
+            app:layout_constraintTop_toTopOf="@id/layout_end_input"
+            app:layout_constraintBottom_toBottomOf="@id/layout_end_input" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_filter_options"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="20dp"
+        android:layout_marginTop="16dp">
+
+        <TextView
+            android:id="@+id/tv_time_filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="오늘 13시 도착"
+            android:textColor="@color/primary_500"
+            android:textSize="14sp"
+            android:fontFamily="@font/pretendard_semibold"
+            android:drawableEnd="@drawable/ic_arrow_down"
+            android:drawablePadding="4dp"
+            android:background="?attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            app:drawableTint="#A2BD3B"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"/>
+
+        <TextView
+            android:id="@+id/tv_sort_filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="최적 경로순"
+            android:textColor="@color/gray_600"
+            android:textSize="14sp"
+            android:fontFamily="@font/pretendard_medium"
+            android:drawableEnd="@drawable/ic_arrow_down"
+            android:drawablePadding="4dp"
+            android:background="?attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            app:drawableTint="@color/gray_600"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"/>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </LinearLayout>

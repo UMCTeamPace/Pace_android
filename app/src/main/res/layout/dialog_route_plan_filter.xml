@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_bottom_sheet_rounded"
+    android:orientation="vertical"
+    android:paddingTop="24dp"
+    android:paddingBottom="24dp"
+    android:paddingStart="24dp"
+    android:paddingEnd="24dp">
+
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/tl_time_mode_route_plan_filter"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:background="@android:color/transparent"
+        app:tabIndicatorColor="#A2BD3B"
+        app:tabIndicatorHeight="2dp"
+        app:tabSelectedTextColor="#A2BD3B"
+        app:tabTextColor="@color/gray_400"
+        app:tabRippleColor="@null"
+        app:tabTextAppearance="@style/TextAppearance.AppCompat.Body2">
+
+        <com.google.android.material.tabs.TabItem
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="출발 시간 기준" />
+
+        <com.google.android.material.tabs.TabItem
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="도착 시간 기준" />
+    </com.google.android.material.tabs.TabLayout>
+
+    <LinearLayout
+        android:id="@+id/ll_picker_container_route_plan_filter"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:layout_marginBottom="24dp">
+
+        <NumberPicker
+            android:id="@+id/np_date_route_plan_filter"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1.2"
+            android:descendantFocusability="blocksDescendants"
+            android:theme="@style/CustomNumberPicker" />
+
+        <NumberPicker
+            android:id="@+id/np_hour_route_plan_filter"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:descendantFocusability="blocksDescendants"
+            android:theme="@style/CustomNumberPicker" />
+
+        <NumberPicker
+            android:id="@+id/np_minute_route_plan_filter"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:descendantFocusability="blocksDescendants"
+            android:theme="@style/CustomNumberPicker" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_cancel_route_plan_filter"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:background="@drawable/btn_cancel_bg"
+            android:backgroundTint="@null"
+            android:text="취소"
+            android:textColor="@color/text_secondary"/>
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_save_route_plan_filter"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:background="@drawable/btn_confirm_bg"
+            android:text="저장"
+            android:textColor="@android:color/white" />
+    </LinearLayout>
+
+</LinearLayout>

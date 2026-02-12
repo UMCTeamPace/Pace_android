@@ -4,6 +4,7 @@
     android:layout_height="156dp"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:background="@drawable/box_setting_dialog">
+
     <LinearLayout
         android:id="@+id/signout_tv_ll"
         android:layout_width="wrap_content"
@@ -18,15 +19,10 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="정말 탈퇴하시겠습니까?"
+            android:text="로그아웃 하시겠습니까?"
             android:textAppearance="@style/TextAppearance.App.BodyMd.Medium"
             style="@style/TextColor.Setting"/>
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="모든 데이터는 삭제됩니다"
-            android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
-            style="@style/TextColor.Setting"/>
+
     </LinearLayout>
     <LinearLayout
         android:layout_width="match_parent"
@@ -36,6 +32,7 @@
         android:layout_marginEnd="22dp"
         app:layout_constraintTop_toBottomOf="@id/signout_tv_ll"
         app:layout_constraintStart_toStartOf="parent">
+
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/signout_cancel_btn"
             android:layout_width="122dp"
@@ -44,8 +41,9 @@
             android:layout_marginEnd="11dp"
             android:background="@drawable/btn_setting_dialog"
             android:stateListAnimator="@null"/>
+
         <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/signout_confirm_btn"
+            android:id="@+id/signout_ok_btn"
             android:layout_width="122dp"
             android:layout_height="38dp"
             android:text="확인"

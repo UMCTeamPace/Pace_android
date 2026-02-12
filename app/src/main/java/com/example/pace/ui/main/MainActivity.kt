@@ -27,10 +27,25 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.material.bottomsheet.BottomSheetBehavior
+import androidx.activity.viewModels
+import com.example.pace.AlertActivity
+import com.example.pace.PaceApplication
+import com.example.pace.data.db.ScheduleDatabase
+import com.example.pace.data.datasource.NormalScheduleRemoteDataSource
+import com.example.pace.ui.main.calendar.ScheduleViewModel
+import com.example.pace.ui.main.calendar.ScheduleViewModelFactory
+import com.example.pace.data.repository.repository.ScheduleRepository
+import dagger.hilt.android.AndroidEntryPoint // 추가
 
+@AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
     lateinit var binding: ActivityMainBinding
     private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private val viewModel: ScheduleViewModel by viewModels()
+    // ViewModel injection
+
+
+    fun getSharedViewModel(): ScheduleViewModel = viewModel
 
     // 내 위치 저장
     var myLocation: android.location.Location? = null
@@ -54,9 +69,20 @@ class MainActivity : AppCompatActivity() {
         Log.d("MainActivity", "onCreate3: checkCalendarPermissions()")
         val readGranted = permissions[Manifest.permission.READ_CALENDAR] ?: false
         val writeGranted = permissions[Manifest.permission.WRITE_CALENDAR] ?: false
-        if (!readGranted || !writeGranted) {
-            // Handle the case where permissions are not granted, maybe show a toast or a dialog.
+        if (readGranted && writeGranted) {
+            // 권한이 허용된 "직후"에 데이터를 새로고침하여 튕김 방지 및 데이터 표시
+            Log.d("MainActivity", "권한 허용됨: 데이터 리프레쉬 시작")
+            viewModel.refreshSchedules()
+        } else {
+            // 필수 권한이 없으면 앱 이용이 어려우므로 토스트를 띄우거나 온보딩으로 재유도 가능
+            Log.d("MainActivity", "달력 권한 거부됨")
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIntent(intent)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,11 +91,15 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        checkCalendarPermissions()
-        Log.d("MainActivity", "onCreate1: checkCalendarPermissions()")
+//        // 테스트를 위해 바로 AlertActivity 실행!
+//        val intent = Intent(this, AlertActivity::class.java)
+//        intent.putExtra("MINUTES_LEFT", 15) // 테스트하고 싶은 시간(분)을 넣어보세요
+//        startActivity(intent)
 
         // 1. 초기화 (위치, Places API, 바텀시트)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
+        checkCalendarPermissions()
 
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
@@ -78,7 +108,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         // 2. 초기 화면 설정 (Home)
-        supportFragmentManager.beginTransaction().replace(R.id.main_fcv, HomeFragment()).commit()
+        if (savedInstanceState == null) {
+            supportFragmentManager.beginTransaction().replace(R.id.main_fcv, HomeFragment()).commit()
+        }
 
         // 초기 툴바 상태 설정 (Home 기준)
         binding.mainLogoIv.visibility = View.VISIBLE
@@ -100,6 +132,8 @@ class MainActivity : AppCompatActivity() {
         binding.mainSettingsIv.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
+
+        handleIntent(intent)
     }
 
     private fun checkCalendarPermissions() {
@@ -115,21 +149,31 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ★ [위치] 화면이 보일 때 업데이트 재개
     override fun onResume() {
         super.onResume()
+        // Resume location updates
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             startLocationUpdates()
         }
+        // [수정] 캘린더 권한이 있을 때만 새로고침 호출
+        val isCalendarAllowed = androidx.core.content.ContextCompat.checkSelfPermission(
+            this, android.Manifest.permission.READ_CALENDAR
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+        if (isCalendarAllowed) {
+            android.util.Log.d("MainActivity", "onResume: 권한 확인됨, 데이터 리프레쉬 실행")
+            viewModel.refreshSchedules()
+        } else {
+            android.util.Log.d("MainActivity", "onResume: 여전히 권한 없음, 스킵")
+        }
+
     }
 
-    // ★ [위치] 화면이 안 보일 때 배터리 절약을 위해 중지
     override fun onPause() {
         super.onPause()
         fusedLocationClient.removeLocationUpdates(locationCallback)
     }
 
-    // ★ [위치] 권한 체크 및 업데이트 시작 요청 (MapFragment 등에서 호출)
     fun checkPermissionAndStart() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             startLocationUpdates()
@@ -138,14 +182,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ★ [위치] 실제 업데이트 시작 함수
     @SuppressLint("MissingPermission")
     fun startLocationUpdates() {
-        // 10초마다, 혹은 10m 이동 시 갱신
-        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000)
+        // 2초마다, 혹은 2m 이동 시 갱신
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 2000)
             .setMinUpdateDistanceMeters(2f)
             .build()
         fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        val actionMode = intent?.getStringExtra("ACTION_MODE")
+
+        if (actionMode == "SCHEDULE" || actionMode == "SCHEDULE_ROUTE") {
+            binding.mainBnv.selectedItemId = R.id.route
+        }
     }
 
 
