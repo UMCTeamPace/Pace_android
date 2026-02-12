@@ -19,6 +19,9 @@ class SplashActivity : AppCompatActivity() {
         setContentView(R.layout.activity_splash)
 
         val lottieView = findViewById<LottieAnimationView>(R.id.lottieAnimationView)
+
+        lottieView.speed = -0.6f
+
         lottieView.addAnimatorListener(object : Animator.AnimatorListener {
 
             override fun onAnimationEnd(animation: Animator) {

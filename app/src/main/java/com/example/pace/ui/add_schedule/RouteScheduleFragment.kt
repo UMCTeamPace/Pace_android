@@ -1,6 +1,6 @@
 package com.example.pace.ui.add_schedule
 
-import android.R.attr.end
+import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
@@ -41,7 +41,8 @@ import com.example.pace.data.viewmodel.SettingsViewModel
 import com.example.pace.databinding.FragmentRouteScheduleBinding
 import com.example.pace.databinding.ItemRouteDetailBriefBinding
 import com.example.pace.databinding.ItemRouteVehicleBinding
-import com.example.pace.ui.WeightCalculator
+import com.example.pace.ui.RouteCalculator
+import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.main.calendar.ScheduleViewModel
 import com.example.pace.ui.onboarding.CalendarSelectFragment
 import com.google.gson.Gson
@@ -218,6 +219,7 @@ class RouteScheduleFragment : Fragment() {
 """.trimIndent()
 
         Toast.makeText(requireContext(), toastMessage, Toast.LENGTH_LONG).show()
+
         initTimePickers()
 
         updateTimeVisibility()
@@ -472,6 +474,10 @@ class RouteScheduleFragment : Fragment() {
 """.trimIndent()
             )
             Toast.makeText(context, "일정이 저장되었습니다.", Toast.LENGTH_SHORT).show()
+            val intent = Intent(context, MainActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK
+            startActivity(intent)
+            activity?.finish()
         }
 
         binding.btnCancel.setOnClickListener {
@@ -556,9 +562,6 @@ class RouteScheduleFragment : Fragment() {
 
         binding.viewColorDot.setOnClickListener {
             if (binding.layoutColorSelector.visibility == View.GONE) {
-                // 1. 애니메이션 함수가 있다면 호출 (일반 일정에 있던 것)
-                // animateLayoutChange()
-
                 binding.layoutColorSelector.visibility = View.VISIBLE
 
                 // 💡 중요: 캘린더 뷰 자체가 아니라, '감싸고 있는 컨테이너'를 GONE 시킵니다.
@@ -691,10 +694,8 @@ class RouteScheduleFragment : Fragment() {
             binding.routeTv.setTextColor(requireContext().getColor(R.color.text_primary))
             // 일직선 경로 추가
             binding.routeInfoCl.visibility = View.VISIBLE
-            binding.timeTv.text =
-                route.departureTime.split("T").last().take(5) + " - " + route.arrivalTime.split("T")
-                    .last().take(5)
-            binding.totalTimeTv.text = if (route.totalTime / 3600L > 0) {
+            binding.timeTv.text = RouteCalculator.convertUtcToKst(route.departureTime) + " - " + RouteCalculator.convertUtcToKst(route.arrivalTime)
+            binding.totalTimeTv.text = if(route.totalTime / 3600L > 0 ){
                 val time = route.totalTime % 3600L
                 if (time / 60L > 0) {
                     "${route.totalTime / 3600L}시간 ${time / 60L}분"
@@ -814,9 +815,8 @@ class RouteScheduleFragment : Fragment() {
                 }
 
                 // 상단 바(Brief) 뷰 추가 (Weight 적용)
-                val weight = WeightCalculator.forRouteDetailBrief(data.duration)
-                val params =
-                    LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, weight)
+                val weight = RouteCalculator.calculateWeight(data.duration)
+                val params = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, weight)
                 binding.routeBriefLl.addView(briefBinding.root, params)
             }
         } else {

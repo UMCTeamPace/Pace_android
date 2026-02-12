@@ -87,7 +87,6 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     }
 
     fun drawRouteOnMap(routeItem: RouteResponse, finalStart: LatLng?, finalEnd: LatLng?) {
-        // 1. 데이터 검증 (DTO의 실제 리스트 변수명으로 설정하세요)
         val details = routeItem.routeDetails
 
         if (details.isNullOrEmpty()) {
@@ -100,7 +99,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
 
         // 2. [추가] 실제 출발지 마커 및 첫 번째 데이터 지점까지 연결
         if (finalStart != null) {
-            googleMap?.addMarker(MarkerOptions().position(finalStart).title("출발지"))
+//            googleMap?.addMarker(MarkerOptions().position(finalStart).title("출발지"))
             boundsBuilder.include(finalStart)
 
             val firstDetail = details.first()
@@ -166,9 +165,17 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             }
         }
 
-        // 4. [추가] 마지막 데이터 지점에서 실제 도착지 마커까지 연결
         if (finalEnd != null) {
-            googleMap?.addMarker(MarkerOptions().position(finalEnd).title("도착지"))
+            val markerOptions = MarkerOptions()
+                .position(finalEnd)
+                .zIndex(20f)
+
+            val icon = getResizedBitmapDescriptor(requireContext(), R.drawable.ic_my_location_pin, 48, 48)
+            if (icon != null) {
+                markerOptions.icon(icon)
+            }
+
+            googleMap?.addMarker(markerOptions)
             boundsBuilder.include(finalEnd)
 
             val lastDetail = details.last()
@@ -190,6 +197,33 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             googleMap?.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 150))
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    private fun getResizedBitmapDescriptor(context: Context, vectorResId: Int, widthDp: Int, heightDp: Int): com.google.android.gms.maps.model.BitmapDescriptor? {
+        try {
+            val vectorDrawable = androidx.core.content.ContextCompat.getDrawable(context, vectorResId)
+                ?: return null
+
+            // DP를 픽셀(PX)로 변환
+            val density = context.resources.displayMetrics.density
+            val widthPx = (widthDp * density).toInt()
+            val heightPx = (heightDp * density).toInt()
+
+            // 0보다 작으면 기본값 방어 코드
+            val w = if (widthPx > 0) widthPx else 100
+            val h = if (heightPx > 0) heightPx else 100
+
+            // 해당 크기로 비트맵 생성
+            vectorDrawable.setBounds(0, 0, w, h)
+            val bitmap = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+            val canvas = android.graphics.Canvas(bitmap)
+            vectorDrawable.draw(canvas)
+
+            return com.google.android.gms.maps.model.BitmapDescriptorFactory.fromBitmap(bitmap)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return null
         }
     }
 
@@ -268,13 +302,25 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         map.animateCamera(CameraUpdateFactory.newLatLngZoom(position, 17.5f))
     }
 
-    private fun bitmapDescriptorFromVector(context: Context, vectorResId: Int): BitmapDescriptor? {
-        val vectorDrawable = ContextCompat.getDrawable(context, vectorResId) ?: return null
-        vectorDrawable.setBounds(0, 0, vectorDrawable.intrinsicWidth, vectorDrawable.intrinsicHeight)
-        val bitmap = Bitmap.createBitmap(vectorDrawable.intrinsicWidth, vectorDrawable.intrinsicHeight, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-        vectorDrawable.draw(canvas)
-        return BitmapDescriptorFactory.fromBitmap(bitmap)
+    private fun bitmapDescriptorFromVector(context: Context, vectorResId: Int): com.google.android.gms.maps.model.BitmapDescriptor? {
+        try {
+            val vectorDrawable = androidx.core.content.ContextCompat.getDrawable(context, vectorResId)
+                ?: return null // 리소스를 못 찾으면 null 반환
+
+            // 크기가 0보다 작으면(정보가 없으면) 기본값 100으로 설정하여 튕김 방지
+            val w = if (vectorDrawable.intrinsicWidth > 0) vectorDrawable.intrinsicWidth else 100
+            val h = if (vectorDrawable.intrinsicHeight > 0) vectorDrawable.intrinsicHeight else 100
+
+            vectorDrawable.setBounds(0, 0, w, h)
+            val bitmap = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+            val canvas = android.graphics.Canvas(bitmap)
+            vectorDrawable.draw(canvas)
+
+            return com.google.android.gms.maps.model.BitmapDescriptorFactory.fromBitmap(bitmap)
+        } catch (e: Exception) {
+            e.printStackTrace() // 로그에 에러 출력
+            return null // 에러 나면 아이콘 없이 진행
+        }
     }
 
     fun initMapSelectionMode() {
