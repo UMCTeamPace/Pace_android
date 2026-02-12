@@ -1,5 +1,6 @@
 package com.example.pace.ui.add_schedule
 
+import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -36,6 +37,7 @@ import com.example.pace.databinding.FragmentRouteScheduleBinding
 import com.example.pace.databinding.ItemRouteDetailBriefBinding
 import com.example.pace.databinding.ItemRouteVehicleBinding
 import com.example.pace.ui.RouteCalculator
+import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.main.calendar.ScheduleViewModel
 import com.google.gson.Gson
 import dagger.hilt.android.AndroidEntryPoint
@@ -247,6 +249,10 @@ class RouteScheduleFragment : Fragment() {
     경로 포함 여부: ${request.route != null}
 """.trimIndent())
             Toast.makeText(context, "일정이 저장되었습니다.", Toast.LENGTH_SHORT).show()
+            val intent = Intent(context, MainActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK
+            startActivity(intent)
+            activity?.finish()
         }
 
         binding.btnCancel.setOnClickListener {

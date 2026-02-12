@@ -6,20 +6,25 @@ import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.app.AlertDialog
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.os.StrictMode
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.view.ViewTreeObserver
 import android.view.animation.DecelerateInterpolator
 import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.LinearLayout
 import android.widget.NumberPicker
 import android.widget.TextView
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
 import androidx.core.content.ContextCompat
 import androidx.core.view.children
 import androidx.fragment.app.Fragment
@@ -45,7 +50,11 @@ import androidx.viewpager2.widget.ViewPager2
 import kotlinx.coroutines.*
 import java.time.LocalTime
 import androidx.fragment.app.activityViewModels // 추가
+import com.example.pace.databinding.ItemMonthViewMultipleDaysBinding
+import com.example.pace.databinding.ItemMonthViewSingleDayBinding
 import dagger.hilt.android.AndroidEntryPoint // 추가
+import java.text.DateFormat
+
 @AndroidEntryPoint
 class CalendarPageFragment: Fragment() {
     private var _binding: FragmentCalendarPageBinding? = null
@@ -56,6 +65,8 @@ class CalendarPageFragment: Fragment() {
 
     // 2. 캘린더에 표시할 데이터를 담을 Map (날짜 -> 일정 리스트)
     private var events = mapOf<LocalDate, List<Schedule>>()
+    private var allSchedules:List<Schedule> = emptyList()
+    private var sortedDates: List<String> = emptyList()
 
     private var selectedMonth: YearMonth = YearMonth.now()
     private var selectedDate: LocalDate? = null
@@ -107,6 +118,7 @@ class CalendarPageFragment: Fragment() {
         class DayViewContainer(view: View) : ViewContainer(view) {
             val rootLayout: ConstraintLayout = view.findViewById(R.id.root_layout)
             val textView: TextView = view.findViewById(R.id.calendarDayText)
+            val eventContainer: LinearLayout = view.findViewById(R.id.eventsContainer)
             lateinit var date: LocalDate
             init {
                 rootLayout.setOnClickListener { selectDate(date) }
@@ -121,6 +133,7 @@ class CalendarPageFragment: Fragment() {
                 // [수정] 현재 달의 날짜(MonthDate)일 때만 '활성화' 상태로 UI 업데이트
                 val isCurrentMonth = day.position == DayPosition.MonthDate
                 updateDayUI(container.textView, container.rootLayout, day.date, isCurrentMonth)
+                updateMonthBinderScheduleUI(container.eventContainer, day.date)
             }
         }
 
@@ -128,7 +141,7 @@ class CalendarPageFragment: Fragment() {
             override fun create(view: View) = DayViewContainer(view)
             override fun bind(container: DayViewContainer, day: WeekDay) {
                 container.date = day.date
-                updateDayUI(container.textView, container.rootLayout, day.date, true)
+                updateDayUI(container.textView,container.rootLayout, day.date, true)
             }
         }
 
@@ -269,6 +282,13 @@ class CalendarPageFragment: Fragment() {
                 }
 
                 // 캘린더 새로고침
+                binding.calendarView.notifyCalendarChanged()
+                binding.weekCalendarView.notifyCalendarChanged()
+            }
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.allSchedules.collectLatest {
+                allSchedules = it
                 binding.calendarView.notifyCalendarChanged()
                 binding.weekCalendarView.notifyCalendarChanged()
             }
@@ -641,5 +661,51 @@ class CalendarPageFragment: Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    private fun updateMonthBinderScheduleUI(eventContainer: LinearLayout, date: LocalDate){
+        eventContainer.removeAllViews()
+        if(!events[date].isNullOrEmpty()){
+            events[date]?.forEach { schedule ->
+                val allDatesForThisId = allSchedules.filter { it.id == schedule.id }.map{ it.startDate }.distinct()
+
+                if(allDatesForThisId.isNotEmpty()){
+                    val firstDate = LocalDate.parse(allDatesForThisId.first())
+                    val lastDate = LocalDate.parse(allDatesForThisId.last())
+                    val isStart = date.isEqual(firstDate)
+                    val isEnd = date.isEqual(lastDate)
+
+                    if(firstDate == lastDate || !schedule.repeatRule.isNullOrEmpty()){
+                        val binding = ItemMonthViewSingleDayBinding.inflate(layoutInflater)
+                        val icon = binding.itemMonthViewSingleColor
+                        icon.backgroundTintList = when {
+                            schedule.eventColor != null && schedule.eventColor != 0 -> ColorStateList.valueOf(schedule.eventColor)
+                            schedule.calendarColor != null && schedule.calendarColor != 0 -> ColorStateList.valueOf(schedule.calendarColor)
+                            else -> ColorStateList.valueOf(Color.parseColor("#A2BD3B"))
+                        }
+                        binding.itemMonthViewSingleTv.text = schedule.title
+                        eventContainer.addView(binding.root)
+                    }
+                    else{
+                        val binding = ItemMonthViewMultipleDaysBinding.inflate(layoutInflater)
+                        binding.itemMonthViewMultipleDays.backgroundTintList = when {
+                            schedule.eventColor != null && schedule.eventColor != 0 -> ColorStateList.valueOf(schedule.eventColor)
+                            schedule.calendarColor != null && schedule.calendarColor != 0 -> ColorStateList.valueOf(schedule.calendarColor)
+                            else -> ColorStateList.valueOf(Color.parseColor("#A2BD3B"))
+                        }
+                        binding.itemMonthViewMultipleDays.setBackgroundResource(when{
+                            isStart -> R.drawable.bg_item_month_view_first
+                            isEnd -> R.drawable.bg_item_month_view_last
+                            else -> R.drawable.bg_item_month_view_middle
+                        })
+                        binding.itemMonthViewMultipleDays.text = when{
+                            isStart -> schedule.title
+                            else -> ""
+                        }
+                        eventContainer.addView(binding.root)
+                    }
+                }
+            }
+        }
     }
 }
