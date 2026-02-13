@@ -292,11 +292,6 @@ class RouteFragment : Fragment() {
                 binding.layoutNoSearchResult.visibility = View.VISIBLE
                 binding.layoutNoSearchResult.bringToFront()
 
-//                // 기존 결과 프래그먼트는 숨김 (선택 사항, 덮어씌워진다면 안 해도 됨)
-//                val fragment = childFragmentManager.findFragmentByTag("ROUTE_RESULT")
-//                if (fragment != null) {
-//                    childFragmentManager.beginTransaction().hide(fragment).commitAllowingStateLoss()
-//                }
 
                  binding.layoutRouteInputHeader.layoutFilterOptions.visibility = View.GONE
 
@@ -770,12 +765,6 @@ class RouteFragment : Fragment() {
                 bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
             }
 
-            android.widget.Toast.makeText(
-                requireContext(),
-                "전달 좌표 - 출발:${startLatLng != null}, 도착:${endLatLng != null}",
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
-
             val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
             mapFrag?.drawRouteOnMap(item, startLatLng, endLatLng)
             binding.layoutRouteDetailOverlay.root.visibility = View.VISIBLE
@@ -828,7 +817,7 @@ class RouteFragment : Fragment() {
                 putExtra("END_NAME", binding.layoutRouteInputHeader.tvRouteEnd.text)
                 putExtra("END_LAT", endLatLng?.latitude)
                 putExtra("END_LNG", endLatLng?.longitude)
-                putExtra("EARLY_ARRIVE_TIME", responseArrivelTime)
+                putExtra("EARLY_ARRIVE_TIME", earlyArriveTime)
                 putExtra("ROUTE_DETAIL", Gson().toJson(item))
             }
 
@@ -1650,7 +1639,6 @@ private fun selectCurrentLocation() {
     private fun handleMainBackClick() {
         if (binding.layoutRouteInputHeader.root.visibility == View.VISIBLE) {
             exitSearchMode()
-            android.widget.Toast.makeText(requireContext(), "나감", android.widget.Toast.LENGTH_SHORT).show()
             if (hasSchedule && currentEntryMode == EntryMode.MAIN) {
                 showDefaultScheduleOverlay()
             }
@@ -1884,15 +1872,31 @@ private fun selectCurrentLocation() {
     }
 
     private fun showRoutePlanDialog() {
+        val initialCalendar = if (!requestSearchTime.isNullOrEmpty()) {
+            try {
+                val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
+                sdf.timeZone = TimeZone.getTimeZone("UTC")
+
+                val date = sdf.parse(requestSearchTime)
+
+                Calendar.getInstance().apply {
+                    if (date != null) time = date
+                }
+            } catch (e: Exception) {
+                Calendar.getInstance()
+            }
+        } else {
+            Calendar.getInstance()
+        }
         val bottomSheet = RoutePlanFilterBottomSheet(
-            initialCalendar = Calendar.getInstance(),
-            initialMode = 0
+            initialCalendar = initialCalendar,
+            initialMode = if (isStart) 0 else 1
         ) { selectedCalendar, mode ->
             val isoSdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.KOREAN).apply {
                 timeZone = TimeZone.getTimeZone("UTC")
             }
             requestSearchTime = isoSdf.format(selectedCalendar.time)
-            responseArrivelTime = SimpleDateFormat("HH:mm", Locale.KOREAN).format(selectedCalendar.time)
+
             val today = Calendar.getInstance().apply {
                 set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
             }

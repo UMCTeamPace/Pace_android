@@ -17,6 +17,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.setFragmentResultListener
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -32,7 +33,10 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import com.example.pace.data.model.request.PlaceRequest
 import com.example.pace.data.model.request.RepeatInfo
+import com.example.pace.data.viewmodel.SettingsViewModel
 import com.example.pace.ui.onboarding.CalendarSelectFragment
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 
 @AndroidEntryPoint
 class GeneralScheduleFragment : Fragment() {
@@ -63,6 +67,9 @@ class GeneralScheduleFragment : Fragment() {
     private val dateFormatter = DateTimeFormatter.ofPattern("M월 d일 (E)", Locale.KOREAN)
     val colorInt = android.graphics.Color.parseColor(selectedColorHex)
     private var currentRepeatInfo: RepeatInfo? = null
+
+    private val settingsViewModel: SettingsViewModel by viewModels()
+
     private val routeSearchLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -100,39 +107,31 @@ class GeneralScheduleFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        setupCalendar()         // 기본 셋업
-        setupLegend()           // 요일 셋업
-        setupMonthNavigation()  // 화살표 셋업
+        setupCalendar()
+        setupLegend()
+        setupMonthNavigation()
         initTimePickers()
         updateTimeVisibility()
         observeUserSettings()
 
-        if (currentSelectedAlarms == null) {
+        if (currentSelectedAlarms == null || currentSelectedCalendarId == null) {
             viewLifecycleOwner.lifecycleScope.launch {
-                viewModel.userSettings.collect { settings ->
-                    settings?.let {
-                        // 1. 알람 초기화 (기본 유지)
-                        if (currentSelectedAlarms == null) {
-                            currentSelectedAlarms = it.scheduleAlarms.toIntArray()
-                            updateAlarmText(currentSelectedAlarms!!)
-                        }
+                // first()를 사용하여 최초 1회만 가져오고 연결을 끊습니다 (덮어쓰기 방지)
+                val settings = settingsViewModel.userSettings.filterNotNull().first()
 
-                        // 2. 캘린더 초기화 (오류 해결 및 이름 조회)
-                        if (currentSelectedCalendarId == null) {
-                            currentSelectedCalendarId = it.calendarId // 💡 it.calendarId로 수정됨
-
-                            // 💡 ID를 바탕으로 시스템에서 이름을 조회해옵니다.
-                            val calendarName = viewModel.getCalendarNameById(it.calendarId)
-                            currentSelectedCalendarName = calendarName
-
-                            binding.tvCalendarStatus.text = calendarName
-                            binding.tvCalendarStatus.setTextColor(
-                                ContextCompat.getColor(
-                                    requireContext(),
-                                    R.color.black
-                                )
-                            )
-                        }
+                settings.let {
+                    // 알람 초기화
+                    if (currentSelectedAlarms == null) {
+                        currentSelectedAlarms = it.scheduleAlarms.toIntArray()
+                        updateAlarmText(currentSelectedAlarms!!)
+                    }
+                    // 캘린더 초기화
+                    if (currentSelectedCalendarId == null) {
+                        currentSelectedCalendarId = it.calendarId
+                        val calendarName = viewModel.getCalendarNameById(it.calendarId)
+                        binding.tvCalendarStatus.text = calendarName
+                        binding.tvCalendarStatus.setTextColor(Color.BLACK)
+                        // 필요 시 색상 점 초기화 로직 추가
                     }
                 }
             }
@@ -157,8 +156,12 @@ class GeneralScheduleFragment : Fragment() {
         binding.layoutScheduleName.setOnClickListener {
             binding.etScheduleName.requestFocus()
 
-            val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-            imm.showSoftInput(binding.etScheduleName, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+            val imm =
+                requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+            imm.showSoftInput(
+                binding.etScheduleName,
+                android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT
+            )
         }
 
         binding.btnConfirm.setOnClickListener {
@@ -301,14 +304,14 @@ class GeneralScheduleFragment : Fragment() {
         }
 
         val colorList = listOf(
-            ColorItem(R.color.schedule_5,"#DC354B"),
+            ColorItem(R.color.schedule_5, "#DC354B"),
             ColorItem(R.color.route_line_3, "#D8643F"),
             ColorItem(R.color.route_suin_bundang, "#FFBB00"),
             ColorItem(R.color.route_branch_bus, "#53B332"),
             ColorItem(R.color.schedule_14, "#51AEED"),
             ColorItem(R.color.schedule_12, "#2A4ABF"),
             ColorItem(R.color.schedule_8, "#5F46DD"),
-            ColorItem(R.color.route_line_8,"#F14C82"),
+            ColorItem(R.color.route_line_8, "#F14C82"),
             ColorItem(R.color.gray_600, "#666666")
         )
 
@@ -328,12 +331,14 @@ class GeneralScheduleFragment : Fragment() {
                         MotionEvent.ACTION_DOWN -> {
                             rv.parent.requestDisallowInterceptTouchEvent(true)
                         }
+
                         MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                             rv.parent.requestDisallowInterceptTouchEvent(false)
                         }
                     }
                     return false
                 }
+
                 override fun onTouchEvent(rv: RecyclerView, e: MotionEvent) {}
                 override fun onRequestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {}
             })
@@ -360,7 +365,10 @@ class GeneralScheduleFragment : Fragment() {
         }
 
         binding.btnRoute.setOnClickListener {
-            val intent = android.content.Intent(requireContext(), com.example.pace.ui.main.MainActivity::class.java).apply {
+            val intent = android.content.Intent(
+                requireContext(),
+                com.example.pace.ui.main.MainActivity::class.java
+            ).apply {
                 putExtra("ACTION_MODE", "SCHEDULE")
             }
             routeSearchLauncher.launch(intent)
@@ -384,7 +392,8 @@ class GeneralScheduleFragment : Fragment() {
             val fragment = AlarmScheduleFragment()
             val bundle = Bundle().apply {
                 // 온보딩 값이 아닌, 현재 화면에서 들고 있는 변수를 넘김
-                putIntArray("currentAlarms", currentSelectedAlarms)
+                putIntArray("selectedAlarmMinutes", currentSelectedAlarms)
+                putString("requestKey", "GENERAL_ALARM_KEY") // 💡 전용 키 전달
             }
             fragment.arguments = bundle
 
@@ -399,19 +408,6 @@ class GeneralScheduleFragment : Fragment() {
                 .addToBackStack(null)
                 .commit()
         }
-        // [추가] AlarmScheduleFragment에서 보낸 결과 수신
-        parentFragmentManager.setFragmentResultListener("scheduleAlarmKey", viewLifecycleOwner) { _, bundle ->
-            val resultText = bundle.getString("selectedAlarm")
-            val resultMinutes = bundle.getIntArray("selectedAlarmMinutes") // 💡 숫자로 된 리스트도 받아야 함
-
-            if (resultMinutes != null) {
-                currentSelectedAlarms = resultMinutes // 💡 여기서 임시 변수 업데이트!
-                binding.tvRemindStatus.text = resultText // UI는 텍스트로 표시
-                binding.tvRemindStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.black))
-            }
-        }
-
-
 
         val currentMonth = java.time.YearMonth.now()
         val startMonth = currentMonth.minusMonths(12) // 1년 전부터
@@ -425,6 +421,7 @@ class GeneralScheduleFragment : Fragment() {
             override fun create(view: View) = DayViewContainer(view) { date ->
                 selectDate(date)
             }
+
             override fun bind(container: DayViewContainer, day: CalendarDay) {
                 container.currentDay = day
                 val date = day.date
@@ -434,7 +431,7 @@ class GeneralScheduleFragment : Fragment() {
                 textView.text = date.dayOfMonth.toString()
                 if (day.position != com.kizitonwose.calendar.core.DayPosition.MonthDate) {
                     textView.setTextColor(Color.LTGRAY)
-                }else{
+                } else {
                     when {
                         // 시작일/종료일 동일 (원형)
                         date == startDate && (endDate == null || endDate == startDate) -> {
@@ -455,12 +452,15 @@ class GeneralScheduleFragment : Fragment() {
                             root.setBackgroundResource(R.drawable.bg_calendar_range_end)
                         }
                         // 기간 사이 (연두색 배경 적용)
-                        startDate != null && endDate != null && date.isAfter(startDate) && date.isBefore(endDate) -> {
+                        startDate != null && endDate != null && date.isAfter(startDate) && date.isBefore(
+                            endDate
+                        ) -> {
                             textView.setTextColor(Color.BLACK)
                             textView.background = null
                             // 여기에 @color/semantic_info가 적용된 drawable 연결
                             root.setBackgroundResource(R.drawable.bg_calendar_range_middle)
                         }
+
                         else -> {
                             textView.setTextColor(Color.BLACK)
                             textView.background = null
@@ -480,64 +480,57 @@ class GeneralScheduleFragment : Fragment() {
             }
         }
         binding.btnCalendar.setOnClickListener {
-            val fragment = CalendarSelectFragment()
+            // SelectCalendarFragment로 통일
+            val fragment = SelectCalendarFragment()
             val bundle = Bundle().apply {
                 putLong("currentCalendarId", currentSelectedCalendarId ?: -1L)
+                putString("requestKey", "GENERAL_CALENDAR_KEY") // 일반용 키
             }
             fragment.arguments = bundle
 
             parentFragmentManager.beginTransaction()
-                .setCustomAnimations(
-                    android.R.anim.slide_in_left,
-                    android.R.anim.slide_out_right,
-                    android.R.anim.slide_in_left,
-                    android.R.anim.slide_out_right
-                )
-                // android.R.id.content는 액티비티의 최상위 컨테이너입니다.
+                .setCustomAnimations(android.R.anim.slide_in_left, android.R.anim.slide_out_right, android.R.anim.slide_in_left, android.R.anim.slide_out_right)
                 .replace(android.R.id.content, fragment)
                 .addToBackStack(null)
                 .commit()
         }
 
-        // 결과 리스너 (onViewCreated 내부)
-        parentFragmentManager.setFragmentResultListener("calendarSelectKey", viewLifecycleOwner) { _, bundle ->
-            val selectedId = bundle.getLong("calendarId")
+        parentFragmentManager.setFragmentResultListener("GENERAL_ALARM_KEY", viewLifecycleOwner) { _, bundle ->
+            // 일반 일정 로직 수행
+            val resultText = bundle.getString("selectedAlarm")
+            val resultMinutes = bundle.getIntArray("selectedAlarmMinutes")
+
+            if (resultMinutes != null) {
+                // 1) 프래그먼트 내부 임시 변수만 업데이트 (DB는 건드리지 않음)
+                currentSelectedAlarms = resultMinutes
+
+                // 2) UI 텍스트만 즉시 업데이트
+                binding.tvRemindStatus.text = resultText
+                binding.tvRemindStatus.setTextColor(Color.BLACK)
+
+            }
+        }
+        parentFragmentManager.setFragmentResultListener("GENERAL_CALENDAR_KEY", viewLifecycleOwner) { _, bundle ->
+            val selectedId = bundle.getLong("calendarId", -1L)
             val selectedName = bundle.getString("calendarName") ?: "내 일정"
+            val calendarColor = bundle.getInt("selectedCalendarColor", -1)
+
+            android.util.Log.d("CALENDAR_RECEIVE", "일반 일정 수신: $selectedName")
 
             if (selectedId != -1L) {
                 currentSelectedCalendarId = selectedId
                 currentSelectedCalendarName = selectedName
 
                 binding.tvCalendarStatus.text = selectedName
-                binding.tvCalendarStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.black))
+                binding.tvCalendarStatus.setTextColor(Color.BLACK)
+
+                if (calendarColor != -1) {
+                    binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(calendarColor)
+                }
             }
         }
-
-
-        // [추가 선택사항] SelectCalendarFragment에서 돌아올 때 결과 수신
-        // GeneralScheduleFragment의 onViewCreated 내부
-        // GeneralScheduleFragment의 onViewCreated 내부
-        parentFragmentManager.setFragmentResultListener("calendarSelectKey", viewLifecycleOwner) { _, bundle ->
-            val calendarName = bundle.getString("selectedCalendarName")
-            val calendarColor = bundle.getInt("selectedCalendarColor") // 시스템에서 가져온 Int 색상값
-
-            // 1. [핵심] 상단 일정명 옆의 대표 색상 점 업데이트
-            binding.viewColorDot.backgroundTintList = android.content.res.ColorStateList.valueOf(calendarColor)
-
-            // 2. 하단 캘린더 선택 버튼 내의 텍스트와 작은 점 업데이트
-            binding.tvCalendarStatus.text = calendarName
-        }
     }
 
-    // 예시: 초기 로드 시점 (onViewCreated 안에서 호출)
-    private fun setupDefaultCalendar() {
-        // 실제로는 저장된 Preference나 DB에서 가져온 값을 사용하세요.
-        val defaultColor = ContextCompat.getColor(requireContext(), R.color.schedule_5)
-        val defaultName = "내 휴대전화"
-
-        binding.viewColorDot.backgroundTintList = android.content.res.ColorStateList.valueOf(defaultColor)
-        binding.tvCalendarStatus.text = defaultName
-    }
 
     private fun changeSelectedColor(colorStr: String) {
         selectedColorHex = colorStr
@@ -930,30 +923,24 @@ class GeneralScheduleFragment : Fragment() {
 
     private fun observeUserSettings() {
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.userSettings.collect { settings ->
-                settings?.let {
-                    val alarms = it.scheduleAlarms
-                    if (alarms.isNotEmpty()) {
-                        // 모든 알람 시간을 변환하여 쉼표로 연결 (예: "정시, 10분 전, 1시간 전")
-                        val alarmTexts = alarms.sorted().map { minutes ->
-                            when {
-                                minutes == 0 -> "정시"
-                                minutes >= 60 && minutes % 60 == 0 -> "${minutes / 60}시간 전"
-                                else -> "${minutes}분 전"
-                            }
-                        }
+            // collect가 아닌 first()를 사용하여 화면 진입 시점에 딱 한 번만 데이터를 가져옵니다.
+            val settings = viewModel.userSettings.filterNotNull().first()
 
-                        binding.tvRemindStatus.text = alarmTexts.joinToString(", ")
-                        binding.tvRemindStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.black))
-                    } else {
-                        binding.tvRemindStatus.text = "일정 알림 안함"
-                        binding.tvRemindStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.gray_500))
-                    }
-                }
+            // 알람: 사용자가 아직 수정 안 했다면 기본값 표시
+            if (currentSelectedAlarms == null) {
+                currentSelectedAlarms = settings.scheduleAlarms.toIntArray()
+                updateAlarmText(currentSelectedAlarms!!)
+            }
+
+            // 캘린더: 사용자가 아직 수정 안 했다면 기본값 표시
+            if (currentSelectedCalendarId == null) {
+                currentSelectedCalendarId = settings.calendarId
+                val calendarName = viewModel.getCalendarNameById(settings.calendarId)
+                binding.tvCalendarStatus.text = calendarName
+                binding.tvCalendarStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.black))
             }
         }
     }
-
     private fun updateAlarmText(alarms: IntArray) {
         if (alarms.isEmpty()) {
             binding.tvRemindStatus.text = "일정 알림 안함"

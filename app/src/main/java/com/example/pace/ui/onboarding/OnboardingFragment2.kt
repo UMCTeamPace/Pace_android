@@ -28,7 +28,7 @@ class OnboardingFragment2 : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         binding.tvDescription.setBoldText(
-            "하루의 일정과 이동 사이에서\n당신의 페이스는 어땟나요?",
+            "하루의 일정과 이동 사이에서\n당신의 페이스는 어땠나요?",
             listOf("당신의 페이스")
         )
     }
