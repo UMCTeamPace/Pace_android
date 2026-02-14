@@ -60,6 +60,10 @@ class SearchViewModel(private val repository: SearchRepository) : ViewModel() {
         repository.insertMyPlace(myPlace)
     }
 
+    fun deleteMyPlace(type: String) = viewModelScope.launch {
+        repository.deleteMyPlace(type)
+    }
+
     fun getMyPlace(type: String) = repository.getMyPlaceByType(type)
 
     val homePlace: StateFlow<MyPlace?> = repository.getMyPlaceByType("HOME")
