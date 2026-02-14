@@ -46,14 +46,17 @@ data class CreateScheduleRequest(
     @SerializedName("color") val color: String? = "#DC354B"
 )
 data class RepeatInfo(
-    @SerializedName("repeatType") val repeatType: String,
-    @SerializedName("repeatInterval") val repeatInterval: Int,
-    @SerializedName("daysOfWeek") val daysOfWeek: String?,
-    @SerializedName("endType") val endType: String,
-    @SerializedName("endCount") val endCount: Int,
-    @SerializedName("repeatEndDate") val repeatEndDate: String?
-): java.io.Serializable
+    @SerializedName("repeatType") val repeatType: String,      // DAILY, WEEKLY, MONTHLY, YEARLY, NONE
+    @SerializedName("repeatInterval") val repeatInterval: Int = 1,
+    @SerializedName("daysOfWeek") val daysOfWeek: String? = null, // "MO,WE,FR"
+    @SerializedName("endType") val endType: String,            // NEVER, COUNT, DATE
+    @SerializedName("endCount") val endCount: Int? = null,     // endType이 COUNT일 때만 사용
+    @SerializedName("repeatEndDate") val repeatEndDate: String? = null // endType이 DATE일 때만 사용
+): java.io.Serializable {
 
+    // 유틸리티 함수: RRULE 생성 시 불필요한 값 제거용
+    fun isValid(): Boolean = repeatType.uppercase() != "NONE"
+}
 data class PlaceRequest(
     @SerializedName("targetName") val targetName: String,
     @SerializedName("targetLat") val targetLat: Double,

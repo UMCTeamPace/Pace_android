@@ -229,25 +229,17 @@ class GeneralScheduleFragment : Fragment() {
 
         setupKeyboardVisibilityListener()
 
-        setFragmentResultListener("repeatKey") { _, bundle ->
-            val resultText = bundle.getString("selectedRepeat")
-            binding.tvRepeatStatus.text = resultText
-
-            // 안전한 추출 방법
-            currentRepeatInfo = try {
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                    bundle.getSerializable("repeatInfo", RepeatInfo::class.java)
-                } else {
-                    @Suppress("DEPRECATION")
-                    bundle.getSerializable("repeatInfo") as? RepeatInfo
-                }
-            } catch (e: Exception) {
-                null
-            }
-        }
-
+        // 반복 버튼 눌렀을 때 선택된 시작 날짜 보내주기
         binding.btnRepeat.setOnClickListener {
-            val repeatFragment = ScheduleRepeatFragment()
+            val dateToSend = startDate?.toString() ?: LocalDate.now().toString()
+
+            val repeatFragment = ScheduleRepeatFragment().apply {
+                arguments = Bundle().apply {
+                    putString("startDate", dateToSend)
+                    // 기존에 설정된 리핏 인포가 있다면 함께 전달
+                    putSerializable("existingRepeatInfo", currentRepeatInfo)
+                }
+            }
 
             requireActivity().supportFragmentManager.beginTransaction()
                 .setCustomAnimations(
@@ -529,6 +521,21 @@ class GeneralScheduleFragment : Fragment() {
                 }
             }
         }
+
+        setFragmentResultListener("repeatKey") { _, bundle ->
+            val resultText = bundle.getString("selectedRepeat")
+            binding.tvRepeatStatus.text = resultText
+            binding.tvRepeatStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.black))
+
+            // RepeatInfo 객체가 넘어올 경우 저장
+            currentRepeatInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                bundle.getSerializable("repeatInfo", RepeatInfo::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                bundle.getSerializable("repeatInfo") as? RepeatInfo
+            }
+        }
+
     }
 
 

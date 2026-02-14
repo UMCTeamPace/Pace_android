@@ -3,29 +3,22 @@ package com.example.pace.data.model.request
 import com.google.gson.annotations.SerializedName
 
 data class UpdateSettingsRequest(
-    @SerializedName("earlyArrivalTime")
-    val earlyArrivalTime: Int,
-    @SerializedName("isNotiEnabled")
-    val isNotiEnabled: Boolean,
-    @SerializedName("isLocEnabled")
-    val isLocEnabled: Boolean,
     @SerializedName("isReminderActive")
     val isReminderActive: Boolean,
-    @SerializedName("CalendarType")
+
+    @SerializedName("earlyArrivalTime")
+    val earlyArrivalTime: Int,
+
+    @SerializedName("calendarType") // 대소문자 주의 (스웨거 기준 소문자 c)
     val calendarType: String,
-    @SerializedName("reminderTimes")
-    val reminderTimes: List<Int>,
-    @SerializedName("scheduleReminderTimes")
-    val scheduleReminderTimes: List<Int>,
-    @SerializedName("departureReminderTimes")
-    val departureReminderTimes: List<Int>,
+
     @SerializedName("alarms")
-    val alarms: List<AlarmSetting>
+    val alarms: List<AlarmSettingRequest>
 )
 
-data class AlarmSetting(
+data class AlarmSettingRequest(
     @SerializedName("type")
-    val type: String,
+    val type: String, // "SCHEDULE" 또는 "DEPARTURE"
     @SerializedName("minutes")
     val minutes: List<Int>
 )
