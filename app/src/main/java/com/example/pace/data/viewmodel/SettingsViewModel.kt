@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.pace.data.datasource.AuthDataStore
 import com.example.pace.data.db.UserSettingsDao
 import com.example.pace.data.model.UserSettingsEntity
-import com.example.pace.data.model.request.AlarmSetting
+import com.example.pace.data.model.request.AlarmSettingRequest
 import com.example.pace.data.model.request.UpdateSettingsRequest
 import com.example.pace.data.repository.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -17,13 +17,11 @@ import javax.inject.Inject
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val dao: UserSettingsDao,
-    private val repository: SettingsRepository // 👈 1. 여기에 추가!
+    private val repository: SettingsRepository,
+    private val authDataStore: AuthDataStore // 👈 1. 토큰을 가져오기 위해 주입 추가
 ) : ViewModel() {
-    // 로컬 고정 ID
     private val LOCAL_USER_ID = 1L
 
-    // 1. UI용: Room에서 데이터를 실시간 관찰 (StateFlow)
-    // DB의 값이 바뀌면 UI가 자동으로 업데이트됩니다.
     val userSettings: StateFlow<UserSettingsEntity?> = dao.getSettingsFlow(LOCAL_USER_ID)
         .stateIn(
             scope = viewModelScope,
@@ -31,86 +29,93 @@ class SettingsViewModel @Inject constructor(
             initialValue = null
         )
 
-    // 2. 여유 시간 업데이트 (Room DB에만 저장)
-    fun updateEarlyArrival(minutes: Int) {
+    /**
+     * [공통 로직] 모든 설정 변경은 이 함수를 거치도록 통합하면 코드가 깔끔해집니다.
+     */
+    private fun saveAndSync(updatedEntity: UserSettingsEntity) {
         viewModelScope.launch {
-            dao.updateEarlyArrivalTime(LOCAL_USER_ID, minutes)
-            Log.d("SETTINGS_DEBUG", "로컬 DB 여유시간 변경: $minutes 분")
+            val token = authDataStore.getAccessToken() ?: ""
+            // Repository 내부에서 로컬 DB 저장 + 서버 PATCH를 동시에 수행함
+            repository.updateSettings(token, updatedEntity)
+        }
+    }
+
+    // 2. 여유 시간 업데이트 (서버와 동기화가 필요하다면 saveAndSync 사용)
+    fun updateEarlyArrival(minutes: Int) {
+        userSettings.value?.let {
+            saveAndSync(it.copy(earlyArrivalTime = minutes))
         }
     }
 
     // 3. 리마인더 알림 스위치 업데이트
     fun updateReminderStatus(isActive: Boolean) {
-        viewModelScope.launch {
-            // Dao에 updateReminderStatus 함수가 있다면 사용하세요.
-            // 없다면 전체 Entity를 가져와서 copy 후 update 해야 합니다.
-            val current = dao.getSettings(LOCAL_USER_ID)
-            current?.let {
-                dao.insertSettings(it.copy(isReminderActive = isActive))
-            }
+        userSettings.value?.let {
+            saveAndSync(it.copy(isReminderActive = isActive))
         }
     }
 
+    // 4. 기본 캘린더 변경
     fun updateDefaultCalendar(calendarId: Long) {
-        viewModelScope.launch {
-            val currentSettings = userSettings.first()
-            currentSettings?.let {
-                val updated = it.copy(calendarId = calendarId, isSynced = false)
-                // 👈 2. 이제 repository 참조가 가능해집니다.
-                repository.updateSettings(updated)
-            }
+        userSettings.value?.let {
+            saveAndSync(it.copy(calendarId = calendarId))
         }
     }
+
+    // 5. 동기화할 캘린더 목록 변경
+    // SettingsViewModel.kt
 
     fun toggleCalendarSync(calendarId: Long, isChecked: Boolean) {
         viewModelScope.launch {
+            // 1. 현재 로컬 설정 가져오기
             val currentSettings = userSettings.value ?: return@launch
             val currentList = currentSettings.syncedCalendarIds.toMutableList()
 
+            // 2. 체크 상태에 따라 리스트 수정
             if (isChecked) {
                 if (!currentList.contains(calendarId)) currentList.add(calendarId)
             } else {
                 currentList.remove(calendarId)
             }
 
-            val updated = currentSettings.copy(syncedCalendarIds = currentList, isSynced = false)
-            repository.updateSettings(updated)
+            // 3. 💡 saveAndSync 대신 repository.updateSettingsLocally 사용!
+            // 이렇게 하면 서버 API를 호출하지 않고 로컬 DB만 업데이트합니다.
+            val updatedSettings = currentSettings.copy(
+                syncedCalendarIds = currentList,
+                lastUpdated = System.currentTimeMillis()
+            )
+
+            repository.updateSettingsLocally(updatedSettings)
+
+            Log.d("LOCAL_DB", "캘린더 선택 상태 변경 (로컬): $calendarId -> $isChecked")
         }
     }
 
+    // 6. 알람 시간 업데이트
     fun updateScheduleAlarms(alarms: List<Int>) {
-        viewModelScope.launch {
-            // 1. 현재 StateFlow에 담긴 최신 설정값을 가져옵니다.
-            val currentSettings = userSettings.value
-
-            currentSettings?.let { settings ->
-                // 2. 알람 리스트만 변경한 복사본(copy)을 만듭니다.
-                // take(5)를 통해 DB 저장 직전에도 한 번 더 개수를 방어합니다.
-                val updated = settings.copy(
-                    scheduleAlarms = alarms.take(5),
-                    isSynced = false // 서버와 동기화가 필요하다면 false로 설정
-                )
-
-                // 3. Repository를 통해 로컬 DB 업데이트 및 서버 전송 로직 실행
-                repository.updateSettings(updated)
-
-                Log.d("SETTINGS_DEBUG", "일정 알림 업데이트 성공: ${updated.scheduleAlarms}")
-            }
+        userSettings.value?.let {
+            saveAndSync(it.copy(scheduleAlarms = alarms.take(5)))
         }
     }
 
     fun updateDepartureAlarms(alarms: List<Int>) {
-        viewModelScope.launch {
-            val currentSettings = userSettings.value
-            currentSettings?.let { settings ->
-                val updated = settings.copy(
-                    departureAlarms = alarms.take(5), // 여기서도 5개 제한
-                    isSynced = false
-                )
-                repository.updateSettings(updated)
-                Log.d("SETTINGS_DEBUG", "출발 알림 업데이트 완료: ${updated.departureAlarms}")
-            }
+        userSettings.value?.let {
+            saveAndSync(it.copy(departureAlarms = alarms.take(5)))
         }
     }
+    fun updateSelectedCalendars(selectedIds: List<Long>) {
+        viewModelScope.launch {
+            // 💡 _userSettings가 아니라 userSettings입니다 (오타 수정)
+            val currentSettings = userSettings.value ?: return@launch
 
+            val updatedSettings = currentSettings.copy(
+                syncedCalendarIds = selectedIds,
+                lastUpdated = System.currentTimeMillis()
+            )
+
+            // 서버 통신 없이 DB만 업데이트
+            repository.updateSettingsLocally(updatedSettings)
+
+            Log.d("LOCAL_DB", "선택된 캘린더 ID들 로컬 저장 완료: $selectedIds")
+        }
+    }
 }

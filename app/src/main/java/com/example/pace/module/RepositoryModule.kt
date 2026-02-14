@@ -23,12 +23,14 @@ object RepositoryModule {
     @Provides
     fun providesSettingsRepository(
         settingsService: SettingsService,
-        userSettingsDao: UserSettingsDao // 👈 DAO 주입 추가
+        userSettingsDao: UserSettingsDao, // 👈 DAO 주입 추가
+        @ApplicationContext context: Context
     ) : SettingsRepository {
         // 구현체 생성자에 DAO와 Service를 순서대로 전달
         return SettingsRepositoryImpl(
             dao = userSettingsDao,
-            api = settingsService
+            api = settingsService,
+            context = context
         )
     }
 

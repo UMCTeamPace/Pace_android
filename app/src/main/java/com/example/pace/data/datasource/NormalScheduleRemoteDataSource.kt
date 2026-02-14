@@ -17,7 +17,6 @@ import javax.inject.Inject // 추가
 class NormalScheduleRemoteDataSource @Inject constructor(
     @ApplicationContext private val applicationContext: Context
 ) {
-
     suspend fun insertToCalendarProvider(
         request: CreateScheduleRequest,
         selectedCalendarId: Long? = null,
@@ -25,42 +24,38 @@ class NormalScheduleRemoteDataSource @Inject constructor(
     ): Long = withContext(Dispatchers.IO) {
         val contentResolver = applicationContext.contentResolver
 
-        // 1. 시간 계산
         val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
         val startMillis = sdf.parse("${request.startDate} ${request.startTime ?: "00:00"}")?.time ?: System.currentTimeMillis()
         val endMillis = sdf.parse("${request.endDate} ${request.endTime ?: "23:59"}")?.time ?: (startMillis + 3600000)
 
-        // 2. 반복 규칙 생성 (중복 호출 방지)
         val generatedRrule = buildRRule(request.repeatInfo)
-
-        // [로그 추가] 시스템에 들어가기 직전 데이터 확인
-        Log.d("CALENDAR_INSERT", "=== 시스템 삽입 시도 ===")
-        Log.d("CALENDAR_INSERT", "ID: $selectedCalendarId, Color: $selectedColor, RRULE: $generatedRrule")
 
         val values = ContentValues().apply {
             put(CalendarContract.Events.TITLE, request.title)
             put(CalendarContract.Events.DESCRIPTION, request.memo)
             put(CalendarContract.Events.EVENT_LOCATION, request.place?.targetName ?: "")
             put(CalendarContract.Events.DTSTART, startMillis)
-            put(CalendarContract.Events.DTEND, endMillis)
             put(CalendarContract.Events.ALL_DAY, if (request.isAllDay) 1 else 0)
-
-            // 중요: 캘린더 ID가 1L이면 기본 로컬 캘린더일 확률이 높으며, 색상 변경을 제한할 수 있습니다.
             put(CalendarContract.Events.CALENDAR_ID, selectedCalendarId ?: 1L)
             put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
 
-            // [색상 적용]
-            // selectedColor가 0이거나 null이면 기본색 사용
-            val finalColor = if (selectedColor != null && selectedColor != 0) {
-                selectedColor
-            } else {
-                android.graphics.Color.parseColor("#DC354B")
-            }
+            // [색상 처리]
+            val finalColor = if (selectedColor != null && selectedColor != 0) selectedColor
+            else android.graphics.Color.parseColor("#DC354B")
             put(CalendarContract.Events.EVENT_COLOR, finalColor)
 
-            // [반복 설정 적용]
+            // [핵심 보완: 반복 일정일 경우 DURATION 처리]
             if (!generatedRrule.isNullOrEmpty()) {
                 put(CalendarContract.Events.RRULE, generatedRrule)
+
+                // 반복 일정은 DTEND 대신 DURATION 사용 권장 (P3600S = 3600초 = 1시간)
+                val durationSeconds = (endMillis - startMillis) / 1000
+                put(CalendarContract.Events.DURATION, "P${durationSeconds}S")
+                // 반복 일정 시 DTEND는 null로 비워두는 것이 표준입니다.
+                putNull(CalendarContract.Events.DTEND)
+            } else {
+                // 반복이 아닐 때는 일반적인 DTEND 사용
+                put(CalendarContract.Events.DTEND, endMillis)
             }
 
             put(CalendarContract.Events.HAS_ALARM, if (request.reminders.isNotEmpty()) 1 else 0)
@@ -279,19 +274,27 @@ class NormalScheduleRemoteDataSource @Inject constructor(
 
     // rrule에 맞춰서 변환
     private fun buildRRule(info: RepeatInfo?): String? {
-        if (info == null) return null // 여기서 null이면 반복이 안 됩니다.
-        Log.d("CALENDAR_INSERT", "buildRRule 내부 진입: $info")
+        if (info == null || info.repeatType.uppercase() == "NONE") return null
 
         return try {
             val rrule = StringBuilder("FREQ=${info.repeatType.uppercase()}")
-            if (info.repeatInterval > 0) rrule.append(";INTERVAL=${info.repeatInterval}")
+            if (info.repeatInterval > 1) rrule.append(";INTERVAL=${info.repeatInterval}")
 
             if (!info.daysOfWeek.isNullOrEmpty()) {
-                // 요일 형식이 "MONDAY"면 "MO"로, "MON"이면 "MO"로 변환 필요
-                val systemDays = info.daysOfWeek.split(",")
-                    .map { it.trim().take(2).uppercase() }
-                    .joinToString(",")
-                rrule.append(";BYDAY=$systemDays")
+                val days = info.daysOfWeek.split(",")
+                    .mapNotNull { day ->
+                        when (day.trim().uppercase()) {
+                            "SUNDAY", "SUN", "SU" -> "SU"
+                            "MONDAY", "MON", "MO" -> "MO"
+                            "TUESDAY", "TUE", "TU" -> "TU"
+                            "WEDNESDAY", "WED", "WE" -> "WE"
+                            "THURSDAY", "THU", "TH" -> "TH"
+                            "FRIDAY", "FRI", "FR" -> "FR"
+                            "SATURDAY", "SAT", "SA" -> "SA"
+                            else -> null
+                        }
+                    }.joinToString(",")
+                if (days.isNotEmpty()) rrule.append(";BYDAY=$days")
             }
 
             if (info.endType.uppercase() == "COUNT") {
@@ -301,12 +304,7 @@ class NormalScheduleRemoteDataSource @Inject constructor(
                 rrule.append(";UNTIL=${untilDate}T235959Z")
             }
 
-            val result = rrule.toString()
-            Log.d("CALENDAR_INSERT", "생성된 최종 문자열: $result")
-            result
-        } catch (e: Exception) {
-            Log.e("CALENDAR_INSERT", "buildRRule 에러: ${e.message}")
-            null
-        }
+            rrule.toString()
+        } catch (e: Exception) { null }
     }
 }

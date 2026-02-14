@@ -16,7 +16,6 @@ interface SettingsService {
         @Header("Authorization") accessToken: String,
     ): RawDefaultResponse<MemberSettingsResponse>
 
-    // 1. @POST에서 @PATCH로 변경
     @PATCH("/api/v1/member/settings")
     suspend fun updateMemberSettings(
         @Header("Authorization") accessToken: String,

@@ -16,14 +16,21 @@ interface ScheduleRepository {
     fun getUsedColors(): Flow<List<String>>
     fun getCalendarName(calendarId: Long): String?
 
-    suspend fun searchSchedules(query: String, colors: Set<String>, includeRoute: Boolean, startDate: String, endDate: String): List<Schedule>
+    suspend fun searchSchedules(
+        query: String,
+        colors: Set<String>,
+        includeRoute: Boolean,
+        startDate: String,
+        endDate: String,
+        selectedIds: List<Long> // 추가됨
+    ): List<Schedule>
 
     suspend fun createSchedule(
         accessToken: String?,
         request: CreateScheduleRequest,
-        placeId: String?,
-        calendarId: Long?,
-        selectedColor: Int?
+        placeId: String? = null,
+        calendarId: Long? = null,
+        selectedColor: Int? = null
     ): RawDefaultResponse<CreateScheduleResponse>
 
     // 서버 API 관련

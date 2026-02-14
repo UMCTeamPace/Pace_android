@@ -17,6 +17,8 @@ interface SettingsRepository {
         request: UpdateSettingsRequest
     ):RawDefaultResponse<UpdateSettingsResponse>
 
-    suspend fun updateSettings(settings: UserSettingsEntity)
-    fun getUserSettings(): kotlinx.coroutines.flow.Flow<UserSettingsEntity?>
+    suspend fun updateSettings(accessToken: String, settings: UserSettingsEntity)
+    fun getUserSettings(): Flow<UserSettingsEntity?>
+
+    suspend fun updateSettingsLocally(settings: UserSettingsEntity)
 }
