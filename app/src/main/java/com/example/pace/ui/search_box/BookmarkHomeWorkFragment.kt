@@ -23,7 +23,7 @@ import kotlinx.coroutines.launch
 class BookmarkHomeWorkFragment : Fragment() {
     private var _binding: FragmentBookmarkHomeWorkBinding? = null
     private val binding get() = _binding!!
-
+    private val menuWidthPx by lazy { dpToPx(120) }
     private val searchViewModel: SearchViewModel by viewModels {
         SearchViewModelFactory((requireActivity().application as PaceApplication).searchRepository)
     }
@@ -45,12 +45,23 @@ class BookmarkHomeWorkFragment : Fragment() {
     }
 
     private fun setupListeners() {
-        binding.layoutHome.setOnClickListener {
+        binding.btnHomeEdit.setOnClickListener {
+            resetHomeSwipe()
             (parentFragment as? RouteFragment)?.startBookmarkSearch(RouteFragment.BookmarkTarget.HOME)
         }
+        binding.btnHomeDelete.setOnClickListener {
+            resetHomeSwipe()
+            searchViewModel.deleteMyPlace("HOME")
+        }
 
-        binding.layoutWork.setOnClickListener {
+        // WORK 메뉴 버튼
+        binding.btnWorkEdit.setOnClickListener {
+            resetWorkSwipe()
             (parentFragment as? RouteFragment)?.startBookmarkSearch(RouteFragment.BookmarkTarget.WORK)
+        }
+        binding.btnWorkDelete.setOnClickListener {
+            resetWorkSwipe()
+            searchViewModel.deleteMyPlace("WORK")
         }
     }
 
@@ -73,12 +84,26 @@ class BookmarkHomeWorkFragment : Fragment() {
     }
 
     private fun updateHomeUI(place: MyPlace?) {
+        resetHomeSwipe()
+
         if (place != null) {
             binding.tvHomeAddress.text = place.name
             binding.tvHomeAddress.setTextColor(Color.BLACK)
+
+            binding.layoutHomeForeground.setOnTouchListener(
+                SwipeOnTouchListener(menuWidthPx.toFloat()) {}
+            )
+            binding.layoutHomeForeground.setOnClickListener(null)
+
         } else {
             binding.tvHomeAddress.text = "집을 등록하세요"
             binding.tvHomeAddress.setTextColor(ContextCompat.getColor(requireContext(), R.color.gray_500))
+
+            binding.layoutHomeForeground.setOnTouchListener(null)
+
+            binding.layoutHomeForeground.setOnClickListener {
+                (parentFragment as? RouteFragment)?.startBookmarkSearch(RouteFragment.BookmarkTarget.HOME)
+            }
         }
     }
 
@@ -86,10 +111,34 @@ class BookmarkHomeWorkFragment : Fragment() {
         if (place != null) {
             binding.tvWorkName.text = place.name
             binding.tvWorkName.setTextColor(Color.BLACK)
+
+            binding.layoutWorkForeground.setOnTouchListener(
+                SwipeOnTouchListener(menuWidthPx.toFloat()) {}
+            )
+            binding.layoutWorkForeground.setOnClickListener(null)
         } else {
             binding.tvWorkName.text = "학교/회사를 등록하세요"
             binding.tvWorkName.setTextColor(ContextCompat.getColor(requireContext(), R.color.gray_500))
+
+            binding.layoutWorkForeground.setOnTouchListener(null)
+
+            // 클릭 시 등록
+            binding.layoutWorkForeground.setOnClickListener {
+                (parentFragment as? RouteFragment)?.startBookmarkSearch(RouteFragment.BookmarkTarget.WORK)
+            }
         }
+    }
+
+    private fun resetHomeSwipe() {
+        binding.layoutHomeForeground.animate().translationX(0f).setDuration(0).start()
+    }
+
+    private fun resetWorkSwipe() {
+        binding.layoutWorkForeground.animate().translationX(0f).setDuration(0).start()
+    }
+
+    private fun dpToPx(dp: Int): Float {
+        return dp * resources.displayMetrics.density
     }
 
     override fun onDestroyView() {
