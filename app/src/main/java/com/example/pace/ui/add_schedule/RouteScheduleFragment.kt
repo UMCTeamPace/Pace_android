@@ -74,11 +74,18 @@ class RouteScheduleFragment : Fragment() {
     private var routeJson: String? = null
     private var earlyArriveTime: Int = 0
 
-    // [수정] 런처에서 받아온 경로 정보를 저장할 멤버 변수 선언
+    // 출발지 정보
+    private var lastStartName: String? = null
+    private var lastStartLat: Double = Double.NaN
+    private var lastStartLng: Double = Double.NaN
+
+    // 도착지 정보
     private var lastDestName: String? = null
-    private var lastDestLat: Double = 0.0
-    private var lastDestLng: Double = 0.0
+    private var lastDestLat: Double = Double.NaN
+    private var lastDestLng: Double = Double.NaN
     private var lastRouteJson: String? = null
+
+
     private val viewModel: ScheduleViewModel by viewModels()
 
     private var startDate: LocalDate? = null
@@ -95,48 +102,53 @@ class RouteScheduleFragment : Fragment() {
 
     private var currentSelectedStartAlarms: IntArray? = null
 
+
+
     private val routeSearchLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             val data = result.data ?: return@registerForActivityResult
 
-            val startName = data.getStringExtra("START_NAME")
-            val startLat = data.getDoubleExtra("START_LAT", Double.NaN)
-            val startLng = data.getDoubleExtra("START_LNG", Double.NaN)
+            // 1. 클래스 멤버 변수(last...)에 직접 할당하여 데이터 저장
+            lastStartName = data.getStringExtra("START_NAME")
+            lastStartLat = data.getDoubleExtra("START_LAT", Double.NaN)
+            lastStartLng = data.getDoubleExtra("START_LNG", Double.NaN)
 
-            val endName = data.getStringExtra("END_NAME")
-            val endLat = data.getDoubleExtra("END_LAT", Double.NaN)
-            val endLng = data.getDoubleExtra("END_LNG", Double.NaN)
+            lastDestName = data.getStringExtra("END_NAME")
+            lastDestLat = data.getDoubleExtra("END_LAT", Double.NaN)
+            lastDestLng = data.getDoubleExtra("END_LNG", Double.NaN)
 
             val earlyArriveTime = data.getStringExtra("EARLY_ARRIVE_TIME")?.toIntOrNull()
+            lastRouteJson = data.getStringExtra("ROUTE_DETAIL")
 
-            val routeDetailJson = data.getStringExtra("ROUTE_DETAIL")
+            // 2. UI 업데이트 (저장된 전역 변수 사용)
+            val gson = Gson()
+            val routeObj = gson.fromJson(lastRouteJson, RouteResponse::class.java)
+            updateRouteInfo(lastStartName ?: "출발지", lastDestName ?: "도착지", routeObj)
 
-            lastDestName = endName
-            lastDestLat = endLat ?: 0.0
-            lastDestLng = endLng ?: 0.0
-            lastRouteJson = routeDetailJson
+            // 3. UI 가시성 처리
+            binding.deleteRouteIv.visibility = View.VISIBLE
+            binding.deleteRouteIv.bringToFront()
 
+            // 4. 데이터 확인용 토스트 (전역 변수 기반으로 출력)
             Toast.makeText(
                 context,
                 """
-            출발지: $startName
-            출발좌표: $startLat , $startLng
+            출발지: $lastStartName
+            출발좌표: $lastStartLat , $lastStartLng
             
-            도착지: $endName
-            도착좌표: $endLat , $endLng
+            도착지: $lastDestName
+            도착좌표: $lastDestLat , $lastDestLng
             
             빠른 도착 시간: $earlyArriveTime
             
-            ROUTE_DETAIL:
-            $routeDetailJson
+            경로 데이터 파싱 완료
             """.trimIndent(),
                 Toast.LENGTH_LONG
             ).show()
         }
     }
-
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -156,7 +168,28 @@ class RouteScheduleFragment : Fragment() {
         setupMonthNavigation()
         observeUserSettings()
 
+        binding.deleteRouteIv.setOnClickListener {
+            Log.d("ROUTE_DELETE", "삭제 버튼 클릭")
+            val dialog = DeleteRouteDialog(requireContext()) {
+                // 1. 모든 관련 데이터 변수를 "진짜" 초기 상태로 리셋
+                this.route = null           // 경로 객체
+                this.lastRouteJson = null   // JSON 문자열
 
+                // 출발지 정보 초기화
+                this.lastStartName = null
+                this.lastStartLat = Double.NaN
+                this.lastStartLng = Double.NaN
+
+                // 도착지 정보 초기화
+                this.lastDestName = null
+                this.lastDestLat = Double.NaN
+                this.lastDestLng = Double.NaN
+
+                // 2. UI를 초기 상태로 되돌리기 (null을 넘기면 내부의 removeAllViews()가 작동함)
+                updateRouteInfo("", "", null)
+            }
+            dialog.show()
+        }
         val today = LocalDate.now()
         startDate = today
         endDate = today
@@ -183,11 +216,26 @@ class RouteScheduleFragment : Fragment() {
 
                 // 경로가 확실히 있으므로 삭제 버튼 활성화
                 binding.deleteRouteIv.visibility = View.VISIBLE
+                binding.deleteRouteIv.bringToFront() // ⭐ 다른 뷰들보다 위로 올리기
                 binding.deleteRouteIv.setOnClickListener {
+                    Log.d("ROUTE_DELETE", "삭제 버튼 클릭")
                     val dialog = DeleteRouteDialog(requireContext()) {
-                        setRouteToNull() // 내부에서 route = null 처리
-                        binding.deleteRouteIv.visibility = View.GONE // 삭제 후 버튼 숨김
-                        updateRouteInfo(startName, endName, null)
+                        // 1. 모든 관련 데이터 변수를 "진짜" 초기 상태로 리셋
+                        this.route = null           // 경로 객체
+                        this.lastRouteJson = null   // JSON 문자열
+
+                        // 출발지 정보 초기화
+                        this.lastStartName = null
+                        this.lastStartLat = Double.NaN
+                        this.lastStartLng = Double.NaN
+
+                        // 도착지 정보 초기화
+                        this.lastDestName = null
+                        this.lastDestLat = Double.NaN
+                        this.lastDestLng = Double.NaN
+
+                        // 2. UI를 초기 상태로 되돌리기 (null을 넘기면 내부의 removeAllViews()가 작동함)
+                        updateRouteInfo("", "", null)
                     }
                     dialog.show()
                 }
@@ -402,8 +450,18 @@ class RouteScheduleFragment : Fragment() {
             val finalEndDate = endDate ?: finalStartDate
             val startTime = binding.tvStartTime.text.toString()
             val endTime = binding.tvEndTime.text.toString()
+            val parsedRoute = parseRouteData(lastRouteJson)
 
-
+            val finalRoute = parsedRoute?.copy(
+                originName = lastStartName ?: "출발지",
+                originLat = if (lastStartLat.isNaN()) 0.0 else lastStartLat,
+                originLng = if (lastStartLng.isNaN()) 0.0 else lastStartLng,
+                destName = lastDestName ?: "목적지",
+                destLat = if (lastDestLat.isNaN()) 0.0 else lastDestLat,
+                destLng = if (lastDestLng.isNaN()) 0.0 else lastDestLng,
+                // 상세 경로(routeDetails) 내부의 필드 매핑은 모델 클래스에서 정의한 SerializedName을 따릅니다.
+                routeDetails = parsedRoute.routeDetails ?: emptyList()
+            )
             // 1. 유효성 검사
             if (scheduleName.isEmpty()) {
                 Toast.makeText(context, "일정명을 입력해 주세요.", Toast.LENGTH_SHORT).show()
@@ -419,7 +477,7 @@ class RouteScheduleFragment : Fragment() {
 
             // 일정 알람 추가
             currentSelectedAlarms?.forEach {
-                reminderRequests.add(ReminderRequest("SCHEDULE", it))
+                reminderRequests.add(ReminderRequest("EVENT", it))
             }
 
             // 출발 알람 추가
@@ -438,21 +496,21 @@ class RouteScheduleFragment : Fragment() {
             val request = CreateScheduleRequest(
                 title = scheduleName,
                 isAllDay = false,
-                startDate = finalStartDate.toString(), // 여기서 toString() 호출!
+                startDate = finalStartDate.toString(),
                 endDate = finalEndDate.toString(),
-                startTime = startTime, // HH:mm 형식 유지
-                endTime = endTime,     // HH:mm 형식 유지
+                startTime = startTime,
+                endTime = endTime,
                 memo = binding.etMemo.text.toString(),
                 isPathIncluded = true,
                 isRepeat = false,
                 repeatInfo = null,
                 place = PlaceRequest(
                     targetName = lastDestName ?: "미지정 장소",
-                    targetLat = lastDestLat,
-                    targetLng = lastDestLng
+                    targetLat = if (lastDestLat.isNaN()) 0.0 else lastDestLat,
+                    targetLng = if (lastDestLng.isNaN()) 0.0 else lastDestLng
                 ),
                 reminders = reminderRequests,
-                route = parseRouteData(lastRouteJson)
+                route = finalRoute
             )
             viewModel.createSchedule(
                 request = request,
@@ -461,19 +519,33 @@ class RouteScheduleFragment : Fragment() {
                 selectedColor = selectedColorInt // 변환된 색상 전달
             )
             // TODO: 여기서 ViewModel.createSchedule(request) 호출
-            android.util.Log.d(
-                "RouteSchedule", """
-    [일정 데이터 추출 결과]
-    제목: ${request.title}
-    메모: ${request.memo}
-    날짜: ${request.startDate} ~ ${request.endDate}
-    시간: ${request.startTime} ~ ${request.endTime}
-    도착지: ${request.place?.targetName} (Lat: ${request.place?.targetLat}, Lng: ${request.place?.targetLng})
-    알림 설정: ${request.reminders.firstOrNull()?.minutesBefore}분 전
-    경로 포함 여부: ${request.route != null}
-""".trimIndent()
-            )
+            android.util.Log.d("RouteSchedule", """
+        [일정 데이터 추출 결과]
+        제목: ${request.title}
+        날짜: ${request.startDate} ~ ${request.endDate}
+        시간: ${request.startTime} ~ ${request.endTime}
+        -------------------------------------------
+        🚩 출발지: ${request.route?.originName} (Lat: ${request.route?.originLat}, Lng: ${request.route?.originLng})
+        🏁 도착지: ${request.place?.targetName} (Lat: ${request.place?.targetLat}, Lng: ${request.place?.targetLng})
+        -------------------------------------------
+        알림: ${request.reminders.map { "${it.reminderType}(${it.minutesBefore}분 전)" }}
+        경로 포함 여부: ${request.route != null}
+    """.trimIndent())
             Toast.makeText(context, "일정이 저장되었습니다.", Toast.LENGTH_SHORT).show()
+
+            android.util.Log.d("RouteDebug", "출발위도: $lastStartLat, 도착위도: $lastDestLat")
+
+// 2. 파싱된 객체 내부 체크
+            parsedRoute?.let { route ->
+                android.util.Log.d("RouteDebug", "객체내 출발위도: ${request.route?.originLat}")
+                // 리스트 내부까지 확인
+                route.routeDetails?.forEachIndexed { index, detail ->
+                    if (detail.startLat.isNaN() || detail.startLng.isNaN() || detail.endLat.isNaN() || detail.endLng.isNaN()) {
+                        android.util.Log.e("RouteDebug", "$index 번째 상세경로에 NaN 발견!")
+                    }
+                }
+            }
+
             val intent = Intent(context, MainActivity::class.java)
             intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK
             startActivity(intent)
@@ -627,6 +699,12 @@ class RouteScheduleFragment : Fragment() {
 
         // 일정 추가 -> 루트 프래그먼트로 데이터 전달
         binding.btnRoute.setOnClickListener {
+            Log.d("DEBUG_TAG", "btnRoute 클릭")
+            val dateToPass = startDate?.toString() ?: LocalDate.now().toString()
+            val rawTime = binding.tvStartTime.text.toString() // 예: "10:00"
+            val timeToPass = if (rawTime.length == 5) "$rawTime:00" else rawTime
+
+
             val scheduleName = binding.etScheduleName.text.toString()
             val startTime = binding.tvStartTime.text.toString()
             val intent = android.content.Intent(
@@ -637,21 +715,23 @@ class RouteScheduleFragment : Fragment() {
 
                 putExtra("SCHEDULE_NAME", scheduleName)
                 putExtra("SCHEDULE_COLOR", selectedColor)
-                putExtra("SCHEDULE_TIME", "12:21:11") // "hh:mm:ss”
-
-                putExtra("SCHEDULE_DATE", "2026-02-12") // “yyyy-mm-dd”
+                putExtra("SCHEDULE_DATE", dateToPass) // 받는 쪽에서 "SCHEDULE_DATE"로 꺼냄
+                putExtra("SCHEDULE_TIME", timeToPass) // 받는 쪽에서 "SCHEDULE_TIME"으로 꺼냄
                 putExtra("EARLY_ARRIVE_TIME", earlyArriveTime)
 
-                // ⭐ 좌표 & 장소명 같이 넘기기
-                putExtra("START_NAME", "스타벅스 사당")
-                putExtra("END_NAME", "강남역")
+                // ⭐ 출발지 정보 전달
+                if (lastStartName != null) {
+                    putExtra("START_NAME", lastStartName)
+                    putExtra("START_LAT", lastStartLat)
+                    putExtra("START_LNG", lastStartLng)
+                }
 
-                putExtra("START_LAT", 37.33)
-                putExtra("START_LNG", 126.84)
-
-                putExtra("END_LAT", 37.56)
-                putExtra("END_LNG", 126.99)
-
+                // ⭐ 도착지 정보 전달
+                if (lastDestName != null) {
+                    putExtra("END_NAME", lastDestName)
+                    putExtra("END_LAT", lastDestLat)
+                    putExtra("END_LNG", lastDestLng)
+                }
             }
             routeSearchLauncher.launch(intent)
         }
@@ -687,7 +767,22 @@ class RouteScheduleFragment : Fragment() {
 
     // 데이터 동적 바인딩
     private fun updateRouteInfo(startName: String, endName: String, route: RouteResponse?) {
-        if (route != null) {
+        binding.routeBriefLl.removeAllViews()
+        binding.routeVehicleLl.removeAllViews()
+
+        if (route != null && !route.routeDetails.isNullOrEmpty()) {
+            // 1. 전체 경로의 첫 번째 상세 정보에서 출발지 좌표 추출
+            val firstStep = route.routeDetails.first()
+            this.lastStartName = startName
+            this.lastStartLat = firstStep.startLat
+            this.lastStartLng = firstStep.startLng
+
+            // 2. 전체 경로의 마지막 상세 정보에서 도착지 좌표 추출
+            val lastStep = route.routeDetails.last()
+            this.lastDestName = endName
+            this.lastDestLat = lastStep.endLat
+            this.lastDestLng = lastStep.endLng
+
             // 경로 출발, 도착지 추가
             binding.routeIv.setColorFilter(R.color.black)
             binding.routeTv.text = startName + " -> " + endName

@@ -505,7 +505,7 @@ class RouteFragment : Fragment() {
         scheduleColor = intent.getStringExtra("SCHEDULE_COLOR") ?: "#DC354B"
         var tmpDate = intent.getStringExtra("SCHEDULE_DATE") ?: "2032-12-02"
         scheduleDate = tmpDate
-        var tmpTime = intent.getStringExtra("SCHEDULE_TIME")
+        var tmpTime = intent.getStringExtra("SCHEDULE_TIME") ?: "00:00:00"
         scheduleTime = tmpTime?.substring(0, 5) ?: ""
         val combinedTimeStr = "$tmpDate $tmpTime"
 
