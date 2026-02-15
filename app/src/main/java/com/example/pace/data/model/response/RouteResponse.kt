@@ -24,6 +24,11 @@ data class RouteDetail(
     @SerializedName("distance") val distance: Int,
     @SerializedName("description") val description: String?,
     @SerializedName("points") val points: String,
+    val transitType: String? = null,
+    val lineColor: String? = null,
+    val lineName: String? = null,
+    val shortName: String? = null,
+    val departureStop: String? = null,
     @SerializedName("transitDetail") val transitDetail: TransitDetail?
 )
 

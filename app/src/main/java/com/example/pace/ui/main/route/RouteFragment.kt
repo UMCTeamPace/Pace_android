@@ -36,6 +36,7 @@ import com.example.pace.data.model.RecentHistoryItem
 import com.example.pace.data.model.RecentPlace
 import com.example.pace.data.model.RecentRoute
 import com.example.pace.data.model.request.RouteSearchRequest
+import com.example.pace.data.model.response.RouteOnlyScheduleData
 import com.example.pace.data.model.response.RouteResponse
 import com.example.pace.data.repository.SearchRepository
 import com.example.pace.data.util.RouteConstants
@@ -198,23 +199,23 @@ class RouteFragment : Fragment() {
             startScheduleRouteMode()
 //            activityIntent.removeExtra("ACTION_MODE")
         }
-        if(currentEntryMode == EntryMode.MAIN){
-            if (hasSchedule) {
-                lifecycleScope.launch {
-                    delay(500) // Map 로딩 대기 (임시)
-                    showDefaultScheduleOverlay()
-                }
-            }
-        }
+        hasSchedule = false
+
+        val token = BuildConfig.BEARER_TOKEN // 또는 저장된 토큰 가져오기
+        routeViewModel.fetchRouteOnlySchedule(token)
 
         observeRouteViewModel()
     }
 
-    private fun showDefaultScheduleOverlay() {
+    private fun showDefaultScheduleOverlay(data: RouteOnlyScheduleData? = null) {
+        if (data == null) return
         if (!hasSchedule) return
 
-        val mockSchedule = MarkScheduleProvider.getMockSchedule()
-        val json = mockSchedule.placeJson ?: return
+        val scheduleInfo = data.scheduleInfo
+        val routeInfo = data.route ?: return
+
+//        val mockSchedule = MarkScheduleProvider.getMockSchedule()
+//        val json = mockSchedule.placeJson ?: return
 
         binding.routeSearchFcv.visibility = View.GONE
         binding.layoutRouteInputHeader.root.visibility = View.GONE
@@ -229,18 +230,27 @@ class RouteFragment : Fragment() {
 
         // 일정 모드 UI 세팅
         binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.VISIBLE
-        scheduleName = mockSchedule.title ?: "일정 없음"
-        scheduleTime = mockSchedule.startTime
+        scheduleName = scheduleInfo.title ?: "일정 없음"
+        val rawTime = scheduleInfo.startTime ?: "00:00:00"
+        scheduleTime = if (rawTime.length >= 5) rawTime.take(5) else rawTime
         binding.layoutRouteDetailOverlay.tvScheduleRouteDetailName.text = scheduleName
         binding.layoutRouteDetailOverlay.tvScheduleRouteDetailTime.text = scheduleTime
 
         try {
             // 2. 데이터 파싱
-            val routeResponse = Gson().fromJson(json, RouteResponse::class.java)
+            val assembledRouteResponse = RouteResponse(
+                totalDistance = routeInfo.totalDistance,
+                totalTime = routeInfo.totalTime,
+                arrivalTime = routeInfo.arrivalTime ?: "${scheduleInfo.endDate}T${scheduleInfo.endTime}",
+                departureTime = routeInfo.departureTime ?: "${scheduleInfo.startDate}T${scheduleInfo.startTime}",
+
+                // ★ [핵심] 변환 없이 바로 대입!
+                routeDetails = routeInfo.routeDetails ?: emptyList()
+            )
 
             // 3. 시작/도착 좌표 추출 (경로의 첫번째와 마지막 포인트)
-            val firstDetail = routeResponse.routeDetails.firstOrNull()
-            val lastDetail = routeResponse.routeDetails.lastOrNull()
+            val firstDetail = assembledRouteResponse.routeDetails.firstOrNull()
+            val lastDetail = assembledRouteResponse.routeDetails.lastOrNull()
 
             if (firstDetail != null && lastDetail != null) {
                 this.startLatLng = LatLng(firstDetail.startLat, firstDetail.startLng)
@@ -248,11 +258,11 @@ class RouteFragment : Fragment() {
             }
 
             // 4. UI 텍스트 설정
-            scheduleColor = String.format("#%06X", (0xFFFFFF and (mockSchedule.eventColor ?: Color.RED)))
+            scheduleColor = "#DC354B"
 
             // 5. 지도에 경로 그리기
             val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
-            mapFrag?.drawRouteOnMap(routeResponse, startLatLng, endLatLng)
+            mapFrag?.drawRouteOnMap(assembledRouteResponse, startLatLng, endLatLng)
 
 
             try {
@@ -270,8 +280,9 @@ class RouteFragment : Fragment() {
             behavior.state = BottomSheetBehavior.STATE_COLLAPSED
             behavior.peekHeight = (250 * resources.displayMetrics.density).toInt()
 
+            routeViewModel.updateScheduleForAdapter(assembledRouteResponse)
             // 헬퍼를 이용해 리사이클러뷰 데이터 채우기
-            RouteDetailHelper.setupData(requireContext(), bottomSheetView, routeResponse, mockSchedule.location ?: "")
+            RouteDetailHelper.setupData(requireContext(), bottomSheetView, assembledRouteResponse, routeInfo.destName ?: "")
 
             startLatLng = null
             endLatLng = null
@@ -323,6 +334,21 @@ class RouteFragment : Fragment() {
             }
         }
 
+        routeViewModel.routeOnlySchedule.observe(viewLifecycleOwner) { data ->
+            if (data != null) {
+                // 1. 데이터가 있으면: hasSchedule 켜고, 오버레이 표시
+                hasSchedule = true
+                showDefaultScheduleOverlay(data)
+            } else {
+                // 2. 데이터가 없으면: hasSchedule 끄기
+                hasSchedule = false
+
+                // (경로 검색 중이거나 상세 정보를 보고 있을 때는 숨기면 안 됨)
+                if (currentEntryMode == EntryMode.MAIN) {
+                    binding.layoutRouteDetailOverlay.root.visibility = View.GONE
+                }
+            }
+        }
     }
 
     private fun setupMainActivityListeners() {

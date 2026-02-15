@@ -542,4 +542,49 @@ class ScheduleRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun getScheduleListForRoute(
+        accessToken: String,
+        startDate: String,
+        endDate: String?
+    ): RawDefaultResponse<RouteOnlyScheduleData?> {
+
+        // 실제 Retrofit Service 호출 (Service의 함수 이름은 getScheduleList 였음)
+        val response = api.getScheduleList(
+            accessToken = accessToken,
+            startDate = startDate,
+            endDate = null,
+            lastDate = null,
+            lastId = null
+        )
+
+        // 2. 변환 로직
+        val mappedData: RouteOnlyScheduleData? = response.result?.content
+            ?.find { it.place == null && it.route != null }
+            ?.let { item ->
+                val route = item.route
+                val flattenedDetails = route?.routeDetails?.map { detail ->
+                    // 안쪽 객체의 값을 바깥쪽 변수들로 복사 (Flattening)
+                    detail.copy(
+                        transitType = detail.transitDetail?.transitType,
+                        lineColor = detail.transitDetail?.lineColor,
+                        lineName = detail.transitDetail?.lineName,
+                        shortName = detail.transitDetail?.shortName,
+                        departureStop = detail.transitDetail?.departureStop
+                    )
+                }
+
+                RouteOnlyScheduleData(
+                    scheduleId = item.scheduleId,
+                    scheduleInfo = item.scheduleInfo,
+                    route = item.route
+                )
+            }
+
+        return RawDefaultResponse(
+            code = response.code,
+            message = response.message,
+            isSuccess = response.isSuccess,
+            result = mappedData
+        )
+    }
 }

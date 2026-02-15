@@ -1,7 +1,9 @@
 package com.example.pace.data.model.response
 
 
+import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
+import com.google.gson.reflect.TypeToken
 import java.io.Serial
 
 data class ScheduleListResponse(
@@ -76,7 +78,7 @@ data class RouteInfo(
     @SerializedName("totalDistance") val totalDistance: Int,
     @SerializedName("arrivalTime") val arrivalTime: String?,
     @SerializedName("departureTime") val departureTime: String?,
-    @SerializedName("routeDetails") val routeDetails: List<RouteDetailResponse>
+    @SerializedName("routeDetails") val routeDetails: List<RouteDetail>?
 )
 
 data class RouteDetailResponse(
@@ -102,7 +104,7 @@ data class CreateScheduleResponse(
     @SerializedName("scheduleInfo") val scheduleInfo: ScheduleInfo,
     @SerializedName("place") val place: PlaceInfo?,
     @SerializedName("reminders") val reminders: List<ReminderInfo>,
-    @SerializedName("route") val route: RouteInfo?
+    @SerializedName("route") val route: RouteInfo
 )
 
 data class ScheduleConversionResponse(
@@ -112,4 +114,10 @@ data class ScheduleConversionResponse(
 
 data class WithdrawResponse(
     @SerializedName("result") val result: String
+)
+
+data class RouteOnlyScheduleData(
+    val scheduleId: Long,
+    val scheduleInfo: ScheduleInfo, // [추가] 제목, 시간 정보 등
+    val route: RouteInfo?           // 경로 정보 (거리, 시간, 세부 경로 JSON 등)
 )
