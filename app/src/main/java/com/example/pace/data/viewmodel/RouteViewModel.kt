@@ -99,7 +99,7 @@ class RouteViewModel @Inject constructor(
                         // UI에 데이터 전달 -> "경로 안내 하시겠습니까?" 띄우기 가능
                         _routeOnlySchedule.value = data
                     } else {
-                        Log.d("RouteViewModel", "⚠통신 성공했으나, 경로만 있는 스케줄이 없음")
+                        Log.d("RouteViewModel", "통신 성공했으나, 경로만 있는 스케줄이 없음")
                         // 데이터 없음 (null 전달)
                         _routeOnlySchedule.value = null
                     }
@@ -121,25 +121,11 @@ class RouteViewModel @Inject constructor(
             }
         }
     }
-    fun updateScheduleRoute(assembledResponse: RouteResponse) {
-        val currentData = _routeOnlySchedule.value
-        if (currentData != null) {
-            // 기존 scheduleId, scheduleInfo는 유지하고 route 정보만 조립된 데이터로 교체
-            // 이때 routeDetails 리스트가 RouteResponse의 리스트로 대체됩니다.
-            val updatedData = currentData.copy(
-                route = currentData.route?.copy(
-                    routeDetails = assembledResponse.routeDetails
-                )
-            )
-            _routeOnlySchedule.value = updatedData
-            Log.d("RouteViewModel", "✅ 어댑터용 데이터 업데이트 완료")
-        }
-    }
 
     fun updateScheduleForAdapter(assembledResponse: RouteResponse) {
         // 원본(_routeOnlySchedule)을 건드리지 않고, 어댑터용 LiveData만 업데이트
         _adapterScheduleData.value = assembledResponse
-        Log.d("RouteViewModel", "✅ 어댑터 전용 데이터 업데이트 완료 (무한루프 방지)")
+        Log.d("RouteViewModel", "어댑터 전용 데이터 업데이트 완료 (무한루프 방지)")
     }
 }
 
