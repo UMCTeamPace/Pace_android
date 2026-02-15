@@ -48,6 +48,15 @@ interface ScheduleService {
         @Query("lastId") lastId: Long? = null
     ): RawDefaultResponse<SchedulePagingResponse>
 
+    @GET("/api/v1/schedules")
+    suspend fun getScheduleListForRoute(
+        @Header("Authorization") accessToken: String,
+        @Query("startDate") startDate: String,
+        @Query("endDate") endDate: String? = null,
+        @Query("lastDate") lastDate: String? = null,
+        @Query("lastId") lastId: Long? = null
+    ): RawDefaultResponse<CreateScheduleResponse>
+
     @POST("/api/v1/schedules")
     suspend fun createSchedule(
         @Header("Authorization") accessToken: String,
