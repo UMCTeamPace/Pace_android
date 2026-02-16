@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<TextView
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/item_month_view_multiple_days"
     android:layout_width="44dp"
-    android:layout_height="wrap_content"
+    android:layout_height="12dp"
     android:text="긴 일정"
     android:textAppearance="@style/TextAppearance.App.CaptionSm.Medium"
     style="@style/TextColor.Primary"
+    android:maxLines="1"
+    android:ellipsize="end"
     android:paddingTop="1dp"
     android:paddingStart="4dp"
     android:paddingBottom="1dp"
-    android:background="@drawable/bg_item_month_view_whole"
+    android:background="@drawable/bg_item_month_view_middle"
     app:layout_constraintTop_toBottomOf="@id/calendarDayText"
     app:layout_constraintStart_toStartOf="parent"
     app:layout_constraintEnd_toEndOf="parent"/>
