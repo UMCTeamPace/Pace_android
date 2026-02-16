@@ -28,6 +28,8 @@ import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.main.calendar.ScheduleViewModel
 import com.example.pace.ui.main.calendar.ScheduleViewModelFactory
 import androidx.fragment.app.activityViewModels // 추가
+import com.example.pace.ui.main.home.DeleteRepeatScheduleDialog
+import com.example.pace.ui.main.home.DeleteScheduleDialog
 import dagger.hilt.android.AndroidEntryPoint // 추가
 import com.example.pace.ui.main.home.ScheduleTouchHelper
 @AndroidEntryPoint
@@ -108,7 +110,12 @@ class ScheduleListFragment : Fragment() {
             onEditSelect = { id ->
                 // 아이템 클릭 시 뷰모델의 선택 리스트에 추가/삭제
                 viewModel.toggleSelection(id)
-            }
+            },
+            // 💡 [추가] 단일 아이템 삭제 콜백 (스와이프나 개별 삭제 버튼용)
+//            onDeleteClick = { schedule ->
+//                showDeleteDialog(schedule)
+//            }
+
         )
         // 스와이프 로직 연결
         scheduleTouchHelper = ScheduleTouchHelper(scheduleAdapter)
@@ -186,6 +193,41 @@ class ScheduleListFragment : Fragment() {
             date.format(formatter)
         } catch (e: Exception) {
             date.toString()
+        }
+    }
+
+
+    private fun showDeleteDialog(schedule: Schedule) {
+        // 1. 경로 일정 (ROUTE)
+        if (schedule.type == "ROUTE") {
+            DeleteScheduleDialog(requireContext()).apply {
+                setOnConfirmListener {
+                    viewModel.deleteSchedule(schedule.id, withRoute = true)
+                }
+            }.show()
+        }
+        // 2. 반복 일정 여부 체크
+        else if (!schedule.repeatRule.isNullOrEmpty()) {
+            DeleteRepeatScheduleDialog(requireContext()).apply {
+                setOnOptionSelectedListener { option ->
+                    when (option) {
+                        "ONLY_THIS" -> {
+                            // schedule.startDate는 expandSchedules에 의해 해당 회차 날짜로 이미 채워져 있음
+                            val occurrenceDate = java.time.LocalDate.parse(schedule.startDate)
+                            viewModel.deleteOnlyThisOccurrence(schedule, occurrenceDate)
+                        }
+                        "ALL" -> viewModel.deleteSchedule(schedule.id, withRoute = false)
+                    }
+                }
+            }.show()
+        }
+        // 3. 일반 단일 일정
+        else {
+            DeleteScheduleDialog(requireContext()).apply {
+                setOnConfirmListener {
+                    viewModel.deleteSchedule(schedule.id, withRoute = false)
+                }
+            }.show()
         }
     }
 

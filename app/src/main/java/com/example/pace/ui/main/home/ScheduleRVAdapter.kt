@@ -21,6 +21,8 @@ class ScheduleRVAdapter(
 
     interface MyOnClickListener{
         fun showModalCase(scheduleList: List<Schedule>, position: Int)
+        fun onEdit(schedule: Schedule)
+        fun onDelete(schedule: Schedule)
     }
 
     fun setMyOnClickListener(myOnClickListener: MyOnClickListener){
@@ -55,9 +57,17 @@ class ScheduleRVAdapter(
             onPinClick(schedule)
             scheduleTouchHelper.closeSwipedMenu(holder)
         }
+
+        // 수정 버튼 (이름 유지: mOnClickListener 사용)
+        holder.binding.scheduleEditIv.setOnClickListener {
+            mOnClickListener.onEdit(schedule)
+            scheduleTouchHelper.closeSwipedMenu(holder)
+        }
+
+        // 삭제 버튼 (이름 유지: mOnClickListener 사용)
         holder.binding.scheduleDeleteIv.setOnClickListener {
-            val deleteScheduleDialog = DeleteScheduleDialog(context)
-            deleteScheduleDialog.show()
+            mOnClickListener.onDelete(schedule)
+            scheduleTouchHelper.closeSwipedMenu(holder)
         }
 
         holder.binding.scheduleViewTop.setOnClickListener {

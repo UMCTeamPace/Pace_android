@@ -1,6 +1,7 @@
 package com.example.pace.data.repository.repositoryImpl
 
 import android.content.ContentUris
+import android.content.ContentValues
 import android.content.Context
 import android.graphics.Color
 import android.provider.CalendarContract
@@ -56,6 +57,59 @@ class ScheduleRepositoryImpl @Inject constructor(
     // 2. 로컬 DB 관리 메서드
     override suspend fun updateSchedule(schedule: Schedule) {
         scheduleDao.updateSchedule(schedule)
+    }
+
+    override suspend fun updateExDate(schedule: Schedule) {
+        withContext(Dispatchers.IO) {
+            try {
+                // 1. 만약 시스템 일정이라면 "삭제 행(Exception Event)"을 생성합니다.
+                if (schedule.sourceType == "SYSTEM") {
+                    val contentResolver = context.contentResolver
+
+                    // 삭제하려는 날짜의 시작 시간 계산 (밀리초)
+                    // schedule.startDate는 현재 "2026-02-26" 형태라고 가정
+                    val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+                    val startMillis = sdf.parse("${schedule.startDate} ${schedule.startTime}")?.time
+                        ?: System.currentTimeMillis()
+
+                    val values = ContentValues().apply {
+                        // 핵심 1: 원본 일정의 TITLE, CALENDAR_ID 등을 복사
+                        put(CalendarContract.Events.TITLE, schedule.title)
+                        put(CalendarContract.Events.CALENDAR_ID, schedule.calendarId)
+                        put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
+
+                        // 핵심 2: 원본 일정의 ID를 ORIGINAL_ID로 지정 (부모 연결)
+                        put(CalendarContract.Events.ORIGINAL_ID, schedule.id)
+
+                        // 핵심 3: 이 회차의 원래 시작 시간을 ORIGINAL_INSTANCE_TIME으로 지정
+                        put(CalendarContract.Events.ORIGINAL_INSTANCE_TIME, startMillis)
+
+                        // 핵심 4: 상태를 '취소됨(CANCELED)'으로 설정
+                        put(CalendarContract.Events.STATUS, CalendarContract.Events.STATUS_CANCELED)
+
+                        // 필수 값들
+                        put(CalendarContract.Events.DTSTART, startMillis)
+                        put(CalendarContract.Events.DTEND, startMillis + 3600000) // 1시간 뒤
+                        put(CalendarContract.Events.ALL_DAY, if (schedule.isAllDay) 1 else 0)
+                    }
+
+                    // 시스템 DB에 '삭제 행' 삽입
+                    val uri = contentResolver.insert(CalendarContract.Events.CONTENT_URI, values)
+                    Log.d("ExDateLog", "✅ 시스템에 삭제 행 생성 완료: $uri")
+
+                    // 2. Room DB 동기화를 위해 즉시 refresh 호출 (또는 직접 insert)
+                    // 이 삭제 행도 Room에 들어와야 expandSchedules가 인식함
+                    refreshSchedules()
+                }
+                else {
+                    // 우리 앱 전용 일정(DB)인 경우 기존처럼 exDate 문자열 방식으로 처리
+                    scheduleDao.updateSchedule(schedule)
+                }
+
+            } catch (e: Exception) {
+                Log.e("ExDateLog", "삭제 행 생성 실패: ${e.message}")
+            }
+        }
     }
 
     // [중요] 시스템 삭제분 정리 로직 구현
@@ -255,7 +309,7 @@ class ScheduleRepositoryImpl @Inject constructor(
                     serverId = null,
                     routeId = null,
                     repeatRule = generatedRRule,
-                    exdate = null
+                    exDate = null
                 )
                 scheduleDao.insertAll(listOf(localSchedule))
                 RawDefaultResponse(isSuccess = true, code = "COMMON200", message = "로컬 일정 저장 성공", result = null)
@@ -291,10 +345,8 @@ class ScheduleRepositoryImpl @Inject constructor(
 
     // --- 반복 일정 전개 및 헬퍼 함수 (기존 유지) ---
     private fun expandSchedules(rawSchedules: List<Schedule>): List<Schedule> {
-        // ... (보내주신 biweekly 전개 로직 동일)
         val expandedList = mutableListOf<Schedule>()
         val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-        val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
         val currentLocalDate = LocalDate.now()
         val rangeStartLocalDate = currentLocalDate.minusYears(2)
@@ -303,12 +355,31 @@ class ScheduleRepositoryImpl @Inject constructor(
         val rangeStartDate = Date.from(rangeStartLocalDate.atStartOfDay(ZoneId.systemDefault()).toInstant())
         val rangeEndDate = Date.from(rangeEndLocalDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant())
 
-        rawSchedules.forEach { schedule ->
-            val startLocalDate = LocalDate.parse(schedule.startDate, dateFormatter)
-            val endLocalDate = LocalDate.parse(schedule.endDate, dateFormatter)
+        // 💡 [추가] 삼성/구글에서 '행'으로 생성된 삭제 정보들만 모읍니다.
+        // Key: 부모ID(originalId), Value: 삭제된 날짜 리스트(startDate)
+        val cancellationMap = rawSchedules
+            .filter { it.status == 2 && it.originalId != 0L }
+            .groupBy({ it.originalId }, { it.startDate })
 
+        // 💡 [추가] 화면에 실제로 그릴 수 있는 일정들(status가 2가 아닌 것)만 순회합니다.
+        val activeSchedules = rawSchedules.filter { it.status != 2 }
+
+        activeSchedules.forEach { schedule ->
+            val startLocalDate = try {
+                LocalDate.parse(schedule.startDate, dateFormatter)
+            } catch (e: Exception) {
+                Log.e("ExpandLog", "시작 날짜 파싱 실패: ${schedule.startDate}")
+                return@forEach
+            }
+            val endLocalDate = try {
+                LocalDate.parse(schedule.endDate, dateFormatter)
+            } catch (e: Exception) {
+                startLocalDate
+            }
+
+            // 1. 반복 일정 처리
             if (!schedule.repeatRule.isNullOrBlank()) {
-                val dtStartString = "${schedule.startDate} ${schedule.startTime}"
+                val dtStartString = "${schedule.startDate} 00:00"
                 val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
                 val dtStartDate = try { sdf.parse(dtStartString) } catch (e: Exception) { null }
 
@@ -316,46 +387,102 @@ class ScheduleRepositoryImpl @Inject constructor(
                     try {
                         val event = VEvent()
                         event.setDateStart(DateStart(dtStartDate))
+
                         val recur = parseRecurrenceString(schedule.repeatRule!!)
                         if (recur != null) event.setRecurrenceRule(RecurrenceRule(recur))
 
-                        if (!schedule.exdate.isNullOrBlank()) {
-                            val exdates = ExceptionDates()
-                            schedule.exdate!!.split(',').forEach { dateStr ->
+                        // 기존 exDate 문자열 처리
+                        val exdates = ExceptionDates()
+                        if (!schedule.exDate.isNullOrBlank()) {
+                            schedule.exDate.split(',').forEach { dateStr ->
+                                val trimmed = dateStr.trim()
+                                if (trimmed.isEmpty()) return@forEach
+
                                 try {
-                                    val date = SimpleDateFormat("yyyyMMdd'T'HHmmss'Z'", Locale.getDefault()).apply {
-                                        timeZone = TimeZone.getTimeZone("UTC")
-                                    }.parse(dateStr.trim())
-                                    if(date != null) exdates.getValues().add(ICalDate(date, true))
+                                    // 💡 수정: 모든 기호 제거 후 숫자 8자리(yyyyMMdd)만 추출
+                                    val numericOnly = trimmed.replace(Regex("[^0-9]"), "")
+                                    if (numericOnly.length >= 8) {
+                                        val yyyyMMdd = numericOnly.substring(0, 8)
+                                        val dateOnly = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).parse(yyyyMMdd)
+                                        dateOnly?.let {
+                                            val cal = Calendar.getInstance().apply {
+                                                time = it
+                                                set(Calendar.HOUR_OF_DAY, 0)
+                                                set(Calendar.MINUTE, 0)
+                                                set(Calendar.SECOND, 0)
+                                                set(Calendar.MILLISECOND, 0)
+                                            }
+                                            exdates.getValues().add(ICalDate(cal.time, false))
+                                        }
+                                    }
                                 } catch (e: Exception) {
-                                    try {
-                                        val date = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).parse(dateStr.trim())
-                                        if (date != null) exdates.getValues().add(ICalDate(date, false))
-                                    } catch (e2: Exception) {}
+                                    android.util.Log.e("ScheduleRepository", "EXDATE 파싱 최종 실패: $trimmed")
                                 }
                             }
-                            if (exdates.getValues().isNotEmpty()) event.addExceptionDates(exdates)
+                            if (exdates.getValues().isNotEmpty()) {
+                                event.addExceptionDates(exdates)
+                            }
                         }
 
+                        // 💡 [추가] 맵에 담아둔 삼성/구글의 '삭제 행' 날짜들도 exdates 객체에 통합
+                        cancellationMap[schedule.id]?.forEach { deletedDateStr ->
+                            try {
+                                val sdfSimple = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                                val dateObj = sdfSimple.parse(deletedDateStr)
+                                dateObj?.let {
+                                    val cal = Calendar.getInstance().apply {
+                                        time = it
+                                        set(Calendar.HOUR_OF_DAY, 0)
+                                        set(Calendar.MINUTE, 0)
+                                        set(Calendar.SECOND, 0)
+                                        set(Calendar.MILLISECOND, 0)
+                                    }
+                                    exdates.getValues().add(ICalDate(cal.time, false))
+                                }
+                            } catch (e: Exception) {
+                                Log.e("ExpandLog", "삭제행 날짜 통합 실패: $deletedDateStr")
+                            }
+                        }
+
+                        if (exdates.getValues().isNotEmpty()) {
+                            event.addExceptionDates(exdates)
+                        }
+
+                        // 전개 시작
                         val iterator = event.getDateIterator(TimeZone.getDefault())
                         iterator.advanceTo(rangeStartDate)
                         var count = 0
                         while (iterator.hasNext() && count < 1000) {
                             val occurrenceDate = iterator.next()
                             if (occurrenceDate.after(rangeEndDate)) break
+
                             val oZDT = occurrenceDate.toInstant().atZone(ZoneId.systemDefault())
+                            val formattedDate = oZDT.toLocalDate().format(dateFormatter)
+
+                            // 💡 [중요] ICal4j 라이브러리에 따라 addExceptionDates가 완벽히 필터링 못할 경우를 대비한 2중 체크
+                            // cancellationMap에 해당 부모ID와 현재 날짜가 등록되어 있다면 건너뜁니다.
+                            val systemDeletedDates = cancellationMap[schedule.id] ?: emptyList()
+                            if (systemDeletedDates.contains(formattedDate)) {
+                                continue
+                            }
+
                             expandedList.add(schedule.copy(
-                                startDate = oZDT.toLocalDate().format(dateFormatter),
-                                endDate = oZDT.toLocalDate().format(dateFormatter),
-                                startTime = oZDT.toLocalTime().format(timeFormatter)
+                                startDate = formattedDate,
+                                endDate = formattedDate,
+                                startTime = schedule.startTime
                             ))
                             count++
                         }
                     } catch (e: Exception) {
-                        if (startLocalDate.isBefore(rangeEndLocalDate) && endLocalDate.isAfter(rangeStartLocalDate)) expandedList.add(schedule)
+                        Log.e("ExpandLog", "반복 전개 오류: ${e.message}")
+                        if (startLocalDate.isBefore(rangeEndLocalDate) && endLocalDate.isAfter(rangeStartLocalDate)) {
+                            expandedList.add(schedule)
+                        }
                     }
                 }
-            } else if (startLocalDate.isBefore(endLocalDate)) {
+            }
+            // 2. 단일 기간제 일정
+            else if (startLocalDate.isBefore(endLocalDate)) {
                 var current = startLocalDate
                 while (!current.isAfter(endLocalDate)) {
                     if (!current.isBefore(rangeStartLocalDate) && current.isBefore(rangeEndLocalDate)) {
@@ -363,8 +490,12 @@ class ScheduleRepositoryImpl @Inject constructor(
                     }
                     current = current.plusDays(1)
                 }
-            } else {
-                if (!startLocalDate.isBefore(rangeStartLocalDate) && startLocalDate.isBefore(rangeEndLocalDate)) expandedList.add(schedule)
+            }
+            // 3. 일반 단일 일정
+            else {
+                if (!startLocalDate.isBefore(rangeStartLocalDate) && startLocalDate.isBefore(rangeEndLocalDate)) {
+                    expandedList.add(schedule)
+                }
             }
         }
         return expandedList
@@ -448,7 +579,7 @@ class ScheduleRepositoryImpl @Inject constructor(
             isSwiped = false,
             sourceType = "SERVER",
             repeatRule = null,
-            exdate = null,
+            exDate = null,
             serverId = this.scheduleId
         )
     }
@@ -477,7 +608,7 @@ class ScheduleRepositoryImpl @Inject constructor(
             isSwiped = false,
             sourceType = "SERVER",
             repeatRule = null,
-            exdate = null,
+            exDate = null,
             serverId = this.scheduleId
         )
     }
@@ -587,4 +718,52 @@ class ScheduleRepositoryImpl @Inject constructor(
             result = mappedData
         )
     }
+
+
+    // 일반 일정 삭제 구현
+    override suspend fun deleteNormalSchedule(id: Long): RawDefaultResponse<String> {
+        return withContext(Dispatchers.IO) {
+            try {
+                // 1. 시스템 캘린더 프로바이더에서 삭제
+                val deleteUri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, id)
+                val deletedRows = context.contentResolver.delete(deleteUri, null, null)
+
+                // 2. 로컬 DB(Room)에서 삭제
+                scheduleDao.deleteScheduleById(id)
+
+                Log.d("DeleteLog", "일반 일정 삭제 완료: ID=$id, Provider 삭제 행=$deletedRows")
+                RawDefaultResponse(isSuccess = true, code = "200", message = "기기 일정 삭제 완료", result = "SUCCESS")
+            } catch (e: Exception) {
+                Log.e("DeleteLog", "일반 일정 삭제 중 오류: ${e.message}")
+                RawDefaultResponse(isSuccess = false, code = "LOCAL_ERROR", message = e.message ?: "Unknown Error", result = null)
+            }
+        }
+    }
+
+    // 경로 일정 삭제 구현
+    override suspend fun deleteRouteSchedule(id: Long): RawDefaultResponse<String> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val token = authDataStore.getAccessToken() ?: ""
+                // [추가] 토큰 접두사 처리 (서버 사양에 따라 필요할 수 있음)
+                val fullToken = if (token.isNotEmpty() && !token.startsWith("Bearer ")) "Bearer $token" else token
+
+                val request = DeleteScheduleRequest(scheduleIds = listOf(id))
+                val response = api.deleteSchedules(fullToken, request)
+
+                if (response.isSuccess) {
+                    // 서버 삭제 성공 시에만 로컬 DB에서 제거
+                    scheduleDao.deleteScheduleById(id)
+                    Log.d("DeleteLog", "경로 일정 서버/로컬 삭제 완료: ID=$id")
+                } else {
+                    Log.e("DeleteLog", "경로 일정 서버 삭제 실패: ${response.message}")
+                }
+                response
+            } catch (e: Exception) {
+                Log.e("DeleteLog", "경로 일정 삭제 중 예외 발생: ${e.message}")
+                RawDefaultResponse(isSuccess = false, code = "SERVER_ERROR", message = e.message ?: "Unknown Error", result = null)
+            }
+        }
+    }
+
 }

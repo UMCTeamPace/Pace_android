@@ -92,24 +92,22 @@ class NormalScheduleRemoteDataSource @Inject constructor(
     suspend fun getSchedules(): List<Schedule> = withContext(Dispatchers.IO) {
         val scheduleList = mutableListOf<Schedule>()
 
-        // 1. 조회 범위 설정 (예: 과거 2.5년 전부터 미래 2.5년 후까지)
         val calendar = Calendar.getInstance()
-        calendar.add(Calendar.MONTH, -30) // 2.5년 전으로 설정
+        calendar.add(Calendar.MONTH, -30)
         val startRange = calendar.timeInMillis
-
-        calendar.add(Calendar.MONTH, 60) // 위에서 -30 했으므로 +60을 해야 미래 2.5년이 됨
+        calendar.add(Calendar.MONTH, 60)
         val endRange = calendar.timeInMillis
 
-        // 2. 쿼리 조건 수정 (시작일과 종료일 사이의 이벤트를 가져옴)
-        // 과거 데이터도 가져오고 싶다면 단순히 >= 조건을 바꾸거나 범위를 지정합니다.
+        // 1. 쿼리 조건: 삭제된 행(DELETED=1)만 제외하고 모든 상태(STATUS)를 가져옴
         val selection = "(${CalendarContract.Events.DTSTART} >= ? AND ${CalendarContract.Events.DTSTART} <= ?) AND " +
-                "(${CalendarContract.Events.DELETED} = 0) AND " +
-                "(${CalendarContract.Events.STATUS} IS NULL OR ${CalendarContract.Events.STATUS} != ${CalendarContract.Events.STATUS_CANCELED})"
+                "(${CalendarContract.Events.DELETED} = 0)"
 
         val selectionArgs = arrayOf(startRange.toString(), endRange.toString())
 
         val projection = arrayOf(
             CalendarContract.Events._ID,
+            CalendarContract.Events.ORIGINAL_ID, // 💡 추가
+            CalendarContract.Events.STATUS,      // 💡 추가
             CalendarContract.Events.TITLE,
             CalendarContract.Events.DTSTART,
             CalendarContract.Events.DTEND,
@@ -125,29 +123,19 @@ class NormalScheduleRemoteDataSource @Inject constructor(
             CalendarContract.Events.DELETED
         )
 
-
-
         try {
-            // 2. 권한 확인이 통과된 경우에만 쿼리를 실행
             val cursor: Cursor? = applicationContext.contentResolver.query(
-
                 CalendarContract.Events.CONTENT_URI,
-
                 projection,
-
                 selection,
-
                 selectionArgs,
-
                 CalendarContract.Events.DTSTART + " ASC"
-
             )
 
-    
-
             cursor?.use {
-                // 인덱스 먼저 다 뽑기 (성능 및 안전성)
                 val idIdx = it.getColumnIndexOrThrow(CalendarContract.Events._ID)
+                val originalIdIdx = it.getColumnIndexOrThrow(CalendarContract.Events.ORIGINAL_ID) // 💡 추가
+                val statusIdx = it.getColumnIndexOrThrow(CalendarContract.Events.STATUS)           // 💡 추가
                 val titleIdx = it.getColumnIndexOrThrow(CalendarContract.Events.TITLE)
                 val dtStartIdx = it.getColumnIndexOrThrow(CalendarContract.Events.DTSTART)
                 val dtEndIdx = it.getColumnIndexOrThrow(CalendarContract.Events.DTEND)
@@ -163,12 +151,12 @@ class NormalScheduleRemoteDataSource @Inject constructor(
                 val deletedIdx = it.getColumnIndexOrThrow(CalendarContract.Events.DELETED)
 
                 while (it.moveToNext()) {
-                    // 1. 삭제 여부 확인
                     val isDeleted = it.getInt(deletedIdx)
                     if (isDeleted == 1) continue
 
-                    // 2. 값 추출 (이 부분이 빠져있었습니다!)
                     val id = it.getLong(idIdx)
+                    val originalId = it.getLong(originalIdIdx) // 💡 값 추출
+                    val status = it.getInt(statusIdx)           // 💡 값 추출
                     val title = it.getString(titleIdx) ?: ""
                     val dtStart = it.getLong(dtStartIdx)
                     val dtEnd = it.getLong(dtEndIdx)
@@ -182,62 +170,40 @@ class NormalScheduleRemoteDataSource @Inject constructor(
                     val eventColor = it.getInt(eventColorIdx)
                     val calendarColor = it.getInt(calColorIdx)
 
-                    // 3. 알림 데이터 가져오기
                     val reminders = fetchReminders(id)
 
-                    // 4. 리스트에 추가
                     scheduleList.add(
-
                         Schedule(
-
                             id = id,
-
+                            originalId = originalId, // 💡 Schedule 모델에 전달
+                            status = status,         // 💡 Schedule 모델에 전달
                             title = title,
-
                             startDate = formatMillisToDate(dtStart),
-
                             endDate = formatMillisToDate(dtEnd),
-
                             startTime = formatMillisToTime(dtStart),
-
                             endTime = formatMillisToTime(dtEnd),
-
                             isAllDay = isAllDay,
-
                             memo = memo,
-
                             location = location,
-
                             repeatRule = rrule,
-                            exdate = exdate,
+                            exDate = exdate,
                             calendarId = calendarId,
-
                             calendarDisplayName = calendarName,
-
                             calendarAccountName = null,
-
                             reminders = reminders,
                             eventColor = if (eventColor != 0) eventColor else null,
                             calendarColor = if (calendarColor != 0) calendarColor else null,
                             type = "NORMAL",
                             sourceType = "SYSTEM"
                         )
-
                     )
-
                 }
             }
-    } catch (e: SecurityException) {
-        // 3. 만약의 경우를 대비한 2중 방어막
-        android.util.Log.e("ScheduleDataSource", "SecurityException 발생: ${e.message}")
-        return@withContext emptyList<Schedule>()
-    } catch (e: Exception) {
-        android.util.Log.e("ScheduleDataSource", "데이터 로드 중 오류 발생: ${e.message}")
-    }
-
-            scheduleList
-
+        } catch (e: Exception) {
+            Log.e("ScheduleDataSource", "데이터 로드 중 오류 발생: ${e.message}")
         }
+        scheduleList
+    }
 
     private fun fetchReminders(eventId: Long): List<Int> {
         val reminderList = mutableListOf<Int>()

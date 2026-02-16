@@ -69,6 +69,50 @@ class HomeFragment: Fragment() {
                 val modalCaseDialog = ModalCaseDialog(requireContext(), scheduleList, position, selectedDate, viewModel)
                 modalCaseDialog.show()
             }
+            override fun onEdit(schedule: Schedule) {
+                val intent = Intent(requireContext(), AddScheduleActivity::class.java).apply {
+                    putExtra("isEdit", true)
+                    putExtra("SCHEDULE_ID", schedule.id) // ID만 전달
+
+                    // 타입에 따라 시작 탭 결정
+                    if (schedule.type == "ROUTE") {
+                        putExtra("OPEN_ROUTE_TAB", true)
+                    }
+                }
+                startActivity(intent)
+            }
+
+            override fun onDelete(schedule: Schedule) {
+                // 1. 경로 일정은 항상 단일 일정이므로 바로 삭제 다이얼로그
+                if (schedule.type == "ROUTE") {
+                    val deleteDialog = DeleteScheduleDialog(requireContext())
+                    deleteDialog.setOnConfirmListener {
+                        viewModel.deleteSchedule(schedule.id, withRoute = true)
+                    }
+                    deleteDialog.show()
+                }
+                // 2. 일반 일정인 경우만 반복 여부 체크
+                else {
+                    if (!schedule.repeatRule.isNullOrEmpty()) {
+                        val repeatDialog = DeleteRepeatScheduleDialog(requireContext())
+                        repeatDialog.setOnOptionSelectedListener { option ->
+                            when (option) {
+                                "ONLY_THIS" -> viewModel.deleteOnlyThisOccurrence(schedule, selectedDate)
+                                "ALL" -> viewModel.deleteSchedule(schedule.id, withRoute = false)
+                            }
+                        }
+                        repeatDialog.show()
+                    } else {
+                        // 일반 단일 일정
+                        val deleteDialog = DeleteScheduleDialog(requireContext())
+                        deleteDialog.setOnConfirmListener {
+                            viewModel.deleteSchedule(schedule.id, withRoute = false)
+                        }
+                        deleteDialog.show()
+                    }
+                }
+            }
+
         })
         scheduleAdapter.scheduleTouchHelper = scheduleTouchHelper
         itemTouchHelper.attachToRecyclerView(binding.homeScheduleRv)

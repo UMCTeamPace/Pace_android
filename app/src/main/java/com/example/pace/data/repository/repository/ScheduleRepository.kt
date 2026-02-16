@@ -41,10 +41,14 @@ interface ScheduleRepository {
     suspend fun updateScheduleRoute(accessToken: String, scheduleId: Long, request: UpdateScheduleRouteRequest): RawDefaultResponse<UpdateScheduleRouteResponse>
     suspend fun deleteScheduleRoute(accessToken: String, scheduleId: Long): RawDefaultResponse<DeleteScheduleRouteResponse>
     suspend fun convertRouteToGeneral(accessToken: String, id: Long): RawDefaultResponse<ScheduleConversionResponse>
-
+    suspend fun deleteNormalSchedule(id: Long): RawDefaultResponse<String>
+    suspend fun deleteRouteSchedule(id: Long): RawDefaultResponse<String>
     suspend fun getScheduleListForRoute(
         accessToken: String,
         startDate: String,
         endDate: String?
     ): RawDefaultResponse<RouteOnlyScheduleData?>
+
+    suspend fun updateExDate(schedule: Schedule)
+
 }
