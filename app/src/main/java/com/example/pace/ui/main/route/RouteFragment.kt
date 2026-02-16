@@ -72,6 +72,7 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.ArrayList
@@ -335,6 +336,7 @@ class RouteFragment : Fragment() {
         }
 
         routeViewModel.routeOnlySchedule.observe(viewLifecycleOwner) { data ->
+            if (currentEntryMode != EntryMode.MAIN) return@observe
             if (data != null) {
                 // 1. 데이터가 있으면: hasSchedule 켜고, 오버레이 표시
                 hasSchedule = true
@@ -539,6 +541,7 @@ class RouteFragment : Fragment() {
             endLatLng = null
             selectedEndPlace = null
         }
+        isStart = false
 
         binding.layoutRouteInputHeader.tvRouteStart.text = selectedStartPlace?.first ?: ""
         binding.layoutRouteInputHeader.tvRouteEnd.text = selectedEndPlace?.first ?: ""
@@ -560,6 +563,8 @@ class RouteFragment : Fragment() {
         binding.routeSearchFcv.visibility = View.VISIBLE
         binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
         binding.layoutRouteInputHeader.root.bringToFront()
+
+        binding.layoutRouteDetailOverlay.root.visibility = View.GONE
 
         showSearchRouteFragment()
     }
@@ -978,7 +983,13 @@ class RouteFragment : Fragment() {
         binding.routeSearchFcv.visibility = View.GONE
         mainBinding?.mainBackIv?.visibility = View.VISIBLE
         mainBinding?.mainToolbar?.visibility = View.VISIBLE
+//        if(currentEntryMode == EntryMode.SCHEDULE_ROUTE || currentEntryMode == EntryMode.SCHEDULE){
+//            mainBinding?.mainBnv?.visibility = View.GONE
+//        }else{
+//            mainBinding?.mainBnv?.visibility = View.VISIBLE
+//        }
         mainBinding?.mainBnv?.visibility = View.VISIBLE
+
         binding.routeSearchFcv.visibility = View.GONE
         binding.layoutBookmarkHeader.root.visibility = View.GONE
         binding.layoutRouteInputHeader.root.visibility = View.GONE
@@ -1317,6 +1328,7 @@ private fun selectCurrentLocation() {
             val currentTime = SimpleDateFormat("HH시 mm분", Locale.KOREAN).format(calendar.time)
             binding.layoutRouteInputHeader.tvTimeFilter.text = "오늘 $currentTime 출발"
         }
+        historyFragment.setRouteOptionsVisible(false)
 
         val existingRouteFrag = childFragmentManager.findFragmentByTag("ROUTE_RESULT") as? RouteResultFragment
         Log.d("Route", "22${selectedStartPlace.toString()}--${selectedEndPlace.toString()} +${startLatLng.toString()}--${endLatLng.toString()} ")
@@ -1995,6 +2007,7 @@ private fun selectCurrentLocation() {
         btnSave.setOnClickListener {
             val selectedMinute = npMinute.value
             earlyArriveTime = selectedMinute
+            isStart = false
 
             // 1. 문자열 조합 및 LocalDateTime 생성
             // scheduleData: "2026-02-11", scheduleTime: "13:30"
@@ -2006,7 +2019,8 @@ private fun selectCurrentLocation() {
 
             // ISO 8601 형식으로 변환 (예: 2026-02-11T01:34:48.825Z)
             // .atZone(ZoneId.of("UTC"))를 사용하여 Z(Zulu) 표시를 포함합니다.
-            requestSearchTime = adjustedDateTime.atZone(ZoneOffset.UTC)
+            requestSearchTime = adjustedDateTime.atZone(ZoneId.systemDefault()) // 기기 로컬 시간대(KST)
+                .withZoneSameInstant(ZoneOffset.UTC) // 실제 UTC 시간으로 변환 (-9시간)
                 .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"))
 
             // 3. UI 텍스트 설정 (오늘/내일 판단)
@@ -2020,7 +2034,7 @@ private fun selectCurrentLocation() {
             }
 
             binding.layoutRouteInputHeader.tvTimeFilter.text =
-                "$datePrefix ${scheduledDateTime.format(DateTimeFormatter.ofPattern("HH:mm"))} 도착"
+                "$datePrefix ${adjustedDateTime.format(DateTimeFormatter.ofPattern("HH:mm"))} 도착"
 
             FinalfetchRouteData()
 
