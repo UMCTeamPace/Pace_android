@@ -236,6 +236,14 @@
         <item name="android:textColor">@color/black</item>
     </style>
 
+    <style name="TextAppearance.App.PlaceHolder" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">4sp</item>
+        <item name="android:fontFamily">@font/roboto_medium</item>
+        <item name="lineHeight">14sp</item>
+        <item name="android:letterSpacing">-0.05</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
     <style name="TextColor.Primary" parent="Theme.AppCompat">
         <item name="android:textColor">@color/gray_900</item>
     </style>
