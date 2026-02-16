@@ -1328,6 +1328,7 @@ private fun selectCurrentLocation() {
             val currentTime = SimpleDateFormat("HH시 mm분", Locale.KOREAN).format(calendar.time)
             binding.layoutRouteInputHeader.tvTimeFilter.text = "오늘 $currentTime 출발"
         }
+        historyFragment.setRouteOptionsVisible(false)
 
         val existingRouteFrag = childFragmentManager.findFragmentByTag("ROUTE_RESULT") as? RouteResultFragment
         Log.d("Route", "22${selectedStartPlace.toString()}--${selectedEndPlace.toString()} +${startLatLng.toString()}--${endLatLng.toString()} ")
