@@ -1,7 +1,12 @@
 package com.example.pace
 
+import android.app.KeyguardManager
+import android.content.Context
+import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.View
+import android.view.WindowManager
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import com.example.pace.data.viewmodel.AlertViewModel
@@ -13,6 +18,22 @@ class AlertActivity : AppCompatActivity() {
     private lateinit var viewModel: AlertViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
+
+        // [추가] 풀스크린 알람을 위한 화면 켜짐 및 잠금해제 설정
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+            val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+            keyguardManager.requestDismissKeyguard(this, null)
+        } else {
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                        WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+            )
+        }
+
         super.onCreate(savedInstanceState)
         binding = ActivityAlertBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -20,13 +41,19 @@ class AlertActivity : AppCompatActivity() {
         // 1. ViewModel 초기화 (AndroidViewModel 형식이므로 context 자동 처리)
         viewModel = ViewModelProvider(this).get(AlertViewModel::class.java)
 
+        val minutes = intent.getIntExtra("MINUTES_LEFT", 0)
+
         // 2. 관찰자(Observers) 설정
         setupObservers()
 
-        // 3. 실제 데이터 로드 시작
-        // TODO: 본인의 OpenWeather API Key를 넣으세요.
-        // minutesLeft 값(15)에 따라 PrepStep이 결정됩니다.
-        viewModel.loadAlertData("Seoul", BuildConfig.YOUR_OPENWEATHER_API_KEY,15)
+        viewModel.initAlarmData(minutes)
+
+        // AlertActivity.onCreate 내부
+        val minutesLeft = intent.getIntExtra("MINUTES_LEFT", 0)
+        viewModel.loadAlertData("Seoul", BuildConfig.YOUR_OPENWEATHER_API_KEY, minutesLeft)
+        Log.d("PaceAlarm", "액티비티에서 최종 확인한 시간: $minutesLeft")
+
+        viewModel.initAlarmData(minutesLeft)
 
         // 4. 버튼 이벤트 설정 (온라인/오프라인 공통)
         binding.btnClose.setOnClickListener { finish() }
