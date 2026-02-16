@@ -473,6 +473,39 @@ class RouteScheduleFragment : Fragment() {
                 return@setOnClickListener
             }
 
+            // 1) 일정 시작 시간을 밀리초(Long)로 변환
+            val startParts = startTime.split(":")
+            val hour = startParts[0].toInt()
+            val minute = startParts[1].toInt()
+
+            val calendar = java.util.Calendar.getInstance().apply {
+                set(finalStartDate.year, finalStartDate.monthValue - 1, finalStartDate.dayOfMonth, hour, minute, 0)
+            }
+            val scheduleTimeMillis = calendar.timeInMillis
+
+            // 2) 일반 일정 알림 예약 (사용자가 선택한 '5분 전', '15분 전' 등 모두 예약)
+            currentSelectedAlarms?.forEach { minutesBefore ->
+                com.example.pace.data.util.AlarmScheduler.schedulePaceAlarm(
+                    requireContext(),
+                    scheduleTimeMillis,
+                    minutesBefore
+                )
+            }
+
+            // 3) 출발 알림 예약 (경로가 있을 경우, 실제 출발 시간 기준으로 예약)
+            route?.let { routeResponse ->
+                // RouteCalculator를 이용해 departureTime(ISO 8601 등)을 밀리초로 변환
+                val departureTimeMillis = RouteCalculator.convertUtcToMillis(routeResponse.departureTime)
+
+                currentSelectedStartAlarms?.forEach { minutesBefore ->
+                    com.example.pace.data.util.AlarmScheduler.schedulePaceAlarm(
+                        requireContext(),
+                        departureTimeMillis,
+                        minutesBefore
+                    )
+                }
+            }
+
             val reminderRequests = mutableListOf<ReminderRequest>()
 
             // 일정 알람 추가

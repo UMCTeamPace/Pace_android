@@ -29,7 +29,7 @@ class SettingEarlyarrivedFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val initialValue = arguments?.getInt("currentMinutes") ?: 10
+        val initialValue = arguments?.getInt("currentMinutes") ?: 0
 
         binding.pickerYear.visibility = View.VISIBLE
         setupNumberPicker(initialValue)
@@ -42,6 +42,9 @@ class SettingEarlyarrivedFragment : Fragment() {
             maxValue = 60
             value = initialValue // 💡 넘겨받은 숫자로 시작 위치 설정
 
+            // 2. 초기 진입 시점에도 결과값을 한번 전송해두는 것이 안전합니다.
+            sendResult(initialValue)
+
             setOnValueChangedListener { _, _, newVal ->
                 val resultText = if (newVal == 0) "안함" else "${newVal}분"
                 setFragmentResult("earlyDepartureKey", bundleOf("selectedMinutes" to resultText))
@@ -53,6 +56,10 @@ class SettingEarlyarrivedFragment : Fragment() {
         }
     }
 
+    private fun sendResult(minutes: Int) {
+        val resultText = if (minutes == 0) "안함" else "${minutes}분"
+        setFragmentResult("earlyDepartureKey", bundleOf("selectedMinutes" to resultText))
+    }
 
     override fun onDestroyView() {
         super.onDestroyView()

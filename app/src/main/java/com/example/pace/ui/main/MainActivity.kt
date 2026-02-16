@@ -2,8 +2,13 @@ package com.example.pace.ui.main
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Looper
 import android.util.Log
@@ -87,14 +92,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        createNotificationChannel()
+
         enableEdgeToEdge()
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
-//        // 테스트를 위해 바로 AlertActivity 실행!
-//        val intent = Intent(this, AlertActivity::class.java)
-//        intent.putExtra("MINUTES_LEFT", 15) // 테스트하고 싶은 시간(분)을 넣어보세요
-//        startActivity(intent)
 
         // 1. 초기화 (위치, Places API, 바텀시트)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
@@ -253,6 +256,26 @@ class MainActivity : AppCompatActivity() {
                 return true
             }
             else -> return false
+        }
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channelId = "pace_alert_channel" // 리시버와 반드시 똑같아야 함
+            val channel = NotificationChannel(
+                channelId,
+                "Pace 알람",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "외출 준비 알람 전용 채널입니다."
+                // 잠금화면에서도 보이게 설정
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                setSound(null, null)
+                enableVibration(false)
+            }
+
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            manager.createNotificationChannel(channel)
         }
     }
 }

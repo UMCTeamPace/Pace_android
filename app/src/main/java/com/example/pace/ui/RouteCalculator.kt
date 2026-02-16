@@ -16,6 +16,27 @@ object RouteCalculator {
         }
     }
 
+    // [추가된 함수] 서버 시간 문자열을 알람용 밀리초(Long)로 변환
+    fun convertUtcToMillis(serverDateStr: String?): Long {
+        if (serverDateStr.isNullOrEmpty()) return System.currentTimeMillis()
+
+        try {
+            // 기존 convertUtcToKst와 동일한 포맷을 사용합니다.
+            // 서버 데이터에 소수점(밀리초)이 포함되어 온다면 "yyyy-MM-dd'T'HH:mm:ss.SSS"로 수정하세요.
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+            inputFormat.timeZone = TimeZone.getTimeZone("UTC")
+
+            val date: Date = inputFormat.parse(serverDateStr) ?: return System.currentTimeMillis()
+
+            // Date 객체의 time 값이 바로 알람 설정에 필요한 밀리초(UTC 기준 타임스탬프)입니다.
+            return date.time
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return System.currentTimeMillis()
+        }
+    }
+
     fun convertUtcToKst(serverDateStr: String?): String {
         if (serverDateStr.isNullOrEmpty()) return ""
 

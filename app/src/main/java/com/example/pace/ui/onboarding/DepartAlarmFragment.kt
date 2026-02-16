@@ -78,12 +78,23 @@ class DepartAlarmFragment : Fragment() {
             }
         }
 
+        // 개별 알림 클릭 시 로직
         departAlarmMap.keys.forEach { checkBox ->
             checkBox.setOnClickListener {
-                if (checkBox.isChecked) {
-                    binding.rbNone.isChecked = false
+                val selectedCount = departAlarmMap.keys.count { it.isChecked }
+
+                if (checkBox.isChecked && selectedCount > 5) {
+                    checkBox.isChecked = false
+
+                    binding.tvAlarmDescription.text = "*알림은 최대 5개까지만 선택 가능합니다."
+                    binding.tvAlarmDescription.setTextColor(Color.RED)
+
+                } else {
+                    if (checkBox.isChecked) {
+                        binding.rbNone.isChecked = false
+                    }
+                    resetDescription()
                 }
-                updateDescriptionBasedOnSelection()
             }
         }
     }
