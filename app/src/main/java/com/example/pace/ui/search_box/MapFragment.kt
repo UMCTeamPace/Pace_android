@@ -392,6 +392,10 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         currentMarkers.clear()
     }
 
+    fun clearMap() {
+        googleMap?.clear()
+    }
+
     fun updateButtonTranslation(offset: Float) {
         view?.findViewById<View>(R.id.btn_go_my_location)?.translationY = -offset
     }

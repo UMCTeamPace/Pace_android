@@ -131,22 +131,6 @@ class RouteScheduleFragment : Fragment() {
             binding.deleteRouteIv.visibility = View.VISIBLE
             binding.deleteRouteIv.bringToFront()
 
-            // 4. 데이터 확인용 토스트 (전역 변수 기반으로 출력)
-            Toast.makeText(
-                context,
-                """
-            출발지: $lastStartName
-            출발좌표: $lastStartLat , $lastStartLng
-            
-            도착지: $lastDestName
-            도착좌표: $lastDestLat , $lastDestLng
-            
-            빠른 도착 시간: $earlyArriveTime
-            
-            경로 데이터 파싱 완료
-            """.trimIndent(),
-                Toast.LENGTH_LONG
-            ).show()
         }
     }
     override fun onCreateView(
@@ -258,15 +242,6 @@ class RouteScheduleFragment : Fragment() {
         } else {
             routeDetail ?: "데이터 없음"
         }
-
-        val toastMessage = """
-    출발: $startName
-    도착: $endName
-    미리 도착: ${earlyTime}분
-    경로 상세: $detailSummary
-""".trimIndent()
-
-        Toast.makeText(requireContext(), toastMessage, Toast.LENGTH_LONG).show()
 
         initTimePickers()
 
