@@ -284,7 +284,7 @@ class RouteFragment : Fragment() {
 
             routeViewModel.updateScheduleForAdapter(assembledRouteResponse)
             // 헬퍼를 이용해 리사이클러뷰 데이터 채우기
-            RouteDetailHelper.setupData(requireContext(), bottomSheetView, assembledRouteResponse, routeInfo.destName ?: "")
+            RouteDetailHelper.setupData(requireContext(), bottomSheetView, assembledRouteResponse, routeInfo.destName ?: "", routeInfo.originName ?: "")
 
             startLatLng = null
             endLatLng = null
@@ -855,7 +855,7 @@ class RouteFragment : Fragment() {
             behavior.state = BottomSheetBehavior.STATE_COLLAPSED
             behavior.peekHeight = (250 * resources.displayMetrics.density).toInt() // 지도 보일 정도 높이
 
-            RouteDetailHelper.setupData(requireContext(),bottomSheetView, item, selectedEndPlace?.first ?: "")
+            RouteDetailHelper.setupData(requireContext(),bottomSheetView, item, selectedEndPlace?.first ?: "", selectedStartPlace?.first ?: "")
 
 
         }
@@ -2277,7 +2277,7 @@ private fun selectCurrentLocation() {
 
         bottomSheetBehavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
             override fun onStateChanged(bottomSheet: View, newState: Int) {
-                mainBinding?.mainBnv?.visibility = if (newState == BottomSheetBehavior.STATE_HIDDEN && !isSearchMode()) View.VISIBLE else View.GONE
+                mainBinding?.mainBnv?.visibility = View.GONE
             }
             override fun onSlide(bottomSheet: View, slideOffset: Float) {
                 val mapFragment = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment

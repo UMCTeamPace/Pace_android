@@ -24,7 +24,7 @@ import com.example.pace.ui.RouteCalculator
 
 object RouteDetailHelper {
 
-    fun setupData(context: Context, bottomSheetView: View, item: RouteResponse, destination: String) {
+    fun setupData(context: Context, bottomSheetView: View, item: RouteResponse, destination: String, startName: String) {
         val binding = BottomSheetRouteDetailBinding.bind(bottomSheetView)
 
         // 기본 정보
@@ -51,6 +51,8 @@ object RouteDetailHelper {
         binding.routeDetailBriefLl.removeAllViews()
         binding.routeDetailExpandedLl.removeAllViews()
 
+        var lastArrivalStop: String? = null
+
         // 데이터 동적 바인딩
         item.routeDetails.forEach { data ->
             val briefBinding = ItemRouteDetailBriefBinding.inflate(LayoutInflater.from(context))
@@ -70,8 +72,13 @@ object RouteDetailHelper {
                     briefBinding.itemRouteDetailBriefTv.text = "${data.duration / 60}분"
                     briefBinding.itemRouteDetailBriefTv.setTextColor(context.resources.getColor(R.color.gray_600))
 
+                    val walkTitle = if (data.sequence == 1) {
+                        startName
+                    } else {
+                        "${lastArrivalStop ?: "알 수 없는 정류장"} 하차"
+                    }
                     // 상세 정보
-                    expandedWalkBinding.itemRouteDetailWalkTv.text = data.description ?: ""
+                    expandedWalkBinding.itemRouteDetailWalkTv.text = walkTitle
                     expandedWalkBinding.itemRouteDetailWalkTimeTv.text = "${data.duration / 60}분 도보"
                     expandedWalkBinding.itemRouteDetailWalkDistanceTv.text = "${data.distance}M 이동"
                     if(data.sequence == 1){
@@ -84,6 +91,14 @@ object RouteDetailHelper {
                 }
                 // 대중교통
                 else -> {
+                    val transitType = data.transitDetail.transitType
+                    var arrivalStopName = data.transitDetail.arrivalStop
+
+                    if (transitType == "SUBWAY" && !arrivalStopName.endsWith("역")) {
+                        arrivalStopName += "역"
+                    }
+
+                    lastArrivalStop = arrivalStopName
                     // 아이콘 및 색상 설정
                     val layoutDrawable = (ContextCompat.getDrawable(context, R.drawable.ic_route_detail))?.mutate() as LayerDrawable
                     val iconColor = layoutDrawable.findDrawableByLayerId(R.id.ic_route_detail_color)?.mutate() as GradientDrawable
@@ -111,7 +126,11 @@ object RouteDetailHelper {
                     // 상세 정보
                     expandedVehicleBinding.itemRouteDetailVehicleIv.setImageDrawable(layoutDrawable)
                     expandedVehicleBinding.itemRouteDetailVehicleView.setBackgroundColor(lineColor)
-                    expandedVehicleBinding.itemRouteDetailVehicleTv.text = data.description
+                    var departureStopName = data.transitDetail.departureStop
+                    if (data.transitDetail.transitType == "SUBWAY" && !departureStopName.endsWith("역")) {
+                        departureStopName += "역"
+                    }
+                    expandedVehicleBinding.itemRouteDetailVehicleTv.text = "${departureStopName} 승차"
                     expandedVehicleBinding.itemRouteDetailVehicleTimeTv.text = data.transitDetail.departureTime.split("T").last().take(5)
                     expandedVehicleBinding.itemRouteDetailVehicleLineTv.text = data.transitDetail.shortName
 
