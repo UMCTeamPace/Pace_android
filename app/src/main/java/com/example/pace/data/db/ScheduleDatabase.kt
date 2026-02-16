@@ -12,7 +12,7 @@ import com.example.pace.data.model.UserSettingsEntity // 👈 1. Import 추가
 // 👈 2. entities에 UserSettingsEntity 추가
 @Database(
     entities = [Schedule::class, UserSettingsEntity::class],
-    version = 11, // 👈 3. 구조가 바뀌었으므로 버전을 올립니다 (10 -> 11)
+    version = 13, // 👈 3. 구조가 바뀌었으므로 버전을 올립니다 (10 -> 11)
     exportSchema = false
 )
 @TypeConverters(Converters::class)

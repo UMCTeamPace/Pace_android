@@ -59,10 +59,17 @@ data class Schedule(
     val location: String?,
 
     @ColumnInfo(name = "repeat_rule")
-    val repeatRule: String?,
+    val repeatRule: String?, // 원본 필드명 유지 (RRULE)
 
-    @ColumnInfo(name = "exdate")
-    val exdate: String? = null,
+    @ColumnInfo(name = "exDate")
+    val exDate: String? = null,
+
+    // 💡 [추가] 반복 일정의 예외 처리를 위한 핵심 필드
+    @ColumnInfo(name = "original_id", defaultValue = "0")
+    val originalId: Long = 0L,  // 원본 일정의 ID (Events.ORIGINAL_ID)
+
+    @ColumnInfo(name = "status", defaultValue = "0")
+    val status: Int = 0,        // 일정 상태 (Events.STATUS) - 2이면 삭제된 예외
 
     @ColumnInfo(name = "calendar_id")
     val calendarId: Long,
@@ -81,7 +88,7 @@ data class Schedule(
 
     @ColumnInfo(name = "is_completed")
     var isCompleted: Boolean = false,
-    
+
     @ColumnInfo(name = "is_pinned")
     var isPinned: Boolean = false,
 

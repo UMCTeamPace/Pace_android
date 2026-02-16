@@ -100,9 +100,9 @@ class ScheduleRepository(
                             event.setRecurrenceRule(RecurrenceRule(recur))
                         }
 
-                        if (!schedule.exdate.isNullOrBlank()) {
+                        if (!schedule.exDate.isNullOrBlank()) {
                             val exdates = ExceptionDates()
-                            schedule.exdate.split(',').forEach { dateStr ->
+                            schedule.exDate.split(',').forEach { dateStr ->
                                 try {
                                     val date = SimpleDateFormat("yyyyMMdd'T'HHmmss'Z'", Locale.getDefault()).apply {
                                         timeZone = TimeZone.getTimeZone("UTC")

@@ -17,7 +17,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
     <LinearLayout
-        android:visibility="gone"
+        android:visibility="visible"
         android:id="@+id/delete_schedule_no_repeat_ll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -40,64 +40,12 @@
             android:id="@+id/delete_schedule_confirm_btn"
             android:layout_width="120dp"
             android:layout_height="40dp"
-            android:text="확인"
+            android:text="삭제"
             android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
             style="@style/TextColor.White"
             android:background="@drawable/btn_delete_schedule_red"
             android:stateListAnimator="@null"
             android:layout_marginStart="12dp"/>
     </LinearLayout>
-    <LinearLayout
-        android:id="@+id/delete_schedule_repeat_ll"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:paddingStart="24dp"
-        android:paddingEnd="24dp"
-        android:orientation="vertical"
-        app:layout_constraintTop_toBottomOf="@id/delete_schedule_tv"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-        <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/delete_schedule_selected_btn"
-            android:layout_width="252dp"
-            android:layout_height="40dp"
-            android:paddingTop="8dp"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:paddingBottom="8dp"
-            android:text="선택 일정만 삭제"
-            android:textAppearance="@style/TextAppearance.App.BodySm.Medium"
-            style="@style/TextColor.White"
-            android:background="@drawable/btn_delete_schedule_red"
-            android:stateListAnimator="@null"
-            android:layout_marginBottom="12dp"/>
-        <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/delete_schedule_all_btn"
-            android:layout_width="252dp"
-            android:layout_height="40dp"
-            android:paddingTop="8dp"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:paddingBottom="8dp"
-            android:text="모든 일정 반복 삭제"
-            android:textAppearance="@style/TextAppearance.App.BodySm.Medium"
-            style="@style/TextColor.Primary"
-            android:background="@drawable/btn_delete_schedule"
-            android:stateListAnimator="@null"
-            android:layout_marginBottom="12dp"/>
-        <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/delete_schedule_cancel_btn2"
-            android:layout_width="252dp"
-            android:layout_height="40dp"
-            android:paddingTop="8dp"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:paddingBottom="8dp"
-            android:text="취소"
-            android:textAppearance="@style/TextAppearance.App.BodySm.Medium"
-            style="@style/TextColor.Primary"
-            android:background="@drawable/btn_delete_schedule"
-            android:stateListAnimator="@null" />
-    </LinearLayout>
+
 </androidx.constraintlayout.widget.ConstraintLayout>
