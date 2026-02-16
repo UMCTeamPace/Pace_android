@@ -37,6 +37,9 @@ interface SearchDao {
     @Delete
     suspend fun deletePlace(place: RecentPlace)
 
+    @Query("DELETE FROM my_places WHERE type = :type")
+    suspend fun deleteMyPlaceByType(type: String)
+
     @Query("DELETE FROM recent_places")
     suspend fun clearAllPlaces()
 

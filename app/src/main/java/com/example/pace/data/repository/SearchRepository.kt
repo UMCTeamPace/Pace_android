@@ -71,6 +71,10 @@ class SearchRepository(
         myPlaceDao.insertMyPlace(myPlace)
     }
 
+    suspend fun deleteMyPlace(type: String) {
+        searchDao.deleteMyPlaceByType(type)
+    }
+
     fun getMyPlaceByType(type: String) = myPlaceDao.getMyPlaceByType(type)
 
     // 30일 넘으면 삭제

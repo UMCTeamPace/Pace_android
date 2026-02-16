@@ -11,7 +11,14 @@ data class RouteResponse(
     @SerializedName("totalTime") val totalTime: Int,
     @SerializedName("arrivalTime") val arrivalTime: String,
     @SerializedName("departureTime") val departureTime: String,
-    @SerializedName("routeDetailInfoResDTOList") val routeDetails: List<RouteDetail>
+
+    // 1. value: 서버에 저장하고 불러올 때 쓸 이름 (routeDetails)
+    // 2. alternate: 경로 검색 API에서 데이터가 올 때의 이름 (ResDTO...)
+    @SerializedName(
+        value = "routeDetails",
+        alternate = ["routeDetailInfoResDTOList"]
+    )
+    val routeDetails: List<RouteDetail>
 )
 
 data class RouteDetail(
@@ -24,6 +31,11 @@ data class RouteDetail(
     @SerializedName("distance") val distance: Int,
     @SerializedName("description") val description: String?,
     @SerializedName("points") val points: String,
+    val transitType: String? = null,
+    val lineColor: String? = null,
+    val lineName: String? = null,
+    val shortName: String? = null,
+    val departureStop: String? = null,
     @SerializedName("transitDetail") val transitDetail: TransitDetail?
 )
 
@@ -35,6 +47,7 @@ data class TransitDetail(
     @SerializedName("departureStop") val departureStop: String,
     @SerializedName("arrivalStop") val arrivalStop: String,
     @SerializedName("departureTime") val departureTime: String,
+    @SerializedName("arrivalTime") val arrivalTime: String?, // Swagger에 있는 필드 추가
     @SerializedName("shortName") val shortName: String,
     @SerializedName("locationLat") val locationLat: Double,
     @SerializedName("locationLng") val locationLng: Double,

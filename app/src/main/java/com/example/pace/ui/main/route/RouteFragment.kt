@@ -36,6 +36,7 @@ import com.example.pace.data.model.RecentHistoryItem
 import com.example.pace.data.model.RecentPlace
 import com.example.pace.data.model.RecentRoute
 import com.example.pace.data.model.request.RouteSearchRequest
+import com.example.pace.data.model.response.RouteOnlyScheduleData
 import com.example.pace.data.model.response.RouteResponse
 import com.example.pace.data.repository.SearchRepository
 import com.example.pace.data.util.RouteConstants
@@ -198,23 +199,23 @@ class RouteFragment : Fragment() {
             startScheduleRouteMode()
 //            activityIntent.removeExtra("ACTION_MODE")
         }
-        if(currentEntryMode == EntryMode.MAIN){
-            if (hasSchedule) {
-                lifecycleScope.launch {
-                    delay(500) // Map 로딩 대기 (임시)
-                    showDefaultScheduleOverlay()
-                }
-            }
-        }
+        hasSchedule = false
+
+        val token = BuildConfig.BEARER_TOKEN // 또는 저장된 토큰 가져오기
+        routeViewModel.fetchRouteOnlySchedule(token)
 
         observeRouteViewModel()
     }
 
-    private fun showDefaultScheduleOverlay() {
+    private fun showDefaultScheduleOverlay(data: RouteOnlyScheduleData? = null) {
+        if (data == null) return
         if (!hasSchedule) return
 
-        val mockSchedule = MarkScheduleProvider.getMockSchedule()
-        val json = mockSchedule.placeJson ?: return
+        val scheduleInfo = data.scheduleInfo
+        val routeInfo = data.route ?: return
+
+//        val mockSchedule = MarkScheduleProvider.getMockSchedule()
+//        val json = mockSchedule.placeJson ?: return
 
         binding.routeSearchFcv.visibility = View.GONE
         binding.layoutRouteInputHeader.root.visibility = View.GONE
@@ -229,18 +230,27 @@ class RouteFragment : Fragment() {
 
         // 일정 모드 UI 세팅
         binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.VISIBLE
-        scheduleName = mockSchedule.title ?: "일정 없음"
-        scheduleTime = mockSchedule.startTime
+        scheduleName = scheduleInfo.title ?: "일정 없음"
+        val rawTime = scheduleInfo.startTime ?: "00:00:00"
+        scheduleTime = if (rawTime.length >= 5) rawTime.take(5) else rawTime
         binding.layoutRouteDetailOverlay.tvScheduleRouteDetailName.text = scheduleName
         binding.layoutRouteDetailOverlay.tvScheduleRouteDetailTime.text = scheduleTime
 
         try {
             // 2. 데이터 파싱
-            val routeResponse = Gson().fromJson(json, RouteResponse::class.java)
+            val assembledRouteResponse = RouteResponse(
+                totalDistance = routeInfo.totalDistance,
+                totalTime = routeInfo.totalTime,
+                arrivalTime = routeInfo.arrivalTime ?: "${scheduleInfo.endDate}T${scheduleInfo.endTime}",
+                departureTime = routeInfo.departureTime ?: "${scheduleInfo.startDate}T${scheduleInfo.startTime}",
+
+                // ★ [핵심] 변환 없이 바로 대입!
+                routeDetails = routeInfo.routeDetails ?: emptyList()
+            )
 
             // 3. 시작/도착 좌표 추출 (경로의 첫번째와 마지막 포인트)
-            val firstDetail = routeResponse.routeDetails.firstOrNull()
-            val lastDetail = routeResponse.routeDetails.lastOrNull()
+            val firstDetail = assembledRouteResponse.routeDetails.firstOrNull()
+            val lastDetail = assembledRouteResponse.routeDetails.lastOrNull()
 
             if (firstDetail != null && lastDetail != null) {
                 this.startLatLng = LatLng(firstDetail.startLat, firstDetail.startLng)
@@ -248,11 +258,11 @@ class RouteFragment : Fragment() {
             }
 
             // 4. UI 텍스트 설정
-            scheduleColor = String.format("#%06X", (0xFFFFFF and (mockSchedule.eventColor ?: Color.RED)))
+            scheduleColor = "#DC354B"
 
             // 5. 지도에 경로 그리기
             val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
-            mapFrag?.drawRouteOnMap(routeResponse, startLatLng, endLatLng)
+            mapFrag?.drawRouteOnMap(assembledRouteResponse, startLatLng, endLatLng)
 
 
             try {
@@ -270,8 +280,9 @@ class RouteFragment : Fragment() {
             behavior.state = BottomSheetBehavior.STATE_COLLAPSED
             behavior.peekHeight = (250 * resources.displayMetrics.density).toInt()
 
+            routeViewModel.updateScheduleForAdapter(assembledRouteResponse)
             // 헬퍼를 이용해 리사이클러뷰 데이터 채우기
-            RouteDetailHelper.setupData(requireContext(), bottomSheetView, routeResponse, mockSchedule.location ?: "")
+            RouteDetailHelper.setupData(requireContext(), bottomSheetView, assembledRouteResponse, routeInfo.destName ?: "")
 
             startLatLng = null
             endLatLng = null
@@ -323,6 +334,21 @@ class RouteFragment : Fragment() {
             }
         }
 
+        routeViewModel.routeOnlySchedule.observe(viewLifecycleOwner) { data ->
+            if (data != null) {
+                // 1. 데이터가 있으면: hasSchedule 켜고, 오버레이 표시
+                hasSchedule = true
+                showDefaultScheduleOverlay(data)
+            } else {
+                // 2. 데이터가 없으면: hasSchedule 끄기
+                hasSchedule = false
+
+                // (경로 검색 중이거나 상세 정보를 보고 있을 때는 숨기면 안 됨)
+                if (currentEntryMode == EntryMode.MAIN) {
+                    binding.layoutRouteDetailOverlay.root.visibility = View.GONE
+                }
+            }
+        }
     }
 
     private fun setupMainActivityListeners() {
@@ -473,31 +499,51 @@ class RouteFragment : Fragment() {
 
         currentEntryMode = EntryMode.SCHEDULE_ROUTE
         val intent = requireActivity().intent
+
         val nameExtra = intent.getStringExtra("SCHEDULE_NAME")
         scheduleName = if(nameExtra.isNullOrBlank()) "일정명" else nameExtra
         scheduleColor = intent.getStringExtra("SCHEDULE_COLOR") ?: "#DC354B"
         var tmpDate = intent.getStringExtra("SCHEDULE_DATE") ?: "2032-12-02"
         scheduleDate = tmpDate
-        var tmpTime = intent.getStringExtra("SCHEDULE_TIME")
+        var tmpTime = intent.getStringExtra("SCHEDULE_TIME") ?: "00:00:00"
         scheduleTime = tmpTime?.substring(0, 5) ?: ""
         val combinedTimeStr = "$tmpDate $tmpTime"
+
         val inputSdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val outputSdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
         outputSdf.timeZone = TimeZone.getTimeZone("UTC")
         val date = inputSdf.parse(combinedTimeStr)
         requestSearchTime = outputSdf.format(date ?: Date())
-        var tmplat = intent.getDoubleExtra("START_LAT", Double.NaN)
-        var tmplng = intent.getDoubleExtra("START_LNG", Double.NaN)
-        if (!tmplat.isNaN() && !tmplng.isNaN()) {
-            startLatLng = LatLng(tmplat, tmplng)
+
+        val startName = intent.getStringExtra("START_NAME")
+        val startLatVal = intent.getDoubleExtra("START_LAT", Double.NaN)
+        val startLngVal = intent.getDoubleExtra("START_LNG", Double.NaN)
+
+        if (!startLatVal.isNaN() && !startLngVal.isNaN()) {
+            startLatLng = LatLng(startLatVal, startLngVal)
+            // 이름이 있으면 그 이름, 없으면 "지정된 위치", ID는 없으므로 빈값 처리
+            selectedStartPlace = Pair(startName ?: "지정된 위치", "")
+        } else {
+            startLatLng = null
+            selectedStartPlace = null
         }
-        tmplat = intent.getDoubleExtra("END_LAT", Double.NaN)
-        tmplng = intent.getDoubleExtra("END_LNG", Double.NaN)
-        if (!tmplat.isNaN() && !tmplng.isNaN()) {
-            endLatLng = LatLng(tmplat, tmplng)
+
+        val endName = intent.getStringExtra("END_NAME")
+        val endLatVal = intent.getDoubleExtra("END_LAT", Double.NaN)
+        val endLngVal = intent.getDoubleExtra("END_LNG", Double.NaN)
+
+        if (!endLatVal.isNaN() && !endLngVal.isNaN()) {
+            endLatLng = LatLng(endLatVal, endLngVal)
+            selectedEndPlace = Pair(endName ?: "지정된 위치", "")
+        } else {
+            endLatLng = null
+            selectedEndPlace = null
         }
-        binding.layoutRouteInputHeader.tvRouteStart.text = intent.getStringExtra("START_NAME")
-        binding.layoutRouteInputHeader.tvRouteEnd.text = intent.getStringExtra("END_NAME")
+
+        binding.layoutRouteInputHeader.tvRouteStart.text = selectedStartPlace?.first ?: ""
+        binding.layoutRouteInputHeader.tvRouteEnd.text = selectedEndPlace?.first ?: ""
+
+        updateClearButtonVisibility()
 
         earlyArriveTime = intent.getIntExtra("EARLY_ARRIVE_TIME", 0) //todo 기본 검색이 온보딩값을 미리도착
 
@@ -616,8 +662,6 @@ class RouteFragment : Fragment() {
                 selectedGroupId = null
 
                 exitBookmarkSearchMode()
-
-                android.widget.Toast.makeText(requireContext(), "$name 등록 완료", android.widget.Toast.LENGTH_SHORT).show()
             }
 
         }
@@ -664,13 +708,21 @@ class RouteFragment : Fragment() {
         // 확인 버튼 클릭 시
         binding.layoutMapSelectOverlay.btnMapSelectConfirm.setOnClickListener {
             val tempName = selectedOnMapPlace?.first ?: binding.layoutMapSelectOverlay.tvMapSelectName.text.toString()
-            val tempId = selectedOnMapPlace?.second ?: ""
+            val existingId = selectedOnMapPlace?.second ?: ""
 
             if(isBookmarkSearchMode){
-                onScheduleLocationSelected(tempName, tempId)
+                lifecycleScope.launch {
+                    val finalId = if (existingId.isEmpty() && currentMapCenter != null) {
+                        getNearbyPlaceId(currentMapCenter!!) ?: ""
+                    } else {
+                        existingId
+                    }
+
+                    onScheduleLocationSelected(tempName, finalId)
+                }
             }else{
                 val selectedItem = SearchItem(
-                    placeId = tempId,
+                    placeId = existingId,
                     name = tempName,
                     lat = currentMapCenter?.latitude ?: 0.0,
                     lng = currentMapCenter?.longitude ?: 0.0,
@@ -680,7 +732,7 @@ class RouteFragment : Fragment() {
                 )
 
                 saveRecentPlace(selectedItem)
-                onLocationSelected(tempName, tempId, isSelectingStart)
+                onLocationSelected(tempName, existingId, isSelectingStart)
                 startLatLng = currentMapCenter
 
                 binding.layoutMapSelectOverlay.root.visibility = View.GONE

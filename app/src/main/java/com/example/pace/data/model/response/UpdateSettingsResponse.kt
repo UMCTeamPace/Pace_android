@@ -2,25 +2,32 @@ package com.example.pace.data.model.response
 
 import com.google.gson.annotations.SerializedName
 
+// 1. 최상위 응답 객체
 data class UpdateSettingsResponse(
-    @SerializedName("memberId") // 스웨거에 memberId가 있다면 반드시 추가!
-    val memberId: Long,
-    @SerializedName("earlyArrivalTime")
-    val earlyArrivalTime: Int,
-    @SerializedName("isNotiEnabled")
-    val isNotiEnabled: Boolean,
-    @SerializedName("isLocEnabled")
-    val isLocEnabled: Boolean,
+    @SerializedName("isSuccess")
+    val isSuccess: Boolean,
+
+    @SerializedName("code")
+    val code: String,
+
+    @SerializedName("message")
+    val message: String,
+
+    @SerializedName("result")
+    val result: SettingsResult // 실제 데이터는 이 안에 있음
+)
+
+// 2. "result" 내부에 담긴 데이터 객체
+data class SettingsResult(
     @SerializedName("isReminderActive")
     val isReminderActive: Boolean,
+
+    @SerializedName("earlyArrivalTime")
+    val earlyArrivalTime: Int,
+
     @SerializedName("calendarType")
     val calendarType: String,
-    @SerializedName("reminderTimes")
-    val reminderTimes: List<Int>,
-    @SerializedName("scheduleReminderTimes")
-    val scheduleReminderTimes: List<Int>,
-    @SerializedName("departureReminderTimes")
-    val departureReminderTimes: List<Int>,
+
     @SerializedName("alarms")
     val alarms: List<AlarmSettingResponse>
 )

@@ -27,9 +27,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOn // 추가
 import kotlinx.coroutines.withContext
 import com.example.pace.data.repository.repository.SettingsRepository
+import kotlinx.coroutines.flow.firstOrNull
 
 import javax.inject.Inject
-
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.firstOrNull // searchSchedules에서 필요
 
 @HiltViewModel
 class ScheduleViewModel @Inject constructor(
@@ -163,13 +165,19 @@ class ScheduleViewModel @Inject constructor(
     fun searchSchedules(query: String) {
         lastQuery = query
         val dbQuery = if (query.isBlank()) "%" else "%$query%"
+
         viewModelScope.launch(Dispatchers.IO) {
+            // 💡 현재 룸 DB에 저장된 캘린더 설정값 가져오기
+            val currentSettings = settingsRepository.getUserSettings().firstOrNull()
+            val selectedIds = currentSettings?.syncedCalendarIds ?: emptyList()
+
             val results = repository.searchSchedules(
                 query = dbQuery,
                 colors = _filterColors.value,
                 includeRoute = _filterIncludeRoute.value,
                 startDate = searchStartDate.format(dateFormatter),
-                endDate = searchEndDate.format(dateFormatter)
+                endDate = searchEndDate.format(dateFormatter),
+                selectedIds = selectedIds // 💡 파라미터 전달
             )
             _searchResults.value = results
         }
@@ -186,18 +194,25 @@ class ScheduleViewModel @Inject constructor(
     }
 
     // --- 기존 리스트 가공 및 기타 함수들 ---
-    val scheduleMap: StateFlow<Map<LocalDate, List<Schedule>>> = repository.allSchedules
-        .map { schedules ->
-            schedules.groupBy { schedule ->
-                LocalDate.parse(schedule.startDate, dateFormatter)
-            }
+    val scheduleMap: StateFlow<Map<LocalDate, List<Schedule>>> = combine(
+        repository.allSchedules,
+        settingsRepository.getUserSettings()
+    ) { schedules, settings ->
+        val selectedIds = settings?.syncedCalendarIds ?: emptyList()
+
+        schedules.filter { schedule ->
+            // 💡 백엔드(ROUTE) 일정은 무조건 노출 || 일반 일정은 선택된 캘린더일 때만 노출
+            schedule.type == "ROUTE" || selectedIds.isEmpty() || selectedIds.contains(schedule.calendarId)
+        }.groupBy { schedule ->
+            LocalDate.parse(schedule.startDate, dateFormatter)
         }
-        .flowOn(Dispatchers.IO)
+    }.flowOn(Dispatchers.IO)
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyMap()
         )
+
 
     // 기존의 raw 리스트가 필요한 경우를 위해 유지 (선택 사항)
     val allSchedules = repository.allSchedules
@@ -210,8 +225,13 @@ class ScheduleViewModel @Inject constructor(
                 val token = authDataStore.getAccessToken() ?: return@launch
                 val fullToken = if (token.startsWith("Bearer ")) token else "Bearer $token"
 
+                // [수정] 고정된 날짜 대신 오늘 날짜를 기준으로 설정
+                val today = LocalDate.now().format(dateFormatter)
+                // 종료 날짜는 오늘로부터 1개월 뒤 혹은 1년 뒤 등으로 설정 가능
+                val oneMonthLater = LocalDate.now().plusMonths(1).format(dateFormatter)
+
                 // 1. 서버 데이터를 최신화 (서버->로컬)
-                repository.getScheduleList(fullToken, "2026-02-01", "2026-02-28", null, null)
+                repository.getScheduleList(fullToken, today, oneMonthLater, null, null)
 
                 // 2. [수정] 찌꺼기 청소와 기기 데이터 로드를 순차적으로 실행
                 withContext(Dispatchers.IO) {
@@ -293,25 +313,30 @@ class ScheduleViewModel @Inject constructor(
         endDate: String,
         endTime: String?,
         place: PlaceRequest?,
-        repeatInfo: RepeatInfo? = null,
+        repeatInfo: RepeatInfo? = null, // UI에서 넘어온 반복 정보
         placeId: String? = null,
         customAlarms: List<Int>? = null,
         calendarId: Long? = null,
-        selectedColor: Int // 스펠링 수정: selecetedColor -> selectedColor
+        selectedColor: Int
     ) {
         val settings = userSettings.value
         val reminders = mutableListOf<ReminderRequest>()
 
-        // 1. 알림 설정 로직 (기존 유지)
+        // 1. 알림 설정 로직
         val alarmList = customAlarms ?: settings?.scheduleAlarms ?: emptyList()
         alarmList.forEach { minutes ->
             reminders.add(ReminderRequest(reminderType = "SCHEDULE", minutesBefore = minutes))
         }
-        settings?.departureAlarms?.forEach { minutes ->
-            reminders.add(ReminderRequest(reminderType = "DEPARTURE", minutesBefore = minutes))
+
+        // 2. [보강] 반복 여부 판단 로직 고도화
+        // "안함"을 선택했거나 repeatType이 NONE인 경우 null로 처리하여 에러 방지
+        val finalRepeatInfo = if (repeatInfo?.repeatType?.uppercase() == "NONE") {
+            null
+        } else {
+            repeatInfo
         }
 
-        // 2. Request 객체 생성
+        // 3. Request 객체 생성 (isRepeat 플래그를 repeatInfo 존재 여부와 동기화)
         val request = CreateScheduleRequest(
             title = title,
             isAllDay = isAllDay,
@@ -321,21 +346,42 @@ class ScheduleViewModel @Inject constructor(
             endTime = endTime,
             memo = memo,
             isPathIncluded = (place != null),
-            isRepeat = (repeatInfo != null),
-            repeatInfo = repeatInfo,
+            isRepeat = (finalRepeatInfo != null), // 반복 객체가 있을 때만 true
+            repeatInfo = finalRepeatInfo,
             place = place,
             reminders = reminders,
             route = null
         )
 
-        // 3. 위에서 정의한 createSchedule 함수 호출
+        // 4. 생성 함수 호출
         createSchedule(
             request = request,
             placeId = placeId,
             calendarId = calendarId,
-            selectedColor = selectedColor // 색상 전달
+            selectedColor = selectedColor
         )
     }
+
+    fun getRepeatDescription(info: RepeatInfo?): String {
+        if (info == null || info.repeatType.uppercase() == "NONE") return "반복 안 함"
+
+        val typeStr = when(info.repeatType.uppercase()) {
+            "DAILY" -> "매일"
+            "WEEKLY" -> "매주"
+            "MONTHLY" -> "매월"
+            "YEARLY" -> "매년"
+            else -> ""
+        }
+
+        val endStr = when(info.endType.uppercase()) {
+            "COUNT" -> ", ${info.endCount}회 반복"
+            "DATE" -> ", ${info.repeatEndDate}까지"
+            else -> ""
+        }
+
+        return "$typeStr 반복$endStr"
+    }
+
     // 이벤트 초기화 함수 (연속 호출 방지)
     fun resetCreateEvent() {
         _createScheduleEvent.value = null

@@ -178,14 +178,33 @@ class ScheduleRepositoryImpl @Inject constructor(
         api.convertRouteToGeneral(accessToken, id)
     }
 
-    override suspend fun searchSchedules(query: String, colors: Set<String>, includeRoute: Boolean, startDate: String, endDate: String): List<Schedule> {
+    override suspend fun searchSchedules(
+        query: String,
+        colors: Set<String>,
+        includeRoute: Boolean,
+        startDate: String,
+        endDate: String,
+        selectedIds: List<Long> // ViewModel에서 넘겨받은 값
+    ): List<Schedule> {
         val raw = scheduleDao.searchSchedulesWithRange("%$query%", startDate, endDate)
+
         return expandSchedules(raw).filter { schedule ->
+            // 1. 캘린더 필터링 (백엔드 일정은 통과, 일반 일정만 체크)
+            val calendarMatch = if (schedule.type == "ROUTE") {
+                true // 💡 백엔드(경로) 일정은 필터링을 걸지 않음
+            } else {
+                // 일반 일정은 선택된 리스트에 있거나, 리스트가 비어있을 때만 노출
+                selectedIds.isEmpty() || selectedIds.contains(schedule.calendarId)
+            }
+
+            // 2. 기존 필터링 로직 (색상, 경로 포함 여부)
             val sColor = schedule.eventColor?.toString() ?: ""
             val cColor = schedule.calendarColor?.toString() ?: ""
             val colorMatch = colors.isEmpty() || colors.any { it.equals(sColor, true) || it.equals(cColor, true) }
             val routeMatch = includeRoute || schedule.type != "ROUTE"
-            colorMatch && routeMatch
+
+            // 💡 모든 조건 결합
+            calendarMatch && colorMatch && routeMatch
         }
     }
 
@@ -353,15 +372,43 @@ class ScheduleRepositoryImpl @Inject constructor(
 
     private fun parseRecurrenceString(rruleStr: String): Recurrence? {
         return try {
-            val parts = rruleStr.split(";")
+            val cleanRrule = rruleStr.replace("RRULE:", "").trim()
+            val parts = cleanRrule.split(";")
             val params = parts.associate {
                 val split = it.split("=")
                 if (split.size == 2) split[0].uppercase() to split[1] else "" to ""
             }
+
             val freqStr = params["FREQ"] ?: return null
             val builder = Recurrence.Builder(Frequency.valueOf(freqStr))
+
             params["INTERVAL"]?.toIntOrNull()?.let { builder.interval(it) }
             params["COUNT"]?.toIntOrNull()?.let { builder.count(it) }
+
+            // UNTIL(날짜 종료) 파싱 부분 수정
+            params["UNTIL"]?.let { untilStr ->
+                try {
+                    // 1. format 결정 (if-else 식을 명확히 정의)
+                    val format = if (untilStr.contains("T")) {
+                        SimpleDateFormat("yyyyMMdd'T'HHmmss'Z'", Locale.getDefault()).apply {
+                            timeZone = TimeZone.getTimeZone("UTC")
+                        }
+                    } else {
+                        SimpleDateFormat("yyyyMMdd", Locale.getDefault())
+                    }
+
+                    // 2. 파싱 및 적용
+                    val date = format.parse(untilStr)
+                    if (date != null) {
+                        builder.until(ICalDate(date, untilStr.contains("T")))
+                    } else{
+
+                    }
+                } catch (e: Exception) {
+                    Log.e("RRULE_PARSE", "UNTIL 파싱 실패: $untilStr", e)
+                }
+            }
+
             params["BYDAY"]?.let { byDayStr ->
                 byDayStr.split(",").forEach { dayCode ->
                     val dayOfWeek = when(dayCode.takeLast(2)) {
@@ -436,32 +483,108 @@ class ScheduleRepositoryImpl @Inject constructor(
     }
 
     private fun buildRRuleFromRequest(info: RepeatInfo?): String? {
-        android.util.Log.d("RRULE_DEBUG", "전달받은 info: $info")
+        // 1. 반복 정보가 없으면 즉시 null 반환 (Statement로서의 return)
+        if (info == null || info.repeatType.uppercase() == "NONE") return null
 
-        if (info == null) {
-            android.util.Log.d("RRULE_DEBUG", "info가 null이라 종료합니다.")
-            return null
-        }
         return try {
             val rrule = StringBuilder("FREQ=${info.repeatType.uppercase()}")
-            if (info.repeatInterval > 1) rrule.append(";INTERVAL=${info.repeatInterval}")
+
+            // 1. 간격
+            if (info.repeatInterval > 1) {
+                rrule.append(";INTERVAL=${info.repeatInterval}")
+            }
+
+            // 2. 요일
             if (!info.daysOfWeek.isNullOrEmpty()) {
-                // "MON,TUE" -> "MO,TU"
                 val days = info.daysOfWeek.split(",")
-                    .map { it.trim().take(2).uppercase() }
-                    .joinToString(",")
-                rrule.append(";BYDAY=$days")
+                    .mapNotNull { day ->
+                        when (day.trim().uppercase()) {
+                            "SUNDAY", "SUN", "SU" -> "SU"
+                            "MONDAY", "MON", "MO" -> "MO"
+                            "TUESDAY", "TUE", "TU" -> "TU"
+                            "WEDNESDAY", "WED", "WE" -> "WE"
+                            "THURSDAY", "THU", "TH" -> "TH"
+                            "FRIDAY", "FRI", "FR" -> "FR"
+                            "SATURDAY", "SAT", "SA" -> "SA"
+                            else -> null
+                        }
+                    }.joinToString(",")
+                if (days.isNotEmpty()) {
+                    rrule.append(";BYDAY=$days")
+                }
             }
-            if (info.endType.uppercase() == "COUNT") {
-                rrule.append(";COUNT=${info.endCount}")
-            } else if (info.endType.uppercase() == "DATE" && !info.repeatEndDate.isNullOrEmpty()) {
-                val untilDate = info.repeatEndDate.replace("-", "")
-                rrule.append(";UNTIL=${untilDate}T235959Z")
+
+            // 3. 종료 조건 (when 문을 식이 아닌 문장으로 사용)
+            when (info.endType.uppercase()) {
+                "COUNT" -> {
+                    val count = info.endCount
+                    if (count != null && count > 0) {
+                        rrule.append(";COUNT=$count")
+                    }
+                }
+                "DATE" -> {
+                    val endDate = info.repeatEndDate
+                    if (!endDate.isNullOrEmpty()) {
+                        val untilDate = endDate.replace("-", "")
+                        rrule.append(";UNTIL=${untilDate}T235959Z")
+                    }
+                }
+                else -> {
+                    // 아무것도 하지 않음 (무한 반복)
+                }
             }
+
+            // 최종 문자열 반환
             rrule.toString()
         } catch (e: Exception) {
+            Log.e("RRULE_ERROR", "RRULE 생성 실패: ${e.message}")
             null
         }
     }
 
+    override suspend fun getScheduleListForRoute(
+        accessToken: String,
+        startDate: String,
+        endDate: String?
+    ): RawDefaultResponse<RouteOnlyScheduleData?> {
+
+        // 실제 Retrofit Service 호출 (Service의 함수 이름은 getScheduleList 였음)
+        val response = api.getScheduleList(
+            accessToken = accessToken,
+            startDate = startDate,
+            endDate = null,
+            lastDate = null,
+            lastId = null
+        )
+
+        // 2. 변환 로직
+        val mappedData: RouteOnlyScheduleData? = response.result?.content
+            ?.find { it.place == null && it.route != null }
+            ?.let { item ->
+                val route = item.route
+                val flattenedDetails = route?.routeDetails?.map { detail ->
+                    // 안쪽 객체의 값을 바깥쪽 변수들로 복사 (Flattening)
+                    detail.copy(
+                        transitType = detail.transitDetail?.transitType,
+                        lineColor = detail.transitDetail?.lineColor,
+                        lineName = detail.transitDetail?.lineName,
+                        shortName = detail.transitDetail?.shortName,
+                        departureStop = detail.transitDetail?.departureStop
+                    )
+                }
+
+                RouteOnlyScheduleData(
+                    scheduleId = item.scheduleId,
+                    scheduleInfo = item.scheduleInfo,
+                    route = item.route
+                )
+            }
+
+        return RawDefaultResponse(
+            code = response.code,
+            message = response.message,
+            isSuccess = response.isSuccess,
+            result = mappedData
+        )
+    }
 }
