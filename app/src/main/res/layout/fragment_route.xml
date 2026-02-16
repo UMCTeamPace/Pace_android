@@ -34,14 +34,15 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:background="@color/white"
+            android:src="@drawable/ic_no_result"
             android:visibility="gone"
-            android:elevation="7dp"
+            android:elevation="0dp"
             android:clickable="true"
             android:focusable="true"
-            app:layout_constraintTop_toBottomOf="@id/layout_route_header_container"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"/>
+            app:layout_constraintTop_toTopOf="@id/route_search_fcv"
+            app:layout_constraintBottom_toBottomOf="@id/route_search_fcv"
+            app:layout_constraintStart_toStartOf="@id/route_search_fcv"
+            app:layout_constraintEnd_toEndOf="@id/route_search_fcv"/>
 
         <LinearLayout
             android:id="@+id/layout_route_header_container"

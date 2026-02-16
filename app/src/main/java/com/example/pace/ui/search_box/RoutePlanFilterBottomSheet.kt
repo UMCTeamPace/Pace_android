@@ -99,6 +99,7 @@ class RoutePlanFilterBottomSheet(
             minValue = 0
             maxValue = 23
             wrapSelectorWheel = true // 숫자가 다 보이도록 설정
+            value = initialCalendar.get(Calendar.HOUR_OF_DAY)
             setOnValueChangedListener { _, _, _ ->
                 handlePastTimeSelection() // 시간 바뀌면 체크
             }
@@ -109,6 +110,7 @@ class RoutePlanFilterBottomSheet(
             maxValue = 59
             setFormatter { value -> String.format("%02d", value) }
             wrapSelectorWheel = true
+            value = initialCalendar.get(Calendar.MINUTE)
             setOnValueChangedListener { _, _, _ ->
                 handlePastTimeSelection() // 분 바뀌면 체크
             }

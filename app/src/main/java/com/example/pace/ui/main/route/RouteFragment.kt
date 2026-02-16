@@ -144,6 +144,7 @@ class RouteFragment : Fragment() {
     private var scheduleDate: String = "2026-11-11"
     private var requestSearchTime: String = ""
     private var responseArrivelTime: String = ""
+    private var cachedScheduleData: RouteOnlyScheduleData? = null
     private lateinit var bottomSheetBehavior: BottomSheetBehavior<View>
     private var searchJob: Job? = null
     private var sessionToken: AutocompleteSessionToken? = null
@@ -304,15 +305,11 @@ class RouteFragment : Fragment() {
                 binding.layoutNoSearchResult.visibility = View.VISIBLE
                 binding.layoutNoSearchResult.bringToFront()
 
-
-                 binding.layoutRouteInputHeader.layoutFilterOptions.visibility = View.GONE
-
             }else{
                 binding.layoutNoSearchResult.visibility = View.GONE
                 val fragment = childFragmentManager.findFragmentByTag("ROUTE_RESULT") as? RouteResultFragment
                 fragment?.updateRoutes(routes)
 
-                binding.layoutRouteInputHeader.layoutFilterOptions.visibility = View.VISIBLE
             }
 
         }
@@ -330,13 +327,12 @@ class RouteFragment : Fragment() {
 //                if (fragment != null) {
 //                    childFragmentManager.beginTransaction().hide(fragment).commitAllowingStateLoss()
 //                }
-
-                binding.layoutRouteInputHeader.layoutFilterOptions.visibility = View.GONE
             }
         }
 
         routeViewModel.routeOnlySchedule.observe(viewLifecycleOwner) { data ->
             if (currentEntryMode != EntryMode.MAIN) return@observe
+            cachedScheduleData = data
             if (data != null) {
                 // 1. 데이터가 있으면: hasSchedule 켜고, 오버레이 표시
                 hasSchedule = true
@@ -354,6 +350,7 @@ class RouteFragment : Fragment() {
     }
 
     private fun setupMainActivityListeners() {
+        val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
         mainBinding?.searchEt?.apply {
             setOnFocusChangeListener { _, hasFocus ->
                 if (hasFocus) {
@@ -866,6 +863,32 @@ class RouteFragment : Fragment() {
     }
 
     fun onRouteSelectedFinal(item: RouteResponse){
+        val now = java.time.LocalDateTime.now()
+
+        try {
+            val rawDepartureTime = java.time.LocalDateTime.parse(item.departureTime)
+            val departureTimeKst = rawDepartureTime.plusHours(9)
+
+            // 로그로 보정된 시간 확인
+            android.util.Log.d("RouteTimeCheck", "========================================")
+            android.util.Log.d("RouteTimeCheck", "현재 시간(KST): $now")
+            android.util.Log.d("RouteTimeCheck", "서버 원본(UTC): $rawDepartureTime")
+            android.util.Log.d("RouteTimeCheck", "보정된 출발 시간(KST): $departureTimeKst")
+            android.util.Log.d("RouteTimeCheck", "이미 지났나?: ${now.isAfter(departureTimeKst)}")
+            android.util.Log.d("RouteTimeCheck", "========================================")
+
+            // 보정된 시간(KST)을 기준으로 비교
+            if (now.isAfter(departureTimeKst)) {
+                androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                    .setTitle("선택 불가")
+                    .setMessage("이미 출발 시간이 지난 경로입니다.\n다른 경로를 선택해주세요.")
+                    .setPositiveButton("확인", null)
+                    .show()
+                return
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("RouteSelection", "시간 파싱 에러: ${item.departureTime}")
+        }
         if(currentEntryMode == EntryMode.SCHEDULE_ROUTE){
             val resultIntent = android.content.Intent().apply {
                 putExtra("START_NAME", binding.layoutRouteInputHeader.tvRouteStart.text)
@@ -895,6 +918,8 @@ class RouteFragment : Fragment() {
     }
 
     private fun enterSearchMode() {
+        val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+        mapFrag?.clearMap()
         binding.layoutRouteDetailOverlay.root.visibility = View.GONE
 
         binding.layoutRouteInputHeader.layoutFilterOptions.visibility = View.GONE
@@ -988,7 +1013,7 @@ class RouteFragment : Fragment() {
 //        }else{
 //            mainBinding?.mainBnv?.visibility = View.VISIBLE
 //        }
-        mainBinding?.mainBnv?.visibility = View.VISIBLE
+//        mainBinding?.mainBnv?.visibility = View.VISIBLE
 
         binding.routeSearchFcv.visibility = View.GONE
         binding.layoutBookmarkHeader.root.visibility = View.GONE
@@ -1125,7 +1150,7 @@ private fun selectCurrentLocation() {
         binding.routeSearchFcv.visibility = View.GONE
 
         if (currentEntryMode == EntryMode.MAIN) {
-                currentEntryMode = EntryMode.ROUTE_PLAN
+            currentEntryMode = EntryMode.ROUTE_PLAN
         }
         binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
         mainBinding?.mainToolbar?.visibility = View.GONE
@@ -1319,6 +1344,7 @@ private fun selectCurrentLocation() {
             currentEntryMode = EntryMode.ROUTE_PLAN
         }
         val transaction = childFragmentManager.beginTransaction()
+        binding.layoutNoSearchResult.visibility = View.GONE
 
         mainBinding?.mainBnv?.visibility = View.GONE
         mainBinding?.mainToolbar?.visibility = View.GONE
@@ -1400,6 +1426,7 @@ private fun selectCurrentLocation() {
 
         binding.routeSearchFcv.visibility = View.VISIBLE
         binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
+        mainBinding?.mainBnv?.visibility = View.GONE
         hideKeyboard()
 
         if (::bottomSheetBehavior.isInitialized) {
@@ -1623,7 +1650,7 @@ private fun selectCurrentLocation() {
             else{
                 exitSearchMode()
                 if (hasSchedule) {
-                    showDefaultScheduleOverlay()
+                    showDefaultScheduleOverlay(cachedScheduleData)
                 }
             }
         }
@@ -1703,8 +1730,11 @@ private fun selectCurrentLocation() {
     private fun handleMainBackClick() {
         if (binding.layoutRouteInputHeader.root.visibility == View.VISIBLE) {
             exitSearchMode()
+            Log.e("backLogic", "여기까진 오나? exitSearchMode다음")
+            mainBinding?.mainBnv?.visibility = View.VISIBLE
             if (hasSchedule && currentEntryMode == EntryMode.MAIN) {
-                showDefaultScheduleOverlay()
+                Log.e("backLogic", "여기까진 오나? if문 안")
+                showDefaultScheduleOverlay(cachedScheduleData)
             }
             return // 앱 종료 방지
         }
@@ -1767,6 +1797,7 @@ private fun selectCurrentLocation() {
 
                 if (selectedStartPlace == null && selectedEndPlace == null) {
                     exitSearchMode()
+                    mainBinding?.mainBnv?.visibility = View.VISIBLE
                 }
                 else {
                     hideKeyboard()
@@ -1785,7 +1816,8 @@ private fun selectCurrentLocation() {
 
             exitSearchMode()
             if (hasSchedule) {
-                showDefaultScheduleOverlay()
+                showDefaultScheduleOverlay(cachedScheduleData)
+                mainBinding?.mainBnv?.visibility = View.VISIBLE
             }
             return
         }
@@ -1936,21 +1968,24 @@ private fun selectCurrentLocation() {
     }
 
     private fun showRoutePlanDialog() {
-        val initialCalendar = if (!requestSearchTime.isNullOrEmpty()) {
-            try {
-                val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
-                sdf.timeZone = TimeZone.getTimeZone("UTC")
+        val initialCalendar = Calendar.getInstance().apply {
+            if (!requestSearchTime.isNullOrEmpty()) {
+                try {
+                    // [수정] Locale을 저장할 때와 동일하게 KOREAN으로 맞추고 로그 추가
+                    val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.KOREAN).apply {
+                        timeZone = TimeZone.getTimeZone("UTC")
+                    }
 
-                val date = sdf.parse(requestSearchTime)
-
-                Calendar.getInstance().apply {
-                    if (date != null) time = date
+                    val date = sdf.parse(requestSearchTime)
+                    if (date != null) {
+                        time = date
+                        android.util.Log.d("RouteTimeDebug", "파싱 성공! 설정된 시간: $date")
+                    }
+                } catch (e: Exception) {
+                    // [확인] 여기서 에러가 찍힌다면 포맷 글자 하나가 다른 겁니다.
+                    android.util.Log.e("RouteTimeDebug", "파싱 실패: ${e.message} | 원본값: $requestSearchTime")
                 }
-            } catch (e: Exception) {
-                Calendar.getInstance()
             }
-        } else {
-            Calendar.getInstance()
         }
         val bottomSheet = RoutePlanFilterBottomSheet(
             initialCalendar = initialCalendar,
