@@ -53,7 +53,8 @@ data class ScheduleInfo(
     @SerializedName("endDate") val endDate: String,
     @SerializedName("startTime") val startTime: String?,
     @SerializedName("endTime") val endTime: String?,
-    @SerializedName("memo") val memo: String?
+    @SerializedName("memo") val memo: String?,
+    @SerializedName("isPathIncluded") val isPathIncluded: Boolean? = null
 )
 
 data class PlaceInfo(
