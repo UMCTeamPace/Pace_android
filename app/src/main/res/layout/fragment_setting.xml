@@ -302,6 +302,22 @@
             android:text="캘린더 접근 권한"
             android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
             />
+
+        <View 
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginVertical="16dp"
+            android:background="@color/gray_100"
+            />
+        
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/settings_permission_fullscreen_iv"
+            android:text="전체 화면 알림 권한"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+            />
+        
     </LinearLayout>
 
     <LinearLayout

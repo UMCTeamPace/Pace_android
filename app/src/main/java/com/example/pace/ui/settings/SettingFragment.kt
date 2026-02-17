@@ -2,6 +2,7 @@ package com.example.pace.ui.settings
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
@@ -21,6 +22,7 @@ import androidx.lifecycle.lifecycleScope
 import com.example.pace.data.viewmodel.SettingsViewModel // 아까 만든 뷰모델
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import androidx.core.net.toUri
 
 
 @AndroidEntryPoint // 💡 Hilt를 사용한다면 꼭 추가하세요!
@@ -119,6 +121,9 @@ class SettingFragment: Fragment() {
         binding.settingsPermissionAlarmIv.setOnClickListener { showPermissionDialog("알림") }
         binding.settingsPermissionLocationIv.setOnClickListener { showPermissionDialog("위치") }
         binding.settingsPermissionCalendarIv.setOnClickListener { showPermissionDialog("캘린더") }
+        binding.settingsPermissionFullscreenIv.setOnClickListener {
+            showFullScreenPermissionDialog()
+        }
 
         // --- 계정 관리 ---
         binding.settingsSignoutLl.setOnClickListener {
@@ -275,6 +280,22 @@ class SettingFragment: Fragment() {
         } catch (e: Exception) {
             "내 캘린더"
         }
+    }
+
+    private fun showFullScreenPermissionDialog() {
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("전체 화면 알람 권한 설정")
+            .setMessage("잠금 화면에서도 알람을 즉시 확인하려면 '전체 화면 인텐트 허용' 권한이 필요합니다. 설정 화면으로 이동하시겠습니까?")
+            .setPositiveButton("확인") { _, _ ->
+                if (Build.VERSION.SDK_INT >= 34) {
+                    val intent = Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
+                        data = "package:${requireContext().packageName}".toUri()
+                    }
+                    startActivity(intent)
+                }
+            }
+            .setNegativeButton("취소", null)
+            .show()
     }
 
     override fun onDestroyView() {
