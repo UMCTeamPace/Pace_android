@@ -21,6 +21,7 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import biweekly.util.Recurrence
 import com.example.pace.R
 import com.example.pace.databinding.FragmentGeneralScheduleBinding
 import com.example.pace.ui.main.calendar.ScheduleViewModel
@@ -35,8 +36,10 @@ import com.example.pace.data.model.request.PlaceRequest
 import com.example.pace.data.model.request.RepeatInfo
 import com.example.pace.data.viewmodel.SettingsViewModel
 import com.example.pace.ui.onboarding.CalendarSelectFragment
+import com.google.gson.Gson
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import java.text.SimpleDateFormat
 
 @AndroidEntryPoint
 class GeneralScheduleFragment : Fragment() {
@@ -69,6 +72,9 @@ class GeneralScheduleFragment : Fragment() {
     private var currentRepeatInfo: RepeatInfo? = null
 
     private val settingsViewModel: SettingsViewModel by viewModels()
+
+    private var isEditMode: Boolean = false
+    private var scheduleIdForEdit: Long = -1L
 
     private val routeSearchLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
@@ -107,12 +113,22 @@ class GeneralScheduleFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // 1. 초기화 필수 함수들 (UI 구성)
         setupCalendar()
         setupLegend()
         setupMonthNavigation()
         initTimePickers()
-        updateTimeVisibility()
+
+        // 2. 데이터 모드 설정
+        isEditMode = arguments?.getBoolean("isEdit") ?: false
+        scheduleIdForEdit = arguments?.getLong("SCHEDULE_ID") ?: -1L
+
+        setupEditMode() // 여기서 비동기로 데이터를 채움
+
+        // 3. 관찰자들 (수정 모드일 땐 기본 설정값이 덮어쓰지 않게 주의)
         observeUserSettings()
+        observeCreateEvent() // 필요 시 observeUpdateEvent() 추가
+
 
         if (currentSelectedAlarms == null || currentSelectedCalendarId == null) {
             viewLifecycleOwner.lifecycleScope.launch {
@@ -137,11 +153,13 @@ class GeneralScheduleFragment : Fragment() {
             }
         }
 
-        val today = LocalDate.now()
-        startDate = today
-        endDate = today
-        binding.tvStartDate.text = today.format(dateFormatter)
-        binding.tvEndDate.text = today.format(dateFormatter)
+        if (!isEditMode) {
+            val today = LocalDate.now()
+            startDate = today
+            endDate = today
+            updateDateDisplay() // 위에서 만든 함수를 쓰면 텍스트뷰까지 한 번에 업데이트됩니다.
+        }
+
 
         val selectedDate = arguments?.getString("selected_date")
         val mode = arguments?.getString("mode")
@@ -164,23 +182,36 @@ class GeneralScheduleFragment : Fragment() {
             )
         }
 
+        // 1. 저장 버튼 클릭 리스너 부분
         binding.btnConfirm.setOnClickListener {
             val scheduleName = binding.etScheduleName.text.toString().trim()
 
-            // 1. 필수 유효성 체크 (일정명)
+            // 1. 필수 유효성 체크 (일정명 및 시작일)
             if (scheduleName.isEmpty()) {
                 Toast.makeText(context, "일정명을 입력해 주세요.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-
-            // 2. 날짜 유효성 체크
             if (startDate == null) {
                 Toast.makeText(context, "시작 날짜를 선택해 주세요.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
+            // 날짜 문자열 확정 (null 방지)
+            val finalStartDateStr = startDate.toString()
+            val finalEndDateStr = (endDate ?: startDate).toString()
 
-            // 만약 장소 검색 결과로 받은 데이터가 있다면 여기에 PlaceRequest 객체를 생성해 넣어주세요.
+            // 💡 [핵심 보정] 반복 설정이 있는데 종료일이 null이면 1970년 에러를 막기 위해 보정
+            currentRepeatInfo?.let { info ->
+                if (info.repeatEndDate.isNullOrBlank()) {
+                    // 반복 종료일이 명시되지 않았다면 일정의 종료일(endDate)을 반복의 끝으로 설정
+                    info.repeatEndDate = finalEndDateStr
+                }
+            }
+
+            Log.d("SaveCheck", "보정 완료 - 반복여부: ${currentRepeatInfo != null}, " +
+                    "종료일: $finalEndDateStr, 반복종료일: ${currentRepeatInfo?.repeatEndDate}")
+
+            // 장소 정보 객체화
             val placeRequest = selectedPlaceName?.let { name ->
                 PlaceRequest(
                     targetName = name,
@@ -189,33 +220,78 @@ class GeneralScheduleFragment : Fragment() {
                 )
             }
 
+            // 색상 String -> Int 변환
             val selectedColorInt = try {
-                android.graphics.Color.parseColor(selectedColorHex) // String -> Int 변환
+                android.graphics.Color.parseColor(selectedColorHex)
             } catch (e: Exception) {
-                android.graphics.Color.parseColor("#DC354B") // 실패 시 기본값
+                android.graphics.Color.parseColor("#DC354B")
             }
 
-            viewModel.createScheduleWithDefaultSettings(
-                title = scheduleName,
-                memo = binding.etMemo.text?.toString(),
-                isAllDay = isAllDay,
-                startDate = startDate.toString(),
-                startTime = if (isAllDay) null else binding.tvStartTime.text.toString(),
-                endDate = (endDate ?: startDate).toString(),
-                endTime = if (isAllDay) null else binding.tvEndTime.text.toString(),
-                place = placeRequest,      // 서버로 보낼 위도/경도 객체
-                placeId = selectedPlaceId,  // 룸 DB에 저장할 ID (추가)
-                customAlarms = currentSelectedAlarms?.toList(),
-                calendarId = currentSelectedCalendarId,
-                selectedColor = selectedColorInt, // Int 타입으로 전달
-                repeatInfo = currentRepeatInfo    // 이 변수가 상단에 선언되어 있어야 함
-            )
+            if (isEditMode && scheduleIdForEdit != -1L) {
+                // A. 수정 모드
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val originalSchedule = viewModel.getScheduleById(scheduleIdForEdit)
+
+                    originalSchedule?.let { existing ->
+                        // 수정된 정보로 객체 생성
+                        val updatedSchedule = existing.copy(
+                            title = scheduleName,
+                            memo = binding.etMemo.text?.toString(),
+                            startDate = finalStartDateStr,
+                            endDate = finalEndDateStr,
+                            startTime = if (isAllDay) "00:00" else binding.tvStartTime.text.toString(),
+                            endTime = if (isAllDay) "23:59" else binding.tvEndTime.text.toString(),
+                            isAllDay = isAllDay,
+                            calendarId = currentSelectedCalendarId ?: existing.calendarId,
+                            eventColor = selectedColorInt,
+                            placeJson = placeRequest?.let { com.google.gson.Gson().toJson(it) },
+                            reminders = currentSelectedAlarms?.toList() ?: existing.reminders,
+
+                            // 💡 [핵심] 반복 정보 업데이트 (수정 시 repeatInfo를 RRULE로 변환하여 넣어줘야 함)
+                            repeatRule = if (currentRepeatInfo != null) {
+                                // ViewModel에 rrule 생성 함수가 있다면 활용
+                                viewModel.buildRRuleString(currentRepeatInfo)
+                            } else {
+                                existing.repeatRule // 변경 없으면 기존 값 유지
+                            }
+                        )
+
+                        // 💡 뷰모델에 수정 명령 (이 함수가 RemoteDataSource.updateCalendarEvent를 호출해야 함)
+                        viewModel.updateSchedule(updatedSchedule)
+
+                        requireActivity().finish() // 수정 완료 후 화면 닫기
+                    }
+                }
+            } else {
+                // B. 생성 모드
+                viewModel.createScheduleWithDefaultSettings(
+                    title = scheduleName,
+                    memo = binding.etMemo.text?.toString(),
+                    isAllDay = isAllDay,
+                    startDate = finalStartDateStr,
+                    startTime = if (isAllDay) null else binding.tvStartTime.text.toString(),
+                    endDate = finalEndDateStr,
+                    endTime = if (isAllDay) null else binding.tvEndTime.text.toString(),
+                    place = placeRequest,
+                    placeId = selectedPlaceId,
+                    customAlarms = currentSelectedAlarms?.toList(),
+                    calendarId = currentSelectedCalendarId,
+                    selectedColor = selectedColorInt,
+                    repeatInfo = currentRepeatInfo // 보정된 RepeatInfo 전달
+                )
+            }
         }
+
+// 2. 이벤트 관찰 부분 (onCreateView나 onViewCreated에서 호출)
         observeCreateEvent()
+        observeUpdateEvent() // 수정 완료 관찰 추가
+
+// 3. 취소 버튼 (기존과 동일)
         binding.btnCancel.setOnClickListener {
+            val message = if (isEditMode) "수정 중인 내용을 파기하고 돌아갈까요?" else "작성 중인 내용을 삭제하고 메인 화면으로 돌아갈까요?"
             androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                .setTitle("작성 취소")
-                .setMessage("작성 중인 내용을 삭제하고 메인 화면으로 돌아갈까요?")
+                .setTitle(if (isEditMode) "편집 취소" else "작성 취소")
+                .setMessage(message)
                 .setPositiveButton("확인") { _, _ ->
                     if (parentFragmentManager.backStackEntryCount > 0) {
                         parentFragmentManager.popBackStack()
@@ -750,32 +826,26 @@ class GeneralScheduleFragment : Fragment() {
     }
     private fun updateDateDisplay() {
         val formatter = DateTimeFormatter.ofPattern("M월 d일 (E)", Locale.KOREAN)
-        val highlightColor = Color.parseColor("#8BC34A") // 강조 초록색
+        val highlightColor = Color.parseColor("#8BC34A")
         val defaultColor = Color.BLACK
 
         // 1. 시작일 업데이트
+        val tvStart = binding.btnStartDate.findViewById<TextView>(R.id.tv_start_date)
         startDate?.let {
-            val tvStart = binding.btnStartDate.findViewById<TextView>(R.id.tv_start_date)
             tvStart.text = it.format(formatter)
-
-            // 시작일이 선택되었고 종료일이 아직 없다면 다음 타겟인 종료일을 강조하기 위해 시작일은 검정으로
-            if (endDate == null) {
-                tvStart.setTextColor(defaultColor)
-            }
-        } ?: run {
-            // 시작일 선택 전에는 시작일 텍스트 강조
-            binding.btnStartDate.findViewById<TextView>(R.id.tv_start_date).setTextColor(highlightColor)
+            // 수정 모드이거나 선택 완료 상태면 검정색, 선택 중이면 초록색
+            tvStart.setTextColor(if (endDate != null || isEditMode) defaultColor else highlightColor)
         }
 
         // 2. 종료일 업데이트
-        val endToShow = endDate ?: startDate
         val tvEnd = binding.btnEndDate.findViewById<TextView>(R.id.tv_end_date)
+        // endDate가 null이면 startDate를 대신 보여줌
+        val endToShow = endDate ?: startDate
 
         endToShow?.let {
             tvEnd.text = it.format(formatter)
-
-            // 시작일만 있고 종료일이 아직 없는 상태라면 종료일 텍스트를 초록색으로 강조
-            if (startDate != null && endDate == null) {
+            // 시작일은 있는데 종료일이 아직 선택 안 된 상태에서만 초록색 강조
+            if (!isEditMode && startDate != null && endDate == null) {
                 tvEnd.setTextColor(highlightColor)
             } else {
                 tvEnd.setTextColor(defaultColor)
@@ -929,6 +999,9 @@ class GeneralScheduleFragment : Fragment() {
     }
 
     private fun observeUserSettings() {
+
+        if (isEditMode) return
+
         viewLifecycleOwner.lifecycleScope.launch {
             // collect가 아닌 first()를 사용하여 화면 진입 시점에 딱 한 번만 데이터를 가져옵니다.
             val settings = viewModel.userSettings.filterNotNull().first()
@@ -971,6 +1044,146 @@ class GeneralScheduleFragment : Fragment() {
             else -> "${minutes}분 전"
         }
     }
+
+    private fun setupEditMode(){
+        if (isEditMode && scheduleIdForEdit != -1L) {
+            binding.btnConfirm.text = "수정하기"
+            loadExistingSchedule(scheduleIdForEdit)
+        } else {
+            // 기존 신규 생성 로직 (오늘 날짜 기본값 설정)
+            val today = LocalDate.now()
+            startDate = today
+            endDate = today
+            binding.tvStartDate.text = today.format(dateFormatter)
+            binding.tvEndDate.text = today.format(dateFormatter)
+        }
+    }
+
+    private fun loadExistingSchedule(id: Long) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val schedule = viewModel.getScheduleById(id)
+
+            // 1. 헤더 변경
+            (activity as? AddScheduleActivity)?.let { act ->
+                val titleView = act.findViewById<TextView>(R.id.tv_toolbar_title)
+                titleView?.text = "일정 수정"
+            }
+
+            schedule?.let { s ->
+                // 1. 이름 및 메모
+                binding.etScheduleName.setText(s.title)
+                binding.etMemo.setText(s.memo)
+
+                // 3. 날짜 (안전한 파싱)
+                try {
+                    Log.d("FixCheck", "DB에서 가져온 시작일: ${s.startDate}, 종료일: ${s.endDate}")
+                    startDate = LocalDate.parse(s.startDate)
+                    endDate = if (!s.endDate.isNullOrEmpty()) LocalDate.parse(s.endDate) else startDate
+                    Log.d("FixCheck", "파싱 후 변수 - startDate: $startDate, endDate: $endDate")
+                } catch (e: Exception) {
+                    Log.e("FixCheck", "파싱 에러 발생: ${e.message}")
+                    val today = LocalDate.now()
+                    startDate = today
+                    endDate = today
+                }
+
+                // 4. UI 갱신 (반드시 변수 할당 후 호출)
+                updateDateDisplay()
+                binding.calendarPicker.notifyCalendarChanged()
+                binding.calendarPicker.scrollToMonth(java.time.YearMonth.from(startDate!!))
+
+                // 5. 시간 및 하루종일 여부
+                isAllDay = s.isAllDay
+                binding.addscheMyPhoneIv.setImageResource(
+                    if (isAllDay) R.drawable.ic_toggle_selected else R.drawable.ic_toggle_unselected
+                )
+
+                // 시간 텍스트 직접 할당
+                binding.tvStartTime.text = if (isAllDay) "오전 00:00" else s.startTime
+                binding.tvEndTime.text = if (isAllDay) "오후 11:59" else s.endTime
+                updateTimeVisibility()
+
+                // 4. 반복 필드(repeatRule) 파싱 (RRULE -> RepeatInfo)
+                if (!s.repeatRule.isNullOrEmpty()) {
+                    // ViewModel을 통해 RepeatInfo 객체를 바로 받아옵니다.
+                    currentRepeatInfo = viewModel.parseRepeatRule(s.repeatRule, s.endDate)
+
+                    if (currentRepeatInfo != null) {
+                        binding.tvRepeatStatus.text = viewModel.getRepeatDescription(currentRepeatInfo)
+                        binding.tvRepeatStatus.setTextColor(Color.BLACK)
+                    }
+                } else {
+                    currentRepeatInfo = null
+                    binding.tvRepeatStatus.text = "반복 안 함"
+                    binding.tvRepeatStatus.setTextColor(Color.LTGRAY)
+                }
+
+                // 5. 장소 정보 복원 (Pace 전용 JSON 우선, 없으면 일반 location 텍스트)
+                if (!s.placeJson.isNullOrEmpty()) {
+                    // Pace 상세 장소 정보가 있는 경우
+                    try {
+                        val placeRequest = com.google.gson.Gson().fromJson(s.placeJson, PlaceRequest::class.java)
+                        selectedPlaceName = placeRequest.targetName
+                        selectedLat = placeRequest.targetLat
+                        selectedLng = placeRequest.targetLng
+
+                        binding.tvLocationStatus.text = selectedPlaceName
+                        binding.tvLocationStatus.setTextColor(Color.BLACK)
+                    } catch (e: Exception) {
+                        // 파싱 실패 시 일반 텍스트로라도 보여줌
+                        binding.tvLocationStatus.text = s.location ?: "장소 정보 없음"
+                    }
+                } else if (!s.location.isNullOrEmpty()) {
+                    // 구글 캘린더 등 외부에서 온 일반 장소 텍스트만 있는 경우
+                    selectedPlaceName = s.location
+                    binding.tvLocationStatus.text = s.location
+                    binding.tvLocationStatus.setTextColor(Color.BLACK)
+                } else {
+                    // 둘 다 없는 경우
+                    binding.tvLocationStatus.text = "장소를 선택해 주세요"
+                    binding.tvLocationStatus.setTextColor(Color.LTGRAY)
+                }
+
+                // 6. 색상 및 알람
+                s.eventColor?.let { colorInt ->
+                    val hexColor = String.format("#%06X", (0xFFFFFF and colorInt))
+                    changeSelectedColor(hexColor)
+                    selectedColorHex = hexColor
+                }
+                if (s.reminders.isNotEmpty()) {
+                    currentSelectedAlarms = s.reminders.toIntArray()
+                    updateAlarmText(currentSelectedAlarms!!)
+                }
+
+                // 7. 캘린더 정보
+                currentSelectedCalendarId = s.calendarId
+                binding.tvCalendarStatus.text = viewModel.getCalendarNameById(s.calendarId)
+                binding.tvCalendarStatus.setTextColor(Color.BLACK)
+            }
+        }
+    }
+
+    // --- 별도의 메서드로 정의할 업데이트 관찰 로직 ---
+    private fun observeUpdateEvent() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            // ViewModel에 updateScheduleEvent가 있다고 가정 (createScheduleEvent와 유사한 구조)
+            viewModel.updateScheduleEvent.collect { isSuccess ->
+                when (isSuccess) {
+                    true -> {
+                        Toast.makeText(context, "일정이 수정되었습니다.", Toast.LENGTH_SHORT).show()
+                        viewModel.resetUpdateEvent() // 이벤트 초기화
+                        requireActivity().finish()   // 액티비티 종료 및 홈으로 복귀
+                    }
+                    false -> {
+                        Toast.makeText(context, "일정 수정에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                        viewModel.resetUpdateEvent()
+                    }
+                    null -> {}
+                }
+            }
+        }
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null

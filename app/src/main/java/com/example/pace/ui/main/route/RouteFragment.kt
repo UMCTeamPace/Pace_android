@@ -163,6 +163,7 @@ class RouteFragment : Fragment() {
 
         initPlacesClient()
         initBottomSheet()
+        initDetailBottomSheet()
 
         binding.layoutRouteInputHeader.layoutFilterOptions.visibility = View.GONE
 
@@ -246,7 +247,7 @@ class RouteFragment : Fragment() {
                 arrivalTime = routeInfo.arrivalTime ?: "${scheduleInfo.endDate}T${scheduleInfo.endTime}",
                 departureTime = routeInfo.departureTime ?: "${scheduleInfo.startDate}T${scheduleInfo.startTime}",
 
-                // ★ [핵심] 변환 없이 바로 대입!
+                // 변환 없이 바로 대입!
                 routeDetails = routeInfo.routeDetails ?: emptyList()
             )
 
@@ -263,8 +264,8 @@ class RouteFragment : Fragment() {
             scheduleColor = "#DC354B"
 
             // 5. 지도에 경로 그리기
-            val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
-            mapFrag?.drawRouteOnMap(assembledRouteResponse, startLatLng, endLatLng)
+//            val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+//            mapFrag?.drawRouteOnMap(assembledRouteResponse, startLatLng, endLatLng)
 
 
             try {
@@ -286,8 +287,29 @@ class RouteFragment : Fragment() {
             // 헬퍼를 이용해 리사이클러뷰 데이터 채우기
             RouteDetailHelper.setupData(requireContext(), bottomSheetView, assembledRouteResponse, routeInfo.destName ?: "", routeInfo.originName ?: "")
 
-            startLatLng = null
-            endLatLng = null
+            bottomSheetView.post {
+                val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+
+                // 1. 현재 바텀시트가 올라온 실제 높이 계산
+                val parentHeight = (bottomSheetView.parent as View).height
+                val currentSheetHeight = parentHeight - bottomSheetView.top
+
+                // 2. 지도 패딩 먼저 설정 (지도의 중심을 시트 위로 올림)
+                mapFrag?.setMapPadding(currentSheetHeight)
+
+                // 3. 내 위치 버튼 위치 조정 및 최상단 이동
+                mapFrag?.updateButtonTranslation(currentSheetHeight.toFloat())
+                val btn = mapFrag?.view?.findViewById<View>(R.id.btn_go_my_location)
+                btn?.bringToFront()
+                btn?.alpha = 1f
+
+                // 4. 경로 그리기 (패딩이 적용된 상태에서 마커 중앙 정렬)
+                mapFrag?.drawRouteOnMap(assembledRouteResponse, startLatLng, endLatLng)
+
+                // 좌표 초기화
+                startLatLng = null
+                endLatLng = null
+            }
 
         } catch (e: Exception) {
             e.printStackTrace()
@@ -820,7 +842,6 @@ class RouteFragment : Fragment() {
             }
 
             val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
-            mapFrag?.drawRouteOnMap(item, startLatLng, endLatLng)
             binding.layoutRouteDetailOverlay.root.visibility = View.VISIBLE
             binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.VISIBLE
             binding.layoutRouteDetailOverlay.btnRouteDetailBackDetail.visibility = View.VISIBLE
@@ -857,9 +878,21 @@ class RouteFragment : Fragment() {
 
             RouteDetailHelper.setupData(requireContext(),bottomSheetView, item, selectedEndPlace?.first ?: "", selectedStartPlace?.first ?: "")
 
+            bottomSheetView.post {
+                val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
 
+                val parentHeight = (bottomSheetView.parent as View).height
+                val currentSheetHeight = parentHeight - bottomSheetView.top
+
+                mapFrag?.setMapPadding(currentSheetHeight)
+                mapFrag?.updateButtonTranslation(currentSheetHeight.toFloat())
+
+                val btn = mapFrag?.view?.findViewById<View>(R.id.btn_go_my_location)
+                btn?.bringToFront()
+
+                mapFrag?.drawRouteOnMap(item, startLatLng, endLatLng)
+            }
         }
-
     }
 
     fun onRouteSelectedFinal(item: RouteResponse){
@@ -1819,6 +1852,7 @@ private fun selectCurrentLocation() {
                 showDefaultScheduleOverlay(cachedScheduleData)
                 mainBinding?.mainBnv?.visibility = View.VISIBLE
             }
+            mainBinding?.mainBnv?.visibility = View.VISIBLE
             return
         }
 
@@ -2263,6 +2297,26 @@ private fun selectCurrentLocation() {
             expandedOffset = 0
             state = BottomSheetBehavior.STATE_HALF_EXPANDED
         }
+    }
+
+    private fun initDetailBottomSheet() {
+        val detailSheet = binding.layoutRouteDetailOverlay.sheetRouteDetail.root
+        val detailBehavior = BottomSheetBehavior.from(detailSheet)
+
+        detailBehavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
+            override fun onStateChanged(bottomSheet: View, newState: Int) {
+                // 디테일 뷰가 완전히 펼쳐졌을 때(STATE_EXPANDED)
+                // 내 위치 버튼이 완전히 사라지게 하고 싶다면 여기서 제어할 수 있습니다.
+            }
+
+            override fun onSlide(bottomSheet: View, slideOffset: Float) {
+                val mapFragment = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+                val parentHeight = (bottomSheet.parent as View).height
+                val currentSheetHeight = parentHeight - bottomSheet.top
+
+                mapFragment?.updateButtonTranslation(currentSheetHeight.toFloat())
+            }
+        })
     }
 
     private fun initBottomSheet() {

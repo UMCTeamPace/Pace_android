@@ -194,7 +194,11 @@
                 android:text="없음"
                 android:textColor="@color/text_secondary2"
                 android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                android:layout_marginEnd="2dp"/>
+                android:layout_marginEnd="2dp"
+
+                android:maxWidth="180dp"
+                android:singleLine="true"
+                android:ellipsize="end"/>
             <ImageView
                 android:id="@+id/settings_reminder_alarm_iv"
                 android:layout_width="wrap_content"
@@ -229,7 +233,11 @@
                 android:text="사용자 지정"
                 android:textColor="@color/text_secondary2"
                 android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                android:layout_marginEnd="2dp"/>
+                android:layout_marginEnd="2dp"
+
+                android:maxWidth="180dp"
+                android:singleLine="true"
+                android:ellipsize="end"/>
             <ImageView
                 android:id="@+id/settings_departure_alarm_iv"
                 android:layout_width="wrap_content"

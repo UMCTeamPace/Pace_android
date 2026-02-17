@@ -72,9 +72,9 @@ class HomeFragment: Fragment() {
             override fun onEdit(schedule: Schedule) {
                 val intent = Intent(requireContext(), AddScheduleActivity::class.java).apply {
                     putExtra("isEdit", true)
-                    putExtra("SCHEDULE_ID", schedule.id) // ID만 전달
+                    putExtra("SCHEDULE_ID", schedule.id)
+                    putExtra("SCHEDULE_TYPE", schedule.type) // ⭐ 타입 명시 (ROUTE 또는 GENERAL)
 
-                    // 타입에 따라 시작 탭 결정
                     if (schedule.type == "ROUTE") {
                         putExtra("OPEN_ROUTE_TAB", true)
                     }

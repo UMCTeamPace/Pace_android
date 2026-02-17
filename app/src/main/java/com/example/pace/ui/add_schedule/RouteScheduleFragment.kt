@@ -34,7 +34,9 @@ import com.example.pace.data.model.request.CreateScheduleRequest
 import com.example.pace.data.model.request.PlaceRequest
 import com.example.pace.data.model.request.ReminderRequest
 import com.example.pace.data.model.request.RouteDetail
+import com.example.pace.data.model.request.RouteDetailRequest
 import com.example.pace.data.model.request.RouteRequest
+import com.example.pace.data.model.request.TransitDetailRequest
 import com.example.pace.data.model.response.RouteResponse
 import com.example.pace.data.util.RouteConstants
 import com.example.pace.data.viewmodel.SettingsViewModel
@@ -61,6 +63,10 @@ class RouteScheduleFragment : Fragment() {
 
     private var _binding: FragmentRouteScheduleBinding? = null
     private val binding get() = _binding!!
+
+    // 수정 모드 관련 변수
+    private var isEditMode = false
+    private var scheduleId: Long = -1L
 
     // 경로 검색 -> 일정 추가 시 받는 ROUTE_DETAIL
     private var route: RouteResponse? = null
@@ -131,6 +137,22 @@ class RouteScheduleFragment : Fragment() {
             binding.deleteRouteIv.visibility = View.VISIBLE
             binding.deleteRouteIv.bringToFront()
 
+            // 4. 데이터 확인용 토스트 (전역 변수 기반으로 출력)
+            Toast.makeText(
+                context,
+                """
+            출발지: $lastStartName
+            출발좌표: $lastStartLat , $lastStartLng
+            
+            도착지: $lastDestName
+            도착좌표: $lastDestLat , $lastDestLng
+            
+            빠른 도착 시간: $earlyArriveTime
+            
+            경로 데이터 파싱 완료
+            """.trimIndent(),
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
     override fun onCreateView(
@@ -151,6 +173,12 @@ class RouteScheduleFragment : Fragment() {
         setupLegend()
         setupMonthNavigation()
         observeUserSettings()
+
+
+        val incomingId = arguments?.getLong("SCHEDULE_ID", -1L) ?: -1L
+        if (incomingId != -1L) {
+            setupEditMode(incomingId)
+        }
 
         binding.deleteRouteIv.setOnClickListener {
             Log.d("ROUTE_DELETE", "삭제 버튼 클릭")
@@ -420,144 +448,98 @@ class RouteScheduleFragment : Fragment() {
 
         binding.btnConfirm.setOnClickListener {
             val scheduleName = binding.etScheduleName.text.toString().trim()
-            val selectedDate = arguments?.getString("selected_date") ?: "2026-02-09"
             val finalStartDate = startDate ?: LocalDate.now()
             val finalEndDate = endDate ?: finalStartDate
-            val startTime = binding.tvStartTime.text.toString()
-            val endTime = binding.tvEndTime.text.toString()
-            val parsedRoute = parseRouteData(lastRouteJson)
 
-            val finalRoute = parsedRoute?.copy(
-                originName = lastStartName ?: "출발지",
-                originLat = if (lastStartLat.isNaN()) 0.0 else lastStartLat,
-                originLng = if (lastStartLng.isNaN()) 0.0 else lastStartLng,
-                destName = lastDestName ?: "목적지",
-                destLat = if (lastDestLat.isNaN()) 0.0 else lastDestLat,
-                destLng = if (lastDestLng.isNaN()) 0.0 else lastDestLng,
-                // 상세 경로(routeDetails) 내부의 필드 매핑은 모델 클래스에서 정의한 SerializedName을 따릅니다.
-                routeDetails = parsedRoute.routeDetails ?: emptyList()
-            )
-            // 1. 유효성 검사
+            // 1. 시간 형식 보정
+            val startTime = binding.tvStartTime.text.toString().let { if(it.length == 5) "$it:00" else it }
+            val endTime = binding.tvEndTime.text.toString().let { if(it.length == 5) "$it:00" else it }
+
             if (scheduleName.isEmpty()) {
                 Toast.makeText(context, "일정명을 입력해 주세요.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
-            if (isTimeAfter(startTime, endTime)) {
-                Toast.makeText(context, "종료 시간이 시작 시간보다 빨라야 합니다.", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
+            val selectedColorInt = Color.parseColor(selectedColorHex)
+
+            // 2. 경로 데이터 파싱 및 Place 설정
+            val finalRoute = parseRouteData(lastRouteJson)
+            val placeRequest = PlaceRequest(
+                targetName = lastDestName ?: "미지정 장소",
+                targetLat = if (lastDestLat.isNaN()) 0.0 else lastDestLat,
+                targetLng = if (lastDestLng.isNaN()) 0.0 else lastDestLng
+            )
+
+            // 3. 알림 데이터 통합
+            val reminderRequests = mutableListOf<ReminderRequest>().apply {
+                currentSelectedAlarms?.forEach { add(ReminderRequest("EVENT", it)) }
+                currentSelectedStartAlarms?.forEach { add(ReminderRequest("DEPARTURE", it)) }
             }
 
-            // 1) 일정 시작 시간을 밀리초(Long)로 변환
-            val startParts = startTime.split(":")
-            val hour = startParts[0].toInt()
-            val minute = startParts[1].toInt()
+            // 4. 수정 모드 vs 생성 모드 분기
+            if (isEditMode && scheduleId != -1L) {
+                // [A] 수정 모드: 기존 엔티티를 가져와서 copy 후 updateSchedule(schedule) 호출
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val originalSchedule = viewModel.getScheduleById(scheduleId)
 
-            val calendar = java.util.Calendar.getInstance().apply {
-                set(finalStartDate.year, finalStartDate.monthValue - 1, finalStartDate.dayOfMonth, hour, minute, 0)
-            }
-            val scheduleTimeMillis = calendar.timeInMillis
+                    originalSchedule?.let { existing ->
+                        val updatedSchedule = existing.copy(
+                            title = scheduleName,
+                            memo = binding.etMemo.text?.toString(),
+                            startDate = finalStartDate.toString(),
+                            endDate = finalEndDate.toString(),
+                            startTime = startTime,
+                            endTime = endTime,
+                            isAllDay = false,
+                            calendarId = currentSelectedCalendarId ?: existing.calendarId,
+                            eventColor = selectedColorInt,
+                            // 경로 일정 데이터 업데이트 (JSON 문자열로 변환하여 저장하는 구조라면)
+                            withRoute = (finalRoute != null), // isRoute 대신 withRoute
+                            placeJson = Gson().toJson(placeRequest),
+                            type = "ROUTE", // 경로 일정이므로 ROUTE로 명시
+                            // 알림 리스트 업데이트 (reminders 필드가 List<Int> 등이라면 변환 필요)
+                            reminders = currentSelectedAlarms?.toList() ?: existing.reminders
+                        )
 
-            // 2) 일반 일정 알림 예약 (사용자가 선택한 '5분 전', '15분 전' 등 모두 예약)
-            currentSelectedAlarms?.forEach { minutesBefore ->
-                com.example.pace.data.util.AlarmScheduler.schedulePaceAlarm(
-                    requireContext(),
-                    scheduleTimeMillis,
-                    minutesBefore
-                )
-            }
-
-            // 3) 출발 알림 예약 (경로가 있을 경우, 실제 출발 시간 기준으로 예약)
-            route?.let { routeResponse ->
-                // RouteCalculator를 이용해 departureTime(ISO 8601 등)을 밀리초로 변환
-                val departureTimeMillis = RouteCalculator.convertUtcToMillis(routeResponse.departureTime)
-
-                currentSelectedStartAlarms?.forEach { minutesBefore ->
-                    com.example.pace.data.util.AlarmScheduler.schedulePaceAlarm(
-                        requireContext(),
-                        departureTimeMillis,
-                        minutesBefore
-                    )
+                        // 💡 ViewModel의 updateSchedule(schedule: Schedule) 호출
+                        viewModel.updateSchedule(updatedSchedule)
+                    }
                 }
+            } else {
+                // [B] 생성 모드: 기존처럼 CreateScheduleRequest를 사용하여 서버 API 호출
+                val createRequest = CreateScheduleRequest(
+                    title = scheduleName,
+                    isAllDay = false,
+                    startDate = finalStartDate.toString(),
+                    endDate = finalEndDate.toString(),
+                    startTime = startTime,
+                    endTime = endTime,
+                    memo = binding.etMemo.text.toString(),
+                    isPathIncluded = (finalRoute != null),
+                    isRepeat = false,   // 필수 파라미터 누락 방지
+                    repeatInfo = null,  // 필수 파라미터 누락 방지
+                    place = placeRequest,
+                    reminders = reminderRequests,
+                    route = finalRoute,
+                    color = selectedColorHex
+                )
+                // 💡 ViewModel의 createSchedule 호출
+                viewModel.createSchedule(createRequest, null, currentSelectedCalendarId, selectedColorInt)
             }
-
-            val reminderRequests = mutableListOf<ReminderRequest>()
-
-            // 일정 알람 추가
-            currentSelectedAlarms?.forEach {
-                reminderRequests.add(ReminderRequest("EVENT", it))
-            }
-
-            // 출발 알람 추가
-            currentSelectedStartAlarms?.forEach {
-                reminderRequests.add(ReminderRequest("DEPARTURE", it))
-            }
-
-            // 3. 색상 처리
-            val selectedColorInt = try {
-                android.graphics.Color.parseColor(selectedColorHex) // selectedColorHex 변수 확인
-            } catch (e: Exception) {
-                android.graphics.Color.parseColor("#DC354B")
-            }
-
-            // 2. Request 객체 생성
-            val request = CreateScheduleRequest(
-                title = scheduleName,
-                isAllDay = false,
-                startDate = finalStartDate.toString(),
-                endDate = finalEndDate.toString(),
-                startTime = startTime,
-                endTime = endTime,
-                memo = binding.etMemo.text.toString(),
-                isPathIncluded = true,
-                isRepeat = false,
-                repeatInfo = null,
-                place = PlaceRequest(
-                    targetName = lastDestName ?: "미지정 장소",
-                    targetLat = if (lastDestLat.isNaN()) 0.0 else lastDestLat,
-                    targetLng = if (lastDestLng.isNaN()) 0.0 else lastDestLng
-                ),
-                reminders = reminderRequests,
-                route = finalRoute
-            )
-            viewModel.createSchedule(
-                request = request,
-                placeId = null, // Route는 별도의 placeId를 쓰지 않거나 필요시 전달
-                calendarId = currentSelectedCalendarId,
-                selectedColor = selectedColorInt // 변환된 색상 전달
-            )
-            // TODO: 여기서 ViewModel.createSchedule(request) 호출
-            android.util.Log.d("RouteSchedule", """
-        [일정 데이터 추출 결과]
-        제목: ${request.title}
-        날짜: ${request.startDate} ~ ${request.endDate}
-        시간: ${request.startTime} ~ ${request.endTime}
-        -------------------------------------------
-        🚩 출발지: ${request.route?.originName} (Lat: ${request.route?.originLat}, Lng: ${request.route?.originLng})
-        🏁 도착지: ${request.place?.targetName} (Lat: ${request.place?.targetLat}, Lng: ${request.place?.targetLng})
-        -------------------------------------------
-        알림: ${request.reminders.map { "${it.reminderType}(${it.minutesBefore}분 전)" }}
-        경로 포함 여부: ${request.route != null}
-    """.trimIndent())
-            Toast.makeText(context, "일정이 저장되었습니다.", Toast.LENGTH_SHORT).show()
-
-            android.util.Log.d("RouteDebug", "출발위도: $lastStartLat, 도착위도: $lastDestLat")
-
-// 2. 파싱된 객체 내부 체크
-            parsedRoute?.let { route ->
-                android.util.Log.d("RouteDebug", "객체내 출발위도: ${request.route?.originLat}")
-                // 리스트 내부까지 확인
-                route.routeDetails?.forEachIndexed { index, detail ->
-                    if (detail.startLat.isNaN() || detail.startLng.isNaN() || detail.endLat.isNaN() || detail.endLng.isNaN()) {
-                        android.util.Log.e("RouteDebug", "$index 번째 상세경로에 NaN 발견!")
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.updateScheduleEvent.collect { isSuccess ->
+                    if (isSuccess == true) {
+                        Toast.makeText(context, "일정이 수정되었습니다.", Toast.LENGTH_SHORT).show()
+                        viewModel.resetUpdateEvent() // 이벤트 소모
+                        activity?.finish()
+                    } else if (isSuccess == false) {
+                        Toast.makeText(context, "수정에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                        viewModel.resetUpdateEvent()
                     }
                 }
             }
-
-            val intent = Intent(context, MainActivity::class.java)
-            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK
-            startActivity(intent)
-            activity?.finish()
         }
 
         binding.btnCancel.setOnClickListener {
@@ -606,9 +588,9 @@ class RouteScheduleFragment : Fragment() {
             parentFragmentManager.beginTransaction()
                 .setCustomAnimations(
                     android.R.anim.slide_in_left,
-            android.R.anim.slide_out_right,
-            android.R.anim.slide_in_left,
-            android.R.anim.slide_out_right)
+                    android.R.anim.slide_out_right,
+                    android.R.anim.slide_in_left,
+                    android.R.anim.slide_out_right)
                 .replace(android.R.id.content, startFragment)
                 .addToBackStack(null)
                 .commit()
@@ -747,9 +729,55 @@ class RouteScheduleFragment : Fragment() {
 
 
     private fun parseRouteData(json: String?): RouteRequest? {
+        if (json.isNullOrEmpty()) return null
         return try {
-            Gson().fromJson(json, RouteRequest::class.java)
+            // 1. 먼저 Response 구조로 읽어옴
+            val res = Gson().fromJson(json, RouteResponse::class.java)
+
+            // 2. 서버가 원하는 Request 구조로 수동 변환
+            RouteRequest(
+                totalDistance = res.totalDistance,
+                totalTime = res.totalTime,
+                departureTime = res.departureTime,
+                arrivalTime = res.arrivalTime,
+                originName = lastStartName ?: "",
+                originLat = lastStartLat,
+                originLng = lastStartLng,
+                destName = lastDestName ?: "",
+                destLat = lastDestLat,
+                destLng = lastDestLng,
+                routeDetails = res.routeDetails.map { detail ->
+                    RouteDetailRequest(
+                        sequence = detail.sequence,
+                        duration = detail.duration,
+                        distance = detail.distance,
+                        startLat = detail.startLat,
+                        startLng = detail.startLng,
+                        endLat = detail.endLat,
+                        endLng = detail.endLng,
+                        // parseRouteData 내부의 transitDetail 변환 로직
+                        transitDetail = detail.transitDetail?.let {
+                            TransitDetailRequest(
+                                transitType = it.transitType,
+                                lineName = it.lineName,
+                                lineColor = it.lineColor,
+                                stopCount = it.stopCount,
+                                departureStop = it.departureStop,
+                                arrivalStop = it.arrivalStop,
+                                departureTime = it.departureTime,
+                                arrivalTime = it.arrivalTime,
+                                shortName = it.shortName,
+                                locationLat = 0.0, // DTO에 정의된 필수값 채우기
+                                locationLng = 0.0,
+                                headsign = null,
+                                stationPath = null
+                            )
+                        }
+                    )
+                }
+            )
         } catch (e: Exception) {
+            Log.e("PARSE_ERROR", "Route 변환 실패: ${e.message}")
             null
         }
     }
@@ -1390,6 +1418,90 @@ class RouteScheduleFragment : Fragment() {
         val texts = minutesArray.sorted().map { minutesToText(it) }
         binding.tvStartalarmStatus.text = texts.joinToString(", ")
         binding.tvStartalarmStatus.setTextColor(Color.BLACK) // 선택되면 검정색으로 변경
+    }
+
+
+    private fun setupEditMode(id: Long) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            // 1. ViewModel에서 상세 데이터 요청
+            viewModel.getScheduleDetail(id)
+
+
+            // 1. 헤더 변경
+            (activity as? AddScheduleActivity)?.let { act ->
+                val titleView = act.findViewById<TextView>(R.id.tv_toolbar_title)
+                titleView?.text = "일정 수정"
+            }
+
+            // 2. ViewModel의 StateFlow 관찰
+            viewModel.scheduleDetailInfo.collect { detail ->
+                if (detail != null) {
+                    isEditMode = true
+                    scheduleId = id
+
+                    // (1) 기본 정보 복원
+                    binding.etScheduleName.setText(detail.scheduleInfo.title)
+                    binding.etMemo.setText(detail.scheduleInfo.memo)
+
+                    // (2) 날짜 및 시간 정보 복원
+                    startDate = LocalDate.parse(detail.scheduleInfo.startDate)
+                    endDate = LocalDate.parse(detail.scheduleInfo.endDate)
+                    binding.tvStartTime.text = detail.scheduleInfo.startTime?.take(5) ?: "10:00"
+                    binding.tvEndTime.text = detail.scheduleInfo.endTime?.take(5) ?: "11:00"
+                    updateDateDisplay()
+
+                    // (3) 경로 및 장소 정보 복원
+                    detail.place?.let { p ->
+                        lastDestName = p.targetName
+                        lastDestLat = p.targetLat
+                        lastDestLng = p.targetLng
+                    }
+
+                    detail.route?.let { r ->
+                        lastStartName = r.originName
+                        lastStartLat = r.originLat
+                        lastStartLng = r.originLng
+
+                        // RouteResponse 객체로 변환하여 UI 갱신 (상단 요약바 등)
+                        val routeObj = RouteResponse(
+                            totalDistance = r.totalDistance,
+                            totalTime = r.totalTime,
+                            departureTime = r.departureTime ?: "",
+                            arrivalTime = r.arrivalTime ?: "",
+                            routeDetails = r.routeDetails ?: emptyList()
+                        )
+                        lastRouteJson = Gson().toJson(routeObj)
+
+                        updateRouteInfo(lastStartName ?: "출발지", lastDestName ?: "도착지", routeObj)
+                        binding.deleteRouteIv.visibility = View.VISIBLE
+                    }
+
+                    // (4) 알림 정보 복원
+                    currentSelectedAlarms = detail.reminders
+                        .filter { it.reminderType == "EVENT" }
+                        .map { it.minutesBefore }
+                        .toIntArray()
+
+                    currentSelectedStartAlarms = detail.reminders
+                        .filter { it.reminderType == "DEPARTURE" }
+                        .map { it.minutesBefore }
+                        .toIntArray()
+
+                    updateAlarmText(currentSelectedAlarms ?: intArrayOf())
+                    updateDepartureAlarmText(currentSelectedStartAlarms ?: intArrayOf())
+
+                    // (5) 색상 복원 (필드에 있을 경우)
+//                    detail.scheduleInfo.color?.let { colorHex ->
+//                        selectedColorHex = colorHex
+//                        binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(Color.parseColor(colorHex))
+//                    }
+
+                    // UI 상태 변경
+                    binding.btnConfirm.text = "수정 완료"
+                    binding.calendarPicker.notifyCalendarChanged()
+                }
+            }
+        }
     }
 
 }

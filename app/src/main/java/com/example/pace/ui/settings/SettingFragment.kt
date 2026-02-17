@@ -64,8 +64,7 @@ class SettingFragment: Fragment() {
 
         // --- Result Listeners ---
         setFragmentResultListener("earlyDepartureKey") { _, bundle ->
-            val resultText = bundle.getString("selectedMinutes") ?: "10분"
-            val minutes = resultText.replace("분", "").toIntOrNull() ?: 10
+            val minutes = bundle.getInt("selectedMinutes", 0)
             viewModel.updateEarlyArrival(minutes)
         }
 

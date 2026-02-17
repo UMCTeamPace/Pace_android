@@ -56,7 +56,27 @@ class ScheduleRepositoryImpl @Inject constructor(
 
     // 2. 로컬 DB 관리 메서드
     override suspend fun updateSchedule(schedule: Schedule) {
-        scheduleDao.updateSchedule(schedule)
+        withContext(Dispatchers.IO) {
+            try {
+                // 1. 시스템 캘린더 일정(SYSTEM)인 경우, 원본 소스 업데이트
+                if (schedule.sourceType == "SYSTEM") {
+                    val isSystemUpdated = normalDataSource.updateCalendarEvent(schedule)
+                    if (isSystemUpdated) {
+                        Log.d("UpdateLog", "✅ 시스템 캘린더 업데이트 성공: ${schedule.title}")
+                    } else {
+                        Log.e("UpdateLog", "❌ 시스템 캘린더 업데이트 실패 (ID: ${schedule.id})")
+                    }
+                }
+
+                // 2. 로컬 DB(Room) 업데이트 (이게 수행되어야 즉시 UI에 반영됨)
+                scheduleDao.updateSchedule(schedule)
+
+                // 3. (선택 사항) 서버 동기화가 필요한 경우 추가 API 호출 가능
+
+            } catch (e: Exception) {
+                Log.e("UpdateLog", "일정 수정 중 오류 발생: ${e.message}")
+            }
+        }
     }
 
     override suspend fun updateExDate(schedule: Schedule) {
@@ -212,7 +232,13 @@ class ScheduleRepositoryImpl @Inject constructor(
         api.getScheduleDetail(accessToken, scheduleId)
     }
 
-    override suspend fun updateSchedule(accessToken: String, scheduleId: Long, scope: String, request: UpdateScheduleRequest) = safeApiCall {
+    override suspend fun updateSchedule(
+        accessToken: String,
+        scheduleId: Long,
+        scope: String,
+        request: UpdateScheduleRequest
+    ): RawDefaultResponse<ScheduleDetailResponse> = safeApiCall {
+        // api.updateSchedule이 이미 ScheduleService에서 RawDefaultResponse<ScheduleDetailResponse>를 반환하므로 바로 리턴
         api.updateSchedule(accessToken, scheduleId, scope, request)
     }
 
@@ -271,7 +297,7 @@ class ScheduleRepositoryImpl @Inject constructor(
     ) = safeApiCall {
         val defaultColorInt = android.graphics.Color.parseColor("#DC354B")
         val finalColor = selectedColor ?: defaultColorInt
-
+        Log.d("SAVE_FLOW", "route 데이터 존재 여부: ${request.route != null}")
         if (request.route == null) {
             // 2. 시스템 캘린더에 저장
             val systemId = normalDataSource.insertToCalendarProvider(
@@ -764,6 +790,67 @@ class ScheduleRepositoryImpl @Inject constructor(
                 RawDefaultResponse(isSuccess = false, code = "SERVER_ERROR", message = e.message ?: "Unknown Error", result = null)
             }
         }
+    }
+    override suspend fun getScheduleById(id: Long): Schedule? {
+        return scheduleDao.getScheduleById(id)
+    }
+
+    override fun parseRRule(rruleStr: String, endDate: String): RepeatInfo? {
+        // 1. 이미 구현하신 내부 private 함수 호출
+        val recur = parseRecurrenceString(rruleStr) ?: return null
+
+        // 2. Recurrence 객체를 RepeatInfo 데이터 클래스로 맵핑
+        return try {
+            RepeatInfo(
+                repeatType = recur.frequency.name, // DAILY, WEEKLY 등
+                repeatInterval = recur.interval ?: 1,
+                endType = when {
+                    recur.count != null -> "COUNT"
+                    recur.until != null -> "DATE"
+                    else -> "NEVER"
+                },
+                endCount = recur.count ?: 1,
+                repeatEndDate = recur.until?.let { icalDate ->
+                    // ICalDate를 yyyy-MM-dd 문자열로 변환
+                    SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(icalDate.date)
+                } ?: endDate
+            )
+        } catch (e: Exception) {
+            Log.e("RRULE_PARSE", "RepeatInfo 변환 실패", e)
+            null
+        }
+    }
+
+    override suspend fun updateRouteSchedule(
+        accessToken: String,
+        scheduleId: Long,
+        request: CreateScheduleRequest,
+        calendarId: Long?,
+        selectedColor: Int
+    ): RawDefaultResponse<CreateScheduleResponse> = safeApiCall {
+        // 1. 색상 변환
+        val colorHex = String.format("#%06X", (0xFFFFFF and selectedColor))
+        val finalRequest = request.copy(color = colorHex)
+
+        // 2. 서비스 호출 (Service에 선언된 이름 확인: updateRouteSchedule)
+        val response = api.updateRouteSchedule(
+            accessToken = accessToken,
+            scheduleId = scheduleId,
+            scope = "SINGLE",
+            request = finalRequest
+        )
+
+        // 3. 성공 시 로컬 DB 업데이트 로직 (기존 구현 유지)
+        if (response.isSuccess && response.result != null) {
+            val serverResult = response.result
+            val updatedEntity = serverResult.toEntity(colorHex).copy(
+                calendarId = calendarId ?: 1L
+            )
+            scheduleDao.insertAll(listOf(updatedEntity))
+            refreshSchedules()
+        }
+
+        response
     }
 
 }
