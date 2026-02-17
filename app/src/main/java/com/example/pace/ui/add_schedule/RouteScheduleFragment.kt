@@ -37,6 +37,9 @@ import com.example.pace.data.model.request.RouteDetail
 import com.example.pace.data.model.request.RouteDetailRequest
 import com.example.pace.data.model.request.RouteRequest
 import com.example.pace.data.model.request.TransitDetailRequest
+import com.example.pace.data.model.request.UpdateScheduleEditRouteRequest
+import com.example.pace.data.model.request.UpdateScheduleRequest
+import com.example.pace.data.model.request.UpdateScheduleRouteRequest
 import com.example.pace.data.model.response.RouteResponse
 import com.example.pace.data.util.RouteConstants
 import com.example.pace.data.viewmodel.SettingsViewModel
@@ -478,36 +481,47 @@ class RouteScheduleFragment : Fragment() {
 
             // 4. 수정 모드 vs 생성 모드 분기
             if (isEditMode && scheduleId != -1L) {
-                // [A] 수정 모드: 기존 엔티티를 가져와서 copy 후 updateSchedule(schedule) 호출
-                viewLifecycleOwner.lifecycleScope.launch {
-                    val originalSchedule = viewModel.getScheduleById(scheduleId)
+                // 1. 일반 정보 DTO 조립 (반복X, 목적지 기준 place)
+                val generalRequest = UpdateScheduleRequest(
+                    title = scheduleName,
+                    memo = binding.etMemo.text?.toString(),
+                    isAllDay = false,
+                    startDate = finalStartDate.toString(),
+                    endDate = finalEndDate.toString(),
+                    startTime = startTime,
+                    endTime = endTime,
+                    isPathIncluded = true,
+                    repeatInfo = null, // 경로 일정은 반복 제외
+                    place = PlaceRequest(
+                        targetName = finalRoute?.destName ?: "",
+                        targetLat = finalRoute?.destLat ?: 0.0,
+                        targetLng = finalRoute?.destLng ?: 0.0
+                    ),
+                    reminders = reminderRequests
+                )
 
-                    originalSchedule?.let { existing ->
-                        val updatedSchedule = existing.copy(
-                            title = scheduleName,
-                            memo = binding.etMemo.text?.toString(),
-                            startDate = finalStartDate.toString(),
-                            endDate = finalEndDate.toString(),
-                            startTime = startTime,
-                            endTime = endTime,
-                            isAllDay = false,
-                            calendarId = currentSelectedCalendarId ?: existing.calendarId,
-                            eventColor = selectedColorInt,
-                            // 경로 일정 데이터 업데이트 (JSON 문자열로 변환하여 저장하는 구조라면)
-                            withRoute = (finalRoute != null), // isRoute 대신 withRoute
-                            placeJson = Gson().toJson(placeRequest),
-                            type = "ROUTE", // 경로 일정이므로 ROUTE로 명시
-                            // 알림 리스트 업데이트 (reminders 필드가 List<Int> 등이라면 변환 필요)
-                            reminders = currentSelectedAlarms?.toList() ?: existing.reminders
-                        )
+                // 2. 경로 정보 DTO 조립
+                val routeRequest = UpdateScheduleEditRouteRequest(
+                    originName = finalRoute?.originName ?: "",
+                    originLat = finalRoute?.originLat ?: 0.0,
+                    originLng = finalRoute?.originLng ?: 0.0,
+                    destName = finalRoute?.destName ?: "",
+                    destLat = finalRoute?.destLat ?: 0.0,
+                    destLng = finalRoute?.destLng ?: 0.0,
+                    totalTime = finalRoute?.totalTime ?: 0,
+                    totalDistance = finalRoute?.totalDistance ?: 0,
+                    arrivalTime = finalRoute?.arrivalTime ?: "",
+                    departureTime = finalRoute?.departureTime ?: "",
+                    routeDetails = finalRoute?.routeDetails ?: emptyList()
+                )
 
-                        // 💡 ViewModel의 updateSchedule(schedule: Schedule) 호출
-                        viewModel.updateSchedule(updatedSchedule)
-                    }
-                }
+                // 💡 코루틴 없이 바로 호출 (ViewModel 내부에서 비동기 처리됨)
+                viewModel.updateRouteScheduleCombined(scheduleId, generalRequest, routeRequest)
+
             } else {
                 // [B] 생성 모드: 기존처럼 CreateScheduleRequest를 사용하여 서버 API 호출
                 val createRequest = CreateScheduleRequest(
+                    //color생략
                     title = scheduleName,
                     isAllDay = false,
                     startDate = finalStartDate.toString(),

@@ -11,8 +11,13 @@ import com.example.pace.data.model.request.CreateScheduleRequest
 import com.example.pace.data.model.request.PlaceRequest
 import com.example.pace.data.model.request.ReminderRequest
 import com.example.pace.data.model.request.RepeatInfo
+import com.example.pace.data.model.request.UpdateScheduleEditRouteRequest
+import com.example.pace.data.model.request.UpdateScheduleRequest
+import com.example.pace.data.model.request.UpdateScheduleRouteRequest
+import com.example.pace.data.model.response.RawDefaultResponse
 import com.example.pace.data.model.response.RouteInfo
 import com.example.pace.data.model.response.ScheduleDetailResponse
+import com.example.pace.data.model.response.UpdateScheduleRouteResponse
 import com.example.pace.data.repository.repository.ScheduleRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -285,9 +290,13 @@ class ScheduleViewModel @Inject constructor(
                     }
 
                 } else {
-                    // 💡 2. 일반 일정일 때: 기존 로직(로컬 DB 및 시스템 캘린더) 유지
+                    // 💡 일반 일정: Repository가 시스템(Provider)과 로컬(Room)을 모두 수정함
                     repository.updateSchedule(schedule)
-                    _updateScheduleEvent.value = true
+
+                    // 수정 직후 UI 반영을 위해 Event 발생
+                    withContext(Dispatchers.Main) {
+                        _updateScheduleEvent.value = true
+                    }
                 }
 
                 // 공통: 수정 후 데이터 새로고침
@@ -642,5 +651,46 @@ class ScheduleViewModel @Inject constructor(
         }
     }
 
+    fun updateRouteScheduleCombined(
+        scheduleId: Long,
+        generalRequest: UpdateScheduleRequest,
+        routeRequest: UpdateScheduleEditRouteRequest // 💡 새로 만든 DTO 클래스
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // 1. 토큰 준비
+                val token = authDataStore.getAccessToken() ?: ""
+                val fullToken = if (token.startsWith("Bearer ")) token else "Bearer $token"
 
+                // 2. Repository 호출 (삭제 -> PATCH -> PUT 통합 로직 실행)
+                // 💡 여기서 에러가 난다면 Repository 인터페이스에 이 함수가 정의되어 있는지 확인하세요!
+                val response = repository.updateRouteScheduleCombined(
+                    fullToken,
+                    scheduleId,
+                    generalRequest,
+                    routeRequest
+                )
+
+                // 3. 결과 처리
+                if (response.isSuccess) {
+                    withContext(Dispatchers.Main) {
+                        _updateScheduleEvent.value = true
+                        refreshSchedules() // 로컬 DB 및 캘린더 새로고침
+                    }
+                    Log.d("UpdateLog", "일정 및 경로 수정 통합 성공: $scheduleId")
+                } else {
+                    withContext(Dispatchers.Main) {
+                        _updateScheduleEvent.value = false
+                    }
+                    Log.e("UpdateLog", "수정 실패 (Code: ${response.code}): ${response.message}")
+                }
+
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    _updateScheduleEvent.value = false
+                }
+                Log.e("UpdateLog", "통신 예외 발생: ${e.message}")
+            }
+        }
+    }
 }
