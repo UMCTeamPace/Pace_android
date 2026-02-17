@@ -33,6 +33,7 @@ class SearchHistoryFragment : Fragment() {
     private var pendingChipsVisible: Boolean = true
     private var pendingRouteOptionsVisible: Boolean = false
     private var pendingForcePlaceFilter: Boolean = false
+    private var lastCheckedChipId: Int = View.NO_ID
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -54,6 +55,9 @@ class SearchHistoryFragment : Fragment() {
         val parent = parentFragment as? RouteFragment
 
         binding.chipGroup.setOnCheckedStateChangeListener { group, checkedIds ->
+            val checkedId = checkedIds.firstOrNull() ?: return@setOnCheckedStateChangeListener
+            lastCheckedChipId = checkedId
+
             when (checkedIds.firstOrNull()) {
                 R.id.chip_recent_search -> replaceChildFragment(RecentSearchFragment())
                 R.id.chip_recent_place -> replaceChildFragment(RecentPlaceFragment())
@@ -178,27 +182,23 @@ class SearchHistoryFragment : Fragment() {
         this.lastIsScheduleMode = isScheduleMode
         if (_binding == null) return
 
-        if(isScheduleMode){
+        if (isScheduleMode) {
             binding.chipRecentRoute.visibility = View.GONE
-            binding.chipRecentPlace.isChecked = true
-            replaceChildFragment(RecentPlaceFragment())
-        }else{
+        } else {
             binding.chipRecentRoute.visibility = View.VISIBLE
-            if (isRouteHeaderVisible) {
-                binding.chipRecentSearch.visibility = View.GONE
-
-                binding.chipRecentPlace.isChecked = true
-                replaceChildFragment(RecentPlaceFragment())
-            } else {
-                binding.chipRecentSearch.visibility = View.VISIBLE
-
-                if (!pendingForcePlaceFilter && !binding.chipRecentPlace.isChecked) {
-                    binding.chipRecentSearch.isChecked = true
-                    replaceChildFragment(RecentSearchFragment())
-                }
-            }
         }
 
+        if (isRouteHeaderVisible) {
+            // 루트 헤더가 보일 때 (경로 검색 중) -> 최근 장소 고정
+            binding.chipRecentSearch.visibility = View.GONE
+            binding.chipRecentPlace.isChecked = true
+            replaceChildFragment(RecentPlaceFragment())
+        } else {
+            // 루트 헤더가 안 보일 때 (일반 검색 중) -> 최근 검색 고정
+            binding.chipRecentSearch.visibility = View.VISIBLE
+            binding.chipRecentSearch.isChecked = true
+            replaceChildFragment(RecentSearchFragment())
+        }
     }
 
     override fun onDestroyView() {
