@@ -28,8 +28,10 @@ object RouteDetailHelper {
         val binding = BottomSheetRouteDetailBinding.bind(bottomSheetView)
 
         // 기본 정보
-        binding.routeDetailDepartureTimeTv.text = RouteCalculator.convertUtcToKst(item.departureTime)
-        binding.routeDetailArrivalTimeTv.text = RouteCalculator.convertUtcToKst(item.arrivalTime)
+        val departureTime = RouteCalculator.convertUtcToKst(item.departureTime)
+        val arrivalTime = RouteCalculator.convertUtcToKst(item.arrivalTime)
+        binding.routeDetailDepartureTimeTv.text = departureTime
+        binding.routeDetailArrivalTimeTv.text = arrivalTime
         binding.routeDetailTotalTv.text = buildSpannedString {
             append("총 ")
             color(context.resources.getColor(R.color.primary_500)){
@@ -83,7 +85,7 @@ object RouteDetailHelper {
                     expandedWalkBinding.itemRouteDetailWalkDistanceTv.text = "${data.distance}M 이동"
                     if(data.sequence == 1){
                         expandedWalkBinding.itemRouteDetailWalkStartTv.visibility = View.VISIBLE
-                        expandedWalkBinding.itemRouteDetailWalkStartTv.text = item.departureTime.split("T").last().take(5)
+                        expandedWalkBinding.itemRouteDetailWalkStartTv.text = departureTime
                     }else{
                         expandedWalkBinding.itemRouteDetailWalkStartTv.visibility = View.INVISIBLE
                     }
@@ -170,7 +172,7 @@ object RouteDetailHelper {
         }
 
         val arrivalBinding = ItemRouteDetailArrivalBinding.inflate(LayoutInflater.from(context))
-        arrivalBinding.itemRouteDetailArrivalTimeTv.text = item.arrivalTime.split("T").last().take(5)
+        arrivalBinding.itemRouteDetailArrivalTimeTv.text = arrivalTime
         arrivalBinding.itemRouteDetailArrivalTv.text = destination
         binding.routeDetailExpandedLl.addView(arrivalBinding.root)
     }

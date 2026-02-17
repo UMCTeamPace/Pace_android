@@ -16,6 +16,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.view.ViewTreeObserver
 import android.view.animation.DecelerateInterpolator
@@ -56,6 +57,7 @@ import com.example.pace.databinding.ItemMonthViewSingleDayBinding
 import com.example.pace.databinding.ItemWeekViewBinding
 import dagger.hilt.android.AndroidEntryPoint // 추가
 import java.text.DateFormat
+import kotlin.math.roundToInt
 
 @AndroidEntryPoint
 class CalendarPageFragment: Fragment() {
@@ -681,50 +683,42 @@ class CalendarPageFragment: Fragment() {
         eventContainer.removeAllViews()
 
         if(!events[date].isNullOrEmpty()){
-            // date의 일정을 장기 -> 하루 일정 순으로 정렬
-            val sortedEvents = events[date]?.sortedWith(compareBy<Schedule> { schedule ->
-                val allDates = allSchedules.filter {
-                    it.id == schedule.id
-                }.map {
-                    it.startDate
-                }.distinct()
-                if (allDates.size > 1 && schedule.repeatRule.isNullOrEmpty()) -1 else 0
-            })
-
+            val sortedEvents = getSortedScheduleListOfDate(date)
             var row = 0
             var index = 0
-            if(!sortedEvents.isNullOrEmpty()){
-                val n = if(sortedEvents.size > 4) 3 else 4
+
+            if(sortedEvents.isNotEmpty()){
+                val n = setPageItemNumber(sortedEvents)
                 for(schedule in sortedEvents) {
-                    val allDatesForThisId = allSchedules.filter { it.id == schedule.id }.map{ it.startDate }.distinct().sorted()
-                    if(allDatesForThisId.isNotEmpty()){
+                    val allDatesForThisSchedule = getAllDatesForThisSchedule(schedule)
+                    if(allDatesForThisSchedule.isNotEmpty()){
                         // 상위 일정 3-4개만 표시
                         if(row == 3 || index == n){
                             break
                         }
 
-                        val firstDate = LocalDate.parse(allDatesForThisId.first())
-                        val lastDate = LocalDate.parse(allDatesForThisId.last())
+                        val firstDate = LocalDate.parse(allDatesForThisSchedule.first())
+                        val lastDate = LocalDate.parse(allDatesForThisSchedule.last())
                         val isStart = date.isEqual(firstDate)
                         val isEnd = date.isEqual(lastDate)
+                        val params = LinearLayout.LayoutParams(MATCH_PARENT, (16 * resources.displayMetrics.density).roundToInt())
 
                         // 하루 일정 or 반복 일정
                         if(firstDate == lastDate || !schedule.repeatRule.isNullOrEmpty()){
                             val binding = ItemMonthViewSingleDayBinding.inflate(layoutInflater)
                             val icon = binding.itemMonthViewSingleColor
-                            icon.backgroundTintList = when {
-                                schedule.eventColor != null && schedule.eventColor != 0 -> ColorStateList.valueOf(schedule.eventColor)
-                                schedule.calendarColor != null && schedule.calendarColor != 0 -> ColorStateList.valueOf(schedule.calendarColor)
-                                else -> ColorStateList.valueOf(Color.parseColor("#A2BD3B"))
-                            }
+                            icon.backgroundTintList = setBackgroundTintByScheduleColor(schedule)
                             binding.itemMonthViewSingleTv.text = schedule.title
+                            binding.root.layoutParams = params
                             eventContainer.addView(binding.root)
                         }
                         // 장기 일정
                         else{
+                            // 장기 일정 시작일 때 현재 위치 기록
                             if(isStart){
                                 rowMap[schedule.id] = row
                             }
+                            // 이미 장기 일정이 작성됐다면 해당 줄 전까지 빈 뷰 작성
                             val scheduleRow = rowMap[schedule.id]
                             if (!isStart && scheduleRow != null && row < scheduleRow){
                                 val spaceCount = scheduleRow - row
@@ -732,17 +726,14 @@ class CalendarPageFragment: Fragment() {
                                     val binding = ItemMonthViewMultipleDaysBinding.inflate(layoutInflater, eventContainer,false)
                                     binding.itemMonthViewMultipleDays.text = "test"
                                     binding.root.visibility = View.INVISIBLE
-                                    val params = LinearLayout.LayoutParams((44 * resources.displayMetrics.density).toInt(), (15 * resources.displayMetrics.density).toInt())
-                                    eventContainer.addView(binding.root, params)
+                                    binding.root.layoutParams = params
+                                    eventContainer.addView(binding.root)
                                 }
                                 row = scheduleRow
                             }
+                            // 장기 일정 바인딩
                             val binding = ItemMonthViewMultipleDaysBinding.inflate(layoutInflater)
-                            binding.itemMonthViewMultipleDays.backgroundTintList = when {
-                                schedule.eventColor != null && schedule.eventColor != 0 -> ColorStateList.valueOf(schedule.eventColor)
-                                schedule.calendarColor != null && schedule.calendarColor != 0 -> ColorStateList.valueOf(schedule.calendarColor)
-                                else -> ColorStateList.valueOf(Color.parseColor("#A2BD3B"))
-                            }
+                            binding.itemMonthViewMultipleDays.backgroundTintList = setBackgroundTintByScheduleColor(schedule)
                             binding.itemMonthViewMultipleDays.setBackgroundResource(when{
                                 isStart -> R.drawable.bg_item_month_view_first
                                 isEnd -> R.drawable.bg_item_month_view_last
@@ -752,9 +743,13 @@ class CalendarPageFragment: Fragment() {
                                 isStart -> schedule.title
                                 else -> ""
                             }
+
+                            // 장기 일정 마지막 날이라면, 위치 제거
                             if(isEnd){
                                 rowMap.remove(schedule.id)
                             }
+
+                            binding.root.layoutParams = params
                             eventContainer.addView(binding.root)
                         }
                     }
@@ -779,75 +774,68 @@ class CalendarPageFragment: Fragment() {
         eventContainer.removeAllViews()
 
         if(!events[date].isNullOrEmpty()){
-            // date의 일정을 장기 -> 하루 일정 순으로 정렬
-            val sortedEvents = events[date]?.sortedWith(compareBy<Schedule> { schedule ->
-                val allDates = allSchedules.filter {
-                    it.id == schedule.id
-                }.map {
-                    it.startDate
-                }.distinct()
-                if (allDates.size > 1 && schedule.repeatRule.isNullOrEmpty()) -1 else 0
-            })
-
+            val sortedEvents = getSortedScheduleListOfDate(date)
             var row = 0
             var index = 0
-            if(!sortedEvents.isNullOrEmpty()){
 
-                val n = if(sortedEvents.size > 4) 3 else 4
+            if(sortedEvents.isNotEmpty()){
+                val n = setPageItemNumber(sortedEvents)
                 for(schedule in sortedEvents) {
-                    val allDatesForThisId = allSchedules.filter { it.id == schedule.id }.map{ it.startDate }.distinct().sorted()
-
-                    if(allDatesForThisId.isNotEmpty()){
-                        // 상위 일정 3-4개만 표시, weekCalendar의 경우 크기 때문에 자동으로 2개만 됨
+                    val allDatesForThisSchedule = getAllDatesForThisSchedule(schedule)
+                    if(allDatesForThisSchedule.isNotEmpty()){
+                        // 상위 일정 3-4개만 표시
                         if(row == 3 || index == n){
                             break
                         }
 
-                        val firstDate = LocalDate.parse(allDatesForThisId.first())
-                        val lastDate = LocalDate.parse(allDatesForThisId.last())
+                        val firstDate = LocalDate.parse(allDatesForThisSchedule.first())
+                        val lastDate = LocalDate.parse(allDatesForThisSchedule.last())
                         val isStart = date.isEqual(firstDate)
                         val isEnd = date.isEqual(lastDate)
+                        val params = LinearLayout.LayoutParams(MATCH_PARENT, (8 * resources.displayMetrics.density).roundToInt())
 
                         // 하루 일정 or 반복 일정
                         if(firstDate == lastDate || !schedule.repeatRule.isNullOrEmpty()){
                             val binding = ItemWeekViewBinding.inflate(layoutInflater)
-                            binding.itemWeekView.backgroundTintList = when {
-                                schedule.eventColor != null && schedule.eventColor != 0 -> ColorStateList.valueOf(schedule.eventColor)
-                                schedule.calendarColor != null && schedule.calendarColor != 0 -> ColorStateList.valueOf(schedule.calendarColor)
-                                else -> ColorStateList.valueOf(Color.parseColor("#A2BD3B"))
-                            }
+                            binding.itemWeekTv.backgroundTintList = setBackgroundTintByScheduleColor(schedule)
+                            binding.itemWeekTv.layoutParams = params
                             eventContainer.addView(binding.root)
                         }
                         // 장기 일정
                         else{
+                            // 장기 일정 시작일 때 현재 위치 기록
                             if(isStart){
                                 rowMap[schedule.id] = row
                             }
+
+                            // 이미 장기 일정이 작성됐다면 해당 줄 전까지 빈 뷰 작성
                             val scheduleRow = rowMap[schedule.id]
                             if (!isStart && scheduleRow != null && row < scheduleRow){
                                 val spaceCount = scheduleRow - row
                                 for(i in 1..spaceCount){
-                                    val emptyView = LayoutInflater.from(context).inflate(R.layout.item_week_view, eventContainer, false)
-                                    emptyView.visibility = View.INVISIBLE
-                                    val params = LinearLayout.LayoutParams((44 * resources.displayMetrics.density).toInt(), (10 * resources.displayMetrics.density).toInt())
-                                    eventContainer.addView(emptyView, params)
+                                    val binding = ItemWeekViewBinding.inflate(layoutInflater, eventContainer,false)
+                                    binding.itemWeekTv.visibility = View.INVISIBLE
+                                    binding.itemWeekTv.layoutParams = params
+                                    eventContainer.addView(binding.root)
                                 }
                                 row = scheduleRow
                             }
+
+                            // 장기 일정 바인딩
                             val binding = ItemWeekViewBinding.inflate(layoutInflater)
-                            binding.itemWeekView.backgroundTintList = when {
-                                schedule.eventColor != null && schedule.eventColor != 0 -> ColorStateList.valueOf(schedule.eventColor)
-                                schedule.calendarColor != null && schedule.calendarColor != 0 -> ColorStateList.valueOf(schedule.calendarColor)
-                                else -> ColorStateList.valueOf(Color.parseColor("#A2BD3B"))
-                            }
-                            binding.itemWeekView.setBackgroundResource(when{
+                            binding.itemWeekTv.backgroundTintList = setBackgroundTintByScheduleColor(schedule)
+                            binding.itemWeekTv.setBackgroundResource(when{
                                 isStart -> R.drawable.bg_item_week_view_first
                                 isEnd -> R.drawable.bg_item_week_view_last
                                 else -> R.drawable.bg_item_week_view_middle
                             })
+
+                            // 장기 일정 마지막 날이라면, 위치 제거
                             if(isEnd){
                                 rowMap.remove(schedule.id)
                             }
+
+                            binding.itemWeekTv.layoutParams = params
                             eventContainer.addView(binding.root)
                         }
                     }
@@ -857,4 +845,30 @@ class CalendarPageFragment: Fragment() {
             }
         }
     }
+
+    // date의 일정을 장기 -> 하루 일정 순으로 정렬
+    private fun getSortedScheduleListOfDate(date: LocalDate): List<Schedule>{
+        return events[date]?.sortedWith(compareBy<Schedule> { schedule ->
+            val allDates = allSchedules.filter {
+                it.id == schedule.id
+            }.map {
+                it.startDate
+            }.distinct()
+            if (allDates.size > 1 && schedule.repeatRule.isNullOrEmpty()) -1 else 0
+        }) ?: emptyList()
+    }
+
+    // 해당 일정이 속한 모든 날짜 가져오기
+    private fun getAllDatesForThisSchedule(schedule: Schedule): List<String> = allSchedules.filter { it.id == schedule.id }.map{ it.startDate }.distinct().sorted()
+
+    // 일정 색상에 따라 텍스트뷰 배경 적용
+    private fun setBackgroundTintByScheduleColor(schedule: Schedule): ColorStateList{
+        return when {
+            schedule.eventColor != null && schedule.eventColor != 0 -> ColorStateList.valueOf(schedule.eventColor)
+            schedule.calendarColor != null && schedule.calendarColor != 0 -> ColorStateList.valueOf(schedule.calendarColor)
+            else -> ColorStateList.valueOf(Color.parseColor("#A2BD3B"))
+        }
+    }
+    // 화면에 표시할 아이템 개수 설정
+    private fun setPageItemNumber(sortedEvents: List<Schedule>):Int = if(sortedEvents.size > 4) 3 else 4
 }
