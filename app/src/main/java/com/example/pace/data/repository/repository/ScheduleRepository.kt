@@ -50,5 +50,15 @@ interface ScheduleRepository {
     ): RawDefaultResponse<RouteOnlyScheduleData?>
 
     suspend fun updateExDate(schedule: Schedule)
+    suspend fun getScheduleById(id: Long): Schedule?
 
+    fun parseRRule(rruleStr: String, endDate: String): RepeatInfo?
+
+    suspend fun updateRouteSchedule(
+        accessToken: String,
+        scheduleId: Long,
+        request: CreateScheduleRequest,
+        calendarId: Long?,
+        selectedColor: Int
+    ): RawDefaultResponse<CreateScheduleResponse> // T를 CreateScheduleResponse로 설정
 }

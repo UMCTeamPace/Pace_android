@@ -34,7 +34,9 @@ import com.example.pace.data.model.request.CreateScheduleRequest
 import com.example.pace.data.model.request.PlaceRequest
 import com.example.pace.data.model.request.ReminderRequest
 import com.example.pace.data.model.request.RouteDetail
+import com.example.pace.data.model.request.RouteDetailRequest
 import com.example.pace.data.model.request.RouteRequest
+import com.example.pace.data.model.request.TransitDetailRequest
 import com.example.pace.data.model.response.RouteResponse
 import com.example.pace.data.util.RouteConstants
 import com.example.pace.data.viewmodel.SettingsViewModel
@@ -61,6 +63,10 @@ class RouteScheduleFragment : Fragment() {
 
     private var _binding: FragmentRouteScheduleBinding? = null
     private val binding get() = _binding!!
+
+    // 수정 모드 관련 변수
+    private var isEditMode = false
+    private var scheduleId: Long = -1L
 
     // 경로 검색 -> 일정 추가 시 받는 ROUTE_DETAIL
     private var route: RouteResponse? = null
@@ -161,222 +167,20 @@ class RouteScheduleFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        val isEdit = arguments?.getBoolean("isEdit") ?: false
+        val scheduleId = arguments?.getLong("SCHEDULE_ID", -1L) ?: -1L
 
-        // 캘린더뷰와 온보딩 값 초기화
+        // 2. 공통 UI 및 설정 초기화
         setupCalendar()
         setupLegend()
         setupMonthNavigation()
-        observeUserSettings()
-
-        binding.deleteRouteIv.setOnClickListener {
-            Log.d("ROUTE_DELETE", "삭제 버튼 클릭")
-            val dialog = DeleteRouteDialog(requireContext()) {
-                // 1. 모든 관련 데이터 변수를 "진짜" 초기 상태로 리셋
-                this.route = null           // 경로 객체
-                this.lastRouteJson = null   // JSON 문자열
-
-                // 출발지 정보 초기화
-                this.lastStartName = null
-                this.lastStartLat = Double.NaN
-                this.lastStartLng = Double.NaN
-
-                // 도착지 정보 초기화
-                this.lastDestName = null
-                this.lastDestLat = Double.NaN
-                this.lastDestLng = Double.NaN
-
-                // 2. UI를 초기 상태로 되돌리기 (null을 넘기면 내부의 removeAllViews()가 작동함)
-                updateRouteInfo("", "", null)
-            }
-            dialog.show()
-        }
-        val today = LocalDate.now()
-        startDate = today
-        endDate = today
-        binding.tvStartDate.text = today.format(dateFormatter)
-        binding.tvEndDate.text = today.format(dateFormatter)
-
-        val startName = arguments?.getString("START_NAME") ?: "미지정"
-        val endName = arguments?.getString("END_NAME") ?: "미지정"
-        val earlyTime = arguments?.getInt("EARLY_ARRIVE_TIME", 0)
-        // 비어있을 때 문자열로 넣으면 에러남
-        val routeDetail = arguments?.getString("ROUTE_DETAIL") // 뒤에 ?: "데이터 없음" 삭제
-
-        // routeDetail 파싱해 경로 동적 바인딩 + route의 값에 따라 UI 업데이트
-        val gson = Gson()
-        route = gson.fromJson(routeDetail, RouteResponse::class.java)
-        updateRouteInfo(startName, endName, route)
-        if (!routeDetail.isNullOrEmpty()) {
-            try {
-                val gson = Gson()
-                route = gson.fromJson(routeDetail, RouteResponse::class.java)
-
-                // 파싱된 route 객체로 UI 업데이트
-                updateRouteInfo(startName, endName, route)
-
-                // 경로가 확실히 있으므로 삭제 버튼 활성화
-                binding.deleteRouteIv.visibility = View.VISIBLE
-                binding.deleteRouteIv.bringToFront() // ⭐ 다른 뷰들보다 위로 올리기
-                binding.deleteRouteIv.setOnClickListener {
-                    Log.d("ROUTE_DELETE", "삭제 버튼 클릭")
-                    val dialog = DeleteRouteDialog(requireContext()) {
-                        // 1. 모든 관련 데이터 변수를 "진짜" 초기 상태로 리셋
-                        this.route = null           // 경로 객체
-                        this.lastRouteJson = null   // JSON 문자열
-
-                        // 출발지 정보 초기화
-                        this.lastStartName = null
-                        this.lastStartLat = Double.NaN
-                        this.lastStartLng = Double.NaN
-
-                        // 도착지 정보 초기화
-                        this.lastDestName = null
-                        this.lastDestLat = Double.NaN
-                        this.lastDestLng = Double.NaN
-
-                        // 2. UI를 초기 상태로 되돌리기 (null을 넘기면 내부의 removeAllViews()가 작동함)
-                        updateRouteInfo("", "", null)
-                    }
-                    dialog.show()
-                }
-            } catch (e: Exception) {
-                // 만약 JSON 형식이 잘못되었다면 safe하게 처리
-                Log.e("RouteError", "JSON 파싱 실패: ${e.message}")
-                route = null
-                binding.deleteRouteIv.visibility = View.GONE
-                updateRouteInfo(startName, endName, null)
-            }
-        } else {
-            // 2. routeDetail이 null이거나 비어있을 때
-            route = null
-            binding.deleteRouteIv.visibility = View.GONE
-            updateRouteInfo(startName, endName, null)
-        }
-        // routeDetail이 null일 경우를 대비해 ?와 ?: 를 사용합니다.
-        val detailSummary = if ((routeDetail?.length ?: 0) > 20) {
-            routeDetail?.take(20) + "..."
-        } else {
-            routeDetail ?: "데이터 없음"
-        }
-
-        val toastMessage = """
-    출발: $startName
-    도착: $endName
-    미리 도착: ${earlyTime}분
-    경로 상세: $detailSummary
-""".trimIndent()
-
-        Toast.makeText(requireContext(), toastMessage, Toast.LENGTH_LONG).show()
-
         initTimePickers()
-
         updateTimeVisibility()
+        setupKeyboardVisibilityListener()
 
-
-
-        parentFragmentManager.setFragmentResultListener("ROUTE_ALARM_KEY", viewLifecycleOwner) { _, bundle ->
-            // 경로 일정 로직 수행
-            val resultText = bundle.getString("selectedAlarm")
-            val resultMinutes = bundle.getIntArray("selectedAlarmMinutes")
-
-            if (resultMinutes != null) {
-                // 프래그먼트 내부 변수 업데이트
-                currentSelectedAlarms = resultMinutes
-
-                // UI 업데이트 (ID: tvAlarmStatus 확인)
-                binding.tvAlarmStatus.text = resultText
-                binding.tvAlarmStatus.setTextColor(Color.BLACK)
-
-            }
-        }
-
-        // 2. 출발 알림 결과 받기
-
-        parentFragmentManager.setFragmentResultListener("startAlarmKey", viewLifecycleOwner) { _, bundle ->
-            val resultText = bundle.getString("selectedAlarm") ?: "출발 알림 안함"
-            val resultMinutes = bundle.getIntArray("selectedAlarmMinutes")
-
-            if (resultMinutes != null) {
-                currentSelectedStartAlarms = resultMinutes // 여기서 전역 변수 업데이트!
-                binding.tvStartalarmStatus.text = resultText
-                binding.tvStartalarmStatus.setTextColor(Color.BLACK)
-                Log.d("ROUTE_RECEIVE", "데이터 저장 완료: ${resultMinutes.contentToString()}")
-            }
-        }
-
-        // "calendarSelectKey" 대신 "ROUTE_CALENDAR_KEY" 사용
-        parentFragmentManager.setFragmentResultListener("ROUTE_CALENDAR_KEY", viewLifecycleOwner) { _, bundle ->
-            val selectedId = bundle.getLong("calendarId", -1L)
-            val selectedName = bundle.getString("calendarName") ?: "내 일정"
-            val calendarColor = bundle.getInt("selectedCalendarColor", -1)
-
-            android.util.Log.d("CALENDAR_RECEIVE", "경로 일정 수신: $selectedName")
-
-            if (selectedId != -1L) {
-                currentSelectedCalendarId = selectedId
-                currentSelectedCalendarName = selectedName
-
-                binding.tvCalendarStatus.text = selectedName
-                binding.tvCalendarStatus.setTextColor(Color.BLACK)
-
-                if (calendarColor != -1) {
-                    binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(calendarColor)
-                }
-            }
-        }
-
-        binding.btnCalendar.setOnClickListener {
-            // 여기도 SelectCalendarFragment로 통일!
-            val fragment = SelectCalendarFragment()
-            val bundle = Bundle().apply {
-                putLong("currentCalendarId", currentSelectedCalendarId ?: -1L)
-                putString("requestKey", "ROUTE_CALENDAR_KEY") // 루트용 키
-            }
-            fragment.arguments = bundle
-
-            parentFragmentManager.beginTransaction()
-                .setCustomAnimations(android.R.anim.slide_in_left, android.R.anim.slide_out_right, android.R.anim.slide_in_left, android.R.anim.slide_out_right)
-                .replace(android.R.id.content, fragment)
-                .addToBackStack(null)
-                .commit()
-        }
-        binding.layoutScheduleName.setOnClickListener {
-            binding.etScheduleName.requestFocus()
-
-            val imm =
-                requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-            imm.showSoftInput(
-                binding.etScheduleName,
-                android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT
-            )
-        }
-
-        // 1. 결과 관찰 (성공 시 화면 닫기)
-        viewLifecycleOwner.lifecycleScope.launch {
-            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.createScheduleEvent.collect { isSuccess ->
-                    when (isSuccess) {
-                        true -> {
-                            Toast.makeText(context, "일정이 저장되었습니다.", Toast.LENGTH_SHORT).show()
-                            viewModel.resetCreateEvent() // 이벤트 초기화
-                            requireActivity().finish()   // 화면 종료
-                        }
-
-                        false -> {
-                            Toast.makeText(context, "일정 저장에 실패했습니다.", Toast.LENGTH_SHORT).show()
-                            viewModel.resetCreateEvent()
-                        }
-
-                        null -> { /* 대기 상태 */
-                        }
-                    }
-                }
-            }
-        }
 
         binding.calendarPicker.dayBinder = object : MonthDayBinder<DayViewContainer> {
             override fun create(view: View) = DayViewContainer(view) { date ->
-                // 클릭 시에도 범위 체크를 해서 작동하지 않도록 방어
                 val today = LocalDate.now()
                 val maxDate = today.plusDays(29)
                 if (date in today..maxDate) {
@@ -388,45 +192,35 @@ class RouteScheduleFragment : Fragment() {
                 val date = day.date
                 val textView = container.textView
                 val root = container.rootLayout
-
-                //경로 일정 30일까지만 가능하게함
                 val today = LocalDate.now()
                 val maxDate = today.plusDays(29)
-
 
                 textView.text = date.dayOfMonth.toString()
                 if (day.position != com.kizitonwose.calendar.core.DayPosition.MonthDate || date < today || date > maxDate) {
                     textView.setTextColor(Color.LTGRAY)
                     textView.background = null
                     root.background = null
-                    // 범위를 벗어난 날짜는 클릭 리스너를 무효화하거나 처리하지 않음
-                    container.view.isEnabled = false // 클릭 방지
-                    container.view.alpha = 0.4f     // 비활성화 시각화
+                    container.view.isEnabled = false
+                    container.view.alpha = 0.4f
                 } else {
-                    // 범위를 만족하는 날짜들
                     container.view.isEnabled = true
                     container.view.alpha = 1f
-
                     when {
-                        // 시작일/종료일 동일 (원형)
                         date == startDate && (endDate == null || endDate == startDate) -> {
                             textView.setTextColor(Color.WHITE)
                             textView.setBackgroundResource(R.drawable.drawable_circle_green)
                             root.background = null
                         }
-                        // 기간 시작점
                         date == startDate -> {
                             textView.setTextColor(Color.WHITE)
                             textView.setBackgroundResource(R.drawable.drawable_circle_green)
                             root.setBackgroundResource(R.drawable.bg_calendar_range_start)
                         }
-                        // 기간 종료점
                         date == endDate -> {
                             textView.setTextColor(Color.WHITE)
                             textView.setBackgroundResource(R.drawable.drawable_circle_green)
                             root.setBackgroundResource(R.drawable.bg_calendar_range_end)
                         }
-                        // 기간 사이
                         startDate != null && endDate != null && date.isAfter(startDate) && date.isBefore(endDate) -> {
                             textView.setTextColor(Color.BLACK)
                             textView.background = null
@@ -443,300 +237,938 @@ class RouteScheduleFragment : Fragment() {
             }
         }
 
-        binding.btnConfirm.setOnClickListener {
-            val scheduleName = binding.etScheduleName.text.toString().trim()
-            val selectedDate = arguments?.getString("selected_date") ?: "2026-02-09"
-            val finalStartDate = startDate ?: LocalDate.now()
-            val finalEndDate = endDate ?: finalStartDate
-            val startTime = binding.tvStartTime.text.toString()
-            val endTime = binding.tvEndTime.text.toString()
-            val parsedRoute = parseRouteData(lastRouteJson)
-
-            val finalRoute = parsedRoute?.copy(
-                originName = lastStartName ?: "출발지",
-                originLat = if (lastStartLat.isNaN()) 0.0 else lastStartLat,
-                originLng = if (lastStartLng.isNaN()) 0.0 else lastStartLng,
-                destName = lastDestName ?: "목적지",
-                destLat = if (lastDestLat.isNaN()) 0.0 else lastDestLat,
-                destLng = if (lastDestLng.isNaN()) 0.0 else lastDestLng,
-                // 상세 경로(routeDetails) 내부의 필드 매핑은 모델 클래스에서 정의한 SerializedName을 따릅니다.
-                routeDetails = parsedRoute.routeDetails ?: emptyList()
-            )
-            // 1. 유효성 검사
-            if (scheduleName.isEmpty()) {
-                Toast.makeText(context, "일정명을 입력해 주세요.", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            if (isTimeAfter(startTime, endTime)) {
-                Toast.makeText(context, "종료 시간이 시작 시간보다 빨라야 합니다.", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            val reminderRequests = mutableListOf<ReminderRequest>()
-
-            // 일정 알람 추가
-            currentSelectedAlarms?.forEach {
-                reminderRequests.add(ReminderRequest("EVENT", it))
-            }
-
-            // 출발 알람 추가
-            currentSelectedStartAlarms?.forEach {
-                reminderRequests.add(ReminderRequest("DEPARTURE", it))
-            }
-
-            // 3. 색상 처리
-            val selectedColorInt = try {
-                android.graphics.Color.parseColor(selectedColorHex) // selectedColorHex 변수 확인
-            } catch (e: Exception) {
-                android.graphics.Color.parseColor("#DC354B")
-            }
-
-            // 2. Request 객체 생성
-            val request = CreateScheduleRequest(
-                title = scheduleName,
-                isAllDay = false,
-                startDate = finalStartDate.toString(),
-                endDate = finalEndDate.toString(),
-                startTime = startTime,
-                endTime = endTime,
-                memo = binding.etMemo.text.toString(),
-                isPathIncluded = true,
-                isRepeat = false,
-                repeatInfo = null,
-                place = PlaceRequest(
-                    targetName = lastDestName ?: "미지정 장소",
-                    targetLat = if (lastDestLat.isNaN()) 0.0 else lastDestLat,
-                    targetLng = if (lastDestLng.isNaN()) 0.0 else lastDestLng
-                ),
-                reminders = reminderRequests,
-                route = finalRoute
-            )
-            viewModel.createSchedule(
-                request = request,
-                placeId = null, // Route는 별도의 placeId를 쓰지 않거나 필요시 전달
-                calendarId = currentSelectedCalendarId,
-                selectedColor = selectedColorInt // 변환된 색상 전달
-            )
-            // TODO: 여기서 ViewModel.createSchedule(request) 호출
-            android.util.Log.d("RouteSchedule", """
-        [일정 데이터 추출 결과]
-        제목: ${request.title}
-        날짜: ${request.startDate} ~ ${request.endDate}
-        시간: ${request.startTime} ~ ${request.endTime}
-        -------------------------------------------
-        🚩 출발지: ${request.route?.originName} (Lat: ${request.route?.originLat}, Lng: ${request.route?.originLng})
-        🏁 도착지: ${request.place?.targetName} (Lat: ${request.place?.targetLat}, Lng: ${request.place?.targetLng})
-        -------------------------------------------
-        알림: ${request.reminders.map { "${it.reminderType}(${it.minutesBefore}분 전)" }}
-        경로 포함 여부: ${request.route != null}
-    """.trimIndent())
-            Toast.makeText(context, "일정이 저장되었습니다.", Toast.LENGTH_SHORT).show()
-
-            android.util.Log.d("RouteDebug", "출발위도: $lastStartLat, 도착위도: $lastDestLat")
-
-// 2. 파싱된 객체 내부 체크
-            parsedRoute?.let { route ->
-                android.util.Log.d("RouteDebug", "객체내 출발위도: ${request.route?.originLat}")
-                // 리스트 내부까지 확인
-                route.routeDetails?.forEachIndexed { index, detail ->
-                    if (detail.startLat.isNaN() || detail.startLng.isNaN() || detail.endLat.isNaN() || detail.endLng.isNaN()) {
-                        android.util.Log.e("RouteDebug", "$index 번째 상세경로에 NaN 발견!")
-                    }
-                }
-            }
-
-            val intent = Intent(context, MainActivity::class.java)
-            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK
-            startActivity(intent)
-            activity?.finish()
-        }
-
-        binding.btnCancel.setOnClickListener {
-            androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                .setTitle("작성 취소")
-                .setMessage("작성 중인 내용을 삭제하고 메인 화면으로 돌아갈까요?")
-                .setPositiveButton("확인") { _, _ ->
-                    if (parentFragmentManager.backStackEntryCount > 0) {
-                        parentFragmentManager.popBackStack()
-                    } else {
-                        requireActivity().finish()
-                    }
-                }
-                .setNegativeButton("계속 작성", null)
-                .show()
-        }
-
-        setupKeyboardVisibilityListener()
-
-        binding.btnRemindalarm.setOnClickListener {
-            val alarmFragment = AlarmScheduleFragment()
-            val bundle = Bundle().apply {
-                // 💡 키 이름을 "selectedAlarmMinutes"로 통일!
-                putIntArray("selectedAlarmMinutes", currentSelectedAlarms)
-                putString("requestKey", "ROUTE_ALARM_KEY") // 💡 전용 키 전달
-            }
-            alarmFragment.arguments = bundle
-
-            requireActivity().supportFragmentManager.beginTransaction()
-                .replace(android.R.id.content, alarmFragment)
-                .addToBackStack(null)
-                .commit()
-        }
-
-// 출발 알림 버튼 클릭 시
-        binding.btnStartalarm.setOnClickListener {
-            val startFragment = AlarmStartFragment() // 또는 사용하는 알람 프래그먼트
-            val bundle = Bundle().apply {
-                // 현재 이미 선택된 알람 리스트가 있다면 넘겨줌
-                putIntArray("selectedAlarmMinutes", currentSelectedStartAlarms)
-                // 만약 공용 알람창을 쓴다면 키도 함께 전달
-                putString("requestKey", "startAlarmKey")
-            }
-            startFragment.arguments = bundle
-
-            parentFragmentManager.beginTransaction()
-                .setCustomAnimations(
-                    android.R.anim.slide_in_left,
-            android.R.anim.slide_out_right,
-            android.R.anim.slide_in_left,
-            android.R.anim.slide_out_right)
-                .replace(android.R.id.content, startFragment)
-                .addToBackStack(null)
-                .commit()
-        }
-
-
-        setFragmentResultListener("scheduleAlarmKey") { _, bundle ->
-            val result = bundle.getString("selectedAlarm")
-            result?.let {
-                binding.tvAlarmStatus.text = it
-                binding.tvAlarmStatus.setTextColor(Color.BLACK)
-            }
-        }
-
-
-        binding.btnStartDate.setOnClickListener { showCalendar() }
-        binding.tvStartTime.setOnClickListener {
-            isEditingStartTime = true
-            updateTimeVisibility()
-            showTimePicker()
-        }
-
-
-        binding.btnEndDate.setOnClickListener { showCalendar() }
-        binding.tvEndTime.setOnClickListener {
-            isEditingStartTime = false
-            updateTimeVisibility()
-            showTimePicker()
-        }
-
-
-        binding.viewColorDot.setOnClickListener {
-            if (binding.layoutColorSelector.visibility == View.GONE) {
-                binding.layoutColorSelector.visibility = View.VISIBLE
-
-                // 💡 중요: 캘린더 뷰 자체가 아니라, '감싸고 있는 컨테이너'를 GONE 시킵니다.
-                // XML에서 calendarPicker를 감싸는 레이아웃 ID를 확인하세요. (예: calendarPickerContainer)
-                binding.calendarContainer.visibility = View.GONE
-                binding.timePickerContainer.visibility = View.GONE
-            } else {
-                binding.layoutColorSelector.visibility = View.GONE
-
-                // 💡 색상창을 닫을 때 다시 보여주기
-                binding.calendarContainer.visibility = View.VISIBLE
-
-                // 다시 나타날 때 높이를 재계산하도록 강제 호출
-                binding.calendarPicker.post {
-                    binding.calendarPicker.requestLayout()
-                }
-            }
-        }
-
-
+        // 3. [공통] 색상 어댑터 설정 (수정 시에도 색상 변경 가능해야 함)
         val colorList = listOf(
-            ColorItem(R.color.schedule_5, "#DC354B"),
-            ColorItem(R.color.route_line_3, "#D8643F"),
-            ColorItem(R.color.route_suin_bundang, "#FFBB00"),
-            ColorItem(R.color.route_branch_bus, "#53B332"),
-            ColorItem(R.color.schedule_14, "#51AEED"),
-            ColorItem(R.color.schedule_12, "#2A4ABF"),
-            ColorItem(R.color.schedule_8, "#5F46DD"),
-            ColorItem(R.color.route_line_8, "#F14C82"),
+            ColorItem(R.color.schedule_5, "#DC354B"), ColorItem(R.color.route_line_3, "#D8643F"),
+            ColorItem(R.color.route_suin_bundang, "#FFBB00"), ColorItem(R.color.route_branch_bus, "#53B332"),
+            ColorItem(R.color.schedule_14, "#51AEED"), ColorItem(R.color.schedule_12, "#2A4ABF"),
+            ColorItem(R.color.schedule_8, "#5F46DD"), ColorItem(R.color.route_line_8, "#F14C82"),
             ColorItem(R.color.gray_600, "#666666")
         )
-
-
-        val colorAdapter = ColorAdapter(colorList) { selectedColor ->
-            changeSelectedColor(selectedColor)
-        }
-
         binding.rvColors.apply {
-            adapter = colorAdapter
+            adapter = ColorAdapter(colorList) { selectedColor -> changeSelectedColor(selectedColor) }
             layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
+        }
+        val scheduleType = arguments?.getString("SCHEDULE_TYPE")
 
-            // ViewPager2와의 터치 간섭 해결
-            addOnItemTouchListener(object : RecyclerView.OnItemTouchListener {
-                override fun onInterceptTouchEvent(rv: RecyclerView, e: MotionEvent): Boolean {
-                    when (e.action) {
-                        MotionEvent.ACTION_DOWN -> {
-                            rv.parent.requestDisallowInterceptTouchEvent(true)
-                        }
+        if (isEdit && scheduleId != -1L) {
+            if (scheduleType == "ROUTE") {
 
-                        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                            rv.parent.requestDisallowInterceptTouchEvent(false)
+                // ==========================================
+                // [경로 일정 수정 모드 전용 초기화]
+                // ==========================================
+                setupEditMode(scheduleId)
+
+                // 1. 경로 삭제 리스너 추가 (수정 시에도 경로 삭제 가능하게)
+                binding.deleteRouteIv.setOnClickListener {
+                    val dialog = DeleteRouteDialog(requireContext()) {
+                        this.route = null
+                        this.lastRouteJson = null
+                        this.lastStartName = null
+                        this.lastDestName = null
+                        updateRouteInfo("", "", null)
+                    }
+                    dialog.show()
+                }
+
+                // 2. 알람 설정 결과 리스너 (수정 모드용)
+                parentFragmentManager.setFragmentResultListener(
+                    "ROUTE_ALARM_KEY",
+                    viewLifecycleOwner
+                ) { _, bundle ->
+                    val resultMinutes = bundle.getIntArray("selectedAlarmMinutes")
+                    if (resultMinutes != null) {
+                        currentSelectedAlarms = resultMinutes
+                        binding.tvAlarmStatus.text = bundle.getString("selectedAlarm")
+                        binding.tvAlarmStatus.setTextColor(Color.BLACK)
+                    }
+                }
+
+                // 3. 출발 알람 결과 리스너 (수정 모드용)
+                parentFragmentManager.setFragmentResultListener(
+                    "startAlarmKey",
+                    viewLifecycleOwner
+                ) { _, bundle ->
+                    val resultMinutes = bundle.getIntArray("selectedAlarmMinutes")
+                    if (resultMinutes != null) {
+                        currentSelectedStartAlarms = resultMinutes
+                        binding.tvStartalarmStatus.text =
+                            bundle.getString("selectedAlarm") ?: "출발 알림 안함"
+                        binding.tvStartalarmStatus.setTextColor(Color.BLACK)
+                    }
+                }
+
+                // 4. 캘린더 선택 결과 리스너 (수정 모드용)
+                parentFragmentManager.setFragmentResultListener(
+                    "ROUTE_CALENDAR_KEY",
+                    viewLifecycleOwner
+                ) { _, bundle ->
+                    val selectedId = bundle.getLong("calendarId", -1L)
+                    if (selectedId != -1L) {
+                        currentSelectedCalendarId = selectedId
+                        binding.tvCalendarStatus.text = bundle.getString("calendarName") ?: "내 일정"
+                        binding.tvCalendarStatus.setTextColor(Color.BLACK)
+                        val calendarColor = bundle.getInt("selectedCalendarColor", -1)
+                        if (calendarColor != -1) binding.viewColorDot.backgroundTintList =
+                            ColorStateList.valueOf(calendarColor)
+                    }
+                }
+
+                // 5. 버튼 클릭 리스너들 (수정 모드용)
+                binding.btnCalendar.setOnClickListener {
+                    val fragment = SelectCalendarFragment()
+                    val bundle = Bundle().apply {
+                        putLong("currentCalendarId", currentSelectedCalendarId ?: -1L)
+                        putString("requestKey", "ROUTE_CALENDAR_KEY")
+                    }
+                    fragment.arguments = bundle
+                    parentFragmentManager.beginTransaction().replace(android.R.id.content, fragment)
+                        .addToBackStack(null).commit()
+                }
+
+                binding.btnRemindalarm.setOnClickListener {
+                    val alarmFragment = AlarmScheduleFragment()
+                    val bundle = Bundle().apply {
+                        putIntArray("selectedAlarmMinutes", currentSelectedAlarms)
+                        putString("requestKey", "ROUTE_ALARM_KEY")
+                    }
+                    alarmFragment.arguments = bundle
+                    parentFragmentManager.beginTransaction()
+                        .replace(android.R.id.content, alarmFragment).addToBackStack(null).commit()
+                }
+
+                binding.btnStartalarm.setOnClickListener {
+                    val startFragment = AlarmStartFragment()
+                    val bundle = Bundle().apply {
+                        putIntArray("selectedAlarmMinutes", currentSelectedStartAlarms)
+                        putString("requestKey", "startAlarmKey")
+                    }
+                    startFragment.arguments = bundle
+                    parentFragmentManager.beginTransaction()
+                        .replace(android.R.id.content, startFragment).addToBackStack(null).commit()
+                }
+
+                // 6. 저장 버튼 결과 관찰 (이걸 넣어야 수정 후 화면이 닫힘)
+                viewLifecycleOwner.lifecycleScope.launch {
+                    viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                        viewModel.createScheduleEvent.collect { isSuccess ->
+                            if (isSuccess == true) {
+                                Toast.makeText(context, "일정이 수정되었습니다.", Toast.LENGTH_SHORT).show()
+                                viewModel.resetCreateEvent()
+                                requireActivity().finish()
+                            }
                         }
                     }
-                    return false
                 }
 
-                override fun onTouchEvent(rv: RecyclerView, e: MotionEvent) {}
-                override fun onRequestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {}
-            })
-        }
+                // 수정 모드에서도 버튼 클릭이 작동하도록 리스너 중복 추가
+                binding.btnConfirm.setOnClickListener {
+                    val scheduleName = binding.etScheduleName.text.toString().trim()
+                    val finalStartDate = startDate ?: LocalDate.now()
+                    val finalEndDate = endDate ?: finalStartDate
+                    val startTime = binding.tvStartTime.text.toString()
+                    val endTime = binding.tvEndTime.text.toString()
 
-        updateTimeVisibility()
+                    // 1. 유효성 검사
+                    if (scheduleName.isEmpty()) {
+                        Toast.makeText(context, "일정명을 입력해 주세요.", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
 
-        // 일정 추가 -> 루트 프래그먼트로 데이터 전달
-        binding.btnRoute.setOnClickListener {
-            Log.d("DEBUG_TAG", "btnRoute 클릭")
-            val dateToPass = startDate?.toString() ?: LocalDate.now().toString()
-            val rawTime = binding.tvStartTime.text.toString() // 예: "10:00"
-            val timeToPass = if (rawTime.length == 5) "$rawTime:00" else rawTime
+                    // 2. 경로 데이터 준비 (타입 명시 및 null 처리)
+                    // 1. 타입을 명시적으로 지정하고 캐스팅을 추가합니다.
+                    val baseRoute: RouteResponse? = if (!lastRouteJson.isNullOrEmpty()) {
+                        // parseRouteData의 결과가 Any?라면 RouteResponse?로 형변환
+                        parseRouteData(lastRouteJson) as? RouteResponse
+                    } else {
+                        this.route // 기존에 저장된 route 객체
+                    }
 
+// 2. 이제 baseRoute는 RouteResponse? 타입이므로 프로퍼티에 접근 가능합니다.
+                    val finalRoute: RouteResponse? = baseRoute?.let { r ->
+                        RouteResponse(
+                            totalDistance = r.totalDistance,
+                            totalTime = r.totalTime,
+                            arrivalTime = r.arrivalTime,
+                            departureTime = r.departureTime,
+                            // 상세 경로 리스트 전달
+                            routeDetails = r.routeDetails ?: emptyList()
+                        )
+                    }
 
-            val scheduleName = binding.etScheduleName.text.toString()
-            val startTime = binding.tvStartTime.text.toString()
-            val intent = android.content.Intent(
-                requireContext(),
-                com.example.pace.ui.main.MainActivity::class.java
-            ).apply {
-                putExtra("ACTION_MODE", "SCHEDULE_ROUTE")
+                    // 4. Request 객체 생성
+                    val reminderRequests = mutableListOf<ReminderRequest>()
+                    currentSelectedAlarms?.forEach {
+                        reminderRequests.add(
+                            ReminderRequest(
+                                "EVENT",
+                                it
+                            )
+                        )
+                    }
+                    currentSelectedStartAlarms?.forEach {
+                        reminderRequests.add(
+                            ReminderRequest(
+                                "DEPARTURE",
+                                it
+                            )
+                        )
+                    }
 
-                putExtra("SCHEDULE_NAME", scheduleName)
-                putExtra("SCHEDULE_COLOR", selectedColor)
-                putExtra("SCHEDULE_DATE", dateToPass) // 받는 쪽에서 "SCHEDULE_DATE"로 꺼냄
-                putExtra("SCHEDULE_TIME", timeToPass) // 받는 쪽에서 "SCHEDULE_TIME"으로 꺼냄
-                putExtra("EARLY_ARRIVE_TIME", earlyArriveTime)
+                    val selectedColorInt = try {
+                        android.graphics.Color.parseColor(selectedColorHex)
+                    } catch (e: Exception) {
+                        android.graphics.Color.parseColor("#DC354B")
+                    }
 
-                // ⭐ 출발지 정보 전달
-                if (lastStartName != null) {
-                    putExtra("START_NAME", lastStartName)
-                    putExtra("START_LAT", lastStartLat)
-                    putExtra("START_LNG", lastStartLng)
+                    // 1. finalRoute(Response 타입)를 RouteRequest(Request 타입)로 변환
+                    // 1. Response 모델(finalRoute)을 서버 전송용 Request 모델(RouteRequest)로 변환
+                    val routeRequest: RouteRequest? = finalRoute?.let { r ->
+                        RouteRequest(
+                            originName = lastStartName ?: "출발지",
+                            originLat = if (lastStartLat.isNaN()) 0.0 else lastStartLat,
+                            originLng = if (lastStartLng.isNaN()) 0.0 else lastStartLng,
+                            destName = lastDestName ?: "목적지",
+                            destLat = if (lastDestLat.isNaN()) 0.0 else lastDestLat,
+                            destLng = if (lastDestLng.isNaN()) 0.0 else lastDestLng,
+                            totalTime = r.totalTime,
+                            totalDistance = r.totalDistance,
+                            arrivalTime = r.arrivalTime,
+                            departureTime = r.departureTime,
+
+                            // RouteDetail -> RouteDetailRequest 변환
+                            routeDetails = r.routeDetails?.map { detail ->
+                                RouteDetailRequest(
+                                    sequence = detail.sequence,
+                                    startLat = detail.startLat,
+                                    startLng = detail.startLng,
+                                    endLat = detail.endLat,
+                                    endLng = detail.endLng,
+                                    duration = detail.duration,
+                                    distance = detail.distance,
+                                    description = detail.description,
+                                    points = detail.points, // Response에 points가 있다면 매핑
+
+                                    // 💡 중첩된 TransitDetailRequest 매핑
+                                    transitDetail = detail.transitDetail?.let { t ->
+                                        TransitDetailRequest(
+                                            transitType = t.transitType,
+                                            lineName = t.lineName,
+                                            lineColor = t.lineColor,
+                                            stopCount = t.stopCount,
+                                            departureStop = t.departureStop,
+                                            arrivalStop = t.arrivalStop,
+                                            departureTime = t.departureTime,
+                                            arrivalTime = t.arrivalTime,
+                                            shortName = t.shortName,
+                                            locationLat = t.locationLat,
+                                            locationLng = t.locationLng,
+                                            headsign = t.headsign,
+                                            stationPath = t.stationPath
+                                        )
+                                    }
+                                )
+                            } ?: emptyList()
+                        )
+                    }
+
+// 2. 최종 CreateScheduleRequest 생성 (route 필드에 routeRequest 전달)
+                    val request = CreateScheduleRequest(
+                        title = scheduleName,
+                        isAllDay = false,
+                        startDate = finalStartDate.toString(),
+                        endDate = finalEndDate.toString(),
+                        startTime = startTime,
+                        endTime = endTime,
+                        memo = binding.etMemo.text.toString(),
+                        isPathIncluded = (routeRequest != null),
+                        isRepeat = false,
+                        repeatInfo = null,
+                        place = PlaceRequest(
+                            targetName = lastDestName ?: "미지정 장소",
+                            targetLat = if (lastDestLat.isNaN()) 0.0 else lastDestLat,
+                            targetLng = if (lastDestLng.isNaN()) 0.0 else lastDestLng
+                        ),
+                        reminders = reminderRequests,
+                        route = routeRequest // 💡 이제 타입이 완벽히 일치합니다!
+                    )
+
+                    // 5. 분기 처리
+                    if (isEdit && scheduleId != -1L) {
+                        viewModel.updateRouteSchedule(
+                            scheduleId,
+                            request,
+                            currentSelectedCalendarId,
+                            selectedColorInt
+                        )
+                    } else {
+                        viewModel.createSchedule(
+                            request,
+                            null,
+                            currentSelectedCalendarId,
+                            selectedColorInt
+                        )
+                    }
+                }
+                binding.btnCancel.setOnClickListener { requireActivity().finish() }
+                binding.btnStartDate.setOnClickListener { showCalendar() }
+                binding.btnEndDate.setOnClickListener { showCalendar() }
+                binding.tvStartTime.setOnClickListener {
+                    isEditingStartTime = true; updateTimeVisibility(); showTimePicker()
+                }
+                binding.tvEndTime.setOnClickListener {
+                    isEditingStartTime = false; updateTimeVisibility(); showTimePicker()
                 }
 
-                // ⭐ 도착지 정보 전달
-                if (lastDestName != null) {
-                    putExtra("END_NAME", lastDestName)
-                    putExtra("END_LAT", lastDestLat)
-                    putExtra("END_LNG", lastDestLng)
+                // 색상 도트 클릭 리스너 등 필수 UI 리스너 추가
+                binding.viewColorDot.setOnClickListener {
+                    if (binding.layoutColorSelector.visibility == View.GONE) {
+                        binding.layoutColorSelector.visibility = View.VISIBLE
+                        binding.calendarContainer.visibility = View.GONE
+                        binding.timePickerContainer.visibility = View.GONE
+                    } else {
+                        binding.layoutColorSelector.visibility = View.GONE
+                        binding.calendarContainer.visibility = View.VISIBLE
+                        binding.calendarPicker.post { binding.calendarPicker.requestLayout() }
+                    }
+                }
+
+                // 수정 시에도 경로 재검색 가능하게 설정
+                binding.btnRoute.setOnClickListener {
+                    val intent = Intent(
+                        requireContext(),
+                        com.example.pace.ui.main.MainActivity::class.java
+                    ).apply {
+                        putExtra("ACTION_MODE", "SCHEDULE_ROUTE")
+                        putExtra("SCHEDULE_NAME", binding.etScheduleName.text.toString())
+                        putExtra(
+                            "SCHEDULE_DATE",
+                            startDate?.toString() ?: LocalDate.now().toString()
+                        )
+                        putExtra("SCHEDULE_TIME", binding.tvStartTime.text.toString())
+                        if (lastStartName != null) {
+                            putExtra("START_NAME", lastStartName); putExtra(
+                                "START_LAT",
+                                lastStartLat
+                            ); putExtra("START_LNG", lastStartLng)
+                        }
+                        if (lastDestName != null) {
+                            putExtra("END_NAME", lastDestName); putExtra(
+                                "END_LAT",
+                                lastDestLat
+                            ); putExtra("END_LNG", lastDestLng)
+                        }
+                    }
+                    routeSearchLauncher.launch(intent)
                 }
             }
-            routeSearchLauncher.launch(intent)
+        } else {
+            // 캘린더뷰와 온보딩 값 초기화
+            observeUserSettings()
+
+            binding.deleteRouteIv.setOnClickListener {
+                Log.d("ROUTE_DELETE", "삭제 버튼 클릭")
+                val dialog = DeleteRouteDialog(requireContext()) {
+                    // 1. 모든 관련 데이터 변수를 "진짜" 초기 상태로 리셋
+                    this.route = null           // 경로 객체
+                    this.lastRouteJson = null   // JSON 문자열
+
+                    // 출발지 정보 초기화
+                    this.lastStartName = null
+                    this.lastStartLat = Double.NaN
+                    this.lastStartLng = Double.NaN
+
+                    // 도착지 정보 초기화
+                    this.lastDestName = null
+                    this.lastDestLat = Double.NaN
+                    this.lastDestLng = Double.NaN
+
+                    // 2. UI를 초기 상태로 되돌리기 (null을 넘기면 내부의 removeAllViews()가 작동함)
+                    updateRouteInfo("", "", null)
+                }
+                dialog.show()
+            }
+            val today = LocalDate.now()
+            startDate = today
+            endDate = today
+            binding.tvStartDate.text = today.format(dateFormatter)
+            binding.tvEndDate.text = today.format(dateFormatter)
+
+            val startName = arguments?.getString("START_NAME") ?: "미지정"
+            val endName = arguments?.getString("END_NAME") ?: "미지정"
+            val earlyTime = arguments?.getInt("EARLY_ARRIVE_TIME", 0)
+            // 비어있을 때 문자열로 넣으면 에러남
+            val routeDetail = arguments?.getString("ROUTE_DETAIL") // 뒤에 ?: "데이터 없음" 삭제
+
+            // routeDetail 파싱해 경로 동적 바인딩 + route의 값에 따라 UI 업데이트
+            val gson = Gson()
+            route = gson.fromJson(routeDetail, RouteResponse::class.java)
+            updateRouteInfo(startName, endName, route)
+            if (!routeDetail.isNullOrEmpty()) {
+                try {
+                    val gson = Gson()
+                    route = gson.fromJson(routeDetail, RouteResponse::class.java)
+
+                    // 파싱된 route 객체로 UI 업데이트
+                    updateRouteInfo(startName, endName, route)
+
+                    // 경로가 확실히 있으므로 삭제 버튼 활성화
+                    binding.deleteRouteIv.visibility = View.VISIBLE
+                    binding.deleteRouteIv.bringToFront() // ⭐ 다른 뷰들보다 위로 올리기
+                    binding.deleteRouteIv.setOnClickListener {
+                        Log.d("ROUTE_DELETE", "삭제 버튼 클릭")
+                        val dialog = DeleteRouteDialog(requireContext()) {
+                            // 1. 모든 관련 데이터 변수를 "진짜" 초기 상태로 리셋
+                            this.route = null           // 경로 객체
+                            this.lastRouteJson = null   // JSON 문자열
+
+                            // 출발지 정보 초기화
+                            this.lastStartName = null
+                            this.lastStartLat = Double.NaN
+                            this.lastStartLng = Double.NaN
+
+                            // 도착지 정보 초기화
+                            this.lastDestName = null
+                            this.lastDestLat = Double.NaN
+                            this.lastDestLng = Double.NaN
+
+                            // 2. UI를 초기 상태로 되돌리기 (null을 넘기면 내부의 removeAllViews()가 작동함)
+                            updateRouteInfo("", "", null)
+                        }
+                        dialog.show()
+                    }
+                } catch (e: Exception) {
+                    // 만약 JSON 형식이 잘못되었다면 safe하게 처리
+                    Log.e("RouteError", "JSON 파싱 실패: ${e.message}")
+                    route = null
+                    binding.deleteRouteIv.visibility = View.GONE
+                    updateRouteInfo(startName, endName, null)
+                }
+            } else {
+                // 2. routeDetail이 null이거나 비어있을 때
+                route = null
+                binding.deleteRouteIv.visibility = View.GONE
+                updateRouteInfo(startName, endName, null)
+            }
+            // routeDetail이 null일 경우를 대비해 ?와 ?: 를 사용합니다.
+            val detailSummary = if ((routeDetail?.length ?: 0) > 20) {
+                routeDetail?.take(20) + "..."
+            } else {
+                routeDetail ?: "데이터 없음"
+            }
+
+            val toastMessage = """
+    출발: $startName
+    도착: $endName
+    미리 도착: ${earlyTime}분
+    경로 상세: $detailSummary
+""".trimIndent()
+
+            Toast.makeText(requireContext(), toastMessage, Toast.LENGTH_LONG).show()
+
+            initTimePickers()
+
+            updateTimeVisibility()
+
+
+
+            parentFragmentManager.setFragmentResultListener(
+                "ROUTE_ALARM_KEY",
+                viewLifecycleOwner
+            ) { _, bundle ->
+                // 경로 일정 로직 수행
+                val resultText = bundle.getString("selectedAlarm")
+                val resultMinutes = bundle.getIntArray("selectedAlarmMinutes")
+
+                if (resultMinutes != null) {
+                    // 프래그먼트 내부 변수 업데이트
+                    currentSelectedAlarms = resultMinutes
+
+                    // UI 업데이트 (ID: tvAlarmStatus 확인)
+                    binding.tvAlarmStatus.text = resultText
+                    binding.tvAlarmStatus.setTextColor(Color.BLACK)
+
+                }
+            }
+
+            // 2. 출발 알림 결과 받기
+
+            parentFragmentManager.setFragmentResultListener(
+                "startAlarmKey",
+                viewLifecycleOwner
+            ) { _, bundle ->
+                val resultText = bundle.getString("selectedAlarm") ?: "출발 알림 안함"
+                val resultMinutes = bundle.getIntArray("selectedAlarmMinutes")
+
+                if (resultMinutes != null) {
+                    currentSelectedStartAlarms = resultMinutes // 여기서 전역 변수 업데이트!
+                    binding.tvStartalarmStatus.text = resultText
+                    binding.tvStartalarmStatus.setTextColor(Color.BLACK)
+                    Log.d("ROUTE_RECEIVE", "데이터 저장 완료: ${resultMinutes.contentToString()}")
+                }
+            }
+
+            // "calendarSelectKey" 대신 "ROUTE_CALENDAR_KEY" 사용
+            parentFragmentManager.setFragmentResultListener(
+                "ROUTE_CALENDAR_KEY",
+                viewLifecycleOwner
+            ) { _, bundle ->
+                val selectedId = bundle.getLong("calendarId", -1L)
+                val selectedName = bundle.getString("calendarName") ?: "내 일정"
+                val calendarColor = bundle.getInt("selectedCalendarColor", -1)
+
+                android.util.Log.d("CALENDAR_RECEIVE", "경로 일정 수신: $selectedName")
+
+                if (selectedId != -1L) {
+                    currentSelectedCalendarId = selectedId
+                    currentSelectedCalendarName = selectedName
+
+                    binding.tvCalendarStatus.text = selectedName
+                    binding.tvCalendarStatus.setTextColor(Color.BLACK)
+
+                    if (calendarColor != -1) {
+                        binding.viewColorDot.backgroundTintList =
+                            ColorStateList.valueOf(calendarColor)
+                    }
+                }
+            }
+
+            binding.btnCalendar.setOnClickListener {
+                // 여기도 SelectCalendarFragment로 통일!
+                val fragment = SelectCalendarFragment()
+                val bundle = Bundle().apply {
+                    putLong("currentCalendarId", currentSelectedCalendarId ?: -1L)
+                    putString("requestKey", "ROUTE_CALENDAR_KEY") // 루트용 키
+                }
+                fragment.arguments = bundle
+
+                parentFragmentManager.beginTransaction()
+                    .setCustomAnimations(
+                        android.R.anim.slide_in_left,
+                        android.R.anim.slide_out_right,
+                        android.R.anim.slide_in_left,
+                        android.R.anim.slide_out_right
+                    )
+                    .replace(android.R.id.content, fragment)
+                    .addToBackStack(null)
+                    .commit()
+            }
+            binding.layoutScheduleName.setOnClickListener {
+                binding.etScheduleName.requestFocus()
+
+                val imm =
+                    requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+                imm.showSoftInput(
+                    binding.etScheduleName,
+                    android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT
+                )
+            }
+
+            // 1. 결과 관찰 (성공 시 화면 닫기)
+            viewLifecycleOwner.lifecycleScope.launch {
+                viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    viewModel.createScheduleEvent.collect { isSuccess ->
+                        when (isSuccess) {
+                            true -> {
+                                Toast.makeText(context, "일정이 저장되었습니다.", Toast.LENGTH_SHORT).show()
+                                viewModel.resetCreateEvent() // 이벤트 초기화
+                                requireActivity().finish()   // 화면 종료
+                            }
+
+                            false -> {
+                                Toast.makeText(context, "일정 저장에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                                viewModel.resetCreateEvent()
+                            }
+
+                            null -> { /* 대기 상태 */
+                            }
+                        }
+                    }
+                }
+            }
+
+            binding.calendarPicker.dayBinder = object : MonthDayBinder<DayViewContainer> {
+                override fun create(view: View) = DayViewContainer(view) { date ->
+                    // 클릭 시에도 범위 체크를 해서 작동하지 않도록 방어
+                    val today = LocalDate.now()
+                    val maxDate = today.plusDays(29)
+                    if (date in today..maxDate) {
+                        selectDate(date)
+                    }
+                }
+
+                override fun bind(container: DayViewContainer, day: CalendarDay) {
+                    container.currentDay = day
+                    val date = day.date
+                    val textView = container.textView
+                    val root = container.rootLayout
+
+                    //경로 일정 30일까지만 가능하게함
+                    val today = LocalDate.now()
+                    val maxDate = today.plusDays(29)
+
+
+                    textView.text = date.dayOfMonth.toString()
+                    if (day.position != com.kizitonwose.calendar.core.DayPosition.MonthDate || date < today || date > maxDate) {
+                        textView.setTextColor(Color.LTGRAY)
+                        textView.background = null
+                        root.background = null
+                        // 범위를 벗어난 날짜는 클릭 리스너를 무효화하거나 처리하지 않음
+                        container.view.isEnabled = false // 클릭 방지
+                        container.view.alpha = 0.4f     // 비활성화 시각화
+                    } else {
+                        // 범위를 만족하는 날짜들
+                        container.view.isEnabled = true
+                        container.view.alpha = 1f
+
+                        when {
+                            // 시작일/종료일 동일 (원형)
+                            date == startDate && (endDate == null || endDate == startDate) -> {
+                                textView.setTextColor(Color.WHITE)
+                                textView.setBackgroundResource(R.drawable.drawable_circle_green)
+                                root.background = null
+                            }
+                            // 기간 시작점
+                            date == startDate -> {
+                                textView.setTextColor(Color.WHITE)
+                                textView.setBackgroundResource(R.drawable.drawable_circle_green)
+                                root.setBackgroundResource(R.drawable.bg_calendar_range_start)
+                            }
+                            // 기간 종료점
+                            date == endDate -> {
+                                textView.setTextColor(Color.WHITE)
+                                textView.setBackgroundResource(R.drawable.drawable_circle_green)
+                                root.setBackgroundResource(R.drawable.bg_calendar_range_end)
+                            }
+                            // 기간 사이
+                            startDate != null && endDate != null && date.isAfter(startDate) && date.isBefore(
+                                endDate
+                            ) -> {
+                                textView.setTextColor(Color.BLACK)
+                                textView.background = null
+                                root.setBackgroundResource(R.drawable.bg_calendar_range_middle)
+                            }
+
+                            else -> {
+                                textView.setTextColor(Color.BLACK)
+                                textView.background = null
+                                root.background = null
+                            }
+                        }
+                        updateDaySelectionUI(container, day)
+                    }
+                }
+            }
+
+            binding.btnConfirm.setOnClickListener {
+                val scheduleName = binding.etScheduleName.text.toString().trim()
+                val finalStartDate = startDate ?: LocalDate.now()
+                val finalEndDate = endDate ?: finalStartDate
+                val startTime = binding.tvStartTime.text.toString()
+                val endTime = binding.tvEndTime.text.toString()
+
+                if (scheduleName.isEmpty()) {
+                    Toast.makeText(context, "일정명을 입력해 주세요.", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                val formattedStartTime = if (startTime.length == 5) "$startTime:00" else startTime
+                val formattedEndTime = if (endTime.length == 5) "$endTime:00" else endTime
+                android.util.Log.d("PACE_SAVE_DEBUG", "=== 일정 저장 데이터 확인 ===")
+                android.util.Log.d("PACE_SAVE_DEBUG", "제목: $scheduleName")
+                android.util.Log.d("PACE_SAVE_DEBUG", "날짜: ${finalStartDate} ~ ${finalEndDate}")
+                android.util.Log.d("PACE_SAVE_DEBUG", "시간(보정후): $formattedStartTime ~ $formattedEndTime")
+                android.util.Log.d("PACE_SAVE_DEBUG", "캘린더ID: $currentSelectedCalendarId")
+                android.util.Log.d("PACE_SAVE_DEBUG", "경로포함여부: ${lastRouteJson != null || this.route != null}")
+                android.util.Log.d("PACE_SAVE_DEBUG", "============================")
+
+                // 1. 경로 데이터 소스 결정 (최신 검색 결과 우선 -> 그 다음 기존 객체)
+                val baseRoute: RouteResponse? = when {
+                    !lastRouteJson.isNullOrEmpty() -> {
+                        try {
+                            // parseRouteData 대신 직접 RouteResponse로 파싱하여 타입 안전성 확보
+                            Gson().fromJson(lastRouteJson, RouteResponse::class.java)
+                        } catch (e: Exception) {
+                            Log.e("RouteCheck", "JSON 파싱 에러: ${e.message}")
+                            null
+                        }
+                    }
+                    this.route != null -> this.route
+                    else -> null
+                }
+
+                // 2. Response 모델을 Request 모델로 변환 (매핑)
+                val routeRequest: RouteRequest? = baseRoute?.let { r ->
+                    RouteRequest(
+                        originName = lastStartName ?: "출발지",
+                        originLat = if (lastStartLat.isNaN()) 0.0 else lastStartLat,
+                        originLng = if (lastStartLng.isNaN()) 0.0 else lastStartLng,
+                        destName = lastDestName ?: "목적지",
+                        destLat = if (lastDestLat.isNaN()) 0.0 else lastDestLat,
+                        destLng = if (lastDestLng.isNaN()) 0.0 else lastDestLng,
+                        totalTime = r.totalTime,
+                        totalDistance = r.totalDistance,
+                        arrivalTime = r.arrivalTime,
+                        departureTime = r.departureTime,
+                        routeDetails = r.routeDetails?.map { detail ->
+                            RouteDetailRequest(
+                                sequence = detail.sequence,
+                                startLat = detail.startLat,
+                                startLng = detail.startLng,
+                                endLat = detail.endLat,
+                                endLng = detail.endLng,
+                                duration = detail.duration,
+                                distance = detail.distance,
+                                description = detail.description,
+                                points = detail.points,
+                                transitDetail = detail.transitDetail?.let { t ->
+                                    TransitDetailRequest(
+                                        transitType = t.transitType,
+                                        lineName = t.lineName,
+                                        lineColor = t.lineColor,
+                                        stopCount = t.stopCount,
+                                        departureStop = t.departureStop,
+                                        arrivalStop = t.arrivalStop,
+                                        departureTime = t.departureTime,
+                                        arrivalTime = t.arrivalTime,
+                                        shortName = t.shortName,
+                                        locationLat = t.locationLat,
+                                        locationLng = t.locationLng,
+                                        headsign = t.headsign,
+                                        stationPath = t.stationPath
+                                    )
+                                }
+                            )
+                        } ?: emptyList()
+                    )
+                }
+
+                // 3. 알림 데이터 병합 (EVENT + DEPARTURE)
+                val reminderRequests = mutableListOf<ReminderRequest>()
+                currentSelectedAlarms?.forEach { reminderRequests.add(ReminderRequest("EVENT", it)) }
+                currentSelectedStartAlarms?.forEach { reminderRequests.add(ReminderRequest("DEPARTURE", it)) }
+
+                // 4. 색상 정수값 계산
+                val selectedColorInt = try {
+                    Color.parseColor(selectedColorHex)
+                } catch (e: Exception) {
+                    Color.parseColor("#DC354B")
+                }
+
+                // 5. 최종 요청 객체 생성
+                val request = CreateScheduleRequest(
+                    title = scheduleName,
+                    isAllDay = false,
+                    startDate = finalStartDate.toString(),
+                    endDate = finalEndDate.toString(),
+                    startTime = startTime,
+                    endTime = endTime,
+                    memo = binding.etMemo.text.toString(),
+                    isPathIncluded = (routeRequest != null), // 💡 이제 정확히 판별됨
+                    isRepeat = false,
+                    repeatInfo = null,
+                    place = PlaceRequest(
+                        targetName = lastDestName ?: "미지정 장소",
+                        targetLat = if (lastDestLat.isNaN()) 0.0 else lastDestLat,
+                        targetLng = if (lastDestLng.isNaN()) 0.0 else lastDestLng
+                    ),
+                    reminders = reminderRequests,
+                    route = routeRequest
+                )
+
+                // 6. 수정/생성 모드 분기
+                if (arguments?.getBoolean("isEdit") == true) {
+                    viewModel.updateRouteSchedule(arguments?.getLong("SCHEDULE_ID") ?: -1L, request, currentSelectedCalendarId, selectedColorInt)
+                } else {
+                    viewModel.createSchedule(request, null, currentSelectedCalendarId, selectedColorInt)
+                }
+            }
+
+            binding.btnCancel.setOnClickListener {
+                androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                    .setTitle("작성 취소")
+                    .setMessage("작성 중인 내용을 삭제하고 메인 화면으로 돌아갈까요?")
+                    .setPositiveButton("확인") { _, _ ->
+                        if (parentFragmentManager.backStackEntryCount > 0) {
+                            parentFragmentManager.popBackStack()
+                        } else {
+                            requireActivity().finish()
+                        }
+                    }
+                    .setNegativeButton("계속 작성", null)
+                    .show()
+            }
+
+            setupKeyboardVisibilityListener()
+
+            binding.btnRemindalarm.setOnClickListener {
+                val alarmFragment = AlarmScheduleFragment()
+                val bundle = Bundle().apply {
+                    // 💡 키 이름을 "selectedAlarmMinutes"로 통일!
+                    putIntArray("selectedAlarmMinutes", currentSelectedAlarms)
+                    putString("requestKey", "ROUTE_ALARM_KEY") // 💡 전용 키 전달
+                }
+                alarmFragment.arguments = bundle
+
+                requireActivity().supportFragmentManager.beginTransaction()
+                    .replace(android.R.id.content, alarmFragment)
+                    .addToBackStack(null)
+                    .commit()
+            }
+
+// 출발 알림 버튼 클릭 시
+            binding.btnStartalarm.setOnClickListener {
+                val startFragment = AlarmStartFragment() // 또는 사용하는 알람 프래그먼트
+                val bundle = Bundle().apply {
+                    // 현재 이미 선택된 알람 리스트가 있다면 넘겨줌
+                    putIntArray("selectedAlarmMinutes", currentSelectedStartAlarms)
+                    // 만약 공용 알람창을 쓴다면 키도 함께 전달
+                    putString("requestKey", "startAlarmKey")
+                }
+                startFragment.arguments = bundle
+
+                parentFragmentManager.beginTransaction()
+                    .setCustomAnimations(
+                        android.R.anim.slide_in_left,
+                        android.R.anim.slide_out_right,
+                        android.R.anim.slide_in_left,
+                        android.R.anim.slide_out_right
+                    )
+                    .replace(android.R.id.content, startFragment)
+                    .addToBackStack(null)
+                    .commit()
+            }
+
+
+            setFragmentResultListener("scheduleAlarmKey") { _, bundle ->
+                val result = bundle.getString("selectedAlarm")
+                result?.let {
+                    binding.tvAlarmStatus.text = it
+                    binding.tvAlarmStatus.setTextColor(Color.BLACK)
+                }
+            }
+
+
+            binding.btnStartDate.setOnClickListener { showCalendar() }
+            binding.tvStartTime.setOnClickListener {
+                isEditingStartTime = true
+                updateTimeVisibility()
+                showTimePicker()
+            }
+
+
+            binding.btnEndDate.setOnClickListener { showCalendar() }
+            binding.tvEndTime.setOnClickListener {
+                isEditingStartTime = false
+                updateTimeVisibility()
+                showTimePicker()
+            }
+
+
+            binding.viewColorDot.setOnClickListener {
+                if (binding.layoutColorSelector.visibility == View.GONE) {
+                    binding.layoutColorSelector.visibility = View.VISIBLE
+
+                    // 💡 중요: 캘린더 뷰 자체가 아니라, '감싸고 있는 컨테이너'를 GONE 시킵니다.
+                    // XML에서 calendarPicker를 감싸는 레이아웃 ID를 확인하세요. (예: calendarPickerContainer)
+                    binding.calendarContainer.visibility = View.GONE
+                    binding.timePickerContainer.visibility = View.GONE
+                } else {
+                    binding.layoutColorSelector.visibility = View.GONE
+
+                    // 💡 색상창을 닫을 때 다시 보여주기
+                    binding.calendarContainer.visibility = View.VISIBLE
+
+                    // 다시 나타날 때 높이를 재계산하도록 강제 호출
+                    binding.calendarPicker.post {
+                        binding.calendarPicker.requestLayout()
+                    }
+                }
+            }
+
+
+            val colorList = listOf(
+                ColorItem(R.color.schedule_5, "#DC354B"),
+                ColorItem(R.color.route_line_3, "#D8643F"),
+                ColorItem(R.color.route_suin_bundang, "#FFBB00"),
+                ColorItem(R.color.route_branch_bus, "#53B332"),
+                ColorItem(R.color.schedule_14, "#51AEED"),
+                ColorItem(R.color.schedule_12, "#2A4ABF"),
+                ColorItem(R.color.schedule_8, "#5F46DD"),
+                ColorItem(R.color.route_line_8, "#F14C82"),
+                ColorItem(R.color.gray_600, "#666666")
+            )
+
+
+            val colorAdapter = ColorAdapter(colorList) { selectedColor ->
+                changeSelectedColor(selectedColor)
+            }
+
+            binding.rvColors.apply {
+                adapter = colorAdapter
+                layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
+
+                // ViewPager2와의 터치 간섭 해결
+                addOnItemTouchListener(object : RecyclerView.OnItemTouchListener {
+                    override fun onInterceptTouchEvent(rv: RecyclerView, e: MotionEvent): Boolean {
+                        when (e.action) {
+                            MotionEvent.ACTION_DOWN -> {
+                                rv.parent.requestDisallowInterceptTouchEvent(true)
+                            }
+
+                            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                                rv.parent.requestDisallowInterceptTouchEvent(false)
+                            }
+                        }
+                        return false
+                    }
+
+                    override fun onTouchEvent(rv: RecyclerView, e: MotionEvent) {}
+                    override fun onRequestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {}
+                })
+            }
+
+            updateTimeVisibility()
+
+            // 일정 추가 -> 루트 프래그먼트로 데이터 전달
+            binding.btnRoute.setOnClickListener {
+                Log.d("DEBUG_TAG", "btnRoute 클릭")
+                val dateToPass = startDate?.toString() ?: LocalDate.now().toString()
+                val rawTime = binding.tvStartTime.text.toString() // 예: "10:00"
+                val timeToPass = if (rawTime.length == 5) "$rawTime:00" else rawTime
+
+
+                val scheduleName = binding.etScheduleName.text.toString()
+                val startTime = binding.tvStartTime.text.toString()
+                val intent = android.content.Intent(
+                    requireContext(),
+                    com.example.pace.ui.main.MainActivity::class.java
+                ).apply {
+                    putExtra("ACTION_MODE", "SCHEDULE_ROUTE")
+
+                    putExtra("SCHEDULE_NAME", scheduleName)
+                    putExtra("SCHEDULE_COLOR", selectedColor)
+                    putExtra("SCHEDULE_DATE", dateToPass) // 받는 쪽에서 "SCHEDULE_DATE"로 꺼냄
+                    putExtra("SCHEDULE_TIME", timeToPass) // 받는 쪽에서 "SCHEDULE_TIME"으로 꺼냄
+                    putExtra("EARLY_ARRIVE_TIME", earlyArriveTime)
+
+                    // ⭐ 출발지 정보 전달
+                    if (lastStartName != null) {
+                        putExtra("START_NAME", lastStartName)
+                        putExtra("START_LAT", lastStartLat)
+                        putExtra("START_LNG", lastStartLng)
+                    }
+
+                    // ⭐ 도착지 정보 전달
+                    if (lastDestName != null) {
+                        putExtra("END_NAME", lastDestName)
+                        putExtra("END_LAT", lastDestLat)
+                        putExtra("END_LNG", lastDestLng)
+                    }
+                }
+                routeSearchLauncher.launch(intent)
+            }
         }
     }
-
 
     private fun parseRouteData(json: String?): RouteRequest? {
         return try {
@@ -1382,6 +1814,86 @@ class RouteScheduleFragment : Fragment() {
         val texts = minutesArray.sorted().map { minutesToText(it) }
         binding.tvStartalarmStatus.text = texts.joinToString(", ")
         binding.tvStartalarmStatus.setTextColor(Color.BLACK) // 선택되면 검정색으로 변경
+    }
+
+
+    // [함수 추가] 기존 데이터 로드 및 UI 세팅
+    private fun setupEditMode(id: Long) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            // 1. ViewModel에서 상세 데이터 요청
+            viewModel.getScheduleDetail(id)
+
+            // 2. ViewModel의 StateFlow 관찰
+            viewModel.scheduleDetailInfo.collect { detail ->
+                // detail은 ScheduleDetailResponse 타입입니다.
+                if (detail != null) {
+                    // (1) 기본 정보 (ScheduleInfo)
+                    binding.etScheduleName.setText(detail.scheduleInfo.title)
+                    binding.etMemo.setText(detail.scheduleInfo.memo)
+
+                    // (2) 날짜 및 시간 정보
+                    startDate = LocalDate.parse(detail.scheduleInfo.startDate)
+                    endDate = LocalDate.parse(detail.scheduleInfo.endDate)
+                    binding.tvStartTime.text = detail.scheduleInfo.startTime?.take(5) ?: "10:00"
+                    binding.tvEndTime.text = detail.scheduleInfo.endTime?.take(5) ?: "11:00"
+                    updateDateDisplay() // 날짜 텍스트 뷰 업데이트 함수
+
+                    // (3) 경로 및 장소 정보 복원 (PlaceInfo + RouteInfo)
+                    // 장소 정보는 place 필드에서 가져옵니다.
+                    detail.place?.let { p ->
+                        lastDestName = p.targetName
+                        lastDestLat = p.targetLat
+                        lastDestLng = p.targetLng
+                    }
+
+                    // 경로 정보는 route 필드에서 가져옵니다.
+                    detail.route?.let { r ->
+                        lastStartName = r.originName
+                        lastStartLat = r.originLat
+                        lastStartLng = r.originLng
+
+                        // lastDest 정보도 함께 갱신 (PlaceInfo 혹은 RouteInfo에서)
+                        lastDestName = detail.place?.targetName ?: r.destName
+                        lastDestLat = detail.place?.targetLat ?: r.destLat
+                        lastDestLng = detail.place?.targetLng ?: r.destLng
+
+                        // 💡 RouteResponse 생성 시 totalDistance를 반드시 포함해야 합니다.
+                        val routeObj = RouteResponse(
+                            totalDistance = r.totalDistance, // 이 부분이 누락되어 에러가 났을 확률이 높습니다.
+                            totalTime = r.totalTime,
+                            departureTime = r.departureTime ?: "", // null 안전성 처리
+                            arrivalTime = r.arrivalTime ?: "",
+                            // 상세 데이터가 null일 경우 빈 리스트 전달
+                            routeDetails = r.routeDetails ?: emptyList()
+                        )
+
+                        // UI 업데이트 함수 호출
+                        updateRouteInfo(lastStartName!!, lastDestName!!, routeObj)
+                        binding.deleteRouteIv.visibility = View.VISIBLE
+                    }
+
+                    // (4) 알림 정보 복원 (reminders 리스트)
+                    // 모델에 정의된 ReminderInfo의 reminderType을 사용합니다.
+                    currentSelectedAlarms = detail.reminders
+                        .filter { it.reminderType == "EVENT" }
+                        .map { it.minutesBefore }
+                        .toIntArray()
+
+                    currentSelectedStartAlarms = detail.reminders
+                        .filter { it.reminderType == "DEPARTURE" }
+                        .map { it.minutesBefore }
+                        .toIntArray()
+
+                    // 알림 텍스트 UI 업데이트 (기존 함수 재사용)
+                    updateAlarmText(currentSelectedAlarms ?: intArrayOf())
+                    updateDepartureAlarmText(currentSelectedStartAlarms ?: intArrayOf())
+
+                    // (5) 버튼 및 캘린더 상태 갱신
+                    binding.btnConfirm.text = "수정 완료"
+                    binding.calendarPicker.notifyCalendarChanged() // 달력 선택 영역 갱신
+                }
+            }
+        }
     }
 
 }

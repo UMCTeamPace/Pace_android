@@ -61,5 +61,6 @@ interface ScheduleDao {
     suspend fun deleteScheduleById(scheduleId: Long)
     @Query("DELETE FROM schedules WHERE source_type = 'SYSTEM' AND id NOT IN (:currentSystemIds)")
     suspend fun deleteRemovedDeviceSchedules(currentSystemIds: List<Long>)
-
+    @Query("SELECT * FROM schedules WHERE id = :id")
+    suspend fun getScheduleById(id: Long): Schedule?
 }
