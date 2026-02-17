@@ -18,6 +18,18 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"/>
 
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/nested_scroll_view"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_description"
+        app:layout_constraintBottom_toTopOf="@id/tv_alarm_description">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
 
         <androidx.cardview.widget.CardView
             android:id="@+id/cv_container"
@@ -158,20 +170,70 @@
                     android:layout_height="1dp"
                     android:background="#F1F3F5" />
 
+                <CheckBox
+                    android:id="@+id/rb_start1dago"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="24dp"
+                    android:text="1일 전"
+                    android:button="@null"
+                    android:drawableEnd="@drawable/selector_circle_checkbox"
+                    android:paddingEnd="16dp"
+                    android:background="@null" />
+
+                <View android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#F1F3F5" />
+
+                <CheckBox
+                    android:id="@+id/rb_start2dago"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="24dp"
+                    android:text="2일 전"
+                    android:button="@null"
+                    android:drawableEnd="@drawable/selector_circle_checkbox"
+                    android:paddingEnd="16dp"
+                    android:background="@null" />
+
+                <View android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#F1F3F5" />
+
+                <CheckBox
+                    android:id="@+id/rb_start1wago"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="24dp"
+                    android:background="@null"
+                    android:button="@null"
+                    android:drawableEnd="@drawable/selector_circle_checkbox"
+                    android:paddingEnd="16dp"
+                    android:text="1일 전" />
+
+                <View android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#F1F3F5" />
+
             </LinearLayout>
         </androidx.cardview.widget.CardView>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
         <TextView
             android:id="@+id/tv_alarm_description"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="25dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="25dp"
             android:text="*알림은 총 5개 까지 설정할 수 있습니다."
             android:gravity="center"
             android:textAppearance="@style/TextAppearance.App.BodySm.Semibold"
             android:textColor="@color/text_secondary"
             android:textSize="14sp"
-            app:layout_constraintTop_toBottomOf="@id/cv_container" />
+            app:layout_constraintBottom_toTopOf="@id/btn_next"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"/>
 
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/btn_next"
