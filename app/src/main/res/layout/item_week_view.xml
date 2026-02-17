@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TextView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/item_week_view"
+    android:id="@+id/item_week_tv"
     android:layout_width="44dp"
     android:layout_height="4dp"
     android:textAppearance="@style/TextAppearance.App.PlaceHolder"
     android:textColor="@color/schedule_1"
-    android:background="@drawable/bg_item_week_view"
-    android:layout_marginBottom="4dp"/>
+    android:includeFontPadding="false"
+    android:background="@drawable/bg_item_week_view" />
+
