@@ -90,8 +90,8 @@ data class RouteDetailRequest(
     @SerializedName("endLng") val endLng: Double,
     @SerializedName("duration") val duration: Int,
     @SerializedName("distance") val distance: Int,
-    @SerializedName("description") val description: String?,
-    @SerializedName("points") val points: String?,
+    @SerializedName("description") val description: String? = null,
+    @SerializedName("points") val points: String? = null,
     @SerializedName("transitDetail") val transitDetail: TransitDetailRequest? // 중첩 객체
 )
 
@@ -118,7 +118,8 @@ data class UpdateRouteRequest(
     @SerializedName("start_time") val startTime: String,
     @SerializedName("end_time") val endTime: String,
     @SerializedName("total_time") val totalTime: Int,
-    @SerializedName("total_distance") val totalDistance: Int
+    @SerializedName("total_distance") val totalDistance: Int,
+    @SerializedName("route") val route: RouteRequest?
 )
 
 data class Destination(
