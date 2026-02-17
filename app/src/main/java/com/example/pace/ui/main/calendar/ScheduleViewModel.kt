@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOn // 추가
 import kotlinx.coroutines.withContext
 import com.example.pace.data.repository.repository.SettingsRepository
+import com.google.gson.Gson
 import kotlinx.coroutines.flow.firstOrNull
 
 import javax.inject.Inject
@@ -259,22 +260,68 @@ class ScheduleViewModel @Inject constructor(
     fun updateSchedule(schedule: Schedule) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                repository.updateSchedule(schedule)
+                if (schedule.type == "ROUTE") {
+                    // 💡 1. 경로 일정일 때: 서버 API 호출
+                    // Schedule 엔티티를 CreateScheduleRequest(또는 서버가 원하는 DTO)로 변환
+                    val request = mapScheduleToRequest(schedule)
 
-                // UI에 성공 알림을 보내기 위해 메인 스레드에서 업데이트 (또는 StateFlow 직접 수정)
-                _updateScheduleEvent.value = true
+                    val token = authDataStore.getAccessToken() ?: ""
+                    val fullToken = if (token.isNotEmpty() && !token.startsWith("Bearer ")) "Bearer $token" else token
 
-                // 💡 [중요] 수정 후 캘린더 화면 등에 즉시 반영되도록 데이터 새로고침
+                    // 서버 업데이트 API 호출 (기존에 작성해둔 repository 함수 활용)
+                    val response = repository.updateRouteSchedule(
+                        accessToken = fullToken,
+                        scheduleId = schedule.serverId ?: schedule.id, // serverId가 있으면 우선 사용
+                        request = request,
+                        calendarId = schedule.calendarId,
+                        selectedColor = schedule.eventColor ?: 0
+                    )
+
+                    if (response.isSuccess) {
+                        _updateScheduleEvent.value = true
+                        Log.d("ScheduleViewModel", "경로 일정 서버 수정 성공")
+                    } else {
+                        throw Exception(response.message)
+                    }
+
+                } else {
+                    // 💡 2. 일반 일정일 때: 기존 로직(로컬 DB 및 시스템 캘린더) 유지
+                    repository.updateSchedule(schedule)
+                    _updateScheduleEvent.value = true
+                }
+
+                // 공통: 수정 후 데이터 새로고침
                 refreshSchedules()
 
-                Log.d("ScheduleViewModel", "일정 수정 성공: ${schedule.title}")
             } catch (e: Exception) {
                 Log.e("ScheduleViewModel", "일정 수정 실패: ${e.message}")
                 _updateScheduleEvent.value = false
             }
         }
     }
+    // Helper 함수: Schedule 엔티티를 Request DTO로 변환
+    private fun mapScheduleToRequest(schedule: Schedule): CreateScheduleRequest {
+        // 기존에 fragment에서 하던 파싱 로직을 여기로 옮겨오면 좋습니다.
+        val placeRequest = schedule.placeJson?.let {
+            Gson().fromJson(it, PlaceRequest::class.java)
+        }
 
+        return CreateScheduleRequest(
+            title = schedule.title ?: "",
+            isAllDay = schedule.isAllDay,
+            startDate = schedule.startDate,
+            endDate = schedule.endDate,
+            startTime = schedule.startTime,
+            endTime = schedule.endTime,
+            memo = schedule.memo,
+            isPathIncluded = schedule.withRoute,
+            isRepeat = (schedule.repeatRule != null),
+            repeatInfo = null, // 필요 시 parseRepeatRule 활용
+            place = null,
+            reminders = emptyList(), // 필요 시 매핑
+            route = null // 수정 시 경로 데이터 유지 로직 필요 시 추가
+        )
+    }
     fun updateRouteSchedule(
         scheduleId: Long,
         request: CreateScheduleRequest,
