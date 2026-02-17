@@ -1,0 +1,11 @@
+[
+  {
+    "featureType": "transit.line",
+    "elementType": "geometry",
+    "stylers": [
+      { "visibility": "on" },
+      { "lightness": 50 },
+      { "saturation": -50 }
+    ]
+  }
+]

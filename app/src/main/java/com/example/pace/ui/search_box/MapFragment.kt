@@ -60,6 +60,20 @@ class MapFragment : Fragment(), OnMapReadyCallback {
 
     override fun onMapReady(map: GoogleMap) {
         this.googleMap = map
+
+        try {
+            val success = map.setMapStyle(
+                com.google.android.gms.maps.model.MapStyleOptions.loadRawResourceStyle(
+                    requireContext(), R.raw.map_style
+                )
+            )
+            if (!success) {
+                // 스타일 파싱 실패 시 로그
+            }
+        } catch (e: android.content.res.Resources.NotFoundException) {
+            // 리소스를 찾을 수 없을 때
+        }
+
         map.uiSettings.isMapToolbarEnabled = false
         map.uiSettings.isMyLocationButtonEnabled = false
 
