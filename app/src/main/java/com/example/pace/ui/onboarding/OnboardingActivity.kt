@@ -2,11 +2,8 @@ package com.example.pace.ui.onboarding
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.animation.DecelerateInterpolator
-import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
 import com.example.pace.R
-import com.example.pace.data.model.OnboardingItem
 import com.example.pace.databinding.ActivityOnboardingBinding
 
 class OnboardingActivity : AppCompatActivity() {

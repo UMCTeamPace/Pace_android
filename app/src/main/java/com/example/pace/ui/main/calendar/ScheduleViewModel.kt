@@ -406,4 +406,71 @@ class ScheduleViewModel @Inject constructor(
         }
     }
 
+    fun deleteSchedule(id: Long, withRoute: Boolean) {
+        viewModelScope.launch {
+            if (withRoute) {
+                // 경로 일정: 오직 단일 삭제만 존재 (서버 API 호출)
+                deleteRouteSchedule(id)
+            } else {
+                // 일반 일정: 단일이든 반복(전체)이든 시스템/로컬 DB에서 제거
+                deleteNormalSchedule(id)
+            }
+        }
+    }
+
+    // 1. 일반 일정 삭제 (기기 캘린더 + 로컬 DB)
+    private suspend fun deleteNormalSchedule(id: Long) {
+        Log.d("DeleteLog", "일반 일정 삭제 시도: ID = $id")
+        // Repository 인터페이스에 추가한 deleteNormalSchedule 호출
+        val response = repository.deleteNormalSchedule(id)
+        if (response.isSuccess) {
+            Log.d("DeleteLog", "일반 일정 삭제 성공")
+            // 필요 시 UI 이벤트를 위한 StateFlow 업데이트 가능
+        } else {
+            Log.e("DeleteLog", "일반 일정 삭제 실패: ${response.message}")
+        }
+    }
+
+    // 2. 경로 일정 삭제 (서버 API + 로컬 DB)
+    private suspend fun deleteRouteSchedule(id: Long) {
+        Log.d("DeleteLog", "경로 일정 삭제 시도: ID = $id")
+        // Repository 인터페이스에 추가한 deleteRouteSchedule 호출
+        val response = repository.deleteRouteSchedule(id)
+        if (response.isSuccess) {
+            Log.d("DeleteLog", "경로 일정 삭제 성공")
+        } else {
+            Log.e("DeleteLog", "서버 삭제 실패: ${response.message}")
+        }
+    }
+
+    fun deleteOnlyThisOccurrence(schedule: Schedule, date: LocalDate) {
+        viewModelScope.launch {
+            // 1. 날짜 형식을 yyyyMMdd로 변환 (예: "20260226") - 시스템 표준에 맞춤
+            val dateString = date.format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+
+            // 2. 기존 exDate 리스트 가져오기 (이미 콤마로 구분된 상태)
+            val currentExDate = schedule.exDate ?: ""
+
+            // 3. 중복 체크 로직 개선
+            val exDateList = currentExDate.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+
+            val newExDate = if (!exDateList.contains(dateString)) {
+                if (currentExDate.isEmpty()) dateString else "$currentExDate,$dateString"
+            } else {
+                currentExDate
+            }
+
+            val updatedSchedule = schedule.copy(exDate = newExDate)
+
+            // 4. 시스템 반영 (Calendar Provider)
+            repository.updateExDate(updatedSchedule)
+
+            // 💡 5. [중요] Room DB를 최신 상태로 새로고침
+            // 이 함수가 호출되어야 수정된 EXDATE가 Room에 저장되고 expandSchedules가 다시 돕니다.
+            refreshSchedules()
+
+            Log.d("ExDateLog", "작업 완료 및 새로고침 호출됨")
+        }
+    }
+
 }

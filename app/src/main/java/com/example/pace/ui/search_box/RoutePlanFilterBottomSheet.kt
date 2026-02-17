@@ -39,14 +39,22 @@ class RoutePlanFilterBottomSheet(
 
         // 저장 버튼
         binding.btnSaveRoutePlanFilter.setOnClickListener {
-            val resultCalendar = Calendar.getInstance()
-            resultCalendar.add(Calendar.DAY_OF_YEAR, binding.npDateRoutePlanFilter.value)
-            resultCalendar.set(Calendar.HOUR_OF_DAY, binding.npHourRoutePlanFilter.value)
-            resultCalendar.set(Calendar.MINUTE, binding.npMinuteRoutePlanFilter.value)
-            resultCalendar.set(Calendar.SECOND, 0)
+            val resultCalendar = Calendar.getInstance().apply {
+                // 날짜 더하기
+                add(Calendar.DAY_OF_YEAR, binding.npDateRoutePlanFilter.value)
+                // 선택된 시/분 설정
+                set(Calendar.HOUR_OF_DAY, binding.npHourRoutePlanFilter.value)
+                set(Calendar.MINUTE, binding.npMinuteRoutePlanFilter.value)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
 
-            val selectedMode = binding.tlTimeModeRoutePlanFilter.selectedTabPosition
-            onSave(resultCalendar, selectedMode)
+            if (resultCalendar.before(Calendar.getInstance())) {
+                // 토스트 메시지를 띄우거나 현재 시간으로 강제 설정
+                onSave(Calendar.getInstance(), binding.tlTimeModeRoutePlanFilter.selectedTabPosition)
+            } else {
+                onSave(resultCalendar, binding.tlTimeModeRoutePlanFilter.selectedTabPosition)
+            }
             dismiss()
         }
     }
@@ -57,6 +65,7 @@ class RoutePlanFilterBottomSheet(
     }
 
     private fun setupPickers() {
+        val now = Calendar.getInstance()
         val dateStrings = mutableListOf<String>()
         val sdf = SimpleDateFormat("M월 d일(E)", Locale.KOREAN)
 
@@ -72,26 +81,65 @@ class RoutePlanFilterBottomSheet(
             }
         }
 
+        val initialDiff = ((initialCalendar.timeInMillis - now.timeInMillis) / (24 * 60 * 60 * 1000)).toInt().coerceIn(0, 29)
+
         binding.npDateRoutePlanFilter.apply {
             minValue = 0
             maxValue = dateStrings.size - 1
             displayedValues = dateStrings.toTypedArray()
             wrapSelectorWheel = false
-            value = 0
+            value = initialDiff
+
+            setOnValueChangedListener { _, _, _ ->
+                handlePastTimeSelection() // 날짜 바뀌면 체크
+            }
         }
 
         binding.npHourRoutePlanFilter.apply {
             minValue = 0
             maxValue = 23
+            wrapSelectorWheel = true // 숫자가 다 보이도록 설정
             value = initialCalendar.get(Calendar.HOUR_OF_DAY)
+            setOnValueChangedListener { _, _, _ ->
+                handlePastTimeSelection() // 시간 바뀌면 체크
+            }
         }
 
         binding.npMinuteRoutePlanFilter.apply {
-            displayedValues = null
             minValue = 0
             maxValue = 59
-            value = initialCalendar.get(Calendar.MINUTE)
             setFormatter { value -> String.format("%02d", value) }
+            wrapSelectorWheel = true
+            value = initialCalendar.get(Calendar.MINUTE)
+            setOnValueChangedListener { _, _, _ ->
+                handlePastTimeSelection() // 분 바뀌면 체크
+            }
+        }
+
+        // 첫 진입 시 제한 적용
+        handlePastTimeSelection()
+    }
+
+    private fun handlePastTimeSelection() {
+        val now = Calendar.getInstance()
+        val selectedDateIdx = binding.npDateRoutePlanFilter.value
+        val isToday = selectedDateIdx == 0
+
+        if (isToday) {
+            val currentHour = now.get(Calendar.HOUR_OF_DAY)
+            val currentMinute = now.get(Calendar.MINUTE)
+
+            // 1. 시간 체크: 선택한 시간이 현재 시보다 작으면 현재 시로 튕기기
+            if (binding.npHourRoutePlanFilter.value < currentHour) {
+                binding.npHourRoutePlanFilter.value = currentHour
+            }
+
+            // 2. 분 체크: 같은 시간대인데 선택한 분이 현재 분보다 작으면 현재 분으로 튕기기
+            if (binding.npHourRoutePlanFilter.value == currentHour) {
+                if (binding.npMinuteRoutePlanFilter.value < currentMinute) {
+                    binding.npMinuteRoutePlanFilter.value = currentMinute
+                }
+            }
         }
     }
 

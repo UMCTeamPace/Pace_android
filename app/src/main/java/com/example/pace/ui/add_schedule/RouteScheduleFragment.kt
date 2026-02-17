@@ -131,22 +131,6 @@ class RouteScheduleFragment : Fragment() {
             binding.deleteRouteIv.visibility = View.VISIBLE
             binding.deleteRouteIv.bringToFront()
 
-            // 4. 데이터 확인용 토스트 (전역 변수 기반으로 출력)
-            Toast.makeText(
-                context,
-                """
-            출발지: $lastStartName
-            출발좌표: $lastStartLat , $lastStartLng
-            
-            도착지: $lastDestName
-            도착좌표: $lastDestLat , $lastDestLng
-            
-            빠른 도착 시간: $earlyArriveTime
-            
-            경로 데이터 파싱 완료
-            """.trimIndent(),
-                Toast.LENGTH_LONG
-            ).show()
         }
     }
     override fun onCreateView(
@@ -258,15 +242,6 @@ class RouteScheduleFragment : Fragment() {
         } else {
             routeDetail ?: "데이터 없음"
         }
-
-        val toastMessage = """
-    출발: $startName
-    도착: $endName
-    미리 도착: ${earlyTime}분
-    경로 상세: $detailSummary
-""".trimIndent()
-
-        Toast.makeText(requireContext(), toastMessage, Toast.LENGTH_LONG).show()
 
         initTimePickers()
 
@@ -471,6 +446,39 @@ class RouteScheduleFragment : Fragment() {
             if (isTimeAfter(startTime, endTime)) {
                 Toast.makeText(context, "종료 시간이 시작 시간보다 빨라야 합니다.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
+            }
+
+            // 1) 일정 시작 시간을 밀리초(Long)로 변환
+            val startParts = startTime.split(":")
+            val hour = startParts[0].toInt()
+            val minute = startParts[1].toInt()
+
+            val calendar = java.util.Calendar.getInstance().apply {
+                set(finalStartDate.year, finalStartDate.monthValue - 1, finalStartDate.dayOfMonth, hour, minute, 0)
+            }
+            val scheduleTimeMillis = calendar.timeInMillis
+
+            // 2) 일반 일정 알림 예약 (사용자가 선택한 '5분 전', '15분 전' 등 모두 예약)
+            currentSelectedAlarms?.forEach { minutesBefore ->
+                com.example.pace.data.util.AlarmScheduler.schedulePaceAlarm(
+                    requireContext(),
+                    scheduleTimeMillis,
+                    minutesBefore
+                )
+            }
+
+            // 3) 출발 알림 예약 (경로가 있을 경우, 실제 출발 시간 기준으로 예약)
+            route?.let { routeResponse ->
+                // RouteCalculator를 이용해 departureTime(ISO 8601 등)을 밀리초로 변환
+                val departureTimeMillis = RouteCalculator.convertUtcToMillis(routeResponse.departureTime)
+
+                currentSelectedStartAlarms?.forEach { minutesBefore ->
+                    com.example.pace.data.util.AlarmScheduler.schedulePaceAlarm(
+                        requireContext(),
+                        departureTimeMillis,
+                        minutesBefore
+                    )
+                }
             }
 
             val reminderRequests = mutableListOf<ReminderRequest>()
