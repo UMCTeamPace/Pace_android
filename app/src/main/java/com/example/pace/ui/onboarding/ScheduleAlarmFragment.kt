@@ -70,18 +70,27 @@ class ScheduleAlarmFragment : Fragment() {
         binding.rbNone.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
                 alarmMap.keys.forEach { it.isChecked = false }
+                resetDescription()
             }
         }
 
         // 개별 알림 클릭 시 로직
         alarmMap.keys.forEach { checkBox ->
             checkBox.setOnClickListener {
-                if (checkBox.isChecked) {
-                    binding.rbNone.isChecked = false
-                }
+                val selectedCount = alarmMap.keys.count { it.isChecked }
 
-                // 선택 상태가 변할 때마다 개수 체크
-                updateDescriptionBasedOnSelection()
+                if (checkBox.isChecked && selectedCount > 5) {
+                    checkBox.isChecked = false
+
+                    binding.tvAlarmDescription.text = "*알림은 최대 5개까지만 선택 가능합니다."
+                    binding.tvAlarmDescription.setTextColor(Color.RED)
+
+                } else {
+                    if (checkBox.isChecked) {
+                        binding.rbNone.isChecked = false
+                    }
+                    resetDescription()
+                }
             }
         }
     }

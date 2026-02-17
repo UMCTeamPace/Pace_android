@@ -36,11 +36,11 @@ class OnboardingFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // [테스트용] 앱 실행 시마다 카카오 세션 종료
-        UserApiClient.instance.logout { error ->
-            if (error != null) Log.e("Kakao", "로그아웃 실패")
-            else Log.d("Kakao", "로그아웃 성공 - 이제 온보딩 화면이 유지됩니다.")
-        }
+//        // [테스트용] 앱 실행 시마다 카카오 세션 종료
+//        UserApiClient.instance.logout { error ->
+//            if (error != null) Log.e("Kakao", "로그아웃 실패")
+//            else Log.d("Kakao", "로그아웃 성공 - 이제 온보딩 화면이 유지됩니다.")
+//        }
 
         val keyHash = Utility.getKeyHash(requireContext())
         Log.d("KeyHash", keyHash)
@@ -108,47 +108,33 @@ class OnboardingFragment : Fragment() {
     }
 
     private fun loginWithKakao() {
-        // 1. 로그인 결과 콜백 정의
+        // 공통 콜백: 로그인 성공 시 다음 화면으로 이동하는 로직을 하나로 합칩니다.
         val callback: (OAuthToken?, Throwable?) -> Unit = { token, error ->
-
             if (error != null) {
-                // 로그인 실패 처리
+                Log.e("KakaoLogin", "로그인 실패", error)
             } else if (token != null) {
-                // 로그인 성공!
-                (activity as? OnboardingActivity)?.moveToPermissionStep()
+                Log.d("KakaoLogin", "로그인 성공! 토큰: ${token.accessToken}")
+                // 사용자 로그인이 성공했으니, 다음 화면(권한 설정)으로 이동합니다.
+                moveToPermissionScreen()
             }
         }
 
-        // 2. 카카오톡 설치 여부에 따른 로그인 처리
+        // 카카오톡 앱 설치 여부 확인
         if (UserApiClient.instance.isKakaoTalkLoginAvailable(requireContext())) {
             UserApiClient.instance.loginWithKakaoTalk(requireContext()) { token, error ->
                 if (error != null) {
-                    Log.e("KakaoLogin", "카카오톡으로 로그인 실패", error)
-
-                    // 사용자가 의도적으로 취소한 경우 (예: 뒤로 가기)
-                    if (error is ClientError && error.reason == ClientErrorCause.Cancelled) {
-                        return@loginWithKakaoTalk
-                    }
-
-                    // 카카오톡 설치는 되어있으나 로그인이 불가능한 경우 웹뷰 시도
+                    // 사용자가 취소한 게 아니라면 웹 계정 로그인을 시도합니다.
+                    if (error is ClientError && error.reason == ClientErrorCause.Cancelled) return@loginWithKakaoTalk
                     UserApiClient.instance.loginWithKakaoAccount(requireContext(), callback = callback)
                 } else if (token != null) {
-                    sendTokenToServer(token.accessToken)
+                    // 앱으로 로그인 성공
+                    moveToPermissionScreen()
                 }
             }
         } else {
-            // 카카오톡이 없으면 바로 웹뷰로 로그인 시도
+            // 앱이 없으면 바로 웹 계정 로그인 실행
             UserApiClient.instance.loginWithKakaoAccount(requireContext(), callback = callback)
         }
-    }
-
-
-    private fun sendTokenToServer(accessToken: String) {
-        Log.d("KakaoLogin", "발급받은 액세스 토큰: $accessToken")
-
-        // TODO: Retrofit을 사용하여 서버 API 호출
-
-        moveToPermissionScreen()
     }
 
     private fun moveToPermissionScreen() {
