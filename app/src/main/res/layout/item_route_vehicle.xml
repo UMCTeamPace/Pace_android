@@ -23,11 +23,12 @@
 
     <TextView
         android:id="@+id/item_route_vehicle_line_tv"
-        android:layout_width="31dp"
+        android:layout_width="50dp"
         android:layout_height="wrap_content"
         android:text="3103"
         android:textAppearance="@style/TextAppearance.App.CaptionLg.Semibold"
         android:textColor="@color/route_metropolitan_bus"
+        android:maxLines="1"
         android:paddingBottom="8dp"
         android:layout_marginStart="6dp"
         app:layout_constraintTop_toTopOf="parent"
