@@ -28,13 +28,14 @@ class AddScheduleActivity : AppCompatActivity() {
             override fun getItemCount(): Int = 2
             override fun createFragment(position: Int): Fragment {
                 val bundle = Bundle().apply {
+                    putBoolean("isEdit", intent.getBooleanExtra("isEdit", false))
+                    putLong("SCHEDULE_ID", intent.getLongExtra("SCHEDULE_ID", -1L))
+                    putString("SCHEDULE_TYPE", intent.getStringExtra("SCHEDULE_TYPE"))
+
+                    // [기존] 경로 데이터 전달
                     putString("START_NAME", intent.getStringExtra("START_NAME"))
                     putString("END_NAME", intent.getStringExtra("END_NAME"))
-
-                    // 백엔드 응답 Gson 형태로
                     putString("ROUTE_DETAIL", intent.getStringExtra("ROUTE_DETAIL"))
-
-                    // 경로 선택에서 바로 넘어온거기 때문에 무조건 미리도착은 0으로
                     putInt("EARLY_ARRIVE_TIME", intent.getIntExtra("EARLY_ARRIVE_TIME", 0))
                 }
                 return when (position) {

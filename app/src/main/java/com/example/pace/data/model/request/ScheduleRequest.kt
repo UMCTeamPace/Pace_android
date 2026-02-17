@@ -51,7 +51,7 @@ data class RepeatInfo(
     @SerializedName("daysOfWeek") val daysOfWeek: String? = null, // "MO,WE,FR"
     @SerializedName("endType") val endType: String,            // NEVER, COUNT, DATE
     @SerializedName("endCount") val endCount: Int? = null,     // endType이 COUNT일 때만 사용
-    @SerializedName("repeatEndDate") val repeatEndDate: String? = null // endType이 DATE일 때만 사용
+    @SerializedName("repeatEndDate") var repeatEndDate: String? = null // endType이 DATE일 때만 사용
 ): java.io.Serializable {
 
     // 유틸리티 함수: RRULE 생성 시 불필요한 값 제거용

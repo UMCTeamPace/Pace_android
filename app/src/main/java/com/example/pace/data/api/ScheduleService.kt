@@ -66,13 +66,23 @@ interface ScheduleService {
         @Path("scheduleId") scheduleId: Long
     ): RawDefaultResponse<ScheduleDetailResponse>
 
+    // 1. 일반 일정 수정 (UpdateScheduleRequest 사용)
     @PATCH("/api/v1/schedules/{scheduleId}")
     suspend fun updateSchedule(
         @Header("Authorization") accessToken: String,
         @Path("scheduleId") scheduleId: Long,
-        @Query("scope") scope: String = "SINGLE",
-        @Body request: UpdateScheduleRequest
+        @Query("scope") scope: String,
+        @Body request: UpdateScheduleRequest // 바디 타입 확인!
     ): RawDefaultResponse<ScheduleDetailResponse>
+
+    // 2. 경로 포함 일정 수정 (CreateScheduleRequest 사용)
+    @PATCH("/api/v1/schedules/{scheduleId}")
+    suspend fun updateRouteSchedule(
+        @Header("Authorization") accessToken: String,
+        @Path("scheduleId") scheduleId: Long,
+        @Query("scope") scope: String = "SINGLE",
+        @Body request: CreateScheduleRequest // 바디 타입 확인!
+    ): RawDefaultResponse<CreateScheduleResponse>
 
     @PATCH("/api/v1/schedules/{id}/conversion")
     suspend fun convertRouteToGeneral(

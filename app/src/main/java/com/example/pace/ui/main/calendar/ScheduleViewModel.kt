@@ -86,6 +86,9 @@ class ScheduleViewModel @Inject constructor(
     private val _scheduleDetailInfo = MutableStateFlow<ScheduleDetailResponse?>(null)
     val scheduleDetailInfo: StateFlow<ScheduleDetailResponse?> = _scheduleDetailInfo
 
+    private val _updateScheduleEvent = MutableStateFlow<Boolean?>(null)
+    val updateScheduleEvent: StateFlow<Boolean?> = _updateScheduleEvent
+
     fun setEditMode(enabled: Boolean) {
         _isEditMode.value = enabled
         if (!enabled) _selectedIds.value = emptySet() // 편집 모드 종료 시 선택 초기화
@@ -254,8 +257,64 @@ class ScheduleViewModel @Inject constructor(
     }
 
     fun updateSchedule(schedule: Schedule) {
-        viewModelScope.launch(Dispatchers.IO) { repository.updateSchedule(schedule) }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                repository.updateSchedule(schedule)
+
+                // UI에 성공 알림을 보내기 위해 메인 스레드에서 업데이트 (또는 StateFlow 직접 수정)
+                _updateScheduleEvent.value = true
+
+                // 💡 [중요] 수정 후 캘린더 화면 등에 즉시 반영되도록 데이터 새로고침
+                refreshSchedules()
+
+                Log.d("ScheduleViewModel", "일정 수정 성공: ${schedule.title}")
+            } catch (e: Exception) {
+                Log.e("ScheduleViewModel", "일정 수정 실패: ${e.message}")
+                _updateScheduleEvent.value = false
+            }
+        }
     }
+
+    fun updateRouteSchedule(
+        scheduleId: Long,
+        request: CreateScheduleRequest,
+        calendarId: Long?,
+        selectedColor: Int
+    ) {
+        viewModelScope.launch {
+            try {
+                // 1. 토큰 준비
+                val token = authDataStore.getAccessToken() ?: ""
+                val fullToken = if (token.isNotEmpty() && !token.startsWith("Bearer ")) "Bearer $token" else token
+
+                // 2. Repository 호출 (곧 작성할 레포지토리 함수)
+                val response = repository.updateRouteSchedule(
+                    accessToken = fullToken,
+                    scheduleId = scheduleId,
+                    request = request,
+                    calendarId = calendarId,
+                    selectedColor = selectedColor
+                )
+
+                // 3. 결과 처리
+                if (response.isSuccess) {
+                    // 성공 시 로컬 DB를 최신화하여 화면에 반영
+                    withContext(Dispatchers.IO) {
+                        repository.refreshSchedules()
+                    }
+                    _updateScheduleEvent.value = true
+                    Log.d("ScheduleViewModel", "경로 일정 서버 수정 성공: $scheduleId")
+                } else {
+                    Log.e("ScheduleViewModel", "경로 일정 서버 수정 실패: ${response.message}")
+                    _updateScheduleEvent.value = false
+                }
+            } catch (e: Exception) {
+                Log.e("ScheduleViewModel", "수정 중 예외 발생: ${e.message}")
+                _updateScheduleEvent.value = false
+            }
+        }
+    }
+
     fun clearSearch() {
         // 1. 마지막 검색어 변수도 반드시 비워야 합니다. (가장 중요!)
         lastQuery = ""
@@ -335,31 +394,31 @@ class ScheduleViewModel @Inject constructor(
         } else {
             repeatInfo
         }
+        // 2. [수정된 로직] 종료 날짜 결정 및 타입 확정
+        // null이 될 수 없는 String으로 변환합니다.
+        val finalEndDate: String = when {
+            !endDate.isNullOrBlank() && !endDate.startsWith("1970") -> endDate
+            finalRepeatInfo != null && !finalRepeatInfo.repeatEndDate.isNullOrBlank() -> finalRepeatInfo.repeatEndDate!!
+            else -> startDate // startDate는 이미 파라미터에서 String이므로 안전함
+        }
 
-        // 3. Request 객체 생성 (isRepeat 플래그를 repeatInfo 존재 여부와 동기화)
         val request = CreateScheduleRequest(
             title = title,
             isAllDay = isAllDay,
             startDate = startDate,
-            endDate = endDate,
+            endDate = finalEndDate, // 💡 이제 String 타입이 일치하여 에러가 사라집니다.
             startTime = startTime,
             endTime = endTime,
             memo = memo,
             isPathIncluded = (place != null),
-            isRepeat = (finalRepeatInfo != null), // 반복 객체가 있을 때만 true
+            isRepeat = (finalRepeatInfo != null),
             repeatInfo = finalRepeatInfo,
             place = place,
             reminders = reminders,
             route = null
         )
 
-        // 4. 생성 함수 호출
-        createSchedule(
-            request = request,
-            placeId = placeId,
-            calendarId = calendarId,
-            selectedColor = selectedColor
-        )
+        createSchedule(request, placeId, calendarId, selectedColor)
     }
 
     fun getRepeatDescription(info: RepeatInfo?): String {
@@ -472,5 +531,69 @@ class ScheduleViewModel @Inject constructor(
             Log.d("ExDateLog", "작업 완료 및 새로고침 호출됨")
         }
     }
+
+    // Schedule ID로 단일 일정 정보를 가져오는 함수
+    suspend fun getScheduleById(id: Long): Schedule? {
+        return withContext(Dispatchers.IO) {
+            repository.getScheduleById(id) // Repository에도 이 함수가 정의되어 있어야 합니다.
+        }
+    }
+
+    fun resetUpdateEvent() {
+        _updateScheduleEvent.value = null
+    }
+
+    fun parseRepeatRule(rrule: String, endDate: String): RepeatInfo? {
+        return repository.parseRRule(rrule, endDate)
+    }
+    fun buildRRuleString(info: RepeatInfo?): String? {
+        if (info == null || info.repeatType.uppercase() == "NONE") return null
+
+        return try {
+            val rrule = StringBuilder("FREQ=${info.repeatType.uppercase()}")
+
+            // 간격 설정 (매 2주, 매 3개월 등)
+            if (info.repeatInterval > 1) {
+                rrule.append(";INTERVAL=${info.repeatInterval}")
+            }
+
+            // 요일 설정 (WEEKLY일 때 "MO,WE,FR" 형식)
+            if (!info.daysOfWeek.isNullOrEmpty()) {
+                val days = info.daysOfWeek.split(",")
+                    .mapNotNull { day ->
+                        when (day.trim().uppercase()) {
+                            "SUNDAY", "SUN", "SU" -> "SU"
+                            "MONDAY", "MON", "MO" -> "MO"
+                            "TUESDAY", "TUE", "TU" -> "TU"
+                            "WEDNESDAY", "WED", "WE" -> "WE"
+                            "THURSDAY", "THU", "TH" -> "TH"
+                            "FRIDAY", "FRI", "FR" -> "FR"
+                            "SATURDAY", "SAT", "SA" -> "SA"
+                            else -> null
+                        }
+                    }.joinToString(",")
+                if (days.isNotEmpty()) rrule.append(";BYDAY=$days")
+            }
+
+            // 종료 조건 설정
+            when (info.endType.uppercase()) {
+                "COUNT" -> {
+                    if (info.endCount != null) rrule.append(";COUNT=${info.endCount}")
+                }
+                "DATE" -> {
+                    if (!info.repeatEndDate.isNullOrEmpty()) {
+                        // "2026-02-18" -> "20260218" 형식으로 변환
+                        val untilDate = info.repeatEndDate!!.replace("-", "")
+                        rrule.append(";UNTIL=${untilDate}T235959Z")
+                    }
+                }
+            }
+
+            rrule.toString()
+        } catch (e: Exception) {
+            null
+        }
+    }
+
 
 }

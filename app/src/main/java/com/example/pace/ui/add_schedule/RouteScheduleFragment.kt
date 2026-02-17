@@ -34,7 +34,9 @@ import com.example.pace.data.model.request.CreateScheduleRequest
 import com.example.pace.data.model.request.PlaceRequest
 import com.example.pace.data.model.request.ReminderRequest
 import com.example.pace.data.model.request.RouteDetail
+import com.example.pace.data.model.request.RouteDetailRequest
 import com.example.pace.data.model.request.RouteRequest
+import com.example.pace.data.model.request.TransitDetailRequest
 import com.example.pace.data.model.response.RouteResponse
 import com.example.pace.data.util.RouteConstants
 import com.example.pace.data.viewmodel.SettingsViewModel
@@ -61,6 +63,10 @@ class RouteScheduleFragment : Fragment() {
 
     private var _binding: FragmentRouteScheduleBinding? = null
     private val binding get() = _binding!!
+
+    // 수정 모드 관련 변수
+    private var isEditMode = false
+    private var scheduleId: Long = -1L
 
     // 경로 검색 -> 일정 추가 시 받는 ROUTE_DETAIL
     private var route: RouteResponse? = null
@@ -131,6 +137,22 @@ class RouteScheduleFragment : Fragment() {
             binding.deleteRouteIv.visibility = View.VISIBLE
             binding.deleteRouteIv.bringToFront()
 
+            // 4. 데이터 확인용 토스트 (전역 변수 기반으로 출력)
+            Toast.makeText(
+                context,
+                """
+            출발지: $lastStartName
+            출발좌표: $lastStartLat , $lastStartLng
+            
+            도착지: $lastDestName
+            도착좌표: $lastDestLat , $lastDestLng
+            
+            빠른 도착 시간: $earlyArriveTime
+            
+            경로 데이터 파싱 완료
+            """.trimIndent(),
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
     override fun onCreateView(
@@ -1390,6 +1412,86 @@ class RouteScheduleFragment : Fragment() {
         val texts = minutesArray.sorted().map { minutesToText(it) }
         binding.tvStartalarmStatus.text = texts.joinToString(", ")
         binding.tvStartalarmStatus.setTextColor(Color.BLACK) // 선택되면 검정색으로 변경
+    }
+
+
+    // [함수 추가] 기존 데이터 로드 및 UI 세팅
+    private fun setupEditMode(id: Long) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            // 1. ViewModel에서 상세 데이터 요청
+            viewModel.getScheduleDetail(id)
+
+            // 2. ViewModel의 StateFlow 관찰
+            viewModel.scheduleDetailInfo.collect { detail ->
+                // detail은 ScheduleDetailResponse 타입입니다.
+                if (detail != null) {
+                    // (1) 기본 정보 (ScheduleInfo)
+                    binding.etScheduleName.setText(detail.scheduleInfo.title)
+                    binding.etMemo.setText(detail.scheduleInfo.memo)
+
+                    // (2) 날짜 및 시간 정보
+                    startDate = LocalDate.parse(detail.scheduleInfo.startDate)
+                    endDate = LocalDate.parse(detail.scheduleInfo.endDate)
+                    binding.tvStartTime.text = detail.scheduleInfo.startTime?.take(5) ?: "10:00"
+                    binding.tvEndTime.text = detail.scheduleInfo.endTime?.take(5) ?: "11:00"
+                    updateDateDisplay() // 날짜 텍스트 뷰 업데이트 함수
+
+                    // (3) 경로 및 장소 정보 복원 (PlaceInfo + RouteInfo)
+                    // 장소 정보는 place 필드에서 가져옵니다.
+                    detail.place?.let { p ->
+                        lastDestName = p.targetName
+                        lastDestLat = p.targetLat
+                        lastDestLng = p.targetLng
+                    }
+
+                    // 경로 정보는 route 필드에서 가져옵니다.
+                    detail.route?.let { r ->
+                        lastStartName = r.originName
+                        lastStartLat = r.originLat
+                        lastStartLng = r.originLng
+
+                        // lastDest 정보도 함께 갱신 (PlaceInfo 혹은 RouteInfo에서)
+                        lastDestName = detail.place?.targetName ?: r.destName
+                        lastDestLat = detail.place?.targetLat ?: r.destLat
+                        lastDestLng = detail.place?.targetLng ?: r.destLng
+
+                        // 💡 RouteResponse 생성 시 totalDistance를 반드시 포함해야 합니다.
+                        val routeObj = RouteResponse(
+                            totalDistance = r.totalDistance, // 이 부분이 누락되어 에러가 났을 확률이 높습니다.
+                            totalTime = r.totalTime,
+                            departureTime = r.departureTime ?: "", // null 안전성 처리
+                            arrivalTime = r.arrivalTime ?: "",
+                            // 상세 데이터가 null일 경우 빈 리스트 전달
+                            routeDetails = r.routeDetails ?: emptyList()
+                        )
+
+                        // UI 업데이트 함수 호출
+                        updateRouteInfo(lastStartName!!, lastDestName!!, routeObj)
+                        binding.deleteRouteIv.visibility = View.VISIBLE
+                    }
+
+                    // (4) 알림 정보 복원 (reminders 리스트)
+                    // 모델에 정의된 ReminderInfo의 reminderType을 사용합니다.
+                    currentSelectedAlarms = detail.reminders
+                        .filter { it.reminderType == "EVENT" }
+                        .map { it.minutesBefore }
+                        .toIntArray()
+
+                    currentSelectedStartAlarms = detail.reminders
+                        .filter { it.reminderType == "DEPARTURE" }
+                        .map { it.minutesBefore }
+                        .toIntArray()
+
+                    // 알림 텍스트 UI 업데이트 (기존 함수 재사용)
+                    updateAlarmText(currentSelectedAlarms ?: intArrayOf())
+                    updateDepartureAlarmText(currentSelectedStartAlarms ?: intArrayOf())
+
+                    // (5) 버튼 및 캘린더 상태 갱신
+                    binding.btnConfirm.text = "수정 완료"
+                    binding.calendarPicker.notifyCalendarChanged() // 달력 선택 영역 갱신
+                }
+            }
+        }
     }
 
 }
