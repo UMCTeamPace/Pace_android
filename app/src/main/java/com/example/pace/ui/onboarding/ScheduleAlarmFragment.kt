@@ -46,7 +46,10 @@ class ScheduleAlarmFragment : Fragment() {
             binding.rbStart15mago to 15,
             binding.rbStart30mago to 30,
             binding.rbStart1hago to 60,
-            binding.rbStart2hago to 120
+            binding.rbStart2hago to 120,
+            binding.rbStart1dago to 1440,
+            binding.rbStart2dago to 2880,
+            binding.rbStart1wago to 10080
         )
 
         resetDescription()

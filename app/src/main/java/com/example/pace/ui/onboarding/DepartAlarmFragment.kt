@@ -49,7 +49,12 @@ class DepartAlarmFragment : Fragment() {
             binding.rbStart15mago to 15,
             binding.rbStart20mago to 20,
             binding.rbStart25mago to 25,
-            binding.rbStart30mago to 30
+            binding.rbStart30mago to 30,
+            binding.rbStart35mago to 35,
+            binding.rbStart45mago to 45,
+            binding.rbStart50mago to 50,
+            binding.rbStart55mago to 55,
+            binding.rbStart1hago to 60
         )
 
         resetDescription()
