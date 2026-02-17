@@ -1,14 +1,17 @@
 package com.example.pace.ui.settings
 
+import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.CheckBox
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResult
+import com.example.pace.R
 import com.example.pace.databinding.FragmentSettingReminderBinding
 
 class SettingReminderFragment : Fragment() {
@@ -81,7 +84,7 @@ class SettingReminderFragment : Fragment() {
                 // 체크하려는 경우: 5개 제한 확인
                 if (selectedAlarmList.size >= 5) {
                     checkBox.isChecked = false // 체크 취소
-                    Toast.makeText(requireContext(), "알림은 최대 5개까지 설정 가능합니다.", Toast.LENGTH_SHORT).show()
+                    updateGuideText()
                     return
                 }
                 if (!selectedAlarmList.contains(minutes)) {
@@ -99,7 +102,19 @@ class SettingReminderFragment : Fragment() {
 
         // 데이터 전달 및 정렬
         selectedAlarmList.sort()
+        updateGuideText()
         sendResultToParent()
+    }
+
+    private fun updateGuideText() {
+        if (selectedAlarmList.size >= 5) {
+            // 5개일 때 빨간색으로 강조
+            binding.tvAlarmDescription.setTextColor(Color.RED)
+        } else {
+            binding.tvAlarmDescription.setTextColor(
+                ContextCompat.getColor(requireContext(), R.color.text_secondary)
+            )
+        }
     }
 
     private fun uncheckAllExcept(exception: CheckBox) {
