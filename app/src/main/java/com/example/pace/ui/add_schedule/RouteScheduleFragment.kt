@@ -488,7 +488,8 @@ class RouteScheduleFragment : Fragment() {
                 set(finalStartDate.year, finalStartDate.monthValue - 1, finalStartDate.dayOfMonth, hour, minute, 0)
             }
             val scheduleTimeMillis = calendar.timeInMillis
-
+            val reminders = mutableListOf<ReminderRequest>()
+            val finalColorInt = selectedColor
             // 2) 일반 일정 알림 예약 (사용자가 선택한 '5분 전', '15분 전' 등 모두 예약)
             currentSelectedAlarms?.forEach { minutesBefore ->
                 com.example.pace.data.util.AlarmScheduler.schedulePaceAlarm(
@@ -530,7 +531,7 @@ class RouteScheduleFragment : Fragment() {
                         targetLat = finalRoute?.destLat ?: 0.0,
                         targetLng = finalRoute?.destLng ?: 0.0
                     ),
-                    reminders = reminderRequests
+                    reminders = reminders
                 )
 
                 // 2. 경로 정보 DTO 조립
@@ -565,13 +566,21 @@ class RouteScheduleFragment : Fragment() {
                     isPathIncluded = (finalRoute != null),
                     isRepeat = false,   // 필수 파라미터 누락 방지
                     repeatInfo = null,  // 필수 파라미터 누락 방지
-                    place = placeRequest,
-                    reminders = reminderRequests,
+                    place = null,
+                    reminders = reminders,
                     route = finalRoute,
-                    color = selectedColorHex
+//                    color = selectedColorHex
                 )
+                val colorToPass: Int = try {
+                    // 만약 selectedColorHex가 "#RRGGBB" 형태라면 Int로 변환
+                    android.graphics.Color.parseColor(selectedColorHex ?: "#DC354B")
+                } catch (e: Exception) {
+                    // 변환 실패 시 기본 색상 (빨간색 등)
+                    android.graphics.Color.parseColor("#DC354B")
+                }
+
                 // 💡 ViewModel의 createSchedule 호출
-                viewModel.createSchedule(createRequest, null, currentSelectedCalendarId, selectedColorInt)
+                viewModel.createSchedule(createRequest, null, currentSelectedCalendarId, colorToPass)
             }
         }
         viewLifecycleOwner.lifecycleScope.launch {
