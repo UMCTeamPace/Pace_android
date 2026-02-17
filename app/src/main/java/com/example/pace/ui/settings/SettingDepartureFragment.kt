@@ -1,14 +1,17 @@
 package com.example.pace.ui.settings
 
+import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.CheckBox
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResult
+import com.example.pace.R
 import com.example.pace.databinding.FragmentSettingDepartureBinding
 
 class SettingDepartureFragment : Fragment() {
@@ -39,6 +42,7 @@ class SettingDepartureFragment : Fragment() {
         // XML ID에 맞춰 매핑 (분 단위)
         val alarmMap = mapOf(
             binding.rbNone to -1,
+            binding.rbStarttime to 0,
             binding.rbStart5mago to 5,
             binding.rbStart10mago to 10,
             binding.rbStart15mago to 15,
@@ -80,7 +84,7 @@ class SettingDepartureFragment : Fragment() {
                 // 5개 제한 체크
                 if (selectedAlarmList.size >= 5) {
                     checkBox.isChecked = false
-                    Toast.makeText(requireContext(), "알림은 최대 5개까지 설정 가능합니다.", Toast.LENGTH_SHORT).show()
+                    updateGuideText()
                     return
                 }
                 if (!selectedAlarmList.contains(minutes)) {
@@ -95,12 +99,25 @@ class SettingDepartureFragment : Fragment() {
         }
 
         selectedAlarmList.sort()
+        updateGuideText()
         sendResultToParent()
+    }
+
+    private fun updateGuideText() {
+        if (selectedAlarmList.size >= 5) {
+            // 5개일 때 빨간색으로 강조
+            binding.tvAlarmDescription.setTextColor(Color.RED)
+        } else {
+            // 5개 미만일 때 기본 색상 (예: 검정 혹은 회색)
+            binding.tvAlarmDescription.setTextColor(
+                ContextCompat.getColor(requireContext(), R.color.text_secondary)
+            )
+        }
     }
 
     private fun uncheckAllExcept(exception: CheckBox) {
         val allBoxes = listOf(
-            binding.rbNone, binding.rbStart5mago, binding.rbStart10mago,
+            binding.rbNone, binding.rbStarttime, binding.rbStart5mago, binding.rbStart10mago,
             binding.rbStart15mago, binding.rbStart20mago, binding.rbStart25mago,
             binding.rbStart30mago, binding.rbStart35mago, binding.rbStart40mago,
             binding.rbStart45mago, binding.rbStart50mago, binding.rbStart55mago,
