@@ -299,7 +299,7 @@ class ScheduleViewModel @Inject constructor(
                     }
                 }
 
-                // 공통: 수정 후 데이터 새로고침
+                // 💡 [중요] 수정 후 캘린더 화면 등에 즉시 반영되도록 데이터 새로고침
                 refreshSchedules()
 
             } catch (e: Exception) {

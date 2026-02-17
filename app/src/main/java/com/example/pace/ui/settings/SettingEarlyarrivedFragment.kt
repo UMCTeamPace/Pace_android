@@ -46,8 +46,7 @@ class SettingEarlyarrivedFragment : Fragment() {
             sendResult(initialValue)
 
             setOnValueChangedListener { _, _, newVal ->
-                val resultText = if (newVal == 0) "안함" else "${newVal}분"
-                setFragmentResult("earlyDepartureKey", bundleOf("selectedMinutes" to resultText))
+                sendResult(newVal)
             }
 
             setFormatter { String.format("%02d", it) }
@@ -57,8 +56,7 @@ class SettingEarlyarrivedFragment : Fragment() {
     }
 
     private fun sendResult(minutes: Int) {
-        val resultText = if (minutes == 0) "안함" else "${minutes}분"
-        setFragmentResult("earlyDepartureKey", bundleOf("selectedMinutes" to resultText))
+        setFragmentResult("earlyDepartureKey", bundleOf("selectedMinutes" to minutes))
     }
 
     override fun onDestroyView() {
