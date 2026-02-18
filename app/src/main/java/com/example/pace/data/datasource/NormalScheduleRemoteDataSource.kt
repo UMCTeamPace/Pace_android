@@ -305,7 +305,7 @@ class NormalScheduleRemoteDataSource @Inject constructor(
     suspend fun updateCalendarEvent(schedule: Schedule): Boolean = withContext(Dispatchers.IO) {
         val contentResolver = applicationContext.contentResolver
 
-        // 1. 날짜 및 시간 파싱
+        // 1. 날짜 및 시간 파싱 (기존 로직 유지)
         val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
         val startMillis = try {
             sdf.parse("${schedule.startDate} ${schedule.startTime ?: "00:00"}")?.time ?: System.currentTimeMillis()
@@ -314,7 +314,7 @@ class NormalScheduleRemoteDataSource @Inject constructor(
         val endMillis = try {
             sdf.parse("${schedule.endDate} ${schedule.endTime ?: "23:59"}")?.time ?: startMillis
         } catch (e: Exception) { startMillis }
-
+        Log.d("CALENDAR_UPDATE", "수정 시도 - 제목: ${schedule.title}, 장소: ${schedule.location}")
         // 2. 업데이트할 데이터 세팅
         val values = ContentValues().apply {
             put(CalendarContract.Events.TITLE, schedule.title)
@@ -324,28 +324,27 @@ class NormalScheduleRemoteDataSource @Inject constructor(
             put(CalendarContract.Events.ALL_DAY, if (schedule.isAllDay) 1 else 0)
             put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
 
-            // 색상 업데이트 (null이 아닐 때만)
+            // 💡 [해결 1] 캘린더 ID 명시적 업데이트 (중요!)
+            put(CalendarContract.Events.CALENDAR_ID, schedule.calendarId)
+
+            // 색상 업데이트
             schedule.eventColor?.let {
                 put(CalendarContract.Events.EVENT_COLOR, it)
             }
 
-            // 💡 반복 일정(RRULE) 처리 로직
             if (!schedule.repeatRule.isNullOrEmpty()) {
                 put(CalendarContract.Events.RRULE, schedule.repeatRule)
-
-                // 반복 일정은 DTEND 대신 DURATION 사용 (표준 규격)
                 val durationSeconds = (endMillis - startMillis) / 1000
                 put(CalendarContract.Events.DURATION, "P${durationSeconds}S")
                 putNull(CalendarContract.Events.DTEND)
             } else {
-                // 일반 일정은 DURATION 제거하고 DTEND 사용
                 put(CalendarContract.Events.DTEND, endMillis)
                 putNull(CalendarContract.Events.DURATION)
                 putNull(CalendarContract.Events.RRULE)
             }
         }
 
-        // 3. 실제 업데이트 수행 (ID 기반)
+        // 3. 실제 업데이트 수행
         val updateUri = android.content.ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, schedule.id)
         val rowsAffected = try {
             contentResolver.update(updateUri, values, null, null)
@@ -354,8 +353,30 @@ class NormalScheduleRemoteDataSource @Inject constructor(
             0
         }
 
+        // 4. 💡 [해결 2] 알림(Reminders) 정보 갱신
+        if (rowsAffected > 0) {
+            updateReminders(schedule.id, schedule.reminders)
+        }
+
         Log.d("CALENDAR_UPDATE", "ID ${schedule.id} 업데이트 완료 (영향받은 행: $rowsAffected)")
         rowsAffected > 0
+    }
+
+    // 알림 테이블 수정을 위한 보조 함수
+    private fun updateReminders(eventId: Long, minutesList: List<Int>) {
+        val cr = applicationContext.contentResolver
+        // 기존 알림 삭제
+        cr.delete(CalendarContract.Reminders.CONTENT_URI, "${CalendarContract.Reminders.EVENT_ID} = ?", arrayOf(eventId.toString()))
+
+        // 새로운 알림 삽입
+        minutesList.forEach { minutes ->
+            val values = ContentValues().apply {
+                put(CalendarContract.Reminders.MINUTES, minutes)
+                put(CalendarContract.Reminders.EVENT_ID, eventId)
+                put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT)
+            }
+            cr.insert(CalendarContract.Reminders.CONTENT_URI, values)
+        }
     }
 
 }

@@ -3,6 +3,7 @@ package com.example.pace.data.api
 import com.example.pace.data.model.request.CreateScheduleRequest
 import com.example.pace.data.model.request.DeleteScheduleRequest
 import com.example.pace.data.model.request.UpdateRouteRequest
+import com.example.pace.data.model.request.UpdateScheduleEditRouteRequest
 import com.example.pace.data.model.request.UpdateScheduleRequest
 import com.example.pace.data.model.request.UpdateScheduleRouteRequest
 import com.example.pace.data.model.response.CreateScheduleResponse
@@ -89,5 +90,12 @@ interface ScheduleService {
         @Header("Authorization") accessToken: String,
         @Path("id") id: Long
     ): RawDefaultResponse<ScheduleConversionResponse>
+
+    @PUT("/api/v1/schedules/{scheduleId}/route")
+    suspend fun updateScheduleEditRoute(
+        @Header("Authorization") accessToken: String,
+        @Path("scheduleId") scheduleId: Long,
+        @Body request: UpdateScheduleEditRouteRequest // 💡 새로 만든 DTO
+    ): RawDefaultResponse<UpdateScheduleRouteResponse>
 
 }

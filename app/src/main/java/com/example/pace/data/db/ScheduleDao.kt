@@ -63,4 +63,8 @@ interface ScheduleDao {
     suspend fun deleteRemovedDeviceSchedules(currentSystemIds: List<Long>)
     @Query("SELECT * FROM schedules WHERE id = :id")
     suspend fun getScheduleById(id: Long): Schedule?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSingle(schedule: Schedule)
+
 }
