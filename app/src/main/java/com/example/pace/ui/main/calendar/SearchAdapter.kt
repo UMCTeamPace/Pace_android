@@ -111,8 +111,8 @@ class SearchAdapter(
                 binding.scheduleRouteLocationLl.visibility = View.GONE // 항상 숨김
             }
 
-            // 5. 체크박스: SearchFragment에서만 보이도록 설정
-            binding.scheduleCheckbox.visibility = View.VISIBLE
+            // 5. 체크박스: SearchFragment에서만 안 보이도록 설정
+            binding.scheduleCheckbox.visibility = View.INVISIBLE
             binding.scheduleCheckbox.isChecked = schedule.isCompleted // 또는 선택된 아이템 목록 기반
 
             // 고정 아이콘 (isPinned 상태에 따라)

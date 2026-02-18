@@ -617,18 +617,14 @@ class RouteScheduleFragment : Fragment() {
         }
 
         binding.btnCancel.setOnClickListener {
-            androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                .setTitle("작성 취소")
-                .setMessage("작성 중인 내용을 삭제하고 메인 화면으로 돌아갈까요?")
-                .setPositiveButton("확인") { _, _ ->
-                    if (parentFragmentManager.backStackEntryCount > 0) {
-                        parentFragmentManager.popBackStack()
-                    } else {
-                        requireActivity().finish()
-                    }
+            val dialog = AddCancelDialog(requireContext()){
+                if (parentFragmentManager.backStackEntryCount > 0) {
+                    parentFragmentManager.popBackStack()
+                } else {
+                    requireActivity().finish()
                 }
-                .setNegativeButton("계속 작성", null)
-                .show()
+            }
+            dialog.show()
         }
 
         setupKeyboardVisibilityListener()

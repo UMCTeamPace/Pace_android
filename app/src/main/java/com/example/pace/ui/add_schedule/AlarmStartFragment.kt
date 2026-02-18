@@ -79,6 +79,7 @@ class AlarmStartFragment : Fragment() {
                     if (selectedOptions.isEmpty()) binding.rbNone.isChecked = true
                 }
                 sendResultToParent()
+                updateUIOnly()
             }
         }
 
@@ -113,7 +114,7 @@ class AlarmStartFragment : Fragment() {
 
     private fun updateUIOnly() {
         binding.tvAlarmDescription.setTextColor(
-            if (selectedOptions.size >= 5) Color.RED else Color.parseColor("#666666")
+            if (selectedOptions.size >= 5) Color.RED else resources.getColor(R.color.text_secondary)
         )
         // 로그만 찍어보고 전송은 하지 않음
         android.util.Log.d("ALARM_INIT_CHECK", "현재 선택된 옵션들: $selectedOptions")

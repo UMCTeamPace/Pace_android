@@ -288,19 +288,14 @@ class GeneralScheduleFragment : Fragment() {
 
 // 3. 취소 버튼 (기존과 동일)
         binding.btnCancel.setOnClickListener {
-            val message = if (isEditMode) "수정 중인 내용을 파기하고 돌아갈까요?" else "작성 중인 내용을 삭제하고 메인 화면으로 돌아갈까요?"
-            androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                .setTitle(if (isEditMode) "편집 취소" else "작성 취소")
-                .setMessage(message)
-                .setPositiveButton("확인") { _, _ ->
-                    if (parentFragmentManager.backStackEntryCount > 0) {
-                        parentFragmentManager.popBackStack()
-                    } else {
-                        requireActivity().finish()
-                    }
+            val dialog = AddCancelDialog(requireContext()){
+                if (parentFragmentManager.backStackEntryCount > 0) {
+                    parentFragmentManager.popBackStack()
+                } else {
+                    requireActivity().finish()
                 }
-                .setNegativeButton("계속 작성", null)
-                .show()
+            }
+            dialog.show()
         }
 
         setupKeyboardVisibilityListener()
