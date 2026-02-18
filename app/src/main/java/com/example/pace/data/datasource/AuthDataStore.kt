@@ -34,4 +34,14 @@ class AuthDataStore(private val sharedPreferences: SharedPreferences) {
         val tempToken = BuildConfig.BEARER_TOKEN
         return tempToken
     }
+
+    // 1. 설정 완료 상태 저장 (온보딩 마지막 단계에서 호출할 함수)
+    fun setOnboardingComplete(isComplete: Boolean) {
+        sharedPreferences.edit().putBoolean("onboarding_complete", isComplete).apply()
+    }
+
+    // 2. 설정 완료 상태 읽기 (Splash에서 호출하는 함수)
+    fun isOnboardingComplete(): Boolean {
+        return sharedPreferences.getBoolean("onboarding_complete", false)
+    }
 }

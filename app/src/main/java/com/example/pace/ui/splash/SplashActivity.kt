@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.airbnb.lottie.LottieAnimationView
+import com.example.pace.PaceApplication
 import com.example.pace.R
 import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.onboarding.OnboardingActivity
@@ -14,6 +15,9 @@ import com.kakao.sdk.auth.AuthApiClient
 import com.kakao.sdk.user.UserApiClient
 
 class SplashActivity : AppCompatActivity() {
+
+    private val authDataStore by lazy { (application as PaceApplication).authDataStore }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -24,23 +28,28 @@ class SplashActivity : AppCompatActivity() {
 
         lottieView.speed = -0.6f
 
+
+
         lottieView.addAnimatorListener(object : Animator.AnimatorListener {
 
             override fun onAnimationEnd(animation: Animator) {
-                // 1. 카카오 토큰이 있는지 확인
                 if (AuthApiClient.instance.hasToken()) {
-                    // 2. 토큰이 있다면 유효한지 서버에 한 번 더 확인 (선택 사항이지만 권장)
                     UserApiClient.instance.me { user, error ->
-                        if (error != null) {
-                            // 토큰은 있지만 유효하지 않은 경우 (로그인 만료 등)
-                            navigateToOnboarding()
+                        if (error == null && user != null) {
+                            // [로그인 성공]
+                            // 💡 여기서 설정 완료 여부를 체크합니다!
+                            if (authDataStore.isOnboardingComplete()) { // isOnboardingComplete는 DataStore에 구현해야 할 함수 이름입니다.
+                                navigateToMain() // 설정 완료 유저 -> 메인행
+                            } else {
+                                navigateToOnboarding() // 가입은 됐는데 설정 안 한 유저 -> 온보딩행
+                            }
                         } else {
-                            // 로그인 성공 상태 -> 메인으로 직행
-                            navigateToMain()
+                            // 로그인 실패(토큰 만료 등) -> 온보딩(로그인부터 다시)
+                            navigateToOnboarding()
                         }
                     }
                 } else {
-                    // 토큰이 아예 없는 경우 -> 온보딩으로 이동
+                    // [토큰 없음] 로그아웃/탈퇴 유저 -> 온보딩으로 가서 가입부터 새로
                     navigateToOnboarding()
                 }
             }
@@ -49,6 +58,27 @@ class SplashActivity : AppCompatActivity() {
             override fun onAnimationCancel(p0: Animator) {}
             override fun onAnimationRepeat(p0: Animator) {}
         })
+    }
+
+    private fun arePermissionsGranted(): Boolean {
+        val permissions = arrayOf(
+            android.Manifest.permission.ACCESS_FINE_LOCATION,
+            android.Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+        return permissions.all {
+            androidx.core.content.ContextCompat.checkSelfPermission(this@SplashActivity, it) ==
+                    android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
+    }
+    private fun handleRedirection() {
+        if (arePermissionsGranted()) {
+            // [재로그인 상황] 권한은 이미 다 있음!
+            // 권한 설정 페이지(PermissionActivity)를 건너뛰고 바로 메인(또는 로그인 버튼 화면)으로
+            navigateToMain()
+        } else {
+            // [신규 가입/초기화 상황] 권한이 없음
+            navigateToOnboarding()
+        }
     }
 
     // 메인 화면으로 이동하는 함수

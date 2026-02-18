@@ -108,38 +108,45 @@ class OnboardingFragment : Fragment() {
     }
 
     private fun loginWithKakao() {
-        // 공통 콜백: 로그인 성공 시 다음 화면으로 이동하는 로직을 하나로 합칩니다.
         val callback: (OAuthToken?, Throwable?) -> Unit = { token, error ->
             if (error != null) {
                 Log.e("KakaoLogin", "로그인 실패", error)
             } else if (token != null) {
-                Log.d("KakaoLogin", "로그인 성공! 토큰: ${token.accessToken}")
-                // 사용자 로그인이 성공했으니, 다음 화면(권한 설정)으로 이동합니다.
-                moveToPermissionScreen()
+                // 💡 여기 수정!
+                navigateToNextStep()
             }
         }
 
-        // 카카오톡 앱 설치 여부 확인
         if (UserApiClient.instance.isKakaoTalkLoginAvailable(requireContext())) {
             UserApiClient.instance.loginWithKakaoTalk(requireContext()) { token, error ->
                 if (error != null) {
-                    // 사용자가 취소한 게 아니라면 웹 계정 로그인을 시도합니다.
                     if (error is ClientError && error.reason == ClientErrorCause.Cancelled) return@loginWithKakaoTalk
                     UserApiClient.instance.loginWithKakaoAccount(requireContext(), callback = callback)
                 } else if (token != null) {
-                    // 앱으로 로그인 성공
-                    moveToPermissionScreen()
+                    // 💡 여기도 수정!
+                    navigateToNextStep()
                 }
             }
         } else {
-            // 앱이 없으면 바로 웹 계정 로그인 실행
             UserApiClient.instance.loginWithKakaoAccount(requireContext(), callback = callback)
         }
     }
 
-    private fun moveToPermissionScreen() {
-        val intent = Intent(requireContext(), PermissionActivity::class.java)
-        startActivity(intent)
+    // 함수 이름을 변경하고 로직은 유지합니다.
+    private fun navigateToNextStep() {
+        val app = (requireActivity().application as com.example.pace.PaceApplication)
+
+        if (app.authDataStore.isOnboardingComplete()) {
+            // [재로그인] 설정 데이터가 남아있으므로 바로 메인행
+            Log.d("LOGIN_FLOW", "기존 유저 확인: 메인으로 이동")
+            val intent = Intent(requireContext(), MainActivity::class.java)
+            startActivity(intent)
+        } else {
+            // [신규/재가입] 데이터가 없으므로 권한 설정부터 시작
+            Log.d("LOGIN_FLOW", "신규/재가입 유저: 권한 설정으로 이동")
+            val intent = Intent(requireContext(), PermissionActivity::class.java)
+            startActivity(intent)
+        }
         activity?.finish()
     }
 
