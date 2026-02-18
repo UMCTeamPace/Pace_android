@@ -111,10 +111,19 @@ class AddGroupDialogFragment(
 
     override fun onResume() {
         super.onResume()
-        dialog?.window?.setLayout(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.WRAP_CONTENT
-        )
+
+        val windowManager = requireContext().getSystemService(android.content.Context.WINDOW_SERVICE) as WindowManager
+        val display = windowManager.defaultDisplay
+        val size = android.graphics.Point()
+        display.getSize(size)
+
+        val params: ViewGroup.LayoutParams? = dialog?.window?.attributes
+        val deviceWidth = size.x
+
+        params?.width = (deviceWidth * 0.85).toInt()
+        params?.height = WindowManager.LayoutParams.WRAP_CONTENT
+
+        dialog?.window?.attributes = params as WindowManager.LayoutParams
     }
 
     override fun onDestroyView() {

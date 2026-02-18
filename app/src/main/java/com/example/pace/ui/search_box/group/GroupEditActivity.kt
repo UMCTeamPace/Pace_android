@@ -100,6 +100,11 @@ class GroupEditActivity : AppCompatActivity() {
             adapter = this@GroupEditActivity.adapter
             layoutManager = LinearLayoutManager(this@GroupEditActivity)
         }
+        binding.btnMovePlace.isEnabled = false
+        binding.btnDeletePlace.isEnabled = false
+
+        val disabledColor = androidx.core.content.ContextCompat.getColor(this, R.color.text_disabled)
+        binding.btnDeletePlace.backgroundTintList = android.content.res.ColorStateList.valueOf(disabledColor)
     }
 
     private fun setupListeners() {

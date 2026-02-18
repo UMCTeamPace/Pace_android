@@ -57,7 +57,7 @@ class GroupRadioAdapter(
                 binding.ivGroupIconLine.imageTintList = ColorStateList.valueOf(themeColor)
             } catch (e: Exception) { }
 
-            binding.rbSelect.isChecked = (position == selectedPosition)
+            binding.ivSelect.isSelected = (position == selectedPosition)
 
             // 3) 클릭 이벤트 정의 (여기로 통합!)
             val listener = {
@@ -66,18 +66,18 @@ class GroupRadioAdapter(
 
                 // 유효한 위치이고, 이미 선택된 게 아니라면 갱신
                 if (currentPos != RecyclerView.NO_POSITION && currentPos != selectedPosition) {
+                    val previousPos = selectedPosition
                     selectedPosition = currentPos
 
-                    // 화면 갱신 (라디오 버튼 교체)
-                    notifyDataSetChanged()
+                    notifyItemChanged(previousPos)
+                    notifyItemChanged(selectedPosition)
 
-                    // [중요] Fragment에 "나 클릭됐어!" 하고 알려줌 -> 버튼 활성화용
                     onItemClick()
                 }
             }
 
             binding.root.setOnClickListener { listener() }
-            binding.rbSelect.setOnClickListener { listener() }
+            binding.ivSelect.setOnClickListener { listener() }
         }
     }
 
