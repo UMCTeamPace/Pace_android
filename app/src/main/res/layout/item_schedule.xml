@@ -194,6 +194,7 @@
                     android:layout_height="16dp"
                     android:src="@drawable/ic_route_schedule" />
                 <TextView
+                    android:id="@+id/schedule_route_name_tv"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="4dp"
@@ -206,6 +207,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp">
                 <TextView
+                    android:id="@+id/schedule_route_range_tv"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="4dp"
@@ -220,6 +222,7 @@
                     android:layout_marginStart="8dp"
                     style="@style/TextColor.Tertiary"/>
                 <TextView
+                    android:id="@+id/schedule_route_duration_tv"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="0시간 0분"

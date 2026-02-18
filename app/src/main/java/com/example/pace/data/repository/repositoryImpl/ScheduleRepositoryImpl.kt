@@ -341,18 +341,20 @@ class ScheduleRepositoryImpl @Inject constructor(
     ) = safeApiCall {
         val defaultColorInt = android.graphics.Color.parseColor("#DC354B")
         val finalColor = selectedColor ?: defaultColorInt
+
         Log.d("SAVE_FLOW", "route 데이터 존재 여부: ${request.route != null}")
+
         if (request.route == null) {
-            // 2. 시스템 캘린더에 저장
+            // --- [CASE 1] 일반 일정: 시스템 캘린더 및 로컬 DB 저장 ---
             val systemId = normalDataSource.insertToCalendarProvider(
                 request = request,
                 selectedCalendarId = calendarId,
                 selectedColor = finalColor
             )
+
             if (systemId != -1L) {
                 val generatedRRule = buildRRuleFromRequest(request.repeatInfo)
 
-                // 4. 로컬 DB(Room)에 저장할 객체 생성
                 val localSchedule = Schedule(
                     id = systemId,
                     title = request.title,
@@ -382,26 +384,68 @@ class ScheduleRepositoryImpl @Inject constructor(
                     exDate = null
                 )
                 scheduleDao.insertAll(listOf(localSchedule))
-                RawDefaultResponse(isSuccess = true, code = "COMMON200", message = "로컬 일정 저장 성공", result = null)
+                RawDefaultResponse(
+                    isSuccess = true,
+                    code = "COMMON200",
+                    message = "로컬 일정 저장 성공",
+                    result = null
+                )
             } else {
-                RawDefaultResponse(isSuccess = false, code = "LOCAL_ERROR", message = "저장 실패", result = null)
+                RawDefaultResponse(
+                    isSuccess = false,
+                    code = "LOCAL_ERROR",
+                    message = "저장 실패",
+                    result = null
+                )
             }
         } else {
+            // --- [CASE 2] 경로 일정: 서버 API 호출 및 로컬 DB 동기화 ---
             val token = accessToken ?: ""
-            val response = api.createSchedule(token, request)
+
+            // 1. 서버 명세에 맞춰 calendarId를 바디에 주입
+            val finalRequest = request.copy(
+                calendarId = calendarId?.toString()
+            )
+
+            val response = api.createSchedule(token, finalRequest)
+
             if (response.isSuccess && response.result != null) {
                 val serverResult = response.result
-                val newSchedule = serverResult.toEntity("#DC354B").copy(
-                    location = request.place?.targetName,
+                val info = serverResult.scheduleInfo // 💡 이제 여기서 color와 calendarId를 가져올 수 있습니다.
+
+                // 3. 서버가 응답한 실제 색상값 추출 (없으면 요청 시 보냈던 색상 사용)
+                val colorHex = info.color ?: request.color ?: "#DC354B"
+                val colorInt = try {
+                    android.graphics.Color.parseColor(colorHex)
+                } catch (e: Exception) {
+                    finalColor
+                }
+
+                // 4. 로컬 DB 엔티티 생성 및 저장
+                // toEntity 함수를 호출한 뒤, 서버 응답값으로 한 번 더 정밀하게 보정(copy)합니다.
+                val newSchedule = serverResult.toEntity(colorHex).copy(
+                    location = serverResult.place?.targetName ?: request.place?.targetName,
                     placeJson = if (placeId != null) "{\"placeId\":\"$placeId\"}" else null,
-                    calendarId = calendarId ?: 1L
+
+                    // 💡 [중요] 서버가 응답한 4번 캘린더와 보라색(#5F46DD)을 강제로 주입
+                    calendarId = info.calendarId?.toLongOrNull() ?: calendarId ?: 1L,
+                    eventColor = colorInt,
+                    calendarColor = colorInt,
+                    serverId = serverResult.scheduleId, // 서버 ID 연동 (수정 시 복제 방지용)
+                    withRoute = true,
+                    type = "ROUTE"
                 )
+
                 scheduleDao.insertAll(listOf(newSchedule))
+
+                Log.d(
+                    "SAVE_FLOW",
+                    "✅ 서버 일정 저장 완료: ID ${serverResult.scheduleId}, Color: $colorHex, CalendarId: ${info.calendarId}"
+                )
             }
             response
         }
     }
-
     override fun getCalendarName(calendarId: Long): String? {
         val projection = arrayOf(CalendarContract.Calendars.CALENDAR_DISPLAY_NAME)
         val uri = CalendarContract.Calendars.CONTENT_URI
@@ -626,22 +670,26 @@ class ScheduleRepositoryImpl @Inject constructor(
 
     // 변환 확장 함수들
     private fun CreateScheduleResponse.toEntity(selectedColorStr: String): Schedule {
-        val colorInt = try { Color.parseColor(selectedColorStr) } catch (e: Exception) { Color.RED }
+        val info = this.scheduleInfo
+        // 서버 응답에 color가 있으면 그것을 쓰고, 없으면 전달받은 selectedColorStr를 씁니다.
+        val finalColorHex = info.color ?: selectedColorStr
+        val colorInt = try { android.graphics.Color.parseColor(finalColorHex) } catch (e: Exception) { android.graphics.Color.RED }
+
         return Schedule(
-            id = this.scheduleId,
-            title = this.scheduleInfo.title,
-            startDate = this.scheduleInfo.startDate,
-            endDate = this.scheduleInfo.endDate,
-            startTime = this.scheduleInfo.startTime ?: "00:00",
-            endTime = this.scheduleInfo.endTime ?: "00:00",
-            isAllDay = this.scheduleInfo.isAllDay,
-            memo = this.scheduleInfo.memo,
+            id = this.scheduleId, // Room의 Primary Key로 서버 ID 사용 (임시)
+            title = info.title,
+            startDate = info.startDate,
+            endDate = info.endDate,
+            startTime = info.startTime?.take(5) ?: "00:00",
+            endTime = info.endTime?.take(5) ?: "23:59",
+            isAllDay = info.isAllDay,
+            memo = info.memo,
             location = this.place?.targetName,
-            calendarId = 0L,
+            calendarId = info.calendarId?.toLongOrNull() ?: 0L, // 💡 이제 info에서 직접 가져옴
             calendarDisplayName = "내 일정",
             calendarAccountName = "Pace",
-            withRoute = (this.route != null),
-            type = if (this.route != null) "ROUTE" else "NORMAL",
+            withRoute = true,
+            type = "ROUTE",
             eventColor = colorInt,
             calendarColor = colorInt,
             isCompleted = false,
