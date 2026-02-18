@@ -516,13 +516,6 @@ class RouteScheduleFragment : Fragment() {
                 )
             } ?: emptyList()
 
-            // 색상 Int 변환 (생성 시 ViewModel용)
-            val colorToPass: Int = try {
-                android.graphics.Color.parseColor(selectedColorHex ?: "#DC354B")
-            } catch (e: Exception) {
-                android.graphics.Color.parseColor("#DC354B")
-            }
-
             // 4. [수정] 모드 판정 및 호출
             // 여기서 scheduleId가 정상적으로 (예: 54) 찍히는지 로그를 확인해야 합니다.
             if (isEditMode && scheduleId != -1L) {
@@ -598,6 +591,7 @@ class RouteScheduleFragment : Fragment() {
                 )
                 val selectedColorInt = Color.parseColor(selectedColor)
                 // ViewModel의 createSchedule 호출
+                Log.d("ConfirmMode", "..., calendarId: $currentSelectedCalendarId")
                 viewModel.createSchedule(createRequest, null, currentSelectedCalendarId, selectedColorInt)
             }
             
