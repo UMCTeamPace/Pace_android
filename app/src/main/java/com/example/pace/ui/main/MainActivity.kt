@@ -7,6 +7,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -84,6 +85,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private lateinit var spf: SharedPreferences
+    private var currentBottomMenuItem = R.id.home
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -99,6 +103,8 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        spf = getSharedPreferences("HOME_CALENDAR", MODE_PRIVATE)
+
 //        // 테스트를 위해 바로 AlertActivity 실행!
 //        val intent = Intent(this, AlertActivity::class.java)
 //        intent.putExtra("MINUTES_LEFT", 15) // 테스트하고 싶은 시간(분)을 넣어보세요
@@ -106,6 +112,7 @@ class MainActivity : AppCompatActivity() {
 
         // 1. 초기화 (위치, Places API, 바텀시트)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        spf.edit().remove("SELECTED_DATE").apply()
 
         checkCalendarPermissions()
 
@@ -118,6 +125,7 @@ class MainActivity : AppCompatActivity() {
         // 2. 초기 화면 설정 (Home)
         if (savedInstanceState == null) {
             supportFragmentManager.beginTransaction().replace(R.id.main_fcv, HomeFragment()).commit()
+            currentBottomMenuItem = R.id.home
         }
 
         // 초기 툴바 상태 설정 (Home 기준)
@@ -134,6 +142,9 @@ class MainActivity : AppCompatActivity() {
         binding.mainBnv.itemIconTintList = null
         binding.mainBnv.setOnItemSelectedListener { item ->
             changeFragment(item)
+        }
+        binding.mainBnv.setOnItemReselectedListener { item ->
+            refreshFragment(item)
         }
 
         // 4. 설정 버튼 이동
@@ -215,9 +226,9 @@ class MainActivity : AppCompatActivity() {
         when (item.itemId) {
             R.id.home -> {
                 supportFragmentManager.beginTransaction().replace(
-                    R.id.main_fcv,
-                    HomeFragment()
-                ).commit()
+                        R.id.main_fcv,
+                        HomeFragment()
+                    ).commit()
                 binding.mainLogoIv.visibility = View.VISIBLE
                 binding.mainSettingsIv.visibility = View.VISIBLE
                 binding.scheduleTitleTv.visibility = View.GONE
@@ -258,6 +269,35 @@ class MainActivity : AppCompatActivity() {
                 binding.scheduleAddIv.visibility = View.GONE
                 binding.mainBackIv.visibility = android.view.View.GONE
                 binding.mainSearchLl.visibility = android.view.View.VISIBLE
+                return true
+            }
+            else -> return false
+        }
+    }
+    // 같은 프래그먼트 선택 시 새로고침
+    private fun refreshFragment(item: MenuItem): Boolean{
+        binding.searchEt.clearFocus()
+
+        when (item.itemId) {
+            R.id.home -> {
+                supportFragmentManager.beginTransaction().replace(R.id.main_fcv, HomeFragment()).commit()
+                spf.edit().remove("SELECTED_DATE").apply()
+                return true
+            }
+
+            R.id.calendar -> {
+                supportFragmentManager.beginTransaction().replace(
+                    R.id.main_fcv,
+                    CalendarFragment()
+                ).commit()
+                return true
+            }
+
+            R.id.route -> {
+                supportFragmentManager.beginTransaction().replace(
+                    R.id.main_fcv,
+                    RouteFragment()
+                ).commit()
                 return true
             }
             else -> return false
