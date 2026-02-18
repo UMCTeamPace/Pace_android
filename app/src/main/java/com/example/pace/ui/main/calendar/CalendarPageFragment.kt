@@ -445,6 +445,9 @@ class CalendarPageFragment: Fragment() {
     }
 
     private fun setupMonthYearPicker() {
+        binding.calendarNumberPickerTv.setOnClickListener {
+            showMonthYearPicker()
+        }
         binding.calendarNumberPickerBtnIv.setOnClickListener {
             showMonthYearPicker()
         }

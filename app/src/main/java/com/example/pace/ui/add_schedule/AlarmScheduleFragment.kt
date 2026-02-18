@@ -117,7 +117,7 @@ class AlarmScheduleFragment : Fragment() {
         if (selectedOptions.size >= 5) {
             binding.tvAlarmDescription.setTextColor(Color.RED)
         } else {
-            binding.tvAlarmDescription.setTextColor(Color.parseColor("#666666"))
+            binding.tvAlarmDescription.setTextColor(resources.getColor(R.color.text_secondary))
         }
 
         // 결과 전달

@@ -196,7 +196,7 @@
                     android:layout_height="wrap_content"
                     android:gravity="center_vertical">
                     <ImageView android:layout_width="16dp" android:layout_height="16dp" android:src="@drawable/ic_arrow_change" />
-                    <TextView android:id="@+id/tv_repeat_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:text="반복 안함" />
+                    <TextView android:id="@+id/tv_repeat_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:text="반복 안함" android:textColor="@color/text_secondary2"/>
                 </LinearLayout>
             </LinearLayout>
 
@@ -209,7 +209,7 @@
                 android:padding="16dp">
                 <LinearLayout android:id="@+id/btn_route" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
                     <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_route_unselected" />
-                    <TextView android:id="@+id/tv_location_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:text="장소" />
+                    <TextView android:id="@+id/tv_location_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:text="장소" android:textColor="@color/text_secondary2"/>
                 </LinearLayout>
             </LinearLayout>
 
@@ -222,7 +222,7 @@
                 android:padding="16dp">
                 <LinearLayout android:id="@+id/btn_remindalarm" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
                     <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_alarm_schedule" />
-                    <TextView android:id="@+id/tv_remind_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:text="일정 알림 안함" />
+                    <TextView android:id="@+id/tv_remind_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:text="일정 알림 안함" android:textColor="@color/text_secondary2"/>
                 </LinearLayout>
             </LinearLayout>
 
@@ -248,7 +248,9 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="4dp"
                     android:background="@null"
-                    android:hint="여기에 입력하세요"
+                    android:hint="메모"
+                    android:textColorHint="@color/text_secondary2"
+                    android:textColor="@color/text_primary"
                     android:gravity="top"
                     android:inputType="textMultiLine"
                     android:minLines="3"
@@ -265,7 +267,7 @@
                 android:padding="16dp">
                 <LinearLayout android:id="@+id/btn_calendar" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
                     <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_day_unselected" />
-                    <TextView android:id="@+id/tv_calendar_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:text="캘린더" />
+                    <TextView android:id="@+id/tv_calendar_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:text="캘린더" android:textColor="@color/text_secondary2"/>
                 </LinearLayout>
             </LinearLayout>
 
