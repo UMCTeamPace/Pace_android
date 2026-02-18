@@ -54,6 +54,8 @@ data class ScheduleInfo(
     @SerializedName("startTime") val startTime: String?,
     @SerializedName("endTime") val endTime: String?,
     @SerializedName("memo") val memo: String?,
+    @SerializedName("calendarId") val calendarId: Long?,
+    @SerializedName("color") val color: String?,
     @SerializedName("isPathIncluded") val isPathIncluded: Boolean? = null
 )
 

@@ -204,8 +204,7 @@ class RouteFragment : Fragment() {
         }
         hasSchedule = false
 
-        val token = BuildConfig.BEARER_TOKEN // 또는 저장된 토큰 가져오기
-        routeViewModel.fetchRouteOnlySchedule(token)
+        routeViewModel.fetchRouteOnlySchedule()
 
         observeRouteViewModel()
     }
@@ -230,6 +229,10 @@ class RouteFragment : Fragment() {
         binding.layoutRouteDetailOverlay.btnRouteDetailBackDetail.visibility = View.GONE
         binding.layoutRouteDetailOverlay.root.bringToFront()
         binding.layoutRouteDetailOverlay.btnRouteSelect.visibility = View.GONE
+        binding.layoutRouteDetailOverlay.tvScheduleRouteDetailName.visibility = View.VISIBLE
+        binding.layoutRouteDetailOverlay.tvScheduleRouteDetailTime.visibility = View.VISIBLE
+        binding.layoutRouteDetailOverlay.viewColorDotRouteDetail.visibility = View.VISIBLE
+        binding.layoutRouteDetailOverlay.bottomSheetRouteDetail.visibility = View.VISIBLE
 
         // 일정 모드 UI 세팅
         binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.VISIBLE
@@ -261,7 +264,7 @@ class RouteFragment : Fragment() {
             }
 
             // 4. UI 텍스트 설정
-            scheduleColor = "#DC354B"
+            scheduleColor = scheduleInfo.color ?: "#F4F4F4"
 
             // 5. 지도에 경로 그리기
 //            val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
@@ -343,12 +346,6 @@ class RouteFragment : Fragment() {
 
                 binding.layoutNoSearchResult.visibility = View.VISIBLE
                 binding.layoutNoSearchResult.bringToFront()
-
-//                // 기존 결과 프래그먼트는 숨김 (선택 사항, 덮어씌워진다면 안 해도 됨)
-//                val fragment = childFragmentManager.findFragmentByTag("ROUTE_RESULT")
-//                if (fragment != null) {
-//                    childFragmentManager.beginTransaction().hide(fragment).commitAllowingStateLoss()
-//                }
             }
         }
 
@@ -362,14 +359,27 @@ class RouteFragment : Fragment() {
             } else {
                 // 2. 데이터가 없으면: hasSchedule 끄기
                 hasSchedule = false
-
                 // (경로 검색 중이거나 상세 정보를 보고 있을 때는 숨기면 안 됨)
                 if (currentEntryMode == EntryMode.MAIN) {
-                    binding.layoutRouteDetailOverlay.root.visibility = View.GONE
+                    binding.layoutRouteDetailOverlay.root.visibility = View.VISIBLE
+                    binding.layoutRouteDetailOverlay.root.bringToFront()
+
+                    binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.VISIBLE
+
+                    binding.layoutRouteDetailOverlay.tvScheduleRouteDetailName.visibility = View.VISIBLE
+                    binding.layoutRouteDetailOverlay.tvScheduleRouteDetailName.text = "경로 일정 목록"
+
+                    binding.layoutRouteDetailOverlay.tvScheduleRouteDetailTime.visibility = View.GONE
+                    binding.layoutRouteDetailOverlay.viewColorDotRouteDetail.visibility = View.GONE
+                    binding.layoutRouteDetailOverlay.btnRouteDetailBackDetail.visibility = View.GONE
+                    binding.layoutRouteDetailOverlay.btnRouteSelect.visibility = View.GONE
+                    binding.layoutRouteDetailOverlay.bottomSheetRouteDetail.visibility = View.GONE
                 }
             }
         }
     }
+
+
 
     private fun setupMainActivityListeners() {
         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
@@ -779,6 +789,73 @@ class RouteFragment : Fragment() {
         binding.layoutRouteDetailOverlay.btnRouteDetailBackDetail.setOnClickListener {
             handleCustomBackClick()
         }
+
+        binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.setOnClickListener {
+
+            routeViewModel.fetchAllRouteSchedules()
+
+            routeViewModel.routeScheduleList.observe(viewLifecycleOwner, object : androidx.lifecycle.Observer<List<RouteOnlyScheduleData>> {
+                override fun onChanged(list: List<RouteOnlyScheduleData>) {
+                    if (list.isNotEmpty()) {
+                        showGroupedRouteBottomSheet(list) // 아래 만든 함수 호출
+                        routeViewModel.routeScheduleList.removeObserver(this)
+                    } else {
+                        android.widget.Toast.makeText(requireContext(), "저장된 경로 일정이 없습니다.", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            })
+        }
+    }
+
+    private fun showGroupedRouteBottomSheet(dataList: List<RouteOnlyScheduleData>) {
+        val dialog = BottomSheetDialog(requireContext())
+        // 바텀시트 레이아웃 (rv_saved_routes가 들어있는 XML)
+        val sheetBinding = com.example.pace.databinding.BottomSheetRouteScheduleListBinding.inflate(layoutInflater)
+        dialog.setContentView(sheetBinding.root)
+
+        // 1. 데이터 그룹화 로직 (startDate 기준)
+        val groupedList = mutableListOf<RouteScheduleItem>()
+        // 날짜순 정렬
+        val sortedList = dataList.sortedBy { it.scheduleInfo.startDate }
+        var lastDate = ""
+
+        sortedList.forEach { item ->
+            val dateStr = item.scheduleInfo.startDate ?: "날짜 미정"
+
+            // 날짜가 달라지면 헤더 추가
+            if (dateStr != lastDate) {
+                // 날짜 포맷팅 (2026-02-18 -> 2월 18일 (수))
+                val formattedDate = try {
+                    val date = LocalDate.parse(dateStr)
+                    date.format(DateTimeFormatter.ofPattern("M월 d일 (E)", Locale.KOREAN))
+                } catch (e: Exception) {
+                    dateStr
+                }
+                groupedList.add(RouteScheduleItem.DateHeader(formattedDate))
+                lastDate = dateStr
+            }
+            // 내용 추가
+            groupedList.add(RouteScheduleItem.ScheduleContent(item))
+        }
+
+        // 2. 어댑터 연결
+        val adapter = RouteScheduleListAdapter(groupedList) { selectedData ->
+            // 아이템 클릭 시 오버레이 업데이트 및 다이얼로그 닫기
+            showDefaultScheduleOverlay(selectedData)
+            dialog.dismiss()
+        }
+
+        sheetBinding.rvSavedRoutes.apply {
+            layoutManager = androidx.recyclerview.widget.LinearLayoutManager(context)
+            this.adapter = adapter
+        }
+
+        // 바텀시트 높이 설정
+        val bottomSheetBehavior = BottomSheetBehavior.from(sheetBinding.root.parent as View)
+        bottomSheetBehavior.peekHeight = (400 * resources.displayMetrics.density).toInt()
+        bottomSheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
+
+        dialog.show()
     }
 
     fun onSelectOnMapSelected() {
@@ -846,6 +923,7 @@ class RouteFragment : Fragment() {
             binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.VISIBLE
             binding.layoutRouteDetailOverlay.btnRouteDetailBackDetail.visibility = View.VISIBLE
             binding.layoutRouteDetailOverlay.btnRouteSelect.visibility = View.VISIBLE
+            binding.layoutRouteDetailOverlay.bottomSheetRouteDetail.visibility = View.VISIBLE
             binding.layoutRouteDetailOverlay.root.bringToFront()
 
             binding.layoutRouteDetailOverlay.btnRouteSelect.setOnClickListener {

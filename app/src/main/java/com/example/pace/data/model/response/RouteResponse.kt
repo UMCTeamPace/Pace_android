@@ -30,7 +30,7 @@ data class RouteDetail(
     @SerializedName("duration") val duration: Int,
     @SerializedName("distance") val distance: Int,
     @SerializedName("description") val description: String?,
-    @SerializedName("points") val points: String,
+    @SerializedName("points") val points: String?,
     val transitType: String? = null,
     val lineColor: String? = null,
     val lineName: String? = null,

@@ -5,6 +5,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.pace.BuildConfig
 import com.example.pace.data.model.response.RouteResponse
 import com.example.pace.data.model.request.RouteSearchRequest
 import com.example.pace.data.model.response.RouteOnlyScheduleData
@@ -31,6 +32,9 @@ class RouteViewModel @Inject constructor(
     private val _routeOnlySchedule = MutableLiveData<RouteOnlyScheduleData?>()
     val routeOnlySchedule: LiveData<RouteOnlyScheduleData?> get() = _routeOnlySchedule
 
+    private val _routeScheduleList = MutableLiveData<List<RouteOnlyScheduleData>>()
+    val routeScheduleList: LiveData<List<RouteOnlyScheduleData>> get() = _routeScheduleList
+
     private val _adapterScheduleData = MutableLiveData<RouteResponse?>()
     val adapterScheduleData: LiveData<RouteResponse?> get() = _adapterScheduleData
     private val _isLoading = MutableLiveData<Boolean>()
@@ -39,6 +43,7 @@ class RouteViewModel @Inject constructor(
     private val _errorMessage = MutableLiveData<String>()
     val errorMessage: LiveData<String> get() = _errorMessage
 
+    val token = BuildConfig.BEARER_TOKEN
     fun searchRoutes(accessToken: String, request: RouteSearchRequest) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -75,7 +80,7 @@ class RouteViewModel @Inject constructor(
         }
     }
 
-    fun fetchRouteOnlySchedule(accessToken: String) {
+    fun fetchRouteOnlySchedule() {
         viewModelScope.launch {
             try {
                 // 오늘 날짜 구하기 (yyyy-MM-dd)
@@ -85,9 +90,9 @@ class RouteViewModel @Inject constructor(
 
                 // 리포지토리 호출 (RawDefaultResponse 반환됨)
                 val response = scheduleRepository.getScheduleListForRoute(
-                    accessToken = accessToken,
+                    accessToken = token,
                     startDate = today,
-                    endDate = null // null 보내면 endDate는 startDate와 동일하게 처리되거나 API 스펙따라감
+                    endDate = today
                 )
 
                 if (response.isSuccess) {
@@ -96,15 +101,12 @@ class RouteViewModel @Inject constructor(
 
                     if (data != null) {
                         Log.d("RouteViewModel", "경로 스케줄 발견! ID: ${data.scheduleId}")
-                        // UI에 데이터 전달 -> "경로 안내 하시겠습니까?" 띄우기 가능
                         _routeOnlySchedule.value = data
                     } else {
                         Log.d("RouteViewModel", "통신 성공했으나, 경로만 있는 스케줄이 없음")
-                        // 데이터 없음 (null 전달)
                         _routeOnlySchedule.value = null
                     }
                 } else {
-                    // 통신 실패 (4xx, 5xx) - 에러 코드 확인 가능
                     Log.e("RouteViewModel", "서버 에러: ${response.code} - ${response.message}")
                     _routeOnlySchedule.value = null
 
@@ -118,6 +120,30 @@ class RouteViewModel @Inject constructor(
                 Log.e("RouteViewModel", "예외 발생: ${e.message}")
                 e.printStackTrace()
                 _routeOnlySchedule.value = null
+            }
+        }
+    }
+
+    fun fetchAllRouteSchedules() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val today = LocalDate.now().toString()
+
+                // 새로 만든 리스트용 함수 호출 (endDate = null)
+                val response = scheduleRepository.getAllRouteSchedules(
+                    accessToken = token, // 뷰모델 직접 참조
+                    startDate = today,
+                    endDate = null
+                )
+
+                if (response.isSuccess) {
+                    _routeScheduleList.value = response.result?.filterNotNull() ?: emptyList()
+                }
+            } catch (e: Exception) {
+                Log.e("RouteViewModel", "전체 목록 로드 실패: ${e.message}")
+            } finally {
+                _isLoading.value = false
             }
         }
     }
