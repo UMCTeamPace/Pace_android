@@ -596,6 +596,7 @@ class RouteScheduleFragment : Fragment() {
                     color = selectedColorHex, // 💡 선택한 색상 반영
                     calendarId = currentSelectedCalendarId?.toString() // 💡 서버 명세에 맞춰 String으로 추가
                 )
+                val selectedColorInt = Color.parseColor(selectedColor)
                 // ViewModel의 createSchedule 호출
                 viewModel.createSchedule(createRequest, null, currentSelectedCalendarId, selectedColorInt)
             }
