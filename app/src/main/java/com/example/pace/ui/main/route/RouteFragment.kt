@@ -840,7 +840,8 @@ class RouteFragment : Fragment() {
 
         // 2. 어댑터 연결
         val adapter = RouteScheduleListAdapter(groupedList) { selectedData ->
-            // 아이템 클릭 시 오버레이 업데이트 및 다이얼로그 닫기
+            hasSchedule = true
+
             showDefaultScheduleOverlay(selectedData)
             dialog.dismiss()
         }
@@ -1841,11 +1842,24 @@ private fun selectCurrentLocation() {
     private fun handleMainBackClick() {
         if (binding.layoutRouteInputHeader.root.visibility == View.VISIBLE) {
             exitSearchMode()
-            Log.e("backLogic", "여기까진 오나? exitSearchMode다음")
             mainBinding?.mainBnv?.visibility = View.VISIBLE
-            if (hasSchedule && currentEntryMode == EntryMode.MAIN) {
-                Log.e("backLogic", "여기까진 오나? if문 안")
+            if (hasSchedule) {
+                // 일정이 있으면 해당 일정 오버레이 표시
                 showDefaultScheduleOverlay(cachedScheduleData)
+            } else {
+                binding.layoutRouteDetailOverlay.root.visibility = View.VISIBLE
+                binding.layoutRouteDetailOverlay.root.bringToFront()
+
+                binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.VISIBLE
+
+                binding.layoutRouteDetailOverlay.tvScheduleRouteDetailName.visibility = View.VISIBLE
+                binding.layoutRouteDetailOverlay.tvScheduleRouteDetailName.text = "경로 일정 목록"
+
+                binding.layoutRouteDetailOverlay.tvScheduleRouteDetailTime.visibility = View.GONE
+                binding.layoutRouteDetailOverlay.viewColorDotRouteDetail.visibility = View.GONE
+                binding.layoutRouteDetailOverlay.btnRouteDetailBackDetail.visibility = View.GONE
+                binding.layoutRouteDetailOverlay.btnRouteSelect.visibility = View.GONE
+                binding.layoutRouteDetailOverlay.bottomSheetRouteDetail.visibility = View.GONE
             }
             return // 앱 종료 방지
         }
@@ -1855,6 +1869,9 @@ private fun selectCurrentLocation() {
 
             val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
             mapFrag?.clearRoute()
+            mapFrag?.setMapPadding(0)
+            mapFrag?.updateButtonTranslation(0f)
+
             binding.routeSearchFcv.visibility = View.VISIBLE
             binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
 
@@ -1929,6 +1946,21 @@ private fun selectCurrentLocation() {
             if (hasSchedule) {
                 showDefaultScheduleOverlay(cachedScheduleData)
                 mainBinding?.mainBnv?.visibility = View.VISIBLE
+            }
+            else {
+                binding.layoutRouteDetailOverlay.root.visibility = View.VISIBLE
+                binding.layoutRouteDetailOverlay.root.bringToFront()
+
+                binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.VISIBLE
+
+                binding.layoutRouteDetailOverlay.tvScheduleRouteDetailName.visibility = View.VISIBLE
+                binding.layoutRouteDetailOverlay.tvScheduleRouteDetailName.text = "경로 일정 목록"
+
+                binding.layoutRouteDetailOverlay.tvScheduleRouteDetailTime.visibility = View.GONE
+                binding.layoutRouteDetailOverlay.viewColorDotRouteDetail.visibility = View.GONE
+                binding.layoutRouteDetailOverlay.btnRouteDetailBackDetail.visibility = View.GONE
+                binding.layoutRouteDetailOverlay.btnRouteSelect.visibility = View.GONE
+                binding.layoutRouteDetailOverlay.bottomSheetRouteDetail.visibility = View.GONE
             }
             mainBinding?.mainBnv?.visibility = View.VISIBLE
             return
