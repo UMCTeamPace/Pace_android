@@ -902,7 +902,7 @@ class ScheduleRepositoryImpl @Inject constructor(
 
         // 2. 변환 로직
         val mappedData: RouteOnlyScheduleData? = response.result?.content
-            ?.find { item ->
+            ?.filter { item -> // 1. 일단 조건 맞는거 다 찾기 (find -> filter)
                 val isRouteItem = item.place == null && item.route != null
 
                 val isFuture = try {
@@ -911,9 +911,11 @@ class ScheduleRepositoryImpl @Inject constructor(
                 } catch (e: Exception) {
                     false
                 }
-
-                // 두 조건 모두 만족해야 함
-                isRouteItem && isFuture }
+                isRouteItem && isFuture
+            }
+            ?.minByOrNull { item -> // 2. 그 중에서 시간이 가장 빠른(작은) 것 찾기
+                item.scheduleInfo.startTime ?: "23:59:59"
+            }
             ?.let { item ->
                 val route = item.route
                 val flattenedDetails = route?.routeDetails?.map { detail ->
