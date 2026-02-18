@@ -61,4 +61,13 @@ interface ScheduleRepository {
         calendarId: Long?,
         selectedColor: Int
     ): RawDefaultResponse<CreateScheduleResponse> // T를 CreateScheduleResponse로 설정
+
+
+    suspend fun updateRouteScheduleCombined(
+        accessToken: String,
+        scheduleId: Long,
+        generalRequest: UpdateScheduleRequest,
+        routeRequest: UpdateScheduleEditRouteRequest
+    ): RawDefaultResponse<UpdateScheduleRouteResponse>
+
 }

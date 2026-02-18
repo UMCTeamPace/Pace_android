@@ -29,6 +29,7 @@ class AlarmStartFragment : Fragment() {
 
         // 1. 체크박스 리스트 초기화
         val checkBoxes = listOf(
+            binding.rbStarttime,
             binding.rbStart5mago, binding.rbStart10mago, binding.rbStart15mago,
             binding.rbStart20mago, binding.rbStart25mago, binding.rbStart30mago,
             binding.rbStart35mago, binding.rbStart40mago, binding.rbStart45mago,
