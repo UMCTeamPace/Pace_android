@@ -65,6 +65,22 @@
                         android:background="#F1F3F5" />
 
                     <CheckBox
+                        android:id="@+id/rb_starttime"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="24dp"
+                        android:text="출발 시각"
+                        android:button="@null"
+                        android:drawableEnd="@drawable/selector_circle_checkbox"
+                        android:paddingEnd="16dp"
+                        android:background="@null" />
+
+                    <View android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="#F1F3F5" />
+
+
+                    <CheckBox
                         android:id="@+id/rb_start5mago"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
