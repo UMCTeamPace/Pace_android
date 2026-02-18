@@ -32,7 +32,16 @@ class WithdrawalDialog(context: Context) : Dialog(context) {
 
         // 확인(로그아웃) 버튼
         binding.withdrawalOkBtn.setOnClickListener {
-            okClick?.invoke() // 설정한 로그아웃 로직 실행
+            android.util.Log.d("DIALOG_TEST", "확인 버튼 클릭됨")
+
+            // 1. 리스너가 제대로 연결되었는지 확인
+            if (okClick == null) {
+                android.util.Log.e("DIALOG_TEST", "리스너(okClick)가 null입니다!")
+            } else {
+                okClick?.invoke()
+            }
+
+            // 2. 다이얼로그 닫기 (이게 있어야 창이 사라집니다)
             dismiss()
         }
     }
@@ -44,7 +53,7 @@ class WithdrawalDialog(context: Context) : Dialog(context) {
         window?.apply {
             val params = attributes
             params.width = (300 * context.resources.displayMetrics.density).toInt()
-            params.height = (156 * context.resources.displayMetrics.density).toInt()
+            //params.height = (156 * context.resources.displayMetrics.density).toInt()
             attributes = params
         }
     }
