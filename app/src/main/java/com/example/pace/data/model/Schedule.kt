@@ -81,7 +81,10 @@ data class Schedule(
     val calendarAccountName: String?,
 
     @ColumnInfo(name = "reminders")
-    val reminders: List<Int> = emptyList(),
+    val reminders: List<Int> = emptyList(), // 일반 일정 알림 (EVENT)
+
+    @ColumnInfo(name = "departure_reminders")
+    val departureReminders: List<Int> = emptyList(), // 출발 알림 (DEPARTURE)
 
     @ColumnInfo(name = "with_route")
     val withRoute: Boolean = false,

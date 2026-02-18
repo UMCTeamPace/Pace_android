@@ -2,76 +2,78 @@ package com.example.pace.ui.main.home
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.RecyclerView
-import com.example.pace.data.model.Schedule
-import com.example.pace.databinding.ItemScheduleBinding
-import java.time.LocalDate
 import com.example.pace.R
+import com.example.pace.data.model.Schedule
+import com.example.pace.data.model.response.RouteInfo
+import com.example.pace.databinding.ItemScheduleBinding
+
 class ScheduleRVAdapter(
     private var scheduleList: MutableList<Schedule>,
     private val context: Context,
     private val onPinClick: (Schedule) -> Unit,
-): RecyclerView.Adapter<ScheduleRVAdapter.ViewHolder>() {
+) : RecyclerView.Adapter<ScheduleRVAdapter.ViewHolder>() {
+
     lateinit var mOnClickListener: MyOnClickListener
     lateinit var scheduleTouchHelper: ScheduleTouchHelper
 
-    interface MyOnClickListener{
+    private var routeInfoMap: Map<Long, RouteInfo> = emptyMap()
+
+    interface MyOnClickListener {
         fun showModalCase(scheduleList: List<Schedule>, position: Int)
         fun onEdit(schedule: Schedule)
         fun onDelete(schedule: Schedule)
     }
 
-    fun setMyOnClickListener(myOnClickListener: MyOnClickListener){
+    fun setMyOnClickListener(myOnClickListener: MyOnClickListener) {
         mOnClickListener = myOnClickListener
     }
 
     @SuppressLint("NotifyDataSetChanged")
-    fun updateData(newSchedules: List<Schedule>) {
+    fun updateData(newSchedules: List<Schedule>, newRouteMap: Map<Long, RouteInfo> = emptyMap()) {
+        this.routeInfoMap = newRouteMap // 상세 정보 맵 업데이트
         scheduleList.clear()
         scheduleList.addAll(newSchedules)
         notifyDataSetChanged()
     }
 
-    override fun onCreateViewHolder(
-        parent: ViewGroup,
-        viewType: Int
-    ): ViewHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val binding = ItemScheduleBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return ViewHolder(binding)
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        // 데이터 갱신 시 swipe된 거 초기화
-        val viewTop = holder.itemView.findViewById<ConstraintLayout>(R.id.schedule_view_top)
+        val schedule = scheduleList[position]
+
+        // 스와이프 상태 초기화
+        val viewTop = holder.binding.scheduleViewTop
         viewTop.translationX = 0f
 
-        val schedule = scheduleList[position]
         holder.bind(schedule)
 
+        // --- 이벤트 리스너 설정 ---
         holder.binding.schedulePinIv.setOnClickListener {
-            holder.binding.schedulePinnedIv.visibility = View.VISIBLE
             onPinClick(schedule)
             scheduleTouchHelper.closeSwipedMenu(holder)
         }
 
-        // 수정 버튼 (이름 유지: mOnClickListener 사용)
         holder.binding.scheduleEditIv.setOnClickListener {
             mOnClickListener.onEdit(schedule)
             scheduleTouchHelper.closeSwipedMenu(holder)
         }
 
-        // 삭제 버튼 (이름 유지: mOnClickListener 사용)
         holder.binding.scheduleDeleteIv.setOnClickListener {
             mOnClickListener.onDelete(schedule)
             scheduleTouchHelper.closeSwipedMenu(holder)
         }
 
-        holder.binding.scheduleViewTop.setOnClickListener {
-            // 스와이프 상태가 아닐 때만 모달 띄우도록
+        viewTop.setOnClickListener {
             if (viewTop.translationX == 0f) {
                 mOnClickListener.showModalCase(scheduleList, position)
             }
@@ -80,193 +82,88 @@ class ScheduleRVAdapter(
 
     override fun getItemCount(): Int = scheduleList.size
 
-    fun getScheduleAt(position: Int): Schedule {
-        return scheduleList[position]
-    }
 
-    class ScheduleRVAdapter(
-        private var scheduleList: MutableList<Schedule>,
-        private val context: Context,
-        private val onPinClick: (Schedule) -> Unit,
-    ): RecyclerView.Adapter<ScheduleRVAdapter.ViewHolder>() {
-        lateinit var mOnClickListener: MyOnClickListener
-        lateinit var scheduleTouchHelper: ScheduleTouchHelper
-
-        interface MyOnClickListener {
-            fun showModalCase(scheduleList: List<Schedule>, position: Int)
-            fun onEdit(schedule: Schedule)
-            fun onDelete(schedule: Schedule)
-        }
-
-        fun setMyOnClickListener(myOnClickListener: MyOnClickListener) {
-            mOnClickListener = myOnClickListener
-        }
-
-        @SuppressLint("NotifyDataSetChanged")
-        fun updateData(newSchedules: List<Schedule>) {
-            scheduleList.clear()
-            scheduleList.addAll(newSchedules)
-            notifyDataSetChanged()
-        }
-
-        override fun onCreateViewHolder(
-            parent: ViewGroup,
-            viewType: Int
-        ): ViewHolder {
-            val binding =
-                ItemScheduleBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-            return ViewHolder(binding)
-        }
-
-        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-            // 데이터 갱신 시 swipe된 거 초기화
-            val viewTop = holder.itemView.findViewById<ConstraintLayout>(R.id.schedule_view_top)
-            viewTop.translationX = 0f
-
-            val schedule = scheduleList[position]
-            holder.bind(schedule)
-
-            holder.binding.schedulePinIv.setOnClickListener {
-                holder.binding.schedulePinnedIv.visibility = View.VISIBLE
-                onPinClick(schedule)
-                scheduleTouchHelper.closeSwipedMenu(holder)
-            }
-
-            // 수정 버튼 (이름 유지: mOnClickListener 사용)
-            holder.binding.scheduleEditIv.setOnClickListener {
-                mOnClickListener.onEdit(schedule)
-                scheduleTouchHelper.closeSwipedMenu(holder)
-            }
-
-            // 삭제 버튼 (이름 유지: mOnClickListener 사용)
-            holder.binding.scheduleDeleteIv.setOnClickListener {
-                mOnClickListener.onDelete(schedule)
-                scheduleTouchHelper.closeSwipedMenu(holder)
-            }
-
-            holder.binding.scheduleViewTop.setOnClickListener {
-                // 스와이프 상태가 아닐 때만 모달 띄우도록
-                if (viewTop.translationX == 0f) {
-                    mOnClickListener.showModalCase(scheduleList, position)
-                }
-            }
-        }
-
-        override fun getItemCount(): Int = scheduleList.size
-
-        fun getScheduleAt(position: Int): Schedule {
-            return scheduleList[position]
-        }
-
-        inner class ViewHolder(val binding: ItemScheduleBinding) :
-            RecyclerView.ViewHolder(binding.root) {
-            fun bind(schedule: Schedule) {
-                // 체크박스는 HomeFragment에서 사용하지 않으므로 항상 GONE
-                binding.scheduleCheckbox.visibility = View.GONE
-
-                // 1. 이름 (Title)
-                binding.scheduleTitleTv.text = schedule.title ?: "제목 없음"
-
-                // 2. 색상 설정
-                val colorResId = when {
-                    schedule.eventColor != null && schedule.eventColor != 0 -> schedule.eventColor
-                    schedule.calendarColor != null && schedule.calendarColor != 0 -> schedule.calendarColor
-                    else -> android.graphics.Color.parseColor("#A2BD3B") // 기본 색상
-                }
-                binding.scheduleCategoryIv.imageTintList =
-                    android.content.res.ColorStateList.valueOf(colorResId)
-
-                // 3. 시간 표시 (이미 구현되어 있음)
-                if (schedule.isAllDay) {
-                    binding.scheduleTimeTv.text = "하루 종일"
-                } else {
-                    binding.scheduleTimeTv.text = "${schedule.startTime} - ${schedule.endTime}"
-                }
-
-                // 4. 반복 문자열 표시
-                if (!schedule.repeatRule.isNullOrEmpty()) {
-                    binding.scheduleRepeatIv.visibility = View.VISIBLE
-                    binding.scheduleRepeatTv.visibility = View.VISIBLE
-                    // TODO: Schedule 객체에 사람이 읽을 수 있는 반복 문자열 필드가 있다면 그것을 사용.
-                    binding.scheduleRepeatTv.text = "반복 설정됨"
-                } else {
-                    binding.scheduleRepeatIv.visibility = View.GONE
-                    binding.scheduleRepeatTv.visibility = View.GONE
-                }
-
-                // 5. 장소 표시
-                if (!schedule.location.isNullOrEmpty()) {
-                    binding.scheduleNormalLocationLl.visibility = View.VISIBLE
-                    binding.scheduleNormalLocationIv.visibility = View.VISIBLE
-                    binding.scheduleNormalLocationTv.text = schedule.location
-                    binding.scheduleRouteLocationLl.visibility =
-                        View.GONE // HomeFragment에서는 경로 위치 숨김
-                } else {
-                    binding.scheduleNormalLocationLl.visibility = View.GONE
-                    binding.scheduleNormalLocationIv.visibility = View.GONE
-                    binding.scheduleNormalLocationTv.text = "" // 텍스트도 비워둠
-                    binding.scheduleRouteLocationLl.visibility =
-                        View.GONE // 항상 숨김 (route type이 아니므로)
-                }
-
-                // 고정 아이콘 (isPinned 상태에 따라)
-                binding.schedulePinnedIv.visibility =
-                    if (schedule.isPinned) View.VISIBLE else View.GONE
-                binding.scheduleAlertTv.visibility = View.GONE
-            }
-        }
-    }
-
-    inner class ViewHolder(val binding: ItemScheduleBinding): RecyclerView.ViewHolder(binding.root){
-        fun bind(schedule: Schedule){
-            // 체크박스는 HomeFragment에서 사용하지 않으므로 항상 GONE
+    inner class ViewHolder(val binding: ItemScheduleBinding) : RecyclerView.ViewHolder(binding.root) {
+        fun bind(schedule: Schedule) {
             binding.scheduleCheckbox.visibility = View.GONE
-
-            // 1. 이름 (Title)
             binding.scheduleTitleTv.text = schedule.title ?: "제목 없음"
 
-            // 2. 색상 설정
+            // 1. 색상 설정
             val colorResId = when {
                 schedule.eventColor != null && schedule.eventColor != 0 -> schedule.eventColor
                 schedule.calendarColor != null && schedule.calendarColor != 0 -> schedule.calendarColor
-                else -> android.graphics.Color.parseColor("#A2BD3B") // 기본 색상
+                else -> Color.parseColor("#A2BD3B")
             }
-            binding.scheduleCategoryIv.imageTintList = android.content.res.ColorStateList.valueOf(colorResId)
+            binding.scheduleCategoryIv.imageTintList = ColorStateList.valueOf(colorResId)
 
-            // 3. 시간 표시 (이미 구현되어 있음)
-            if (schedule.isAllDay) {
-                binding.scheduleTimeTv.text = "하루 종일"
-            } else {
-                binding.scheduleTimeTv.text = "${schedule.startTime} - ${schedule.endTime}"
-            }
+            // 2. 시간 표시
+            binding.scheduleTimeTv.text = if (schedule.isAllDay) "하루 종일" else "${schedule.startTime} - ${schedule.endTime}"
 
-            // 4. 반복 문자열 표시
+            // 3. 고정 및 반복 표시
+            binding.schedulePinnedIv.visibility = if (schedule.isPinned) View.VISIBLE else View.GONE
             if (!schedule.repeatRule.isNullOrEmpty()) {
                 binding.scheduleRepeatIv.visibility = View.VISIBLE
                 binding.scheduleRepeatTv.visibility = View.VISIBLE
-                // TODO: Schedule 객체에 사람이 읽을 수 있는 반복 문자열 필드가 있다면 그것을 사용.
                 binding.scheduleRepeatTv.text = "반복 설정됨"
             } else {
                 binding.scheduleRepeatIv.visibility = View.GONE
                 binding.scheduleRepeatTv.visibility = View.GONE
             }
 
-            // 5. 장소 표시
-            if (!schedule.location.isNullOrEmpty()) {
-                binding.scheduleNormalLocationLl.visibility = View.VISIBLE
-                binding.scheduleNormalLocationIv.visibility = View.VISIBLE
-                binding.scheduleNormalLocationTv.text = schedule.location
-                binding.scheduleRouteLocationLl.visibility = View.GONE // HomeFragment에서는 경로 위치 숨김
-            } else {
-                binding.scheduleNormalLocationLl.visibility = View.GONE
-                binding.scheduleNormalLocationIv.visibility = View.GONE
-                binding.scheduleNormalLocationTv.text = "" // 텍스트도 비워둠
-                binding.scheduleRouteLocationLl.visibility = View.GONE // 항상 숨김 (route type이 아니므로)
-            }
+            val routeDetail = routeInfoMap[schedule.id]
 
-            // 고정 아이콘 (isPinned 상태에 따라)
-            binding.schedulePinnedIv.visibility = if (schedule.isPinned) View.VISIBLE else View.GONE
-            binding.scheduleAlertTv.visibility = View.GONE
+            if (schedule.type == "ROUTE") {
+                binding.scheduleNormalLocationLl.visibility = View.GONE
+                binding.scheduleRouteLocationLl.visibility = View.VISIBLE
+
+                if (routeDetail != null) {
+                    // 1. 위치 정보: 출발지 -> 목적지
+                    binding.scheduleRouteNameTv.text = "${routeDetail.originName} → ${routeDetail.destName}"
+
+                    // 1. 시간 계산 (9시간 더하기)
+                    val formatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
+
+                    // 출발 시간 처리
+                    val startTime = routeDetail.departureTime?.let {
+                        java.time.LocalDateTime.parse(it) // ISO_DATE_TIME 파싱
+                            .plusHours(9)                // 9시간 더하기
+                            .format(formatter)           // HH:mm 포맷팅
+                    } ?: "00:00"
+
+                    // 도착 시간 처리
+                    val endTime = routeDetail.arrivalTime?.let {
+                        java.time.LocalDateTime.parse(it)
+                            .plusHours(9)
+                            .format(formatter)
+                    } ?: "00:00"
+
+                    binding.scheduleRouteRangeTv.text = "$startTime - $endTime"
+
+                    // 3. 소요 시간 가공 (0시간 00분 형식)
+                    val totalSeconds = routeDetail.totalTime
+                    val hours = totalSeconds / 3600
+                    val minutes = (totalSeconds % 3600) / 60
+
+                    // 항상 "0시간 00분" 형식을 유지하도록 설정
+                    val durationFormatted = "${hours}시간 ${minutes}분"
+                    binding.scheduleRouteDurationTv.text = durationFormatted
+
+                } else {
+                    // 데이터 로딩 중 Placeholder
+                    binding.scheduleRouteNameTv.text = schedule.location ?: "경로를 불러오는 중..."
+                    binding.scheduleRouteRangeTv.text = "${schedule.startTime} - ${schedule.endTime}"
+                    binding.scheduleRouteDurationTv.text = "0시간 0분"
+                }
+            } else {
+                // 일반 일정 처리 (기존과 동일)
+                binding.scheduleRouteLocationLl.visibility = View.GONE
+                if (!schedule.location.isNullOrEmpty()) {
+                    binding.scheduleNormalLocationLl.visibility = View.VISIBLE
+                    binding.scheduleNormalLocationTv.text = schedule.location
+                } else {
+                    binding.scheduleNormalLocationLl.visibility = View.GONE
+                }
+            }
         }
     }
 }

@@ -77,5 +77,5 @@ interface ScheduleRepository {
     ): RawDefaultResponse<UpdateScheduleRouteResponse>
 
     suspend fun convertRouteToNormalLocal(scheduleId: Long): Boolean
-
+    suspend fun updatePinStatus(id: Long, isPinned: Boolean)
 }

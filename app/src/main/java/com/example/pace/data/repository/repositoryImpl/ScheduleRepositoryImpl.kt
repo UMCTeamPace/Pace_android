@@ -186,56 +186,60 @@ class ScheduleRepositoryImpl @Inject constructor(
 
     override suspend fun refreshSchedules() {
         try {
-            val systemSchedules = normalDataSource.getSchedules() // 💡 여기서 calendarId를 잘 가져오는지 확인 필요
+            val systemSchedules = normalDataSource.getSchedules()
             val systemIds = systemSchedules.map { it.id }
 
             withContext(Dispatchers.IO) {
-                // 2. 먼저 DB에 최신 데이터를 삽입/업데이트 (이게 먼저 수행되어야 함)
                 if (systemSchedules.isNotEmpty()) {
                     val localSchedulesOnce = scheduleDao.getAllSchedulesOnce()
                     val localScheduleMap = localSchedulesOnce.associateBy { it.id }
 
                     val mergedSchedules = systemSchedules.map { remote ->
                         val local = localScheduleMap[remote.id]
+
                         if (local != null) {
-                            // 💡 시스템 데이터(remote)를 기반으로 하되,
-                            // 로컬에서 관리하던 중요 필드들이 0L이나 기본값이면 local 값을 복사합니다.
+                            // 💡 [핵심] 시스템 데이터(remote)를 업데이트하되,
+                            // 우리 앱 전용 필드(local)는 절대로 잃어버리지 않게 수동으로 다 넣어줍니다.
                             remote.copy(
+                                // 1. 우리 앱의 고유 상태 보존
                                 isPinned = local.isPinned,
-                                // 만약 remote의 calendarId가 0이라면 기존 local의 ID를 유지
+                                isCompleted = local.isCompleted,
+                                isSwiped = local.isSwiped,
+
+                                // 2. [가장 중요] 장소 정보 및 리마인더 보존
+                                placeJson = local.placeJson,
+                                departureReminders = local.departureReminders,
+                                reminders = if (remote.reminders.isEmpty()) local.reminders else remote.reminders,
+
+                                // 3. 타입 정보 유지
+                                type = local.type,
+                                sourceType = local.sourceType,
+                                serverId = local.serverId,
+                                routeId = local.routeId,
+
+                                // 4. 시스템에서 변경될 수 있는 값들은 remote를 따름
                                 calendarId = if (remote.calendarId == 0L) local.calendarId else remote.calendarId,
-                                eventColor = remote.eventColor ?: local.eventColor,
-                                reminders = if (remote.reminders.isEmpty()) local.reminders else remote.reminders
+                                eventColor = remote.eventColor ?: local.eventColor
                             )
                         } else {
                             remote
                         }
                     }
+
+                    // 여기서 insertAll 할 때, 위에 가공된(Pace 데이터가 살아있는) 리스트가 들어감
                     scheduleDao.insertAll(mergedSchedules)
-                    Log.d("SYNC_LOG", "1. 시스템 일정 ${mergedSchedules.size}개 DB 삽입/업데이트 완료")
-                } else {
-                    Log.d("SYNC_LOG", "시스템에서 가져온 리스트가 비어있습니다.")
+                    Log.d("SYNC_LOG", "1. 필드 보존하며 시스템 일정 업데이트 완료")
                 }
 
-                // 3. 이제 DB에 들어간 SYSTEM 데이터와 방금 가져온 systemIds를 비교해서 삭제
-                // NOT IN (시스템ID목록) 쿼리를 실행하여 시스템에 없는 로컬 데이터를 날림
                 if (systemIds.isNotEmpty()) {
                     scheduleDao.deleteRemovedDeviceSchedules(systemIds)
-                    Log.d("SYNC_LOG", "2. 시스템에서 삭제된 일정들 로컬 DB에서 정리 완료")
-                } else {
-                    // 만약 시스템에 일정이 하나도 없다면, 로컬의 모든 SYSTEM 일정을 지워야 함
-                    // 이 부분은 필요에 따라 안전장치를 고려하세요. (전체 삭제 방지 등)
-                    // scheduleDao.deleteAllSystemSchedules() // 필요한 경우 추가
                 }
-
-                // 4. 최종 확인 로그
-                val checkCount = scheduleDao.getSchedulesWithSystemId().size
-                Log.d("SYNC_LOG", "3. 동기화 최종 완료 후 로컬 SYSTEM 개수: $checkCount")
             }
         } catch (e: Exception) {
-            Log.e("SYNC_LOG", "❌ 동기화 중 오류 발생: ${e.message}")
+            Log.e("SYNC_LOG", "❌ 동기화 중 오류: ${e.message}")
         }
     }
+
     override fun getUsedColors(): Flow<List<String>> = scheduleDao.getUsedColorsRaw().map { list ->
         list.mapNotNull { it.color }
     }
@@ -382,7 +386,13 @@ class ScheduleRepositoryImpl @Inject constructor(
                     isAllDay = request.isAllDay,
                     memo = request.memo,
                     location = request.place?.targetName,
-                    placeJson = if (placeId != null) "{\"placeId\":\"$placeId\"}" else null,
+                    placeJson = if (placeId != null) {
+                        "{\"placeId\":\"$placeId\"}"
+                    } else if (request.place != null) {
+                        Gson().toJson(request.place)
+                    } else {
+                        null
+                    },
 
                     // 💡 동적으로 가져온 정보 적용
                     calendarId = targetId,
@@ -428,6 +438,24 @@ class ScheduleRepositoryImpl @Inject constructor(
             if (response.isSuccess && response.result != null) {
                 val serverResult = response.result
                 val info = serverResult.scheduleInfo // 💡 서버가 준 핵심 정보
+                val routeData = serverResult.route // 서버가 준 경로 데이터
+                val gson = Gson()
+                val allReminders = serverResult.reminders ?: emptyList()
+                Log.d("DEBUG_DATA", "전체 리마인더 개수: ${allReminders.size}")
+                val eventReminders = allReminders
+                    .filter { it.reminderType == "EVENT" }
+                    .map { it.minutesBefore }
+
+                val departureReminders = allReminders
+                    .filter { it.reminderType == "DEPARTURE" }
+                    .map { it.minutesBefore }
+                Log.d("DEBUG_DATA", "추출된 출발 알람: $departureReminders")
+                val placeAndRouteJson = if (routeData != null) {
+                    gson.toJson(routeData)
+                } else {
+                    gson.toJson(serverResult.place)
+                }
+                Log.d("DEBUG_DATA", "JSON 생성 여부: ${placeAndRouteJson != null}")
 
                 // 1. 서버가 준 캘린더 ID를 최우선으로 가져옴 (DTO가 String이므로 변환)
                 val serverCalendarId = info.calendarId?.toLongOrNull() ?: calendarId ?: 1L
@@ -459,6 +487,14 @@ class ScheduleRepositoryImpl @Inject constructor(
                     finalColor
                 }
 
+
+                val displayLocation = if (routeData != null) {
+                    // 로그에 찍힌 routeData의 정보를 조합
+                    "${routeData.originName} → ${routeData.destName}"
+                } else {
+                    serverResult.place?.targetName ?: request.place?.targetName ?: info.title ?: "장소 정보 없음"
+                }
+
                 val scheduleToSave = Schedule(
                     id = serverResult.scheduleId, // 서버 ID를 Primary Key로 사용
                     title = info.title,
@@ -468,16 +504,20 @@ class ScheduleRepositoryImpl @Inject constructor(
                     endTime = info.endTime?.take(5) ?: "23:59",
                     isAllDay = info.isAllDay,
                     memo = info.memo,
-                    location = serverResult.place?.targetName ?: request.place?.targetName,
-                    placeJson = if (placeId != null) "{\"placeId\":\"$placeId\"}" else null,
+                    location = displayLocation,
 
-                    // 💡 서버에서 받은 값들을 1:1로 정확히 매핑
+
                     calendarId = serverCalendarId,
                     calendarDisplayName = dName,
                     calendarAccountName = aName,
 
                     eventColor = colorInt,
                     calendarColor = colorInt,
+
+                    reminders = eventReminders,
+                    departureReminders = departureReminders, // 새로 추가한 필드에 저장
+                    placeJson = placeAndRouteJson,
+
                     withRoute = true,
                     type = "ROUTE",
                     sourceType = "SERVER",
@@ -489,20 +529,27 @@ class ScheduleRepositoryImpl @Inject constructor(
                     exDate = null
                 )
 
+                // 💡 [추가] DB 삽입 직전, 객체 내부 상태를 낱낱이 파헤쳐봅시다.
+                Log.d("SAVE_DEBUG", """
+                ========= 삽입 데이터 최종 확인 =========
+                일정 제목: ${scheduleToSave.title}
+                이벤트 리마인더 (EVENT): ${scheduleToSave.reminders}
+                출발 리마인더 (DEPARTURE): ${scheduleToSave.departureReminders}
+                장소(Location): ${scheduleToSave.location}  <-- 이걸 꼭 찍어보세요!
+                장소 JSON (placeJson): ${scheduleToSave.placeJson?.take(100)}... (일부출력)
+                경로 타입 여부: ${scheduleToSave.type}
+                ======================================
+            """.trimIndent())
+
                 // 4. 로컬 DB에 삽입
                 scheduleDao.insertAll(listOf(scheduleToSave))
 
-                Log.d(
-                    "SAVE_FLOW", """
-                [서버 응답 기반 로컬 저장 완료]
-                일정ID: ${scheduleToSave.id}
-                서버가 준 캘린더ID: ${info.calendarId}
-                실제 저장된 캘린더ID: ${scheduleToSave.calendarId}
-                계정명: ${scheduleToSave.calendarAccountName}
-            """.trimIndent()
-                )
+                // 2. [중요] 저장이 끝난 뒤에 성공 응답을 반환합니다.
+                // 하지만 이렇게 해도 ViewModel에서 바로 refresh를 호출하면 덮어쓰기 위험이 있습니다.
+                return@safeApiCall response
+            } else {
+                return@safeApiCall response
             }
-            response
         }
     }
     override fun getCalendarName(calendarId: Long): String? {
@@ -1233,6 +1280,11 @@ class ScheduleRepositoryImpl @Inject constructor(
                 false
             }
         }
+    }
+
+    override suspend fun updatePinStatus(id: Long, isPinned: Boolean) {
+        // DAO의 @Query 함수 호출
+        scheduleDao.updatePinStatus(id, isPinned)
     }
 
 }
