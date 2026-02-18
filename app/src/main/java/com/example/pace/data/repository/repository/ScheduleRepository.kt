@@ -70,4 +70,6 @@ interface ScheduleRepository {
         routeRequest: UpdateScheduleEditRouteRequest
     ): RawDefaultResponse<UpdateScheduleRouteResponse>
 
+    suspend fun convertRouteToNormalLocal(scheduleId: Long): Boolean
+
 }

@@ -1,5 +1,6 @@
 package com.example.pace.ui.main.calendar
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -11,6 +12,7 @@ import com.example.pace.data.model.request.CreateScheduleRequest
 import com.example.pace.data.model.request.PlaceRequest
 import com.example.pace.data.model.request.ReminderRequest
 import com.example.pace.data.model.request.RepeatInfo
+import com.example.pace.data.model.request.RouteRequest
 import com.example.pace.data.model.request.UpdateScheduleEditRouteRequest
 import com.example.pace.data.model.request.UpdateScheduleRequest
 import com.example.pace.data.model.request.UpdateScheduleRouteRequest
@@ -33,6 +35,8 @@ import kotlinx.coroutines.flow.flowOn // 추가
 import kotlinx.coroutines.withContext
 import com.example.pace.data.repository.repository.SettingsRepository
 import com.google.gson.Gson
+import dagger.hilt.android.internal.Contexts.getApplication
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.firstOrNull
 
 import javax.inject.Inject
@@ -43,7 +47,8 @@ import kotlinx.coroutines.flow.firstOrNull // searchSchedules에서 필요
 class ScheduleViewModel @Inject constructor(
     private val repository: ScheduleRepository,
     private val authDataStore: AuthDataStore,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
@@ -409,6 +414,13 @@ class ScheduleViewModel @Inject constructor(
                 )
 
                 if (response.isSuccess) {
+                    // 워커에 등록
+                    val serverId = response.result?.scheduleId
+                    val arrival = request.route?.arrivalTime
+                    if (serverId != null && arrival != null) {
+                        scheduleFinalizeWorker(serverId, request.startDate, arrival)
+                    }
+
                     // 2. [수정] Dispatchers.IO에서 확실히 처리가 끝난 후 UI를 갱신하도록 보장
                     withContext(Dispatchers.IO) {
                         // 여기서 repository.refreshSchedules()가 서버 리스트를 다시 긁어오면서
@@ -570,7 +582,9 @@ class ScheduleViewModel @Inject constructor(
     fun deleteSchedule(id: Long, withRoute: Boolean) {
         viewModelScope.launch {
             if (withRoute) {
-                // 경로 일정: 오직 단일 삭제만 존재 (서버 API 호출)
+                // 💡 [추가] 예약된 워커 취소 (태그나 이름을 통해 취소 가능)
+                androidx.work.WorkManager.getInstance(context).cancelUniqueWork("finalize_$id")
+                Log.d("WorkManagerTest", "🗑️ 경로 일정 삭제로 인한 워커 예약 취소: finalize_$id")
                 deleteRouteSchedule(id)
             } else {
                 // 일반 일정: 단일이든 반복(전체)이든 시스템/로컬 DB에서 제거
@@ -723,6 +737,10 @@ class ScheduleViewModel @Inject constructor(
 
                 // 4. 결과 처리
                 if (response.isSuccess) {
+                    val arrival = routeRequest.arrivalTime
+                    if (arrival != null) {
+                        scheduleFinalizeWorker(scheduleId, generalRequest.startDate, arrival)
+                    }
                     withContext(Dispatchers.Main) {
                         _updateScheduleEvent.value = true
                         // 수정 성공 후 즉시 로컬 DB 데이터를 서버와 동기화
@@ -744,4 +762,68 @@ class ScheduleViewModel @Inject constructor(
             }
         }
     }
+
+    fun convertRouteToNormalAtArrival(scheduleId: Long) {
+        viewModelScope.launch {
+            val success = repository.convertRouteToNormalLocal(scheduleId)
+            if (success) {
+                refreshSchedules() // 성공 시 UI 갱신
+            }
+        }
+    }
+
+    private fun scheduleFinalizeWorker(scheduleId: Long, startDate: String, arrivalTime: String) {
+        try {
+            // 1. 시간 파싱 준비
+            val cleanArrival = if (arrivalTime.contains("T")) {
+                arrivalTime.replace("T", " ").substring(0, 16)
+            } else {
+                "$startDate $arrivalTime"
+            }
+
+            // 2. SDF 설정 및 타임존 지정
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.KOREA)
+
+            // 💡 중요: 서버 시간이 UTC라면 한국 시간으로 바꾸기 위해 타임존 설정
+            // 만약 서버가 이미 한국 시간을 주는데 파싱이 꼬이는 거라면 아래 줄을 주석 처리하세요.
+            sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
+
+            val arrivalDate = sdf.parse(cleanArrival)
+            val currentTime = System.currentTimeMillis()
+
+            // 3. 지연 시간 계산
+            val delay = (arrivalDate?.time ?: 0) - currentTime
+
+            Log.d("WorkManagerTest", """
+            [타임존 체크]
+            입력된 시간: $cleanArrival
+            현재 시간(KST): ${java.text.SimpleDateFormat("HH:mm").format(java.util.Date(currentTime))}
+            계산된 실행 시간(KST): ${java.text.SimpleDateFormat("HH:mm").format(arrivalDate)}
+            남은 초: ${delay / 1000}초
+        """.trimIndent())
+
+            // 10초는 0보다 크므로 아래 예약 로직이 바로 실행됩니다.
+            if (delay > 0) {
+                val data = androidx.work.Data.Builder()
+                    .putLong("schedule_id", scheduleId)
+                    .build()
+
+                val workRequest = androidx.work.OneTimeWorkRequestBuilder<com.example.pace.data.worker.ScheduleFinalizeWorker>()
+                    .setInitialDelay(delay, java.util.concurrent.TimeUnit.MILLISECONDS) // 10초 뒤로 예약
+                    .setInputData(data)
+                    .addTag("FINALIZE_$scheduleId")
+                    .build()
+
+                androidx.work.WorkManager.getInstance(context)
+                    .enqueueUniqueWork(
+                        "finalize_$scheduleId",
+                        androidx.work.ExistingWorkPolicy.REPLACE,
+                        workRequest
+                    )
+            }
+        } catch (e: Exception) {
+            Log.e("WorkManager", "❌ 예약 실패: ${e.message}")
+        }
+    }
+
 }
