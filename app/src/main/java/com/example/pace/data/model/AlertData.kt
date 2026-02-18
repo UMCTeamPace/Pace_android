@@ -30,37 +30,39 @@ fun getAlertTheme(
     weather: WeatherStatus,
     location: String,
     temp: Double,
-    weatherDesc: String
+    weatherDesc: String,
+    minutesLeft: Int // 실제 남은 분을 인자로 받음
 ): AlertTheme {
     val weatherInfo = "$location, $weatherDesc, ${temp.toInt()}°"
+    val timeMessage = "출발까지 ${minutesLeft}분 남았어요."
 
     return when (step) {
         PrepStep.SHOWER -> {
-            AlertTheme(R.drawable.img_shower, null, "슬슬 준비를 시작하면 좋아요!", "출발까지 1시간 남았어요.", weatherInfo)
+            AlertTheme(R.drawable.img_shower, null, "슬슬 준비를 시작하면 좋아요!", timeMessage, weatherInfo)
         }
         PrepStep.PREPARE -> {
-            AlertTheme(R.drawable.img_prepare, R.drawable.img_prepare_sunny_days, "슬슬 나갈 준비를 하면 좋아요!", "출발까지 30분 남았어요.", weatherInfo)
+            AlertTheme(R.drawable.img_prepare, R.drawable.img_prepare_sunny_days, "슬슬 나갈 준비를 하면 좋아요!", timeMessage, weatherInfo)
         }
         PrepStep.GET_STARTED -> {
             // [수정 핵심] 날씨 상태(weather)에 따라 분기 처리를 해줘야 합니다.
             when (weather) {
                 WeatherStatus.RAIN ->
-                    AlertTheme(R.drawable.img_started_rainy, R.drawable.img_started_rainy_days, "나가기 전에 우산 챙기세요!", "출발까지 5분 남았어요.", weatherInfo)
+                    AlertTheme(R.drawable.img_started_rainy, R.drawable.img_started_rainy_days, "나가기 전에 우산 챙기세요!", timeMessage, weatherInfo)
 
                 WeatherStatus.SNOW ->
-                    AlertTheme(R.drawable.img_started_snowy, R.drawable.img_started_snowy_days, "나가기 전에 우산 챙기세요!", "출발까지 5분 남았어요.", weatherInfo)
+                    AlertTheme(R.drawable.img_started_snowy, R.drawable.img_started_snowy_days, "나가기 전에 우산 챙기세요!", timeMessage, weatherInfo)
 
                 WeatherStatus.CLOUDY ->
-                    AlertTheme(R.drawable.img_started_cloudy, R.drawable.img_started_cloudy_days, "갑작스러운 소나기 조심하세요!", "출발까지 5분 남았어요.", weatherInfo)
+                    AlertTheme(R.drawable.img_started_cloudy, R.drawable.img_started_cloudy_days, "갑작스러운 소나기 조심하세요!", timeMessage, weatherInfo)
 
                 WeatherStatus.HEAT_WAVE ->
-                    AlertTheme(R.drawable.img_started_heat, R.drawable.img_started_heat_wave, "햇빛이 강해요. 모자나 양산 챙기세요!", "출발까지 5분 남았어요.", weatherInfo)
+                    AlertTheme(R.drawable.img_started_heat, R.drawable.img_started_heat_wave, "햇빛이 강해요. 모자나 양산 챙기세요!", timeMessage, weatherInfo)
 
                 WeatherStatus.COLD_WAVE ->
-                    AlertTheme(R.drawable.img_started_cold_wave, R.drawable.img_started_cold, "체감온도가 낮아요. 목도리, 장갑 챙기세요!", "출발까지 5분 남았어요.", weatherInfo)
+                    AlertTheme(R.drawable.img_started_cold_wave, R.drawable.img_started_cold, "체감온도가 낮아요. 목도리, 장갑 챙기세요!", timeMessage, weatherInfo)
 
                 else -> // SUNNY 또는 기본값
-                    AlertTheme(R.drawable.img_get_started, R.drawable.img_prepare_sunny_days, "화창한 날씨예요 좋은 하루!", "출발까지 10분 남았어요.", weatherInfo)
+                    AlertTheme(R.drawable.img_get_started, R.drawable.img_prepare_sunny_days, "화창한 날씨예요 좋은 하루!", timeMessage, weatherInfo)
             }
         }
         PrepStep.IMMINENT -> {
@@ -69,27 +71,28 @@ fun getAlertTheme(
     }
 }
 
-fun getOfflineAlertTheme(step: PrepStep): AlertTheme {
+fun getOfflineAlertTheme(step: PrepStep, minutesLeft: Int): AlertTheme {
+    val timeMessage = "출발까지 ${minutesLeft}분 남았어요."
     return when (step) {
         PrepStep.SHOWER -> AlertTheme(
             R.drawable.img_shower,
             null,
             "슬슬 준비를 시작하면 좋아요!",
-            "출발까지 1시간 남았어요.",
+            timeMessage,
             "오프라인 모드"
         )
         PrepStep.PREPARE -> AlertTheme(
             R.drawable.img_offline_prepare,
             null,
             "슬슬 나갈 준비를 마치면 좋아요!",
-            "출발까지 30분 남았어요.",
+            timeMessage,
             "오프라인 모드"
         )
         PrepStep.GET_STARTED -> AlertTheme(
             R.drawable.img_started_cloudy,
             null,
             "화창한 날씨예요 좋은 하루!",
-            "출발까지 10분 남았어요.",
+            timeMessage,
             "오프라인 모드"
         )
         PrepStep.IMMINENT -> AlertTheme(

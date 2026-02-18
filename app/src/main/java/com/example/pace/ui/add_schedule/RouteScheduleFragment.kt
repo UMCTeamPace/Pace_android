@@ -1,5 +1,6 @@
 package com.example.pace.ui.add_schedule
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -369,6 +370,8 @@ class RouteScheduleFragment : Fragment() {
                 viewModel.createScheduleEvent.collect { isSuccess ->
                     when (isSuccess) {
                         true -> {
+                            // 일정 저장 성공 시 알람 예약 실행
+                            scheduleSavedAlarms()
                             Toast.makeText(context, "일정이 저장되었습니다.", Toast.LENGTH_SHORT).show()
                             viewModel.resetCreateEvent() // 이벤트 초기화
                             requireActivity().finish()   // 화면 종료
@@ -593,15 +596,21 @@ class RouteScheduleFragment : Fragment() {
                     color = selectedColorHex, // 💡 선택한 색상 반영
                     calendarId = currentSelectedCalendarId?.toString() // 💡 서버 명세에 맞춰 String으로 추가
                 )
-
-                viewModel.createSchedule(createRequest, null, currentSelectedCalendarId, colorToPass)
+                val selectedColorInt = Color.parseColor(selectedColor)
+                // ViewModel의 createSchedule 호출
+                viewModel.createSchedule(createRequest, null, currentSelectedCalendarId, selectedColorInt)
             }
+            
+            // 서버 응답 여부와 관계없이 로컬 알람 예약 로직 즉시 실행
+            scheduleSavedAlarms()
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.updateScheduleEvent.collect { isSuccess ->
                     if (isSuccess == true) {
+                        // 💡 일정 수정 성공 시 알람 예약 실행
+                        scheduleSavedAlarms()
                         Toast.makeText(context, "일정이 수정되었습니다.", Toast.LENGTH_SHORT).show()
                         viewModel.resetUpdateEvent() // 이벤트 소모
                         activity?.finish()
@@ -768,9 +777,9 @@ class RouteScheduleFragment : Fragment() {
 
             val scheduleName = binding.etScheduleName.text.toString()
             val startTime = binding.tvStartTime.text.toString()
-            val intent = android.content.Intent(
+            val intent = Intent(
                 requireContext(),
-                com.example.pace.ui.main.MainActivity::class.java
+                MainActivity::class.java
             ).apply {
                 putExtra("ACTION_MODE", "SCHEDULE_ROUTE")
 
@@ -817,6 +826,54 @@ class RouteScheduleFragment : Fragment() {
         }
     }
 
+    // 선택된 날짜/시간과 알림 설정을 기반으로 실제 알람을 예약
+    private fun scheduleSavedAlarms() {
+        val finalStartDate = startDate ?: LocalDate.now()
+        val startTime = binding.tvStartTime.text.toString() // "HH:mm"
+        
+        try {
+            // 날짜와 시간을 합쳐서 로컬 시간 타임스탬프 생성
+            val dateTimeStr = "${finalStartDate}T${startTime}:00"
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+
+            val scheduleTimeMillis = sdf.parse(dateTimeStr)?.time ?: System.currentTimeMillis()
+            
+            Log.d("PaceAlarm", "알람 예약 프로세스 시작: $dateTimeStr (현지시간 Millis: $scheduleTimeMillis)")
+
+            // 일정 알림 예약
+            val eventAlarms = currentSelectedAlarms
+            if (eventAlarms != null && eventAlarms.isNotEmpty()) {
+                eventAlarms.forEach { minutes ->
+                    com.example.pace.data.util.AlarmScheduler.schedulePaceAlarm(
+                        requireContext(),
+                        scheduleTimeMillis,
+                        minutes
+                    )
+                    Log.d("PaceAlarm", "일정 알림 예약 명령 전송: $minutes 분 전")
+                }
+            } else {
+                Log.w("PaceAlarm", "예약할 '일정 알림' 데이터가 없습니다.")
+            }
+            
+            // 출발 알림(DEPARTURE) 예약
+            val departAlarms = currentSelectedStartAlarms
+            if (departAlarms != null && departAlarms.isNotEmpty()) {
+                departAlarms.forEach { minutes ->
+                    com.example.pace.data.util.AlarmScheduler.schedulePaceAlarm(
+                        requireContext(),
+                        scheduleTimeMillis,
+                        minutes
+                    )
+                    Log.d("PaceAlarm", "출발 알람 예약 명령 전송: $minutes 분 전")
+                }
+            } else {
+                Log.w("PaceAlarm", "예약할 '출발 알림' 데이터가 없습니다.")
+            }
+        } catch (e: Exception) {
+            Log.e("PaceAlarm", "알람 예약 로직 실행 중 오류 발생: ${e.message}")
+        }
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
@@ -827,11 +884,12 @@ class RouteScheduleFragment : Fragment() {
     }
 
     // 데이터 동적 바인딩
+    @SuppressLint("SetTextI18n")
     private fun updateRouteInfo(startName: String, endName: String, route: RouteResponse?) {
         binding.routeBriefLl.removeAllViews()
         binding.routeVehicleLl.removeAllViews()
 
-        if (route != null && !route.routeDetails.isNullOrEmpty()) {
+        if (route != null && route.routeDetails.isNotEmpty()) {
             // 1. 전체 경로의 첫 번째 상세 정보에서 출발지 좌표 추출
             val firstStep = route.routeDetails.first()
             this.lastStartName = startName
@@ -846,7 +904,7 @@ class RouteScheduleFragment : Fragment() {
 
             // 경로 출발, 도착지 추가
             binding.routeIv.setColorFilter(R.color.black)
-            binding.routeTv.text = startName + " -> " + endName
+            binding.routeTv.text = "$startName -> $endName"
             binding.routeTv.setTextColor(requireContext().getColor(R.color.text_primary))
             // 일직선 경로 추가
             binding.routeInfoCl.visibility = View.VISIBLE
