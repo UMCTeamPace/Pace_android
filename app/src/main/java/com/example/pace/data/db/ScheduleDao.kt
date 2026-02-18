@@ -67,4 +67,6 @@ interface ScheduleDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSingle(schedule: Schedule)
 
+    @Query("UPDATE schedules SET is_pinned = :pinnedStatus WHERE id = :scheduleId")
+    suspend fun updatePinStatus(scheduleId: Long, pinnedStatus: Boolean)
 }

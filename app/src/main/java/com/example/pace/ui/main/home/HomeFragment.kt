@@ -42,6 +42,8 @@ class HomeFragment: Fragment() {
     private lateinit var selectedDate: LocalDate
     private var scheduleMap: Map<LocalDate, List<Schedule>> = emptyMap()
 
+
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -64,8 +66,12 @@ class HomeFragment: Fragment() {
 
     private fun setupRecyclerView() {
         scheduleAdapter = ScheduleRVAdapter(mutableListOf(), requireContext()){ schedule ->
-            val updatedSchedule = schedule.copy(isPinned = !schedule.isPinned)
-            viewModel.updateSchedule(updatedSchedule)
+            // 서버 API를 호출하는 viewModel.updateSchedule 대신
+            // 로컬 데이터만 가공하는 함수를 호출하세요.
+            Log.d("PinClick", "클릭된 일정: ${schedule.title}, 현재 핀 상태: ${schedule.isPinned}")
+
+            viewModel.togglePinLocally(selectedDate, schedule.id)
+            Log.d("PinClick", "클릭된 일정: ${schedule.title}, 나중 핀 상태: ${schedule.isPinned}")
         }
         scheduleTouchHelper = ScheduleTouchHelper(scheduleAdapter)
         val itemTouchHelper = ItemTouchHelper(scheduleTouchHelper)
@@ -211,10 +217,24 @@ class HomeFragment: Fragment() {
     private fun setupObservers() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                // [수정] 가공된 scheduleMap을 관찰합니다.
-                viewModel.scheduleMap.collect { map ->
-                    scheduleMap = map
-                    filterAndDisplaySchedules()
+                // 1. 일정 데이터 관찰
+                launch {
+                    viewModel.scheduleMap.collect { map ->
+                        scheduleMap = map
+                        // 경로 일정이 보이면 API 호출 트리거
+                        map[selectedDate]?.filter { it.type == "ROUTE" }?.forEach {
+                            viewModel.fetchRouteDetail(it.id)
+                        }
+                        filterAndDisplaySchedules()
+                    }
+                }
+
+                // 2. 경로 상세 데이터(API 결과) 관찰
+                launch {
+                    viewModel.routeDetails.collect { _ ->
+                        // 상세 데이터가 들어오면 리스트 다시 그리기
+                        filterAndDisplaySchedules()
+                    }
                 }
             }
         }
@@ -223,6 +243,15 @@ class HomeFragment: Fragment() {
     private fun filterAndDisplaySchedules() {
         // [수정] 복잡한 문자열 포맷팅과 filter 루프 없이 Map에서 즉시 가져옵니다.
         val filteredList = scheduleMap[selectedDate] ?: emptyList()
+
+        filteredList.forEach { schedule ->
+            if (schedule.type == "ROUTE") {
+                viewModel.fetchRouteDetail(schedule.id)
+            }
+        }
+
+        val routeSchedules = filteredList.filter { it.type == "ROUTE" }
+
 
         // 정렬 로직 추가 (필요 시: 고정 -> 시간순)
         val sortedList = filteredList.sortedWith(
@@ -233,7 +262,7 @@ class HomeFragment: Fragment() {
             )
         )
 
-        scheduleAdapter.updateData(sortedList)
+        scheduleAdapter.updateData(sortedList, viewModel.routeDetails.value)
 
         // UI 처리
         if(sortedList.isEmpty()){
@@ -244,4 +273,5 @@ class HomeFragment: Fragment() {
             binding.homeScheduleRv.visibility = View.VISIBLE
         }
     }
+
 }

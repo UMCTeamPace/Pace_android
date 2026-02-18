@@ -100,6 +100,15 @@ class ScheduleViewModel @Inject constructor(
     private val _updateScheduleEvent = MutableStateFlow<Boolean?>(null)
     val updateScheduleEvent: StateFlow<Boolean?> = _updateScheduleEvent
 
+    private val _routeDetails = MutableStateFlow<Map<Long, RouteInfo>>(emptyMap())
+
+    // 2. Fragment에서 관찰할 Public StateFlow
+    val routeDetails: StateFlow<Map<Long, RouteInfo>> = _routeDetails
+
+    // 뷰모델 내부
+    private val _scheduleMap = MutableStateFlow<Map<LocalDate, List<Schedule>>>(emptyMap())
+    val scheduleMapLocal: StateFlow<Map<LocalDate, List<Schedule>>> = _scheduleMap
+
     fun setEditMode(enabled: Boolean) {
         _isEditMode.value = enabled
         if (!enabled) _selectedIds.value = emptySet() // 편집 모드 종료 시 선택 초기화
@@ -823,6 +832,60 @@ class ScheduleViewModel @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e("WorkManager", "❌ 예약 실패: ${e.message}")
+        }
+    }
+    fun fetchRouteDetail(scheduleId: Long) {
+        if (_routeDetails.value.containsKey(scheduleId)) return
+
+        viewModelScope.launch {
+            try {
+                // 1. 저장된 액세스 토큰 가져오기 (예시: tokenRepository 또는 SharedPreferences)
+                val accessToken = authDataStore.getAccessToken()
+
+                if (accessToken != null) {
+                    // 2. Repository 호출
+                    val response = repository.getScheduleDetail(accessToken, scheduleId)
+
+                    // 3. 응답 성공 및 데이터 확인
+                    if (response.isSuccess && response.result != null) {
+                        // 서버 응답 바디의 result 안에 route가 있는지 확인
+                        val routeData = response.result.route
+                        if (routeData != null) {
+                            _routeDetails.value = _routeDetails.value + (scheduleId to routeData)
+                        }
+                    }
+                } else {
+                    Log.e("ScheduleViewModel", "AccessToken이 없습니다.")
+                }
+            } catch (e: Exception) {
+                Log.e("ScheduleViewModel", "Route detail fetch failed: ${e.message}")
+            }
+        }
+    }
+
+    fun togglePinLocally(date: LocalDate, scheduleId: Long) {
+        viewModelScope.launch {
+            // 1. 현재 메모리에 있는 리스트에서 해당 스케줄 찾기
+            val currentSchedules = scheduleMap.value[date] ?: return@launch
+            val targetSchedule = currentSchedules.find { it.id == scheduleId } ?: return@launch
+
+            // 2. 새로운 핀 상태 결정
+            val newPinStatus = !targetSchedule.isPinned
+
+            // 3. DB 업데이트 (컬럼 하나만 수정하므로 리마인더 안전!)
+            repository.updatePinStatus(scheduleId, newPinStatus)
+
+            // 4. UI 반영을 위해 StateFlow 업데이트
+            val updatedMap = scheduleMap.value.toMutableMap()
+            val updatedList = currentSchedules.map {
+                if (it.id == scheduleId) it.copy(isPinned = newPinStatus) else it
+            }
+            updatedMap[date] = updatedList
+
+            // _scheduleMap 또는 scheduleMap (Mutable 인 것)에 대입
+            _scheduleMap.value = updatedMap
+
+            Log.d("PinUpdate", "DB 업데이트 완료: ${targetSchedule.title} -> $newPinStatus")
         }
     }
 
