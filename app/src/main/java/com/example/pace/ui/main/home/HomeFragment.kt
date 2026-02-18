@@ -1,6 +1,8 @@
 package com.example.pace.ui.main.home
 
+import android.content.Context.MODE_PRIVATE
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.util.DisplayMetrics
 import android.util.Log
@@ -34,7 +36,10 @@ class HomeFragment: Fragment() {
     private val viewModel: ScheduleViewModel by activityViewModels()
     private lateinit var scheduleAdapter: ScheduleRVAdapter
     private lateinit var scheduleTouchHelper: ScheduleTouchHelper
-    private var selectedDate: LocalDate = LocalDate.now()
+
+    // 선택한 날짜 저장 및 불러오기
+    private lateinit var spf: SharedPreferences
+    private lateinit var selectedDate: LocalDate
     private var scheduleMap: Map<LocalDate, List<Schedule>> = emptyMap()
 
     override fun onCreateView(
@@ -43,6 +48,8 @@ class HomeFragment: Fragment() {
         savedInstanceState: Bundle?
     ): View? {
         binding = FragmentHomeBinding.inflate(inflater, container, false)
+        spf = requireContext().getSharedPreferences("HOME_CALENDAR", MODE_PRIVATE)
+        selectedDate = LocalDate.parse(spf.getString("SELECTED_DATE", LocalDate.now().toString()))
 
         setupRecyclerView()
         setupCalendar()
@@ -120,23 +127,25 @@ class HomeFragment: Fragment() {
 
     private fun setupCalendar() {
         val calendarSize = 1000000
-        val today: LocalDate = LocalDate.now()
+        val date: LocalDate = selectedDate
         val layoutManager = binding.homeHorizontalCalendarRv.layoutManager as LinearLayoutManager
-        val todayPos = calendarSize / 2
-        var calendarText = today.year.toString() + "년 " + today.monthValue.toString() + "월"
+        val datePos = calendarSize / 2
+        var calendarText = date.year.toString() + "년 " + date.monthValue.toString() + "월"
 
-        val horizontalCalendarAdapter = HorizontalCalendarRVAdapter(today)
+        val horizontalCalendarAdapter = HorizontalCalendarRVAdapter(date)
         binding.homeHorizontalCalendarRv.adapter = horizontalCalendarAdapter
 
         val snapHelper = LinearSnapHelper()
         snapHelper.attachToRecyclerView(binding.homeHorizontalCalendarRv)
 
+        // 스크롤바 움직이는 애니메이션 해제
+        binding.homeHorizontalCalendarRv.itemAnimator = null
         binding.homeHorizontalCalendarRv.post{
             val screenWidth = binding.homeHorizontalCalendarRv.width
             val itemWidth = screenWidth / 7
             val offset = (screenWidth / 2) - (itemWidth / 2)
-            layoutManager.scrollToPositionWithOffset(todayPos, offset)
-            horizontalCalendarAdapter.changeSelectedDate(todayPos)
+            layoutManager.scrollToPositionWithOffset(datePos, offset)
+            horizontalCalendarAdapter.changeSelectedDate(datePos)
         }
 
         binding.homeHorizontalCalendarTv.text = calendarText
@@ -149,7 +158,7 @@ class HomeFragment: Fragment() {
                         return screenCenter - itemCenter
                     }
                     override fun calculateSpeedPerPixel(displayMetrics: DisplayMetrics): Float {
-                        return 150f/displayMetrics.densityDpi
+                        return 175f/displayMetrics.densityDpi
                     }
                 }
                 smoothScroller.targetPosition = position
@@ -157,13 +166,14 @@ class HomeFragment: Fragment() {
                 horizontalCalendarAdapter.changeSelectedDate(position)
 
                 // 날짜가 클릭으로 변경되었을 때도 필터링
-                val centerDate = if(position > todayPos){
-                    today.plusDays((position - todayPos).toLong())
+                val centerDate = if(position > datePos){
+                    date.plusDays((position - datePos).toLong())
                 } else{
-                    val diff = (todayPos - position).toLong()
-                    today.minusDays(diff)
+                    val diff = (datePos - position).toLong()
+                    date.minusDays(diff)
                 }
                 selectedDate = centerDate
+                spf.edit().putString("SELECTED_DATE", selectedDate.toString()).apply()
                 filterAndDisplaySchedules()
             }
         })
@@ -179,17 +189,18 @@ class HomeFragment: Fragment() {
                     if (centerView != null) {
                         val position = recyclerView.getChildAdapterPosition(centerView)
                         horizontalCalendarAdapter.changeSelectedDate(position)
-                        val centerDate = if(position > todayPos){
-                            today.plusDays((position - todayPos).toLong())
+                        val centerDate = if(position > datePos){
+                            date.plusDays((position - datePos).toLong())
                         } else{
-                            val diff = (todayPos - position).toLong()
-                            today.minusDays(diff)
+                            val diff = (datePos - position).toLong()
+                            date.minusDays(diff)
                         }
 
                         calendarText = centerDate.year.toString() + "년 " + centerDate.monthValue.toString() + "월"
                         binding.homeHorizontalCalendarTv.text = calendarText
                         
                         selectedDate = centerDate
+                        spf.edit().putString("SELECTED_DATE", selectedDate.toString()).apply()
                         filterAndDisplaySchedules()
                     }
                 }
