@@ -13,7 +13,9 @@ class SignoutDialog(context: Context) : Dialog(context) {
 
     // 프래그먼트에서 '로그아웃' 버튼 클릭 시 실행할 동작을 넘겨받는 함수
     fun setOnOkClickListener(listener: () -> Unit) {
+        //android.widget.Toast.makeText(context, "버튼 클릭됨!", android.widget.Toast.LENGTH_SHORT).show()
         this.okClick = listener
+        //dismiss()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,7 +45,7 @@ class SignoutDialog(context: Context) : Dialog(context) {
         window?.apply {
             val params = attributes
             params.width = (300 * context.resources.displayMetrics.density).toInt()
-            params.height = (156 * context.resources.displayMetrics.density).toInt()
+            //params.height = (156 * context.resources.displayMetrics.density).toInt()
             attributes = params
         }
     }

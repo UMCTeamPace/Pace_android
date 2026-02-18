@@ -341,18 +341,37 @@ class ScheduleRepositoryImpl @Inject constructor(
     ) = safeApiCall {
         val defaultColorInt = android.graphics.Color.parseColor("#DC354B")
         val finalColor = selectedColor ?: defaultColorInt
-        Log.d("SAVE_FLOW", "route 데이터 존재 여부: ${request.route != null}")
+
+        // 💡 공통: 0 방어 및 캘린더 정보 즉석 쿼리 (함수 사용 안함)
+        val targetId = if ((calendarId ?: 0L) <= 0L) 1L else calendarId!!
+        var dName = "내 일정"
+        var aName = "Pace"
+
+        context.contentResolver.query(
+            CalendarContract.Calendars.CONTENT_URI,
+            arrayOf(
+                CalendarContract.Calendars.CALENDAR_DISPLAY_NAME,
+                CalendarContract.Calendars.ACCOUNT_NAME
+            ),
+            "${CalendarContract.Calendars._ID} = ?",
+            arrayOf(targetId.toString()),
+            null
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                dName = cursor.getString(0) ?: dName
+                aName = cursor.getString(1) ?: aName
+            }
+        }
+
         if (request.route == null) {
-            // 2. 시스템 캘린더에 저장
+            // --- [CASE 1] 일반 일정: 시스템 캘린더 및 로컬 DB 저장 ---
             val systemId = normalDataSource.insertToCalendarProvider(
                 request = request,
-                selectedCalendarId = calendarId,
+                selectedCalendarId = targetId, // 0 대신 보정된 ID 사용
                 selectedColor = finalColor
             )
-            if (systemId != -1L) {
-                val generatedRRule = buildRRuleFromRequest(request.repeatInfo)
 
-                // 4. 로컬 DB(Room)에 저장할 객체 생성
+            if (systemId != -1L) {
                 val localSchedule = Schedule(
                     id = systemId,
                     title = request.title,
@@ -364,9 +383,12 @@ class ScheduleRepositoryImpl @Inject constructor(
                     memo = request.memo,
                     location = request.place?.targetName,
                     placeJson = if (placeId != null) "{\"placeId\":\"$placeId\"}" else null,
-                    calendarId = calendarId ?: 1L,
-                    calendarDisplayName = "내 일정",
-                    calendarAccountName = "Pace",
+
+                    // 💡 동적으로 가져온 정보 적용
+                    calendarId = targetId,
+                    calendarDisplayName = dName,
+                    calendarAccountName = aName,
+
                     reminders = request.reminders.map { it.minutesBefore },
                     withRoute = (placeId != null),
                     isCompleted = false,
@@ -378,30 +400,111 @@ class ScheduleRepositoryImpl @Inject constructor(
                     sourceType = "SYSTEM",
                     serverId = null,
                     routeId = null,
-                    repeatRule = generatedRRule,
+                    repeatRule = buildRRuleFromRequest(request.repeatInfo),
                     exDate = null
                 )
                 scheduleDao.insertAll(listOf(localSchedule))
-                RawDefaultResponse(isSuccess = true, code = "COMMON200", message = "로컬 일정 저장 성공", result = null)
+
+                RawDefaultResponse(
+                    isSuccess = true,
+                    code = "COMMON200",
+                    message = "로컬 일정 저장 성공",
+                    result = null
+                )
             } else {
-                RawDefaultResponse(isSuccess = false, code = "LOCAL_ERROR", message = "저장 실패", result = null)
+                RawDefaultResponse(
+                    isSuccess = false,
+                    code = "LOCAL_ERROR",
+                    message = "저장 실패",
+                    result = null
+                )
             }
         } else {
+            // --- [CASE 2] 경로 일정: 서버 API 호출 ---
             val token = accessToken ?: ""
-            val response = api.createSchedule(token, request)
+            val response =
+                api.createSchedule(token, request.copy(calendarId = calendarId?.toString()))
+
             if (response.isSuccess && response.result != null) {
                 val serverResult = response.result
-                val newSchedule = serverResult.toEntity("#DC354B").copy(
-                    location = request.place?.targetName,
+                val info = serverResult.scheduleInfo // 💡 서버가 준 핵심 정보
+
+                // 1. 서버가 준 캘린더 ID를 최우선으로 가져옴 (DTO가 String이므로 변환)
+                val serverCalendarId = info.calendarId?.toLongOrNull() ?: calendarId ?: 1L
+
+                // 2. 해당 ID로 시스템 캘린더 정보 즉시 조회 (동적 이름 취득)
+                var dName = "내 일정"
+                var aName = "Pace"
+                context.contentResolver.query(
+                    CalendarContract.Calendars.CONTENT_URI,
+                    arrayOf(
+                        CalendarContract.Calendars.CALENDAR_DISPLAY_NAME,
+                        CalendarContract.Calendars.ACCOUNT_NAME
+                    ),
+                    "${CalendarContract.Calendars._ID} = ?",
+                    arrayOf(serverCalendarId.toString()),
+                    null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        dName = cursor.getString(0) ?: dName
+                        aName = cursor.getString(1) ?: aName
+                    }
+                }
+
+                // 3. 룸 DB용 엔티티 직접 생성 (toEntity를 쓰지 않고 여기서 다 채움)
+                val colorHex = info.color ?: "#DC354B"
+                val colorInt = try {
+                    Color.parseColor(colorHex)
+                } catch (e: Exception) {
+                    finalColor
+                }
+
+                val scheduleToSave = Schedule(
+                    id = serverResult.scheduleId, // 서버 ID를 Primary Key로 사용
+                    title = info.title,
+                    startDate = info.startDate,
+                    endDate = info.endDate,
+                    startTime = info.startTime?.take(5) ?: "00:00",
+                    endTime = info.endTime?.take(5) ?: "23:59",
+                    isAllDay = info.isAllDay,
+                    memo = info.memo,
+                    location = serverResult.place?.targetName ?: request.place?.targetName,
                     placeJson = if (placeId != null) "{\"placeId\":\"$placeId\"}" else null,
-                    calendarId = calendarId ?: 1L
+
+                    // 💡 서버에서 받은 값들을 1:1로 정확히 매핑
+                    calendarId = serverCalendarId,
+                    calendarDisplayName = dName,
+                    calendarAccountName = aName,
+
+                    eventColor = colorInt,
+                    calendarColor = colorInt,
+                    withRoute = true,
+                    type = "ROUTE",
+                    sourceType = "SERVER",
+                    serverId = serverResult.scheduleId,
+                    isCompleted = false,
+                    isPinned = false,
+                    isSwiped = false,
+                    repeatRule = null,
+                    exDate = null
                 )
-                scheduleDao.insertAll(listOf(newSchedule))
+
+                // 4. 로컬 DB에 삽입
+                scheduleDao.insertAll(listOf(scheduleToSave))
+
+                Log.d(
+                    "SAVE_FLOW", """
+                [서버 응답 기반 로컬 저장 완료]
+                일정ID: ${scheduleToSave.id}
+                서버가 준 캘린더ID: ${info.calendarId}
+                실제 저장된 캘린더ID: ${scheduleToSave.calendarId}
+                계정명: ${scheduleToSave.calendarAccountName}
+            """.trimIndent()
+                )
             }
             response
         }
     }
-
     override fun getCalendarName(calendarId: Long): String? {
         val projection = arrayOf(CalendarContract.Calendars.CALENDAR_DISPLAY_NAME)
         val uri = CalendarContract.Calendars.CONTENT_URI
@@ -625,23 +728,48 @@ class ScheduleRepositoryImpl @Inject constructor(
     }
 
     // 변환 확장 함수들
-    private fun CreateScheduleResponse.toEntity(selectedColorStr: String): Schedule {
-        val colorInt = try { Color.parseColor(selectedColorStr) } catch (e: Exception) { Color.RED }
+    private fun CreateScheduleResponse.toEntity(selectedColorStr: String, fallbackCalendarId: Long?): Schedule {
+        val info = this.scheduleInfo
+        val finalColorHex = info.color ?: selectedColorStr
+        val colorInt = try { android.graphics.Color.parseColor(finalColorHex) } catch (e: Exception) { android.graphics.Color.RED }
+
+        // 1. [중요] 0L 방어 및 캘린더 ID 확정
+        val finalId = info.calendarId?.toLongOrNull() ?: fallbackCalendarId ?: 1L
+
+        // 2. 시스템 캘린더 정보 즉석 쿼리
+        var dName = "내 일정"
+        var aName = "Pace"
+        context.contentResolver.query(
+            CalendarContract.Calendars.CONTENT_URI,
+            arrayOf(CalendarContract.Calendars.CALENDAR_DISPLAY_NAME, CalendarContract.Calendars.ACCOUNT_NAME),
+            "${CalendarContract.Calendars._ID} = ?",
+            arrayOf(finalId.toString()),
+            null
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                dName = cursor.getString(0) ?: dName
+                aName = cursor.getString(1) ?: aName
+            }
+        }
+
         return Schedule(
             id = this.scheduleId,
-            title = this.scheduleInfo.title,
-            startDate = this.scheduleInfo.startDate,
-            endDate = this.scheduleInfo.endDate,
-            startTime = this.scheduleInfo.startTime ?: "00:00",
-            endTime = this.scheduleInfo.endTime ?: "00:00",
-            isAllDay = this.scheduleInfo.isAllDay,
-            memo = this.scheduleInfo.memo,
+            title = info.title,
+            startDate = info.startDate,
+            endDate = info.endDate,
+            startTime = info.startTime?.take(5) ?: "00:00",
+            endTime = info.endTime?.take(5) ?: "23:59",
+            isAllDay = info.isAllDay,
+            memo = info.memo,
             location = this.place?.targetName,
-            calendarId = 0L,
-            calendarDisplayName = "내 일정",
-            calendarAccountName = "Pace",
-            withRoute = (this.route != null),
-            type = if (this.route != null) "ROUTE" else "NORMAL",
+
+            // 💡 3. 하드코딩 대신 동적으로 가져온 값 저장
+            calendarId = finalId,
+            calendarDisplayName = dName,
+            calendarAccountName = aName,
+
+            withRoute = true,
+            type = "ROUTE",
             eventColor = colorInt,
             calendarColor = colorInt,
             isCompleted = false,
@@ -655,34 +783,44 @@ class ScheduleRepositoryImpl @Inject constructor(
     }
 
     private fun ScheduleItem.toScheduleEntity(): Schedule {
-        val colorInt = Color.parseColor("#DC354B")
+        val colorHex = this.scheduleInfo.color ?: "#DC354B"
+        val colorInt = try {
+            android.graphics.Color.parseColor(colorHex)
+        } catch (e: Exception) {
+            android.graphics.Color.parseColor("#DC354B")
+        }
+        val serverCalendarId = this.scheduleInfo.calendarId?.toLongOrNull() ?: 1L
 
-        // 💡 가장 중요한 로직: 서버 플래그가 true이거나, 실제 route 데이터가 존재하면 경로 일정임!
+        // 3. 타입 판별 (경로 포함 여부)
         val isRouteType = (this.scheduleInfo.isPathIncluded == true) || (this.route != null)
         return Schedule(
             id = this.scheduleId,
             title = this.scheduleInfo.title,
             startDate = this.scheduleInfo.startDate,
             endDate = this.scheduleInfo.endDate,
-            startTime = this.scheduleInfo.startTime?.substring(0, 5) ?: "00:00",
-            endTime = this.scheduleInfo.endTime?.substring(0, 5) ?: "23:59",
+            startTime = this.scheduleInfo.startTime?.take(5) ?: "00:00",
+            endTime = this.scheduleInfo.endTime?.take(5) ?: "23:59",
             isAllDay = this.scheduleInfo.isAllDay,
             memo = this.scheduleInfo.memo,
             location = this.place?.targetName,
-            calendarId = 0L,
-            calendarDisplayName = "내 일정",
+
+            // 💡 서버 데이터 반영
+            calendarId = serverCalendarId,
+            eventColor = colorInt,       // 서버에서 온 색상
+            calendarColor = colorInt,    // 서버에서 온 색상
+
+            calendarDisplayName = "내 일정", // 필요 시 위에서 배운 쿼리 로직 추가
             calendarAccountName = "Pace",
+
             withRoute = isRouteType,
             type = if (isRouteType) "ROUTE" else "NORMAL",
-            eventColor = colorInt,
-            calendarColor = colorInt,
             isCompleted = false,
             isPinned = false,
             isSwiped = false,
             sourceType = "SERVER",
+            serverId = this.scheduleId,
             repeatRule = null,
-            exDate = null,
-            serverId = this.scheduleId
+            exDate = null
         )
     }
 
@@ -932,7 +1070,10 @@ class ScheduleRepositoryImpl @Inject constructor(
     ): RawDefaultResponse<CreateScheduleResponse> = safeApiCall {
         // 1. 색상 변환
         val colorHex = String.format("#%06X", (0xFFFFFF and selectedColor))
-        val finalRequest = request.copy(color = colorHex)
+        val finalRequest = request.copy(
+            color = colorHex,
+            calendarId = calendarId?.toString() // 💡 요청 시에도 캘린더 ID 반영
+        )
 
         // 2. 서비스 호출 (Service에 선언된 이름 확인: updateRouteSchedule)
         val response = api.updateRouteSchedule(
@@ -945,8 +1086,10 @@ class ScheduleRepositoryImpl @Inject constructor(
         // 3. 성공 시 로컬 DB 업데이트 로직 (기존 구현 유지)
         if (response.isSuccess && response.result != null) {
             val serverResult = response.result
-            val updatedEntity = serverResult.toEntity(colorHex).copy(
-                calendarId = calendarId ?: 1L
+            val updatedEntity = serverResult.toEntity(colorHex, calendarId).copy(
+                // 추가로 보정할 값이 있다면 여기서 처리 (예: serverId 등)
+                serverId = serverResult.scheduleId,
+                type = "ROUTE"
             )
             scheduleDao.insertAll(listOf(updatedEntity))
             refreshSchedules()
@@ -1005,4 +1148,89 @@ class ScheduleRepositoryImpl @Inject constructor(
             RawDefaultResponse(false, "CLIENT_ERROR", e.message ?: "오류 발생", null)
         }
     }
+    override suspend fun convertRouteToNormalLocal(scheduleId: Long): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                // 1. 기존 일정 정보 조회 (Room DB)
+                val oldSchedule = scheduleDao.getScheduleById(scheduleId) ?: return@withContext false
+                if (oldSchedule.type != "ROUTE") return@withContext true // 이미 일반 일정이면 성공으로 간주
+
+                Log.d("CONVERT_DEBUG", "원본 일정: ${oldSchedule.title}, 날짜: ${oldSchedule.startDate}, 시간: ${oldSchedule.startTime}")
+
+                // 2. 서버에서 경로 일정 삭제 (기존 API 호출)
+                val deleteResult = deleteRouteSchedule(scheduleId)
+
+                if (deleteResult.isSuccess) {
+                    // 3. placeJson 파싱 및 PlaceRequest 생성
+                    val gson = Gson()
+                    val placeRequest = try {
+                        val routeData = gson.fromJson(oldSchedule.placeJson, RouteRequest::class.java)
+                        PlaceRequest(
+                            targetName = routeData?.destName ?: oldSchedule.location ?: "목적지",
+                            targetLat = routeData?.destLat ?: 0.0,
+                            targetLng = routeData?.destLng ?: 0.0
+                        )
+                    } catch (e: Exception) {
+                        PlaceRequest(
+                            targetName = oldSchedule.location ?: "목적지",
+                            targetLat = 0.0,
+                            targetLng = 0.0
+                        )
+                    }
+
+                    // 4. 리마인더 필터링 (EVENT 타입만)
+                    val eventReminders = oldSchedule.reminders.map { minutes ->
+                        ReminderRequest(reminderType = "EVENT", minutesBefore = minutes)
+                    }
+
+                    // 5. 일반 일정용 CreateScheduleRequest 생성
+                    val request = CreateScheduleRequest(
+                        title = oldSchedule.title ?: "제목 없음",
+                        isAllDay = oldSchedule.isAllDay,
+                        startDate = oldSchedule.startDate,
+                        endDate = oldSchedule.endDate,
+                        startTime = oldSchedule.startTime,
+                        endTime = oldSchedule.endTime,
+                        memo = oldSchedule.memo,
+                        isPathIncluded = true,
+                        isRepeat = oldSchedule.repeatRule != null,
+                        repeatInfo = null,
+                        place = placeRequest,
+                        reminders = eventReminders,
+                        route = null, // 로컬 저장 유도 핵심
+                        calendarId = oldSchedule.calendarId.toString(),
+                        color = String.format("#%06X", (0xFFFFFF and (oldSchedule.eventColor ?: 0)))
+                    )
+
+                    Log.d("CONVERT_DEBUG", """
+                    [저장 요청 데이터]
+                    제목: ${request.title}
+                    시작일: ${request.startDate}
+                    시작시간: ${request.startTime}
+                    캘린더ID: ${oldSchedule.calendarId}
+                    타입변경확인: route is null? ${request.route == null}
+                """.trimIndent())
+
+                    // 6. createSchedule 호출 (accessToken=null 전달로 로컬/시스템 저장 수행)
+                    val response = createSchedule(
+                        accessToken = null,
+                        request = request,
+                        calendarId = oldSchedule.calendarId,
+                        selectedColor = oldSchedule.eventColor
+                    )
+
+                    Log.d("CONVERT_DEBUG", "최종 생성 결과: ${response.isSuccess}, 메시지: ${response.message}")
+
+                    response.isSuccess
+                } else {
+                    Log.e("CONVERT_DEBUG", "서버 삭제 실패로 전환 중단")
+                    false
+                }
+            } catch (e: Exception) {
+                Log.e("RepoImpl", "전환 중 오류 발생: ${e.message}")
+                false
+            }
+        }
+    }
+
 }

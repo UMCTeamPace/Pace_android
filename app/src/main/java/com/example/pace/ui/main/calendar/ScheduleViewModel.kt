@@ -1,5 +1,6 @@
 package com.example.pace.ui.main.calendar
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -11,6 +12,7 @@ import com.example.pace.data.model.request.CreateScheduleRequest
 import com.example.pace.data.model.request.PlaceRequest
 import com.example.pace.data.model.request.ReminderRequest
 import com.example.pace.data.model.request.RepeatInfo
+import com.example.pace.data.model.request.RouteRequest
 import com.example.pace.data.model.request.UpdateScheduleEditRouteRequest
 import com.example.pace.data.model.request.UpdateScheduleRequest
 import com.example.pace.data.model.request.UpdateScheduleRouteRequest
@@ -33,6 +35,8 @@ import kotlinx.coroutines.flow.flowOn // 추가
 import kotlinx.coroutines.withContext
 import com.example.pace.data.repository.repository.SettingsRepository
 import com.google.gson.Gson
+import dagger.hilt.android.internal.Contexts.getApplication
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.firstOrNull
 
 import javax.inject.Inject
@@ -43,7 +47,8 @@ import kotlinx.coroutines.flow.firstOrNull // searchSchedules에서 필요
 class ScheduleViewModel @Inject constructor(
     private val repository: ScheduleRepository,
     private val authDataStore: AuthDataStore,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
@@ -308,12 +313,17 @@ class ScheduleViewModel @Inject constructor(
             }
         }
     }
-    // Helper 함수: Schedule 엔티티를 Request DTO로 변환
+
+
     private fun mapScheduleToRequest(schedule: Schedule): CreateScheduleRequest {
-        // 기존에 fragment에서 하던 파싱 로직을 여기로 옮겨오면 좋습니다.
         val placeRequest = schedule.placeJson?.let {
             Gson().fromJson(it, PlaceRequest::class.java)
         }
+
+        // 💡 Int 색상을 Hex String으로 변환
+        val colorHex = schedule.eventColor?.let {
+            String.format("#%06X", (0xFFFFFF and it))
+        } ?: "#DC354B"
 
         return CreateScheduleRequest(
             title = schedule.title ?: "",
@@ -325,10 +335,12 @@ class ScheduleViewModel @Inject constructor(
             memo = schedule.memo,
             isPathIncluded = schedule.withRoute,
             isRepeat = (schedule.repeatRule != null),
-            repeatInfo = null, // 필요 시 parseRepeatRule 활용
-            place = null,
-            reminders = emptyList(), // 필요 시 매핑
-            route = null // 수정 시 경로 데이터 유지 로직 필요 시 추가
+            repeatInfo = null,
+            place = placeRequest, // 💡 기존 null에서 placeRequest로 수정
+            reminders = emptyList(),
+            route = null,
+            calendarId = schedule.calendarId.toString(), // 💡 명세에 맞춰 String 추가
+            color = colorHex                            // 💡 색상 추가
         )
     }
     fun updateRouteSchedule(
@@ -389,27 +401,34 @@ class ScheduleViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             try {
-                // 1. 토큰 준비
                 val token = authDataStore.getAccessToken() ?: ""
                 val fullToken = if (token.isNotEmpty() && !token.startsWith("Bearer ")) "Bearer $token" else token
 
-                // 2. Repository 호출 (이제 Result가 아닌 RawDefaultResponse를 반환함)
+                // 1. Repository가 서버 응답값을 받아 로컬 DB에 저장할 때까지 대기
                 val response = repository.createSchedule(
                     accessToken = if (token.isEmpty()) null else fullToken,
                     request = request,
                     placeId = placeId,
                     calendarId = calendarId,
-                    selectedColor = selectedColor // 인자 전달
+                    selectedColor = selectedColor
                 )
 
-                // 3. 결과 처리 (response.isSuccess 직접 확인)
                 if (response.isSuccess) {
+                    // 워커에 등록
+                    val serverId = response.result?.scheduleId
+                    val arrival = request.route?.arrivalTime
+                    if (serverId != null && arrival != null) {
+                        scheduleFinalizeWorker(serverId, request.startDate, arrival)
+                    }
+
+                    // 2. [수정] Dispatchers.IO에서 확실히 처리가 끝난 후 UI를 갱신하도록 보장
                     withContext(Dispatchers.IO) {
+                        // 여기서 repository.refreshSchedules()가 서버 리스트를 다시 긁어오면서
+                        // 방금 저장한 초록색 일정을 덮어쓰지 않는지 확인이 필요합니다.
                         repository.refreshSchedules()
                     }
                     _createScheduleEvent.value = true
                 } else {
-                    Log.e("ScheduleViewModel", "저장 실패: ${response.message}")
                     _createScheduleEvent.value = false
                 }
             } catch (e: Exception) {
@@ -428,11 +447,11 @@ class ScheduleViewModel @Inject constructor(
         endDate: String,
         endTime: String?,
         place: PlaceRequest?,
-        repeatInfo: RepeatInfo? = null, // UI에서 넘어온 반복 정보
+        repeatInfo: RepeatInfo? = null,
         placeId: String? = null,
         customAlarms: List<Int>? = null,
-        calendarId: Long? = null,
-        selectedColor: Int
+        calendarId: Long? = null, // 💡 UI에서 관리하는 Long 타입 ID
+        selectedColor: Int        // 💡 UI에서 선택된 Int 타입 색상
     ) {
         val settings = userSettings.value
         val reminders = mutableListOf<ReminderRequest>()
@@ -443,26 +462,29 @@ class ScheduleViewModel @Inject constructor(
             reminders.add(ReminderRequest(reminderType = "SCHEDULE", minutesBefore = minutes))
         }
 
-        // 2. [보강] 반복 여부 판단 로직 고도화
-        // "안함"을 선택했거나 repeatType이 NONE인 경우 null로 처리하여 에러 방지
+        // 2. 반복 정보 처리
         val finalRepeatInfo = if (repeatInfo?.repeatType?.uppercase() == "NONE") {
             null
         } else {
             repeatInfo
         }
-        // 2. [수정된 로직] 종료 날짜 결정 및 타입 확정
-        // null이 될 수 없는 String으로 변환합니다.
+
+        // 3. 종료 날짜 결정
         val finalEndDate: String = when {
             !endDate.isNullOrBlank() && !endDate.startsWith("1970") -> endDate
             finalRepeatInfo != null && !finalRepeatInfo.repeatEndDate.isNullOrBlank() -> finalRepeatInfo.repeatEndDate!!
-            else -> startDate // startDate는 이미 파라미터에서 String이므로 안전함
+            else -> startDate
         }
 
+        // 💡 Int 색상을 서버가 원하는 Hex String(예: #FF0000)으로 변환
+        val colorHex = String.format("#%06X", (0xFFFFFF and selectedColor))
+
+        // 4. [수정] Request 객체 생성 (calendarId와 color 필드 추가)
         val request = CreateScheduleRequest(
             title = title,
             isAllDay = isAllDay,
             startDate = startDate,
-            endDate = finalEndDate, // 💡 이제 String 타입이 일치하여 에러가 사라집니다.
+            endDate = finalEndDate,
             startTime = startTime,
             endTime = endTime,
             memo = memo,
@@ -471,10 +493,35 @@ class ScheduleViewModel @Inject constructor(
             repeatInfo = finalRepeatInfo,
             place = place,
             reminders = reminders,
-            route = null
+            route = null,
+            calendarId = calendarId?.toString(), // 💡 명세에 맞춰 String으로 변환하여 추가
+            color = colorHex                     // 💡 Hex String으로 변환하여 추가
         )
 
-        createSchedule(request, placeId, calendarId, selectedColor)
+        // 5. Repository 호출
+        viewModelScope.launch {
+            try {
+                val token = authDataStore.getAccessToken() ?: ""
+                val fullToken = if (token.isNotEmpty() && !token.startsWith("Bearer ")) "Bearer $token" else token
+
+                val response = repository.createSchedule(
+                    accessToken = if (token.isEmpty()) null else fullToken,
+                    request = request,
+                    placeId = placeId,
+                    calendarId = calendarId, // 로컬 DB 처리를 위해 원래의 Long 값도 전달
+                    selectedColor = selectedColor
+                )
+
+                if (response.isSuccess) {
+                    withContext(Dispatchers.IO) {
+                        repository.refreshSchedules()
+                    }
+                    _createScheduleEvent.value = true
+                }
+            } catch (e: Exception) {
+                Log.e("ScheduleViewModel", "일반 일정 생성 중 예외: ${e.message}")
+            }
+        }
     }
 
     fun getRepeatDescription(info: RepeatInfo?): String {
@@ -502,12 +549,23 @@ class ScheduleViewModel @Inject constructor(
         _createScheduleEvent.value = null
     }
 
-    fun getScheduleDetail(id: Long){
+    // ViewModel 내부의 함수 수정
+    fun getScheduleDetail(scheduleId: Long) {
         viewModelScope.launch {
-            val token = authDataStore.getAccessToken()
-            if(token != null){
-                val response = repository.getScheduleDetail(token, id)
+            // 1. 먼저 DataStore에서 액세스 토큰을 가져옵니다.
+            val token = authDataStore.getAccessToken() ?: ""
+
+            // 2. 리포지토리 함수에 (토큰, ID) 두 가지 인자를 모두 전달합니다.
+            // 💡 인터페이스 정의가 (accessToken, scheduleId) 순서이므로 이를 맞춥니다.
+            val response = repository.getScheduleDetail(token, scheduleId)
+
+            if (response.isSuccess && response.result != null) {
+                // 3. 변수명(_scheduleDetailInfo) 일치 확인
                 _scheduleDetailInfo.value = response.result
+
+                Log.d("DEBUG_TAG", "상세 정보 로드 성공: ID ${response.result.scheduleId}")
+            } else {
+                Log.e("DEBUG_TAG", "상세 정보 로드 실패: ${response.message}")
             }
         }
     }
@@ -524,7 +582,9 @@ class ScheduleViewModel @Inject constructor(
     fun deleteSchedule(id: Long, withRoute: Boolean) {
         viewModelScope.launch {
             if (withRoute) {
-                // 경로 일정: 오직 단일 삭제만 존재 (서버 API 호출)
+                // 💡 [추가] 예약된 워커 취소 (태그나 이름을 통해 취소 가능)
+                androidx.work.WorkManager.getInstance(context).cancelUniqueWork("finalize_$id")
+                Log.d("WorkManagerTest", "🗑️ 경로 일정 삭제로 인한 워커 예약 취소: finalize_$id")
                 deleteRouteSchedule(id)
             } else {
                 // 일반 일정: 단일이든 반복(전체)이든 시스템/로컬 DB에서 제거
@@ -654,7 +714,7 @@ class ScheduleViewModel @Inject constructor(
     fun updateRouteScheduleCombined(
         scheduleId: Long,
         generalRequest: UpdateScheduleRequest,
-        routeRequest: UpdateScheduleEditRouteRequest // 💡 새로 만든 DTO 클래스
+        routeRequest: UpdateScheduleEditRouteRequest
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -662,20 +722,29 @@ class ScheduleViewModel @Inject constructor(
                 val token = authDataStore.getAccessToken() ?: ""
                 val fullToken = if (token.startsWith("Bearer ")) token else "Bearer $token"
 
-                // 2. Repository 호출 (삭제 -> PATCH -> PUT 통합 로직 실행)
-                // 💡 여기서 에러가 난다면 Repository 인터페이스에 이 함수가 정의되어 있는지 확인하세요!
+                // 2. [보정] generalRequest에 담긴 색상과 캘린더 ID가 올바른지 확인
+                // 만약 Fragment에서 null로 넘어왔을 경우를 대비해
+                // generalRequest의 값을 다시 한번 체크하거나 로깅하는 것이 좋습니다.
+                Log.d("UpdateLog", "수정 요청 데이터 - ID: $scheduleId, Color: ${generalRequest.color}, Calendar: ${generalRequest.calendarId}")
+
+                // 3. Repository 호출 (통합 수정 로직)
                 val response = repository.updateRouteScheduleCombined(
                     fullToken,
                     scheduleId,
-                    generalRequest,
+                    generalRequest, // 이 안에 이미 String 타입의 calendarId와 color가 들어있어야 합니다.
                     routeRequest
                 )
 
-                // 3. 결과 처리
+                // 4. 결과 처리
                 if (response.isSuccess) {
+                    val arrival = routeRequest.arrivalTime
+                    if (arrival != null) {
+                        scheduleFinalizeWorker(scheduleId, generalRequest.startDate, arrival)
+                    }
                     withContext(Dispatchers.Main) {
                         _updateScheduleEvent.value = true
-                        refreshSchedules() // 로컬 DB 및 캘린더 새로고침
+                        // 수정 성공 후 즉시 로컬 DB 데이터를 서버와 동기화
+                        refreshSchedules()
                     }
                     Log.d("UpdateLog", "일정 및 경로 수정 통합 성공: $scheduleId")
                 } else {
@@ -693,4 +762,68 @@ class ScheduleViewModel @Inject constructor(
             }
         }
     }
+
+    fun convertRouteToNormalAtArrival(scheduleId: Long) {
+        viewModelScope.launch {
+            val success = repository.convertRouteToNormalLocal(scheduleId)
+            if (success) {
+                refreshSchedules() // 성공 시 UI 갱신
+            }
+        }
+    }
+
+    private fun scheduleFinalizeWorker(scheduleId: Long, startDate: String, arrivalTime: String) {
+        try {
+            // 1. 시간 파싱 준비
+            val cleanArrival = if (arrivalTime.contains("T")) {
+                arrivalTime.replace("T", " ").substring(0, 16)
+            } else {
+                "$startDate $arrivalTime"
+            }
+
+            // 2. SDF 설정 및 타임존 지정
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.KOREA)
+
+            // 💡 중요: 서버 시간이 UTC라면 한국 시간으로 바꾸기 위해 타임존 설정
+            // 만약 서버가 이미 한국 시간을 주는데 파싱이 꼬이는 거라면 아래 줄을 주석 처리하세요.
+            sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
+
+            val arrivalDate = sdf.parse(cleanArrival)
+            val currentTime = System.currentTimeMillis()
+
+            // 3. 지연 시간 계산
+            val delay = (arrivalDate?.time ?: 0) - currentTime
+
+            Log.d("WorkManagerTest", """
+            [타임존 체크]
+            입력된 시간: $cleanArrival
+            현재 시간(KST): ${java.text.SimpleDateFormat("HH:mm").format(java.util.Date(currentTime))}
+            계산된 실행 시간(KST): ${java.text.SimpleDateFormat("HH:mm").format(arrivalDate)}
+            남은 초: ${delay / 1000}초
+        """.trimIndent())
+
+            // 10초는 0보다 크므로 아래 예약 로직이 바로 실행됩니다.
+            if (delay > 0) {
+                val data = androidx.work.Data.Builder()
+                    .putLong("schedule_id", scheduleId)
+                    .build()
+
+                val workRequest = androidx.work.OneTimeWorkRequestBuilder<com.example.pace.data.worker.ScheduleFinalizeWorker>()
+                    .setInitialDelay(delay, java.util.concurrent.TimeUnit.MILLISECONDS) // 10초 뒤로 예약
+                    .setInputData(data)
+                    .addTag("FINALIZE_$scheduleId")
+                    .build()
+
+                androidx.work.WorkManager.getInstance(context)
+                    .enqueueUniqueWork(
+                        "finalize_$scheduleId",
+                        androidx.work.ExistingWorkPolicy.REPLACE,
+                        workRequest
+                    )
+            }
+        } catch (e: Exception) {
+            Log.e("WorkManager", "❌ 예약 실패: ${e.message}")
+        }
+    }
+
 }

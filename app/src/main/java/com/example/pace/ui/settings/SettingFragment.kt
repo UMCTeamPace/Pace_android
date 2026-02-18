@@ -2,6 +2,7 @@ package com.example.pace.ui.settings
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
@@ -21,6 +22,8 @@ import androidx.lifecycle.lifecycleScope
 import com.example.pace.data.viewmodel.SettingsViewModel // 아까 만든 뷰모델
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import androidx.core.net.toUri
+import com.example.pace.ui.splash.SplashActivity
 
 
 @AndroidEntryPoint // 💡 Hilt를 사용한다면 꼭 추가하세요!
@@ -119,6 +122,9 @@ class SettingFragment: Fragment() {
         binding.settingsPermissionAlarmIv.setOnClickListener { showPermissionDialog("알림") }
         binding.settingsPermissionLocationIv.setOnClickListener { showPermissionDialog("위치") }
         binding.settingsPermissionCalendarIv.setOnClickListener { showPermissionDialog("캘린더") }
+        binding.settingsPermissionFullscreenIv.setOnClickListener {
+            showFullScreenPermissionDialog()
+        }
 
         // --- 계정 관리 ---
         binding.settingsSignoutLl.setOnClickListener {
@@ -132,6 +138,7 @@ class SettingFragment: Fragment() {
         binding.settingsWithdrawalLl.setOnClickListener {
             val withdrawalDialog = WithdrawalDialog(requireContext())
             withdrawalDialog.setOnOkClickListener {
+                Log.d("KAKAO", "탈퇴 함수 호출!")
                 kakaoUnlink()
             }
             withdrawalDialog.show()
@@ -215,11 +222,15 @@ class SettingFragment: Fragment() {
     private fun kakaoLogout() {
         UserApiClient.instance.logout { error ->
             if (error != null) {
-                Log.e("KAKAO", "로그아웃 실패", error)
+                Log.e("KAKAO", "로그아웃 실패 (토큰 없음)", error)
             } else {
                 Log.i("KAKAO", "로그아웃 성공")
-                navigateToLogin()
             }
+
+            // 💡 [중요] 로그아웃은 app.authDataStore.clearAllData()를 하지 않습니다!
+            // 그래야 isOnboardingComplete가 true로 남아서 재로그인 시 메인으로 직행합니다.
+
+            navigateToLogin()
         }
     }
 
@@ -227,18 +238,25 @@ class SettingFragment: Fragment() {
     private fun kakaoUnlink() {
         UserApiClient.instance.unlink { error ->
             if (error != null) {
-                Log.e("KAKAO", "탈퇴 실패", error)
+                Log.e("KAKAO", "탈퇴 통신 실패 - 하지만 데이터를 강제 초기화합니다.", error)
             } else {
                 Log.i("KAKAO", "탈퇴 성공")
-                navigateToLogin()
             }
+
+            // 💡 [핵심] 탈퇴는 로컬 데이터를 싹 지웁니다.
+            // 그래야 isOnboardingComplete가 false가 되어 재가입 시 온보딩(기본설정)을 다시 받습니다.
+            val app = (requireActivity().application as com.example.pace.PaceApplication)
+            app.authDataStore.clearAllData()
+
+            Log.d("KAKAO", "탈퇴 유저: 모든 설정 초기화 완료")
+            navigateToLogin()
         }
     }
 
     // 4. 로그인 화면으로 이동 (스택 클리어)
     private fun navigateToLogin() {
         // LoginActivity는 실제 로그인 액티비티 클래스명으로 수정하세요
-        val intent = Intent(requireContext(), OnboardingActivity::class.java)
+        val intent = Intent(requireContext(), SplashActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)
         requireActivity().finish()
@@ -275,6 +293,22 @@ class SettingFragment: Fragment() {
         } catch (e: Exception) {
             "내 캘린더"
         }
+    }
+
+    private fun showFullScreenPermissionDialog() {
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("전체 화면 알람 권한 설정")
+            .setMessage("잠금 화면에서도 알람을 즉시 확인하려면 '전체 화면 인텐트 허용' 권한이 필요합니다. 설정 화면으로 이동하시겠습니까?")
+            .setPositiveButton("확인") { _, _ ->
+                if (Build.VERSION.SDK_INT >= 34) {
+                    val intent = Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
+                        data = "package:${requireContext().packageName}".toUri()
+                    }
+                    startActivity(intent)
+                }
+            }
+            .setNegativeButton("취소", null)
+            .show()
     }
 
     override fun onDestroyView() {

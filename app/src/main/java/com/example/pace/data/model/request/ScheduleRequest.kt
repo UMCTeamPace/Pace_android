@@ -36,15 +36,18 @@ data class CreateScheduleRequest(
     @SerializedName("endDate") val endDate: String,
     @SerializedName("startTime") val startTime: String?,
     @SerializedName("endTime") val endTime: String?,
+    @SerializedName("calendarId") val calendarId: String?, // 💡 명세에 맞춰 String으로 변경
+    @SerializedName("color") val color: String? = "#DC354B",
     @SerializedName("memo") val memo: String?,
     @SerializedName("isPathIncluded") val isPathIncluded: Boolean,
     @SerializedName("isRepeat") val isRepeat: Boolean,
     @SerializedName("repeatInfo") val repeatInfo: RepeatInfo?,
     @SerializedName("place") val place: PlaceRequest?,
     @SerializedName("reminders") val reminders: List<ReminderRequest>,
-    @SerializedName("route") val route: RouteRequest?,
-    @SerializedName("color") val color: String? = "#DC354B"
+    @SerializedName("route") val route: RouteRequest?
 )
+
+
 data class RepeatInfo(
     @SerializedName("repeatType") val repeatType: String,      // DAILY, WEEKLY, MONTHLY, YEARLY, NONE
     @SerializedName("repeatInterval") val repeatInterval: Int = 1,
@@ -157,6 +160,8 @@ data class UpdateScheduleRequest(
     @SerializedName("endDate") val endDate: String,
     @SerializedName("startTime") val startTime: String?,
     @SerializedName("endTime") val endTime: String?,
+    @SerializedName("calendarId") val calendarId: String?, // 💡 추가
+    @SerializedName("color") val color: String?,
     @SerializedName("isPathIncluded") val isPathIncluded: Boolean,
     @SerializedName("repeatInfo") val repeatInfo: RepeatInfo?, // 경로일정 시 null 전달
     @SerializedName("place") val place: PlaceRequest?,       // 목적지 정보 매핑
