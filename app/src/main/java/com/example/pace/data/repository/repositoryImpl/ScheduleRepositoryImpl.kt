@@ -898,10 +898,24 @@ class ScheduleRepositoryImpl @Inject constructor(
             lastDate = null,
             lastId = null
         )
+        val nowTime = java.time.LocalTime.now()
 
         // 2. 변환 로직
         val mappedData: RouteOnlyScheduleData? = response.result?.content
-            ?.find { it.place == null && it.route != null }
+            ?.filter { item -> // 1. 일단 조건 맞는거 다 찾기 (find -> filter)
+                val isRouteItem = item.place == null && item.route != null
+
+                val isFuture = try {
+                    val itemTime = java.time.LocalTime.parse(item.scheduleInfo.startTime)
+                    itemTime.isAfter(nowTime)
+                } catch (e: Exception) {
+                    false
+                }
+                isRouteItem && isFuture
+            }
+            ?.minByOrNull { item -> // 2. 그 중에서 시간이 가장 빠른(작은) 것 찾기
+                item.scheduleInfo.startTime ?: "23:59:59"
+            }
             ?.let { item ->
                 val route = item.route
                 val flattenedDetails = route?.routeDetails?.map { detail ->
@@ -927,6 +941,49 @@ class ScheduleRepositoryImpl @Inject constructor(
             message = response.message,
             isSuccess = response.isSuccess,
             result = mappedData
+        )
+    }
+
+    override suspend fun getAllRouteSchedules(
+        accessToken: String,
+        startDate: String,
+        endDate: String?
+    ): RawDefaultResponse<List<RouteOnlyScheduleData?>> {
+
+        val response = api.getScheduleList(
+            accessToken = accessToken,
+            startDate = startDate,
+            endDate = endDate,
+            lastDate = null,
+            lastId = null
+        )
+
+        val mappedList: List<RouteOnlyScheduleData?> = response.result?.content
+            ?.filter { it.place == null && it.route != null }
+            ?.map { item ->
+                val route = item.route
+                val flattenedDetails = route?.routeDetails?.map { detail ->
+                    detail.copy(
+                        transitType = detail.transitDetail?.transitType,
+                        lineColor = detail.transitDetail?.lineColor,
+                        lineName = detail.transitDetail?.lineName,
+                        shortName = detail.transitDetail?.shortName,
+                        departureStop = detail.transitDetail?.departureStop
+                    )
+                }
+
+                RouteOnlyScheduleData(
+                    scheduleId = item.scheduleId,
+                    scheduleInfo = item.scheduleInfo,
+                    route = route?.copy(routeDetails = flattenedDetails)
+                )
+            } ?: emptyList()
+
+        return RawDefaultResponse(
+            code = response.code,
+            message = response.message,
+            isSuccess = response.isSuccess,
+            result = mappedList
         )
     }
 

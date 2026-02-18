@@ -49,6 +49,12 @@ interface ScheduleRepository {
         endDate: String?
     ): RawDefaultResponse<RouteOnlyScheduleData?>
 
+    suspend fun getAllRouteSchedules(
+        accessToken: String,
+        startDate: String,
+        endDate: String?
+    ): RawDefaultResponse<List<RouteOnlyScheduleData?>>
+
     suspend fun updateExDate(schedule: Schedule)
     suspend fun getScheduleById(id: Long): Schedule?
 
