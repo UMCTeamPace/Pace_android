@@ -23,13 +23,15 @@ class AlarmReceiver : BroadcastReceiver() {
         Log.d("PaceAlarm", "리시버에서 받은 시간: $minutesLeft")
 
         // 1. 채널 생성 (아이디 일치 확인: pace_alert_channel)
-        val channel = NotificationChannel(channelId, "Pace 알람", NotificationManager.IMPORTANCE_HIGH).apply {
-            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-            setSound(null, null)
-            enableVibration(false)
-            description = "외출 준비 알람 전용 채널입니다."
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(channelId, "Pace 알람", NotificationManager.IMPORTANCE_HIGH).apply {
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                setSound(null, null)
+                enableVibration(false)
+                description = "외출 준비 알람 전용 채널입니다."
+            }
+            notificationManager.createNotificationChannel(channel)
         }
-        notificationManager.createNotificationChannel(channel)
 
         val fullScreenIntent = Intent(context, AlertActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION
@@ -46,7 +48,7 @@ class AlarmReceiver : BroadcastReceiver() {
         val builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle("외출 준비 시간!")
-            .setContentText("출발까지 ${minutesLeft}분 남았습니다.")
+            .setContentText(if (minutesLeft > 0) "출발까지 ${minutesLeft}분 남았습니다." else "지금 출발해야 합니다!")
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setFullScreenIntent(fullScreenPendingIntent, true)
