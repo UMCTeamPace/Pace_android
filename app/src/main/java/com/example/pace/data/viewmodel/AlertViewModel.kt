@@ -1,7 +1,9 @@
 package com.example.pace.data.viewmodel
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.pace.data.api.RetrofitClient
@@ -19,25 +21,37 @@ import retrofit2.Callback
 import retrofit2.Response
 
 class AlertViewModel(application: Application) : AndroidViewModel(application) {
-    // UI가 관찰할 수 있도록 LiveData 사용
-    private val _alertTheme = MutableLiveData<AlertTheme>()
-    val alertTheme = MutableLiveData<AlertTheme>()
-    val isLoading = MutableLiveData<Boolean>()
 
+    // 1. LiveData 변수 정리 (빨간 줄 해결 핵심)
+    private val _alertTheme = MutableLiveData<AlertTheme>()
+    val alertTheme: LiveData<AlertTheme> get() = _alertTheme
+
+    val isLoading = MutableLiveData<Boolean>()
     val isOffline = MutableLiveData<Boolean>(false)
+
+    /**
+     * 알람 데이터 초기화 함수
+     * 초기 로딩 중에 빈 화면이 나오지 않게 기본값을 먼저 보여줍니다.
+     */
+    fun initAlarmData(minutes: Int) {
+        val step = getPreparationStep(minutes)
+        // [수정] _alertTheme.value를 사용해야 합니다.
+        _alertTheme.value = try {
+            getAlertTheme(step, WeatherStatus.SUNNY, "서울", 23.0, "맑음", minutes)
+        } catch (e: Exception) {
+            getOfflineAlertTheme(step, minutes)
+        }
+    }
+
+    /**
+     * 실시간 날씨 로드 및 테마 업데이트
+     */
     fun loadAlertData(cityName: String, apiKey: String, minutesLeft: Int) {
         val context = getApplication<Application>().applicationContext
         val prepStep = getPreparationStep(minutesLeft)
 
         if (!NetworkManager.isOnline(context)) {
-            // 네트워크가 없어도 준비 단계에 맞는 오프라인 화면을 보여줌
-            alertTheme.value = getOfflineAlertTheme(prepStep, minutesLeft)
-            isOffline.value = true
-            return
-        }
-
-        // 1. 네트워크 체크
-        if (!NetworkManager.isOnline(context)) {
+            _alertTheme.value = getOfflineAlertTheme(prepStep, minutesLeft)
             isOffline.value = true
             return
         }
@@ -45,73 +59,53 @@ class AlertViewModel(application: Application) : AndroidViewModel(application) {
         isLoading.value = true
         isOffline.value = false
 
-        // 2. 날씨 API 호출
+        Log.d("Pace_API", "요청 도시: $cityName, API 키 존재여부: ${apiKey.isNotEmpty()}")
+
         RetrofitClient.weatherService.getWeather(cityName, apiKey)
             .enqueue(object : Callback<WeatherResponse> {
                 override fun onResponse(call: Call<WeatherResponse>, response: Response<WeatherResponse>) {
                     isLoading.value = false
-                    if (response.isSuccessful) {
-                        val body = response.body()
-                        val apiWeather = body?.weather?.get(0)?.main ?: "Clear"
-                        val temp = body?.main?.temp ?: 20.0
+                    if (response.isSuccessful && response.body() != null) {
+                        val body = response.body()!!
 
-                        // 3. 데이터 변환 (Mapper & Logic)
+                        val apiWeather = body.weather.getOrNull(0)?.main ?: "Clear"
+                        val temp = body.main.temp
+                        val location = body.name
+                        val weatherDesc = body.weather.getOrNull(0)?.description ?: "맑음"
+
                         val weatherStatus = WeatherMapper.mapToWeatherStatus(apiWeather, temp)
-                        val prepStep = getPreparationStep(minutesLeft)
+                        val step = getPreparationStep(minutesLeft)
 
-                        // 4. UI 테마 결정 및 전달
-                        if (body != null) {
-                            val location = body.name // 도시 이름 (예: 서울)
-                            val weatherDesc = body.weather[0].description // 날씨 설명 (예: 맑음)
-
-                            // 수정된 getAlertTheme 인자에 맞춰 실제 값들을 전달합니다.
-                            alertTheme.value = getAlertTheme(
-                                step = prepStep,
-                                weather = weatherStatus,
-                                location = location,
-                                temp = temp,
-                                weatherDesc = weatherDesc,
-                                minutesLeft = minutesLeft
-                            )
-                        }
+                        // [수정] 외부 노출용 alertTheme가 아닌 내부용 _alertTheme에 값을 넣어야 함
+                        _alertTheme.value = getAlertTheme(
+                            step = step,
+                            weather = weatherStatus,
+                            location = location,
+                            temp = temp,
+                            weatherDesc = weatherDesc,
+                            minutesLeft = minutesLeft
+                        )
                     } else {
-                        isOffline.value = true // 서버 에러 시에도 에러 페이지 노출
+                        _alertTheme.value = getOfflineAlertTheme(prepStep, minutesLeft)
+                        android.util.Log.e("Pace_API", "실패 코드: ${response.code()}, 메시지: ${response.message()}")
+                        isOffline.value = true
                     }
                 }
 
                 override fun onFailure(call: Call<WeatherResponse>, t: Throwable) {
                     isLoading.value = false
+                    _alertTheme.value = getOfflineAlertTheme(prepStep, minutesLeft)
                     isOffline.value = true
                 }
             })
     }
 
-    // 시간을 기반으로 준비 단계를 반환하는 내부 함수
     private fun getPreparationStep(minutes: Int): PrepStep {
         return when {
             minutes in 50..60 -> PrepStep.SHOWER
-            minutes in 30..49 -> PrepStep.PREPARE // 기획안에 따라 범위 조정
+            minutes in 30..49 -> PrepStep.PREPARE
             minutes in 5..29 -> PrepStep.GET_STARTED
             else -> PrepStep.IMMINENT
         }
-    }
-
-    // 1. 알람 데이터 초기화 함수 (Activity의 onCreate에서 호출)
-    fun initAlarmData(minutes: Int) {
-        // 현재 날씨 상태 (기본값 SUNNY)
-        val weather = WeatherStatus.SUNNY
-
-        // [단계 결정] 전달받은 분(minutes)에 따라 PrepStep 결정
-        val step = getPreparationStep(minutes)
-
-        // [테마 생성] 실제 minutes를 전달하여 메시지 생성
-        val theme = try {
-            getAlertTheme(step, weather, "서울", 23.0, "맑음", minutes)
-        } catch (e: Exception) {
-            getOfflineAlertTheme(step, minutes)
-        }
-
-        // UI에 표시 (LiveData 업데이트)
-        alertTheme.value = theme
     }
 }

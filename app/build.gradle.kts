@@ -39,10 +39,10 @@ android {
         // 1. 매니페스트용 (구글 지도 키)
         manifestPlaceholders["GOOGLE_API_KEY"] = "${properties.getProperty("GOOGLE_API_KEY")}"
 
-        val weatherKey = localProperties.getProperty("OPENWEATHER_API_KEY") ?: ""
-        val bearerToken = localProperties.getProperty("BEARER_TOKEN") ?: ""
+        val weatherKey = properties.getProperty("YOUR_OPENWEATHER_API_KEY") ?: ""
+        val bearerToken = properties.getProperty("BEARER_TOKEN") ?: ""
 
-        buildConfigField("String", "OPENWEATHER_API_KEY", "\"$weatherKey\"")
+        buildConfigField("String", "YOUR_OPENWEATHER_API_KEY", "\"$weatherKey\"")
         buildConfigField("String", "BEARER_TOKEN", "\"$bearerToken\"")
 
     }
