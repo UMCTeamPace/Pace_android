@@ -119,8 +119,15 @@ class CalendarSelectFragment : Fragment() {
         val allCalendarIds = checkBoxMap.keys.toList()
 
         viewModel.selectedCalendarId = selectedId
-
         viewModel.completeOnboarding(allCalendarIds)
+
+        // 💡 [핵심] 여기에 도장을 찍습니다!
+        // PaceApplication에 있는 authDataStore를 가져와서 설정을 완료했다고 저장합니다.
+        val app = (requireActivity().application as com.example.pace.PaceApplication)
+        app.authDataStore.setOnboardingComplete(true)
+
+        android.util.Log.d("ONBOARDING_FLOW", "온보딩 최종 완료! 데이터 저장됨.")
+
         moveToMainActivity()
     }
 
