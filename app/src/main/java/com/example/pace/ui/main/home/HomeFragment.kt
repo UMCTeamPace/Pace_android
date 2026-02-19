@@ -28,6 +28,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
 import androidx.fragment.app.activityViewModels // 추가 확인
+import com.example.pace.data.model.response.ScheduleDetailResponse
 import dagger.hilt.android.AndroidEntryPoint // 1. 추가
 
 @AndroidEntryPoint
@@ -41,7 +42,6 @@ class HomeFragment: Fragment() {
     private lateinit var spf: SharedPreferences
     private lateinit var selectedDate: LocalDate
     private var scheduleMap: Map<LocalDate, List<Schedule>> = emptyMap()
-
 
 
     override fun onCreateView(
@@ -79,7 +79,7 @@ class HomeFragment: Fragment() {
         binding.homeScheduleRv.adapter = scheduleAdapter
         scheduleAdapter.setMyOnClickListener(object: ScheduleRVAdapter.MyOnClickListener{
             override fun showModalCase(scheduleList: List<Schedule>, position: Int) {
-                val modalCaseDialog = ModalCaseDialog(requireContext(), scheduleList, position, selectedDate, viewModel)
+                val modalCaseDialog = ModalCaseDialog(requireContext(), scheduleList, position, selectedDate, viewModel, viewLifecycleOwner)
                 modalCaseDialog.show()
             }
             override fun onEdit(schedule: Schedule) {
