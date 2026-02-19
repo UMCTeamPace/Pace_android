@@ -186,7 +186,8 @@ class RouteFragment : Fragment() {
 
         mapFragment.onPoiClick = { poi ->
             if(binding.layoutRouteDetailOverlay.root.visibility == View.GONE &&
-                binding.layoutMapSelectOverlay.root.visibility == View.GONE){
+                binding.layoutMapSelectOverlay.root.visibility == View.GONE &&
+                binding.layoutRouteInputHeader.root.visibility == View.GONE){
                 onPoiSelected(poi.placeId)
             }
 
@@ -452,13 +453,22 @@ class RouteFragment : Fragment() {
     }
     private fun FinalfetchRouteData(){
         lifecycleScope.launch {
-            if (earlyArriveTime == -1) {
-                val onboardingValue = settingsViewModel.userSettings.value?.earlyArrivalTime ?: 10
-                earlyArriveTime = onboardingValue
+            if (currentEntryMode == EntryMode.SCHEDULE_ROUTE && earlyArriveTime == -1) {
+                if (earlyArriveTime == -1) {
+                    var count = 0
+                    while (settingsViewModel.userSettings.value == null && count < 10) {
+                        delay(100) // 0.1초씩 대기
+                        count++
+                    }
 
-                // 이 시점에서는 뷰모델 데이터(8분 등)가 이미 로드되어 있을 것이므로 정확한 차감 계산이 가능합니다.
-                updateRequestSearchTimeWithEarlyArrival(earlyArriveTime)
-                Log.d("RouteOnboarding", "검색 직전 온보딩 값($earlyArriveTime) 최종 반영 및 시간 차감 완료")
+                    val settings = settingsViewModel.userSettings.value
+                    earlyArriveTime = settings?.earlyArrivalTime ?: 10 // 로드 실패 시 기본값 10
+
+                    updateRequestSearchTimeWithEarlyArrival(earlyArriveTime)
+                    Log.d("RouteOnboarding", "데이터 로드 후 반영 완료: $earlyArriveTime 분")
+                } else {
+                    updateRequestSearchTimeWithEarlyArrival(earlyArriveTime)
+                }
             }
             // 출발지 좌표가 없다면 ID로 조회
             if (startLatLng == null && selectedStartPlace != null) {
@@ -477,11 +487,13 @@ class RouteFragment : Fragment() {
     }
     private fun updateRequestSearchTimeWithEarlyArrival(minutes: Int) {
         try {
-            // 1. 원본 일정 시간 문자열 생성 (예: "2026-02-11T13:30:00")
-            val dateTimeString = "${scheduleDate}T${scheduleTime}:00"
-            val scheduledDateTime = LocalDateTime.parse(dateTimeString)
+            val safeTime = if (scheduleTime.length == 5) "$scheduleTime:00" else scheduleTime
+            val dateTimeString = "${scheduleDate}T$safeTime"
 
-            // 2. 입력받은 분(minutes)만큼 차감 (미리 도착)
+            // 2. 파서 형식을 명시적으로 지정하여 에러 방지
+            val formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME
+            val scheduledDateTime = LocalDateTime.parse(dateTimeString, formatter)
+
             val adjustedDateTime = scheduledDateTime.minusMinutes(minutes.toLong())
 
             // 3. 서버 전송용 시간(UTC) 업데이트
@@ -641,14 +653,7 @@ class RouteFragment : Fragment() {
 
         updateClearButtonVisibility()
 
-        val receivedEarlyTime = intent.getIntExtra("EARLY_ARRIVE_TIME", -1)
-        if (startLatVal.isNaN()) {
-            earlyArriveTime = -1
-            Log.d("RouteOnboarding", "장소 정보 없음: earlyArriveTime을 -1로 설정")
-        } else {
-            earlyArriveTime = if (receivedEarlyTime != -1) receivedEarlyTime else 0
-            Log.d("RouteOnboarding", "장소 정보 있음: 초기값 $earlyArriveTime 설정")
-        }
+        earlyArriveTime = intent.getIntExtra("EARLY_ARRIVE_TIME", -1)
 
         binding.layoutMapSelectOverlay.root.visibility = View.GONE
         if (::bottomSheetBehavior.isInitialized) {

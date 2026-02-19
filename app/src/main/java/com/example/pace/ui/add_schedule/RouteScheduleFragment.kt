@@ -84,7 +84,7 @@ class RouteScheduleFragment : Fragment() {
 
     // 경로 탐색에서 받아온 데이터
     private var routeJson: String? = null
-    private var earlyArriveTime: Int = 0
+    private var earlyArriveTime: Int = -1
 
     // 출발지 정보
     private var lastStartName: String? = null
@@ -130,7 +130,7 @@ class RouteScheduleFragment : Fragment() {
             lastDestLat = data.getDoubleExtra("END_LAT", Double.NaN)
             lastDestLng = data.getDoubleExtra("END_LNG", Double.NaN)
 
-            val earlyArriveTime = data.getStringExtra("EARLY_ARRIVE_TIME")?.toIntOrNull()
+            earlyArriveTime = data.getIntExtra("EARLY_ARRIVE_TIME", 0)
             lastRouteJson = data.getStringExtra("ROUTE_DETAIL")
 
             // 2. UI 업데이트 (저장된 전역 변수 사용)
