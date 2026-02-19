@@ -1099,6 +1099,7 @@ class RouteFragment : Fragment() {
     }
 
     private fun exitSearchMode() {
+        exitPoiMode()
         hideKeyboard()
         mainBinding?.searchEt?.clearFocus()
         mainBinding?.searchEt?.setText("")
@@ -1479,11 +1480,6 @@ private fun selectCurrentLocation() {
             transaction.remove(poiFrag)
         }
 
-        val hiddenList = childFragmentManager.findFragmentByTag(LocationBottomSheetFragment.TAG)
-        if (hiddenList != null && hiddenList.isHidden) {
-            transaction.show(hiddenList)
-        }
-
         transaction.commitAllowingStateLoss()
 
         // 3. 지도 임시 마커 삭제
@@ -1574,6 +1570,7 @@ private fun selectCurrentLocation() {
     }
 
     private fun showSearchRouteFragment() {
+        exitPoiMode()
         if(currentEntryMode == EntryMode.MAIN){
             currentEntryMode = EntryMode.ROUTE_PLAN
         }

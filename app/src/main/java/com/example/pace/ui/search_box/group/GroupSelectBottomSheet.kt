@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
+import com.example.pace.R
 import com.example.pace.data.model.response.GroupItem
 import com.example.pace.data.viewmodel.GroupViewModel
 import com.example.pace.databinding.BottomSheetGroupSelectBinding
@@ -39,8 +40,10 @@ class GroupSelectBottomSheet(
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        setupUI()
+        groupViewModel.clearErrorState()
+
         setupRecyclerView()
+        setupUI()
         setupListeners()
         observeViewModel()
 
@@ -58,12 +61,19 @@ class GroupSelectBottomSheet(
         }
 
         groupViewModel.errorMessage.observe(viewLifecycleOwner) { msg ->
-            if (!msg.isNullOrBlank() && groupViewModel.errorCode.value != "PLACE400_1") {
-                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+            android.util.Log.d("BottomSheetLog", "=================================")
+            android.util.Log.d("BottomSheetLog", "1. errorMessage 들어옴: [$msg]")
+            android.util.Log.d("BottomSheetLog", "2. 이 순간의 errorCode 값: [${groupViewModel.errorCode.value}]")
+            if (msg.isNullOrBlank()) return@observe
+
+            val isDuplicateError = (groupViewModel.errorCode.value == "PLACE400_1") || msg.contains("동일한 장소")
+
+            if (!isDuplicateError) {
             }
         }
 
         groupViewModel.errorCode.observe(viewLifecycleOwner) { code ->
+            android.util.Log.d("BottomSheetLog", "--> errorCode 들어옴: [$code]")
             when (code) {
                 "PLACE400_1" -> {
                     binding.tvErrorMsg.text = "*해당 그룹에 장소가 존재합니다."
@@ -99,7 +109,18 @@ class GroupSelectBottomSheet(
             binding.etPlaceMemo.setText("")
             binding.etPlaceMemo.hint = placeName
             binding.btnSave.text = "저장"
+
+            binding.etPlaceMemo.addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                    binding.tvErrorMsg.visibility = View.GONE
+                    updateSaveButtonState()
+                }
+                override fun afterTextChanged(s: android.text.Editable?) {}
+            })
         }
+
+        updateSaveButtonState()
     }
 
     private fun setupRecyclerView() {
@@ -112,8 +133,8 @@ class GroupSelectBottomSheet(
                 dialog.show(parentFragmentManager, "AddGroupDialog")
             },
             onItemClick = {
-                binding.btnSave.isEnabled = true
                 binding.tvErrorMsg.visibility = View.GONE
+                updateSaveButtonState()
             }
         )
 
@@ -130,18 +151,9 @@ class GroupSelectBottomSheet(
 
             val selectedGroupId = radioAdapter.getSelectedGroupId()
 
-            if (selectedGroupId == -1L) {
-                Toast.makeText(context, "그룹을 선택해주세요.", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
 
             if (mode == Mode.SAVE) {
                 val inputName = binding.etPlaceMemo.text.toString()
-
-                if (inputName.isBlank()) {
-                    Toast.makeText(context, "장소 이름을 입력해주세요.", Toast.LENGTH_SHORT).show()
-                    return@setOnClickListener
-                }
 
                 val regex = "^[a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣ\\s]+$".toRegex()
 
@@ -155,6 +167,25 @@ class GroupSelectBottomSheet(
                 onConfirm(selectedGroupId, null)
             }
         }
+    }
+
+    private fun updateSaveButtonState() {
+        val isGroupSelected = radioAdapter.getSelectedGroupId() != -1L
+
+        val isStateValid = if (mode == Mode.SAVE) {
+            val hasText = binding.etPlaceMemo.text.toString().trim().isNotEmpty()
+            isGroupSelected && hasText
+        } else {
+            isGroupSelected
+        }
+
+        binding.btnSave.isEnabled = isStateValid
+        val buttonColor = if (isStateValid) {
+            androidx.core.content.ContextCompat.getColor(requireContext(), R.color.semantic_info)
+        } else {
+            androidx.core.content.ContextCompat.getColor(requireContext(), R.color.text_disabled)
+        }
+        binding.btnSave.backgroundTintList = android.content.res.ColorStateList.valueOf(buttonColor)
     }
 
     override fun onStart() {
