@@ -134,6 +134,7 @@ class RouteFragment : Fragment() {
 
     private var currentRankPreference = SearchByTextRequest.RankPreference.RELEVANCE // 검색 필터
     private var lastQuery: String = ""
+    private var isPoiMode = false
 
     //백엔드 경로 탐색을 위해 여기다가 placeId를 좌표로 api 검색해서 주기
     private var startLatLng: LatLng? = null
@@ -178,6 +179,14 @@ class RouteFragment : Fragment() {
 
                 mapFragment.setMapPadding(bottomSheetBehavior.peekHeight)
             }
+        }
+
+        mapFragment.onPoiClick = { poi ->
+            if(binding.layoutRouteDetailOverlay.root.visibility == View.GONE &&
+                binding.layoutMapSelectOverlay.root.visibility == View.GONE){
+                onPoiSelected(poi.placeId)
+            }
+
         }
 
         // 맵 프래그먼트 로드 (childFragmentManager 사용)
@@ -600,6 +609,7 @@ class RouteFragment : Fragment() {
 
     // 출발/도착 눌렀을 때 (디테일에서)
     fun onLocationSelected(itemName: String, placeId: String, isStart: Boolean) {
+        exitPoiMode()
         val detailFrag = childFragmentManager.findFragmentByTag("DETAIL")
         if (detailFrag != null) {
             childFragmentManager.popBackStackImmediate("DETAIL", androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
@@ -1030,6 +1040,7 @@ class RouteFragment : Fragment() {
     }
 
     private fun enterSearchMode() {
+        exitPoiMode()
         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
         mapFrag?.clearMap()
         binding.layoutRouteDetailOverlay.root.visibility = View.GONE
@@ -1370,6 +1381,117 @@ private fun selectCurrentLocation() {
                 android.widget.Toast.makeText(ctx, "장소 정보를 불러올 수 없습니다.", android.widget.Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    fun onPoiSelected(placeId: String) {
+        val ctx = context ?: return
+
+        // 1. Google Place API 클라이언트 확인
+        if (!::placesClient.isInitialized) {
+            return
+        }
+
+        // 2. 가져올 정보 정의 (이름, 좌표, 주소, 타입 등)
+        val placeFields = listOf(
+            Place.Field.ID, Place.Field.NAME, Place.Field.LAT_LNG,
+            Place.Field.ADDRESS, Place.Field.TYPES, Place.Field.PHOTO_METADATAS,
+            Place.Field.BUSINESS_STATUS, Place.Field.OPENING_HOURS
+        )
+        val request = FetchPlaceRequest.newInstance(placeId, placeFields)
+
+        // 3. API 요청
+        placesClient.fetchPlace(request).addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                val place = task.result.place
+
+                // 4. 받아온 정보로 SearchItem 객체 생성
+                val item = SearchItem(
+                    name = place.name ?: "",
+                    placeId = place.id ?: placeId,
+                    lat = place.latLng?.latitude ?: 0.0,
+                    lng = place.latLng?.longitude ?: 0.0,
+                    address = place.address ?: "",
+                    category = convertTypeToKorean(place.types?.map { it.toString().lowercase() } ?: emptyList()),
+                    distance = calculateDistance(place.latLng),
+                    openStatus = getPlaceStatus(place),
+                    photoMetadata = place.photoMetadatas?.firstOrNull()
+                )
+
+                // 5. 키보드 숨김 및 포커스 해제
+                hideKeyboard()
+                mainBinding?.searchEt?.clearFocus()
+
+                val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+                mapFrag?.showTemporaryMarker(item)
+
+                val transaction = childFragmentManager.beginTransaction()
+
+                val existingList = childFragmentManager.findFragmentByTag(LocationBottomSheetFragment.TAG)
+                if (existingList != null && !existingList.isHidden) {
+                    transaction.hide(existingList)
+                }
+
+                // B. 혹시 이전에 떠 있던 '상세(DETAIL)'가 있다면 숨기기
+                val existingDetail = childFragmentManager.findFragmentByTag("DETAIL")
+                if (existingDetail != null && !existingDetail.isHidden) {
+                    transaction.hide(existingDetail)
+                }
+
+                // C. 혹시 이전에 떠 있던 'POI 상세(POI_DETAIL)'가 있다면 제거 (새로 띄워야 하니까)
+                val oldPoi = childFragmentManager.findFragmentByTag("POI_DETAIL")
+                if (oldPoi != null) {
+                    transaction.remove(oldPoi)
+                }
+
+                // D. 새로운 POI 바텀시트 추가 (Add)
+                // *주의* addToBackStack을 쓰지 않습니다. 우리가 수동으로 관리할 거니까요.
+                val newPoiFrag = LocationDetailFragment.newInstance(item, false, false)
+                transaction.add(R.id.bottom_sheet_container, newPoiFrag, "POI_DETAIL")
+
+                transaction.commitAllowingStateLoss()
+                // ================= 핵심 로직 끝 =================
+
+                // 4. 바텀시트 올라오게 설정
+                bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
+                setMapPaddingToBottomSheetHeight()
+
+                // 5. "나 지금 POI 모드야" 라고 깃발 들기
+                isPoiMode = true
+
+                // 6. 뒤로가기 버튼 보이게 하기
+                mainBinding?.mainBackIv?.visibility = View.VISIBLE
+
+            } else {
+                val exception = task.exception
+                android.util.Log.e("PlacesAPI", "Place not found: ${exception?.message}")
+                android.widget.Toast.makeText(ctx, "장소 정보를 불러올 수 없습니다.", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun exitPoiMode() {
+        if (!isPoiMode) return // 이미 POI 모드가 아니면 패스
+
+        val transaction = childFragmentManager.beginTransaction()
+
+        val poiFrag = childFragmentManager.findFragmentByTag("POI_DETAIL")
+        if (poiFrag != null) {
+            transaction.remove(poiFrag)
+        }
+
+        val hiddenList = childFragmentManager.findFragmentByTag(LocationBottomSheetFragment.TAG)
+        if (hiddenList != null && hiddenList.isHidden) {
+            transaction.show(hiddenList)
+        }
+
+        transaction.commitAllowingStateLoss()
+
+        // 3. 지도 임시 마커 삭제
+        val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+        mapFrag?.clearTemporaryMarker()
+
+        // 4. 상태 플래그 끄기
+        isPoiMode = false
     }
 
     fun onRecommendItemClick(item: SearchItem) {
@@ -1820,6 +1942,41 @@ private fun selectCurrentLocation() {
             hideKeyboard()
             return
         }
+        if (isPoiMode) {
+            val transaction = childFragmentManager.beginTransaction()
+
+            // 1. 현재 보고 있는 POI 상세창 제거 (Remove)
+            val poiFrag = childFragmentManager.findFragmentByTag("POI_DETAIL")
+            if (poiFrag != null) {
+                transaction.remove(poiFrag)
+            }
+
+            // 2. 아까 숨겨뒀던 화면 다시 보여주기 (Show)
+            // 우선순위: 상세 화면("DETAIL")이 있었으면 그거 보여주고, 없으면 리스트("TAG") 보여주기
+            val hiddenDetail = childFragmentManager.findFragmentByTag("DETAIL")
+            val hiddenList = childFragmentManager.findFragmentByTag(LocationBottomSheetFragment.TAG)
+
+            if (hiddenDetail != null && hiddenDetail.isHidden) {
+                transaction.show(hiddenDetail)
+            } else if (hiddenList != null && hiddenList.isHidden) {
+                transaction.show(hiddenList)
+            }
+
+            transaction.commitAllowingStateLoss()
+
+            // 3. 지도에 찍었던 임시 마커 지우기
+            val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+            mapFrag?.clearTemporaryMarker() // MapFragment에 이 함수가 있어야 합니다.
+
+            // 4. 바텀시트 상태 유지 (숨겨진 애가 다시 나왔으니 펼쳐진 상태 유지)
+            bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
+            setMapPaddingToBottomSheetHeight()
+
+            // 5. POI 모드 종료
+            isPoiMode = false
+            return
+        }
+
         if (isSearchMode()) {
             if (isBookmarkSearchMode) {
                 exitBookmarkSearchMode()
