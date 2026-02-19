@@ -9,134 +9,231 @@ import android.text.style.ForegroundColorSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.recyclerview.widget.DiffUtil
-import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.R
 import com.example.pace.data.model.Schedule
-import com.example.pace.databinding.ItemScheduleBinding // 레이아웃 파일명에 맞춰 수정하세요
+import com.example.pace.data.model.response.RouteInfo
+import com.example.pace.databinding.ItemDateHeaderBinding
+import com.example.pace.databinding.ItemScheduleBinding
 import com.example.pace.ui.main.home.DeleteScheduleDialog
 import com.example.pace.ui.main.home.ScheduleTouchHelper
 
 class SearchAdapter(
     private val context: Context,
     private var query: String = "",
-    private val onPinClick: (Schedule) -> Unit,
-    private val onEditSelect: (Long) -> Unit // 추가: 아이템 선택 시 호출될 콜백
-) : ListAdapter<Schedule, SearchAdapter.SearchViewHolder>(DiffCallback) {
-    lateinit var scheduleTouchHelper: ScheduleTouchHelper
+    private val onPinClick: (Schedule) -> Unit,       // 핀 클릭
+    private val onDeleteClick: (Schedule) -> Unit,    // 삭제 클릭
+    private val onEditClick: (Schedule) -> Unit,      // 수정 클릭
+    private val onEditSelect: (Long) -> Unit,         // 편집모드 선택
+    private var routeInfoMap: Map<Long, RouteInfo> = emptyMap()
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SearchViewHolder {
-        val binding =
-            ItemScheduleBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-        return SearchViewHolder(binding)
+    private var items = listOf<ScheduleListItem>()
+    lateinit var scheduleTouchHelper: ScheduleTouchHelper
+    private var selectedIds = setOf<Long>() // 선택된 아이템 ID들을 저장
+    companion object {
+        private const val TYPE_DATE_HEADER = 0
+        private const val TYPE_SCHEDULE_ITEM = 1
+    }
+    // SearchAdapter.kt 내부 수정
+    fun updateItemPinStatus(scheduleId: Long, isPinned: Boolean) {
+        // 1. 상태 업데이트
+        val updatedItems = items.map { item ->
+            if (item is ScheduleListItem.ScheduleItem && item.schedule.id == scheduleId) {
+                item.copy(schedule = item.schedule.copy(isPinned = isPinned))
+            } else {
+                item
+            }
+        }
+
+        // 2. 날짜 그룹별 재정렬 로직 실행
+        val finalItems = mutableListOf<ScheduleListItem>()
+        var currentHeader: ScheduleListItem.DateHeader? = null
+        val tempDayItems = mutableListOf<ScheduleListItem.ScheduleItem>()
+
+        // 기존 리스트를 순회하며 날짜 그룹별로 다시 정렬
+        for (item in updatedItems) {
+            when (item) {
+                is ScheduleListItem.DateHeader -> {
+                    // 이전 날짜 그룹 정렬해서 넣기
+                    if (tempDayItems.isNotEmpty()) {
+                        finalItems.addAll(tempDayItems.sortedWith(
+                            compareBy({ !it.schedule.isPinned }, { !it.schedule.isAllDay }, { it.schedule.startTime })
+                        ))
+                        tempDayItems.clear()
+                    }
+                    finalItems.add(item)
+                }
+                is ScheduleListItem.ScheduleItem -> {
+                    tempDayItems.add(item)
+                }
+            }
+        }
+        // 마지막 그룹 처리
+        if (tempDayItems.isNotEmpty()) {
+            finalItems.addAll(tempDayItems.sortedWith(
+                compareBy({ !it.schedule.isPinned }, { !it.schedule.isAllDay }, { it.schedule.startTime })
+            ))
+        }
+
+        this.items = finalItems
+        notifyDataSetChanged()
+    }
+    fun updateSelectedIds(ids: Set<Long>) {
+        this.selectedIds = ids
+        notifyDataSetChanged() // 체크박스 상태를 새로고침
     }
 
-    override fun onBindViewHolder(holder: SearchViewHolder, position: Int) {
-        holder.bind(getItem(position), query, holder)
+    fun submitList(newItems: List<ScheduleListItem>) {
+        this.items = newItems
+        notifyDataSetChanged()
+    }
+
+    fun updateRouteInfo(newRouteMap: Map<Long, RouteInfo>) {
+        this.routeInfoMap = newRouteMap
+        notifyDataSetChanged()
     }
 
     fun updateQuery(newQuery: String) {
         this.query = newQuery
-        // notify 대신 리스트 자체를 새로고침하도록 유도
         notifyDataSetChanged()
     }
 
-    inner class SearchViewHolder(private val binding: ItemScheduleBinding) :
-        RecyclerView.ViewHolder(binding.root) {
-        fun bind(schedule: Schedule, query: String, holder: RecyclerView.ViewHolder) {
-            val title = schedule.title ?: "제목 없음"
+    override fun getItemViewType(position: Int): Int = when (items[position]) {
+        is ScheduleListItem.DateHeader -> TYPE_DATE_HEADER
+        is ScheduleListItem.ScheduleItem -> TYPE_SCHEDULE_ITEM
+    }
 
-            // 검색어 하이라이트 로직
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        val inflater = LayoutInflater.from(parent.context)
+        return when (viewType) {
+            TYPE_DATE_HEADER -> DateHeaderViewHolder(ItemDateHeaderBinding.inflate(inflater, parent, false))
+            TYPE_SCHEDULE_ITEM -> SearchItemViewHolder(ItemScheduleBinding.inflate(inflater, parent, false))
+            else -> throw IllegalArgumentException("Invalid view type")
+        }
+    }
+
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        // 스와이프 레이아웃 초기화
+        holder.itemView.findViewById<View>(R.id.schedule_view_top)?.translationX = 0f
+
+        when (val item = items[position]) {
+            is ScheduleListItem.DateHeader -> (holder as DateHeaderViewHolder).bind(item.date)
+            is ScheduleListItem.ScheduleItem -> (holder as SearchItemViewHolder).bind(item.schedule, query, holder)
+        }
+    }
+
+    override fun getItemCount(): Int = items.size
+
+    inner class DateHeaderViewHolder(private val binding: ItemDateHeaderBinding) :
+        RecyclerView.ViewHolder(binding.root) {
+        fun bind(date: String) {
+            binding.dateHeaderTv.text = date
+        }
+    }
+
+    inner class SearchItemViewHolder(private val binding: ItemScheduleBinding) :
+        RecyclerView.ViewHolder(binding.root) {
+
+        fun bind(schedule: Schedule, query: String, holder: RecyclerView.ViewHolder) {
+            // 1. 제목 및 하이라이트 (기존 로직 유지)
+            val title = schedule.title ?: "제목 없음"
             if (query.isBlank()) {
                 binding.scheduleTitleTv.text = title
             } else {
                 val start = title.indexOf(query, ignoreCase = true)
-                if (start >= 0 && query.isNotEmpty()) {
+                if (start >= 0) {
                     val spannable = SpannableString(title)
-                    val end = start + query.length
-                    try {
-                        spannable.setSpan(
-                            ForegroundColorSpan(Color.parseColor("#8BC34A")),
-                            start, end,
-                            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                        )
-                        binding.scheduleTitleTv.text = spannable
-                    } catch (e: Exception) {
-                        binding.scheduleTitleTv.text = title
-                    }
+                    spannable.setSpan(
+                        ForegroundColorSpan(Color.parseColor("#8BC34A")),
+                        start, start + query.length,
+                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                    binding.scheduleTitleTv.text = spannable
                 } else {
                     binding.scheduleTitleTv.text = title
                 }
             }
 
-            // 1. 색상 설정
-            val colorResId = when {
-                schedule.eventColor != null && schedule.eventColor != 0 -> schedule.eventColor
-                schedule.calendarColor != null && schedule.calendarColor != 0 -> schedule.calendarColor
-                else -> Color.parseColor("#A2BD3B") // 기본 색상
-            }
-            binding.scheduleCategoryIv.imageTintList =
-                ColorStateList.valueOf(colorResId)
-
-            // 2. 시간 표시
-            if (schedule.isAllDay) {
-                binding.scheduleTimeTv.text = "하루 종일"
-            } else {
-                binding.scheduleTimeTv.text = "${schedule.startTime} - ${schedule.endTime}"
-            }
-
-            // 3. 반복 문자열 표시
+            // 2. 기본 색상 설정
+            val colorResId = schedule.eventColor ?: schedule.calendarColor ?: Color.parseColor("#A2BD3B")
+            binding.scheduleCategoryIv.imageTintList = ColorStateList.valueOf(colorResId)
+            binding.scheduleTimeTv.text = if (schedule.isAllDay) "하루 종일" else "${schedule.startTime} - ${schedule.endTime}"
+            // 3. [반복 설정 반영]
             if (!schedule.repeatRule.isNullOrEmpty()) {
                 binding.scheduleRepeatIv.visibility = View.VISIBLE
                 binding.scheduleRepeatTv.visibility = View.VISIBLE
-                // TODO: Schedule 객체에 사람이 읽을 수 있는 반복 문자열 필드가 있다면 그것을 사용.
                 binding.scheduleRepeatTv.text = "반복 설정됨"
             } else {
                 binding.scheduleRepeatIv.visibility = View.GONE
                 binding.scheduleRepeatTv.visibility = View.GONE
             }
 
-            // 4. 장소 표시 (SearchFragment는 경로를 보여주지 않음)
-            if (!schedule.location.isNullOrEmpty()) {
-                binding.scheduleNormalLocationLl.visibility = View.VISIBLE
-                binding.scheduleNormalLocationIv.visibility = View.VISIBLE
-                binding.scheduleNormalLocationTv.text = schedule.location
-                binding.scheduleRouteLocationLl.visibility = View.GONE // 검색 결과에서는 경로 위치 숨김
-            } else {
+            // 4. 경로 상세 데이터 바인딩 및 시간 표시 분기
+            val routeDetail = routeInfoMap[schedule.id]
+
+            if (schedule.type == "ROUTE") {
+                // --- [경로 일정 모드] ---
                 binding.scheduleNormalLocationLl.visibility = View.GONE
-                binding.scheduleNormalLocationIv.visibility = View.GONE
-                binding.scheduleNormalLocationTv.text = "" // 텍스트도 비워둠
-                binding.scheduleRouteLocationLl.visibility = View.GONE // 항상 숨김
+                binding.scheduleRouteLocationLl.visibility = View.VISIBLE
+
+                if (routeDetail != null) {
+                    // A. 출발지 → 도착지 명칭
+                    binding.scheduleRouteNameTv.text = "${routeDetail.originName} → ${routeDetail.destName}"
+
+                    // B. 실제 출발-도착 시간 포맷팅 (ISO-8601 -> HH:mm)
+                    val formatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
+                    // 서버 시간이 UTC라면 .plusHours(9)를 사용하세요. 로컬이면 제외합니다.
+                    val startTime = try {
+                        java.time.LocalDateTime.parse(routeDetail.departureTime).plusHours(9).format(formatter)
+                    } catch (e: Exception) { schedule.startTime }
+
+                    val endTime = try {
+                        java.time.LocalDateTime.parse(routeDetail.arrivalTime).plusHours(9).format(formatter)
+                    } catch (e: Exception) { schedule.endTime }
+
+                    binding.scheduleRouteRangeTv.text = "$startTime - $endTime"  // 경로 전용 시간
+
+                    // C. 소요 시간 계산
+                    val totalSeconds = routeDetail.totalTime
+                    binding.scheduleRouteDurationTv.text = "${totalSeconds / 3600}시간 ${(totalSeconds % 3600) / 60}분"
+                } else {
+                    // 데이터를 아직 불러오지 못한 경우
+                    binding.scheduleRouteNameTv.text = "경로 정보를 불러오는 중..."
+                    binding.scheduleTimeTv.text = "${schedule.startTime} - ${schedule.endTime}"
+                    binding.scheduleRouteRangeTv.text = "${schedule.startTime} - ${schedule.endTime}"
+                    binding.scheduleRouteDurationTv.text = "계산 중..."
+                }
+            } else {
+                // --- [일반 일정 모드] ---
+                binding.scheduleRouteLocationLl.visibility = View.GONE
+                binding.scheduleNormalLocationLl.visibility = if (schedule.location.isNullOrEmpty()) View.GONE else View.VISIBLE
+                binding.scheduleNormalLocationTv.text = schedule.location ?: ""
+
+                // 일반 시간 표시
+                binding.scheduleTimeTv.text = if (schedule.isAllDay) "하루 종일" else "${schedule.startTime} - ${schedule.endTime}"
             }
 
-            // 5. 체크박스: SearchFragment에서만 안 보이도록 설정
-            binding.scheduleCheckbox.visibility = View.INVISIBLE
-            binding.scheduleCheckbox.isChecked = schedule.isCompleted // 또는 선택된 아이템 목록 기반
-
-            // 고정 아이콘 (isPinned 상태에 따라)
+            // 5. 클릭 및 스와이프 리스너 (기존 유지)
             binding.schedulePinnedIv.visibility = if (schedule.isPinned) View.VISIBLE else View.GONE
-            binding.scheduleAlertTv.visibility = View.GONE
+            binding.scheduleCheckbox.visibility = View.INVISIBLE
 
-            // 스와이프 로직
             binding.schedulePinIv.setOnClickListener {
-                // todo: 핀 작동 X
                 onPinClick(schedule)
                 scheduleTouchHelper.closeSwipedMenu(holder)
             }
+
+            // 수정 버튼 (스와이프 메뉴 내부)
+            binding.scheduleEditIv.setOnClickListener {
+                onEditClick(schedule)
+                scheduleTouchHelper.closeSwipedMenu(holder)
+            }
+
+            // 삭제 버튼 (전용 다이얼로그 호출)
             binding.scheduleDeleteIv.setOnClickListener {
-                val deleteScheduleDialog = DeleteScheduleDialog(context)
-                deleteScheduleDialog.show()
+                onDeleteClick(schedule) // Fragment에서 정의한 showDeleteDialog가 실행됨
+                scheduleTouchHelper.closeSwipedMenu(holder)
             }
         }
-
-    }
-    companion object DiffCallback : DiffUtil.ItemCallback<Schedule>() {
-        override fun areItemsTheSame(oldItem: Schedule, newItem: Schedule): Boolean =
-            oldItem.id == newItem.id
-
-        override fun areContentsTheSame(oldItem: Schedule, newItem: Schedule): Boolean =
-            oldItem == newItem
     }
 }

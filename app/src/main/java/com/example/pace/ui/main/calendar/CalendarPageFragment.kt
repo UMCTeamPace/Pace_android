@@ -282,12 +282,19 @@ class CalendarPageFragment: Fragment() {
                 // 뷰모델에서 이미 LocalDate 키로 그룹화된 데이터를 주므로 바로 할당합니다.
                 events = groupedMap
 
-                // 어댑터에 데이터 전달
-                if (::dailyPageAdapter.isInitialized) {
-                    dailyPageAdapter.updateEvents(events)
+                if (groupedMap.isNotEmpty()) {
+                    groupedMap.values.flatten()
+                        .filter { it.type == "ROUTE" }
+                        .forEach { schedule ->
+                            // 뷰모델에 작성하신 그 함수를 여기서 호출!
+                            viewModel.fetchRouteDetail(schedule.id)
+                        }
                 }
 
-                // 캘린더 새로고침
+                if (::dailyPageAdapter.isInitialized) {
+                    dailyPageAdapter.updateEvents(events, viewModel.routeDetails.value)
+                }
+
                 binding.calendarView.notifyCalendarChanged()
                 binding.weekCalendarView.notifyCalendarChanged()
             }
@@ -299,6 +306,17 @@ class CalendarPageFragment: Fragment() {
                 binding.weekCalendarView.notifyCalendarChanged()
             }
         }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.routeDetails.collectLatest { routeMap ->
+                if (::dailyPageAdapter.isInitialized) {
+                    // 캘린더 전체를 새로고침(notifyCalendarChanged)할 필요 없이
+                    // 어댑터 데이터만 갱신해서 "경로를 불러오는 중..."을 실제 데이터로 바꿉니다.
+                    dailyPageAdapter.updateEvents(events, routeMap)
+                }
+            }
+        }
+
     }
 
     private fun setupCalendarLayout() {
