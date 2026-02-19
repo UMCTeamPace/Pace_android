@@ -1,6 +1,7 @@
 package com.example.pace.ui.main.calendar
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -27,6 +28,9 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.main.calendar.ScheduleViewModel
 import androidx.fragment.app.activityViewModels // 추가
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import com.example.pace.ui.add_schedule.AddScheduleActivity
 import com.example.pace.ui.main.home.DeleteRepeatScheduleDialog
 import com.example.pace.ui.main.home.DeleteScheduleDialog
 import dagger.hilt.android.AndroidEntryPoint // 추가
@@ -36,7 +40,7 @@ class ScheduleListFragment : Fragment() {
     private var _binding: FragmentScheduleListBinding? = null
     private val binding get() = _binding!!
 
-    private lateinit var scheduleAdapter: ScheduleAdapter
+    private lateinit var scheduleListAdapter: ScheduleListRVAdapter
     private lateinit var scheduleTouchHelper: ScheduleTouchHelper
 
     private val viewModel: ScheduleViewModel by activityViewModels()
@@ -55,7 +59,7 @@ class ScheduleListFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         setupRecyclerView()
-        observeSchedules()
+        setupObservers()
         observeEditMode() // 추가
         setupEditBarButtons() // 추가
 
@@ -84,7 +88,7 @@ class ScheduleListFragment : Fragment() {
                     parent?.setTabVisibility(true)
                 }
 
-                scheduleAdapter.setEditMode(isEditMode)
+                scheduleListAdapter.setEditMode(isEditMode)
             }
         }
     }
@@ -99,49 +103,78 @@ class ScheduleListFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        scheduleAdapter = ScheduleAdapter(
+        scheduleListAdapter = ScheduleListRVAdapter(
             context = requireContext(),
-            items = emptyList(),
             onPinClick = { schedule ->
-                val updatedSchedule = schedule.copy(isPinned = !schedule.isPinned)
-                viewModel.updateSchedule(updatedSchedule)
-            },
-            onEditSelect = { id ->
-                // 아이템 클릭 시 뷰모델의 선택 리스트에 추가/삭제
-                viewModel.toggleSelection(id)
-            },
-            // 💡 [추가] 단일 아이템 삭제 콜백 (스와이프나 개별 삭제 버튼용)
-//            onDeleteClick = { schedule ->
-//                showDeleteDialog(schedule)
-//            }
+                // 💡 생략되었던 고정 로직을 다시 채워넣습니다.
+                try {
+                    // schedule.startDate 문자열을 LocalDate로 변환 (yyyy-MM-dd 형식)
+                    // 만약 문자열 뒤에 시간이 붙어있다면 substring(0, 10)을 사용하세요.
+                    val dateStr = schedule.startDate.substring(0, 10)
+                    val date = java.time.LocalDate.parse(dateStr)
 
+                    // 뷰모델에 고정 업데이트 요청
+                    viewModel.togglePinLocally(date, schedule.id)
+
+                    android.util.Log.d("PinSuccess", "고정 요청 보냄: ${schedule.title} / $date")
+                } catch (e: Exception) {
+                    android.util.Log.e("PinError", "고정 중 날짜 파싱 에러: ${e.message}")
+                }
+            },
+            onDeleteClick = { schedule -> showDeleteDialog(schedule) },
+            onEditClick = { schedule ->
+                val intent = Intent(requireContext(), AddScheduleActivity::class.java).apply {
+                    putExtra("isEdit", true)
+                    putExtra("SCHEDULE_ID", schedule.id)
+                    putExtra("SCHEDULE_TYPE", schedule.type)
+                    if (schedule.type == "ROUTE") putExtra("OPEN_ROUTE_TAB", true)
+                }
+                startActivity(intent)
+            }
         )
-        // 스와이프 로직 연결
-        scheduleTouchHelper = ScheduleTouchHelper(scheduleAdapter)
+
+        // TouchHelper 연결 (이하 동일)
+        scheduleTouchHelper = ScheduleTouchHelper(scheduleListAdapter)
         val itemTouchHelper = ItemTouchHelper(scheduleTouchHelper)
-        scheduleAdapter.scheduleTouchHelper = scheduleTouchHelper
+        scheduleListAdapter.scheduleTouchHelper = scheduleTouchHelper
+        // 이거는 없애도 되는건가?
         itemTouchHelper.attachToRecyclerView(binding.scheduleListRv)
 
         binding.scheduleListRv.apply {
             layoutManager = LinearLayoutManager(context)
-            adapter = scheduleAdapter
+            adapter = scheduleListAdapter
         }
     }
 
-    private fun observeSchedules() {
-        // 1. 일정 데이터 관찰 (기존 로직)
+    private fun setupObservers() {
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.scheduleMap.collectLatest { groupedMap ->
-                processAndDisplaySchedules(groupedMap)
-            }
-        }
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                // 1. 일정 데이터 관찰 (HomeFragment의 Observer 로직 참고)
+                launch {
+                    viewModel.scheduleMap.collect { groupedMap ->
+                        // 모든 미래 날짜의 경로 일정에 대해 API 호출 트리거
+                        groupedMap.values.flatten()
+                            .filter { it.type == "ROUTE" }
+                            .forEach { viewModel.fetchRouteDetail(it.id) }
 
-        // 3. 선택된 아이템 ID 세트 관찰 (추가)
-        viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.selectedIds.collectLatest { ids ->
-                scheduleAdapter.updateSelectedIds(ids)
-                // 선택된 개수에 따라 삭제 버튼 텍스트 변경 가능 (예: 삭제(3))
-                binding.btnEditDelete.text = if (ids.isEmpty()) "삭제" else "삭제(${ids.size})"
+                        processAndDisplaySchedules(groupedMap)
+                    }
+                }
+
+                // 2. 경로 상세 데이터 관찰 (데이터가 들어오면 리스트 갱신)
+                launch {
+                    viewModel.routeDetails.collect { _ ->
+                        processAndDisplaySchedules(viewModel.scheduleMap.value)
+                    }
+                }
+
+                // 3. 선택된 아이템 ID 세트 관찰 (편집 모드용)
+                launch {
+                    viewModel.selectedIds.collect { ids ->
+                        scheduleListAdapter.updateSelectedIds(ids)
+                        binding.btnEditDelete.text = if (ids.isEmpty()) "삭제" else "삭제(${ids.size})"
+                    }
+                }
             }
         }
     }
@@ -181,7 +214,8 @@ class ScheduleListFragment : Fragment() {
         }
 
         withContext(Dispatchers.Main) {
-            scheduleAdapter.updateData(items)
+            // ViewModel에 저장된 최신 경로 상세 정보(routeDetails)를 함께 전달해야 합니다.
+            scheduleListAdapter.updateData(items, viewModel.routeDetails.value)
         }
     }
 

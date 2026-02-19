@@ -20,7 +20,14 @@ class ScheduleTouchHelper(
         recyclerView: RecyclerView,
         viewHolder: RecyclerView.ViewHolder
     ): Int {
+        if (adapter is com.example.pace.ui.main.calendar.ScheduleListRVAdapter && viewHolder.itemViewType == 0) {
+            return makeMovementFlags(0, 0)
+        }
+
         val currentViewTop = viewHolder.itemView.findViewById<ConstraintLayout>(R.id.schedule_view_top)
+        if (currentViewTop == null) {
+            return makeMovementFlags(0, 0)
+        }
 
         // 모든 아이템을 조사해 swipe된 거 확인하기
         val isOtherSwiped = (0 until recyclerView.childCount).any{ i ->
@@ -36,10 +43,6 @@ class ScheduleTouchHelper(
         }
         // 자신이 아니면 스와이프 X
         if(isOtherSwiped){
-            return makeMovementFlags(0, 0)
-        }
-        // 현재 아이템이 없다면 스와이프 X
-        if(currentViewTop == null){
             return makeMovementFlags(0, 0)
         }
 
