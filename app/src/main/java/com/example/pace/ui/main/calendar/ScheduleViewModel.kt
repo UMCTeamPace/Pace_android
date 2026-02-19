@@ -42,6 +42,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull // searchSchedules에서 필요
+import kotlinx.coroutines.flow.update
 
 @HiltViewModel
 class ScheduleViewModel @Inject constructor(
@@ -96,6 +97,8 @@ class ScheduleViewModel @Inject constructor(
     // 일정 상세 조회
     private val _scheduleDetailInfo = MutableStateFlow<ScheduleDetailResponse?>(null)
     val scheduleDetailInfo: StateFlow<ScheduleDetailResponse?> = _scheduleDetailInfo
+    private val _scheduleDetailInfoMap = MutableStateFlow<Map<Long, ScheduleDetailResponse>>(emptyMap())
+    val scheduleDetailInfoMap = _scheduleDetailInfoMap
 
     private val _updateScheduleEvent = MutableStateFlow<Boolean?>(null)
     val updateScheduleEvent: StateFlow<Boolean?> = _updateScheduleEvent
@@ -571,6 +574,9 @@ class ScheduleViewModel @Inject constructor(
             if (response.isSuccess && response.result != null) {
                 // 3. 변수명(_scheduleDetailInfo) 일치 확인
                 _scheduleDetailInfo.value = response.result
+                _scheduleDetailInfoMap.update {
+                    it + (scheduleId to response.result)
+                }
 
                 Log.d("DEBUG_TAG", "상세 정보 로드 성공: ID ${response.result.scheduleId}")
             } else {
