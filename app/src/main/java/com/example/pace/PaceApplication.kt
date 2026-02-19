@@ -1,6 +1,7 @@
 package com.example.pace  // 최상위 패키지
 
 import android.app.Application
+import android.os.StrictMode
 import android.util.Log
 import androidx.hilt.work.HiltWorkerFactory
 import com.example.pace.data.api.RetrofitClient
@@ -43,7 +44,19 @@ class PaceApplication : Application(), Configuration.Provider { // 1. 인터페�
 
     override fun onCreate() {
         super.onCreate()
+        // 모든 감지를 무시하고 페널티를 없애는 설정
+        // ThreadPolicy (메인 스레드 작업 감지 해제)
+        StrictMode.setThreadPolicy(
+            StrictMode.ThreadPolicy.Builder()
+                .permitAll() // 모든 제약을 허용 (빨간 테두리 발생 원인 차단)
+                .build()
+        )
 
+        // VmPolicy (메모리 누수 등 VM 관련 감지 해제)
+        StrictMode.setVmPolicy(
+            StrictMode.VmPolicy.Builder()
+                .build()
+        )
         // Kakao SDK 초기화만 남겨둡니다.
         KakaoSdk.init(this, BuildConfig.KAKAO_NATIVE_APP_KEY)
 

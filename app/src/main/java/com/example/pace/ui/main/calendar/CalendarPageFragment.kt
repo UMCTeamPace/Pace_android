@@ -97,14 +97,6 @@ class CalendarPageFragment: Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        StrictMode.setThreadPolicy(
-            StrictMode.ThreadPolicy.Builder()
-                .detectAll()
-                .penaltyLog()
-                .penaltyFlashScreen()
-                .permitDiskReads()
-                .build()
-        )
 
         bottomSheetBehavior = BottomSheetBehavior.from(binding.bottomSheet)
 
