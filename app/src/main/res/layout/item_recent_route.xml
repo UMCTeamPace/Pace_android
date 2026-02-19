@@ -37,13 +37,16 @@
 
             <TextView
                 android:id="@+id/tv_route_start_text"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
+                android:layout_marginEnd="12dp" android:maxLines="1"
+                android:ellipsize="end"
                 android:text="스타벅스 사당점"
                 android:textSize="16sp"
                 android:fontFamily="@font/pretendard_medium"
                 app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/iv_arrow"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent"/>
 
@@ -51,7 +54,6 @@
                 android:id="@+id/iv_arrow"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginHorizontal="12dp"
                 android:src="@drawable/ic_arrow_forward"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -60,8 +62,9 @@
 
             <TextView
                 android:id="@+id/tv_route_end_text"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="12dp" android:layout_marginEnd="12dp"
                 android:maxLines="1"
                 android:ellipsize="end"
                 android:text="스타벅스 사당점"
@@ -71,8 +74,6 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent"/>
-
-
 
         </androidx.constraintlayout.widget.ConstraintLayout>
     </FrameLayout>

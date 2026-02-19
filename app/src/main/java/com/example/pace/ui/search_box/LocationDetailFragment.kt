@@ -9,9 +9,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Observer
 import com.example.pace.databinding.FragmentLocationDetailBinding
 import com.example.pace.R
 import com.example.pace.data.viewmodel.GroupViewModel
@@ -30,7 +31,7 @@ class LocationDetailFragment : Fragment() {
 
     private var _binding: FragmentLocationDetailBinding? = null
     private val binding get() = _binding!!
-    private val groupViewModel: GroupViewModel by viewModels()
+    private val groupViewModel: GroupViewModel by activityViewModels()
     private lateinit var placesClient: PlacesClient
 
     override fun onCreateView(
@@ -145,17 +146,18 @@ class LocationDetailFragment : Fragment() {
     }
 
     private fun observeViewModel() {
-        groupViewModel.errorMessage.observe(viewLifecycleOwner) { msg ->
-            if (!msg.isNullOrBlank()) {
-                Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
-            }
-        }
+        groupViewModel.errorMessage.observe(viewLifecycleOwner, Observer { msg ->
+            if (msg.isNullOrBlank()) return@Observer
 
-        groupViewModel.isOperationSuccess.observe(viewLifecycleOwner) { isSuccess ->
-            if (isSuccess) {
-                Toast.makeText(requireContext(), "장소 저장 완료!", Toast.LENGTH_SHORT).show()
-            }
-        }
+            val isDuplicateError = (groupViewModel.errorCode.value == "PLACE400_1")
+
+            if (!isDuplicateError) { }
+        })
+
+        // 3. 여기도 Observer { } 로 감싸기
+        groupViewModel.isOperationSuccess.observe(viewLifecycleOwner, Observer { isSuccess ->
+            if (isSuccess) { }
+        })
     }
 
     private fun updateMetaInfoText(category: String, distance: String, address: String) {
@@ -172,6 +174,8 @@ class LocationDetailFragment : Fragment() {
         val request = FetchPlaceRequest.newInstance(placeId, fields)
 
         placesClient.fetchPlace(request).addOnSuccessListener { response ->
+            if (_binding == null) return@addOnSuccessListener
+
             val place = response.place
             if (place.latLng != null) {
                 val lat = place.latLng!!.latitude
@@ -201,12 +205,16 @@ class LocationDetailFragment : Fragment() {
                         .build()
 
                     placesClient.fetchPhoto(photoRequest).addOnSuccessListener { photoResponse ->
+                        if (_binding == null) return@addOnSuccessListener
+
                         addDynamicPhotoView(photoResponse.bitmap)
                     }.addOnFailureListener {
                     }
                 }
             }
         }.addOnFailureListener {
+            if (_binding == null) return@addOnFailureListener
+
             binding.svPhotos.visibility = View.GONE
             (parentFragment as? RouteFragment)?.setBottomSheetFixed(true)
         }
