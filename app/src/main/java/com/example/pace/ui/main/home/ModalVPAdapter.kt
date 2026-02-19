@@ -61,7 +61,11 @@ class ModalVPAdapter(
             }
             binding.scheduleCategoryIv.setImageDrawable(categoryIv)
             binding.scheduleTitleTv.text = schedule.title ?: "제목 없음"
-            binding.modalTimeTv.text = schedule.startTime + " -> " + schedule.endTime
+            binding.modalTimeTv.text = if(schedule.isAllDay){
+                "하루 종일"
+            }else{
+                schedule.startTime + " -> " + schedule.endTime
+            }
 
             // 반복 일정
             if (schedule.repeatRule == null) {
@@ -91,11 +95,13 @@ class ModalVPAdapter(
                     if (schedule.reminders.isNotEmpty()) {
                         Log.d("reminder/schedule", schedule.reminders.toString())
                         val reminder = mutableListOf<String>()
-                        schedule.reminders.forEach {
-                            if (it < 60) {
-                                reminder.add(" " + it.toString() + "분 전")
-                            } else {
-                                reminder.add(" " + (it / 60).toString() + "시간 전")
+                        val sortedList = schedule.reminders.sorted()
+                        sortedList.forEach {
+                            when{
+                                it == 0 -> reminder.add("일정 시작 시간")
+                                it < 60 -> reminder.add(" " + it.toString() + "분 전")
+                                it > 60 && it < 1440  -> reminder.add(" " + (it / 60).toString() + "시간 전")
+                                else -> reminder.add(" " + (it/1440).toString() + "일 전")
                             }
                         }
                         binding.modalScheduleReminderTv.text = reminder.joinToString(",")
@@ -104,7 +110,7 @@ class ModalVPAdapter(
                     }
 
                     // 출발 알림
-                    binding.modalDepartureReminderTv.text = "안함"
+                    binding.modalDepartureReminderLl.visibility = View.INVISIBLE
                 }
                 // 장소 일정일 때
                 "ROUTE" -> {
@@ -217,10 +223,11 @@ class ModalVPAdapter(
                             when(reminder.reminderType){
                                 // 일정 알림
                                 "EVENT" -> {
-                                    if(reminder.minutesBefore < 60){
-                                        binding.modalScheduleReminderTv.text = reminder.minutesBefore.toString() + "분 전"
-                                    }else{
-                                        binding.modalScheduleReminderTv.text = (reminder.minutesBefore/60).toString() + "시간 전"
+                                    binding.modalScheduleReminderTv.text = when{
+                                        reminder.minutesBefore == 0 ->  "일정 시작 시간"
+                                        reminder.minutesBefore < 60 -> reminder.minutesBefore.toString() + "분 전"
+                                        reminder.minutesBefore > 60 && reminder.minutesBefore < 1440 -> (reminder.minutesBefore/60).toString() + "시간 전"
+                                        else -> (reminder.minutesBefore/1440).toString() + "일 전"
                                     }
                                 }
                                 // 출발 알림

@@ -13,6 +13,7 @@ import android.view.ViewGroup
 import android.widget.NumberPicker
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -40,6 +41,7 @@ import com.google.gson.Gson
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
+import kotlin.compareTo
 
 @AndroidEntryPoint
 class GeneralScheduleFragment : Fragment() {
@@ -96,9 +98,19 @@ class GeneralScheduleFragment : Fragment() {
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+    val backPressedCallback = object: OnBackPressedCallback(true){
+        override fun handleOnBackPressed() {
+            val dialog = AddCancelDialog(requireContext()){
+                if (parentFragmentManager.backStackEntryCount > 0) {
+                    parentFragmentManager.popBackStack()
+                } else {
+                    requireActivity().finish()
+                }
+            }
+            dialog.show()
+        }
     }
+
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -107,6 +119,7 @@ class GeneralScheduleFragment : Fragment() {
     ): View {
 
         _binding = FragmentGeneralScheduleBinding.inflate(inflater, container, false)
+        requireActivity().onBackPressedDispatcher.addCallback(backPressedCallback)
         return binding.root
     }
 
