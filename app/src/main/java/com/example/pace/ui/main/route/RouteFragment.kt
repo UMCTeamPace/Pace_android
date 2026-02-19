@@ -1530,7 +1530,7 @@ private fun selectCurrentLocation() {
     fun updateMapFromDetail(name: String, placeId: String, lat: Double, lng: Double) {
         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment ?: return
 
-        if (isDetailFromRecommend) {
+        if (isDetailFromRecommend && !isPoiMode) {
             val tempItem = SearchItem(
                 placeId = placeId,
                 name = "선택된 장소",
@@ -1880,8 +1880,25 @@ private fun selectCurrentLocation() {
             }
             else{
                 exitSearchMode()
+
+                mainBinding?.mainBnv?.visibility = View.VISIBLE
+
                 if (hasSchedule) {
                     showDefaultScheduleOverlay(cachedScheduleData)
+                } else {
+                    binding.layoutRouteDetailOverlay.root.visibility = View.VISIBLE
+                    binding.layoutRouteDetailOverlay.root.bringToFront()
+
+                    binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.VISIBLE
+
+                    binding.layoutRouteDetailOverlay.tvScheduleRouteDetailName.visibility = View.VISIBLE
+                    binding.layoutRouteDetailOverlay.tvScheduleRouteDetailName.text = "경로 일정 목록"
+
+                    binding.layoutRouteDetailOverlay.tvScheduleRouteDetailTime.visibility = View.GONE
+                    binding.layoutRouteDetailOverlay.viewColorDotRouteDetail.visibility = View.GONE
+                    binding.layoutRouteDetailOverlay.btnRouteDetailBackDetail.visibility = View.GONE
+                    binding.layoutRouteDetailOverlay.btnRouteSelect.visibility = View.GONE
+                    binding.layoutRouteDetailOverlay.bottomSheetRouteDetail.visibility = View.GONE
                 }
             }
         }
@@ -1942,14 +1959,11 @@ private fun selectCurrentLocation() {
         if (isPoiMode) {
             val transaction = childFragmentManager.beginTransaction()
 
-            // 1. 현재 보고 있는 POI 상세창 제거 (Remove)
             val poiFrag = childFragmentManager.findFragmentByTag("POI_DETAIL")
             if (poiFrag != null) {
                 transaction.remove(poiFrag)
             }
 
-            // 2. 아까 숨겨뒀던 화면 다시 보여주기 (Show)
-            // 우선순위: 상세 화면("DETAIL")이 있었으면 그거 보여주고, 없으면 리스트("TAG") 보여주기
             val hiddenDetail = childFragmentManager.findFragmentByTag("DETAIL")
             val hiddenList = childFragmentManager.findFragmentByTag(LocationBottomSheetFragment.TAG)
 
@@ -1961,15 +1975,12 @@ private fun selectCurrentLocation() {
 
             transaction.commitAllowingStateLoss()
 
-            // 3. 지도에 찍었던 임시 마커 지우기
             val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
-            mapFrag?.clearTemporaryMarker() // MapFragment에 이 함수가 있어야 합니다.
+            mapFrag?.clearTemporaryMarker()
 
-            // 4. 바텀시트 상태 유지 (숨겨진 애가 다시 나왔으니 펼쳐진 상태 유지)
             bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
             setMapPaddingToBottomSheetHeight()
 
-            // 5. POI 모드 종료
             isPoiMode = false
             return
         }
