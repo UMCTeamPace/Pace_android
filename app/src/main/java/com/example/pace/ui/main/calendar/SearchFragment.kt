@@ -1,6 +1,7 @@
 package com.example.pace.ui.main.calendar
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -8,28 +9,31 @@ import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.data.model.Schedule
 import com.example.pace.databinding.FragmentSearchBinding
-import com.example.pace.databinding.LayoutSearchEmptyBinding // EmptyView 바인딩 가정
+import com.example.pace.databinding.LayoutSearchEmptyBinding
 import com.example.pace.ui.main.MainActivity
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import androidx.fragment.app.activityViewModels // 추가
 import androidx.recyclerview.widget.ItemTouchHelper
+import com.example.pace.ui.add_schedule.AddScheduleActivity
+import com.example.pace.ui.main.home.DeleteRepeatScheduleDialog
+import com.example.pace.ui.main.home.DeleteScheduleDialog
 import com.example.pace.ui.main.home.ScheduleTouchHelper
-import dagger.hilt.android.AndroidEntryPoint // 추가
+import dagger.hilt.android.AndroidEntryPoint
+
 @AndroidEntryPoint
 class SearchFragment : Fragment() {
     private var _binding: FragmentSearchBinding? = null
     private val binding get() = _binding!!
 
-    // 어댑터 선언
     private lateinit var searchAdapter: SearchAdapter
     private lateinit var scheduleTouchHelper: ScheduleTouchHelper
-
-    // 결과 리스트용 리사이클러뷰 (동적 생성)
     private var recyclerView: RecyclerView? = null
 
     private val viewModel: ScheduleViewModel by lazy {
@@ -48,37 +52,56 @@ class SearchFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        setupRecyclerView()   // 리사이클러뷰 초기화
-        setupSearchInput()    // 입력 리스너 설정
-        setupButtons()        // 버튼 리스너 설정
-        observeSearchResults() // 데이터 관찰
+        setupRecyclerView()
+        setupSearchInput()
+        setupButtons()
+        observeSearchResults()
 
-        // 초기 화면 설정 (첫 번째 사진)
         showInitialState()
 
-        // 키보드 자동 올리기
         binding.etSearch.requestFocus()
         showKeyboard()
 
-        // 툴바 제어
-        val mainActivity = requireActivity() as MainActivity
-        mainActivity.binding.mainToolbar.visibility = View.GONE
+        // 툴바 숨기기
+        (requireActivity() as MainActivity).binding.mainToolbar.visibility = View.GONE
     }
 
-    // SearchFragment.kt 수정 제안
     private fun setupRecyclerView() {
         searchAdapter = SearchAdapter(
             context = requireContext(),
             onPinClick = { schedule ->
-                val updatedSchedule = schedule.copy(isPinned = !schedule.isPinned)
-                viewModel.updateSchedule(updatedSchedule)
+                try {
+                    // startDate에서 날짜 정보(yyyy-MM-dd) 추출
+                    val dateStr = schedule.startDate.substring(0, 10)
+                    val date = java.time.LocalDate.parse(dateStr)
+
+                    // 뷰모델의 로컬 핀 토글 함수 호출 (UI 즉시 반영용)
+                    viewModel.togglePinLocally(date, schedule.id)
+                    searchAdapter.updateItemPinStatus(schedule.id, !schedule.isPinned)
+                } catch (e: Exception) {
+                    android.util.Log.e("SearchPinError", "날짜 파싱 에러: ${e.message}")
+                }
             },
+            // 2. 삭제: 프래그먼트에 정의한 showDeleteDialog 호출
+            onDeleteClick = { schedule ->
+                showDeleteDialog(schedule)
+            },
+            // 3. 수정: AddScheduleActivity로 이동
+            onEditClick = { schedule ->
+                val intent = Intent(requireContext(), AddScheduleActivity::class.java).apply {
+                    putExtra("isEdit", true)
+                    putExtra("SCHEDULE_ID", schedule.id)
+                    putExtra("SCHEDULE_TYPE", schedule.type)
+                    if (schedule.type == "ROUTE") putExtra("OPEN_ROUTE_TAB", true)
+                }
+                startActivity(intent)
+            },
+            // 4. 편집 모드 선택
             onEditSelect = { id ->
-                // 아이템 클릭 시 뷰모델의 선택 리스트에 추가/삭제
                 viewModel.toggleSelection(id)
             }
         )
-        // 1. RecyclerView를 미리 Container에 담아두고 visibility만 조절하는 게 성능상 좋습니다.
+
         recyclerView = RecyclerView(requireContext()).apply {
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -86,114 +109,115 @@ class SearchFragment : Fragment() {
             )
             layoutManager = LinearLayoutManager(context)
             adapter = searchAdapter
+
+
         }
+
         // 스와이프 로직 연결
         scheduleTouchHelper = ScheduleTouchHelper(searchAdapter)
-        val itemTouchHelper = ItemTouchHelper(scheduleTouchHelper)
+        ItemTouchHelper(scheduleTouchHelper).attachToRecyclerView(recyclerView)
         searchAdapter.scheduleTouchHelper = scheduleTouchHelper
-        itemTouchHelper.attachToRecyclerView(recyclerView)
-    }
-
-    private fun showResultList(results: List<Schedule>) {
-        binding.searchResultContainer.removeAllViews() // 초기화
-        recyclerView?.let { rv ->
-            if (rv.parent == null) { // 부모가 없을 때만 add
-                binding.searchResultContainer.addView(rv)
-            } else {
-                // 이미 추가되어 있다면 부모에서 떼었다가 다시 붙이거나,
-                // 그냥 둠 (여기서는 removeAllViews를 했으니 다시 붙여야 함)
-                binding.searchResultContainer.addView(rv)
-            }
-            searchAdapter.submitList(results)
-        }
-    }
-
-    private fun setupSearchInput() {
-        binding.etSearch.addTextChangedListener { text ->
-            // 1. 입력된 텍스트 원본과 공백 제거본 로그 찍기
-            val originalText = text?.toString() ?: ""
-            val query = originalText.trim()
-            searchAdapter.updateQuery(query)
-            viewModel.searchSchedules(query)
-            android.util.Log.d("SearchFlow", "-------------------------------")
-            android.util.Log.d("SearchFlow", "입력 감지: '$originalText' (길이: ${originalText.length})")
-            android.util.Log.d("SearchFlow", "Trim된 쿼리: '$query' (길이: ${query.length})")
-
-            if (query.isEmpty()) {
-                android.util.Log.d("SearchFlow", "결과: 쿼리가 비어있음 -> 초기화 실행")
-
-                searchAdapter.updateQuery("")
-                searchAdapter.submitList(emptyList())
-                viewModel.clearSearch()
-                showInitialState()
-                return@addTextChangedListener
-            }
-
-            android.util.Log.d("SearchFlow", "결과: '$query' 검색 시도")
-            searchAdapter.updateQuery(query)
-            viewModel.searchSchedules(query)
-        }
-    }
-
-    private fun setupButtons() {
-        // 뒤로가기
-        binding.btnBack.setOnClickListener {
-            parentFragmentManager.popBackStack()
-        }
-
-        // 필터 버튼 (XML의 id가 ivList 또는 btnFilter인 경우에 맞춰 수정)
-        binding.ivList.setOnClickListener {
-            val filterSheet = SearchFilterBottomSheet()
-            filterSheet.show(childFragmentManager, "filter")
-        }
     }
 
     private fun observeSearchResults() {
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.searchResults.collect { results ->
-                // [중요] query가 비었는지 체크해서 return하는 코드를 반드시 지우세요!
-                // 빈 리스트(results)가 들어오면 그대로 어댑터에 넘겨줘야 화면이 지워집니다.
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                // 1. 검색 결과 및 편집 모드/선택 상태 통합 관찰
+                launch {
+                    viewModel.searchResults.collectLatest { results ->
+                        val query = binding.etSearch.text.toString().trim()
 
-                if (results.isEmpty()) {
-                    val currentQuery = binding.etSearch.text.toString().trim()
-                    if (currentQuery.isEmpty()) {
-                        showInitialState() // 여기서 리스트가 비워짐
-                    } else {
-                        showEmptyState()   // "검색 결과가 없습니다" 표시
+                        // 어댑터에 검색어를 먼저 전달 (하이라이트용)
+                        searchAdapter.updateQuery(query)
+
+                        if (results.isEmpty()) {
+                            if (query.isEmpty()) showInitialState() else showEmptyState()
+                        } else {
+                            val uiItems = transformToSearchItems(results)
+
+                            // [수정] removeAllViews 대신 어댑터 업데이트만 수행
+                            binding.searchResultContainer.visibility = View.VISIBLE
+                            if (recyclerView?.parent == null) {
+                                binding.searchResultContainer.addView(recyclerView)
+                            }
+
+                            searchAdapter.submitList(uiItems)
+
+                            results.filter { it.type == "ROUTE" }.forEach {
+                                viewModel.fetchRouteDetail(it.id)
+                            }
+                        }
                     }
-                } else {
-                    showResultList(results)
+                }
+
+                // 2. 선택된 ID 세트 관찰 (편집 모드 체크박스 즉시 반영)
+                launch {
+                    viewModel.selectedIds.collect { ids ->
+                        searchAdapter.updateSelectedIds(ids)
+                    }
+                }
+
+                // 3. 경로 상세 정보 관찰
+                launch {
+                    viewModel.routeDetails.collectLatest { routeMap ->
+                        searchAdapter.updateRouteInfo(routeMap)
+                    }
                 }
             }
         }
     }
 
+
+    private fun showResultList(results: List<ScheduleListItem>) {
+        binding.searchResultContainer.removeAllViews()
+        recyclerView?.let { rv ->
+            if (rv.parent == null) {
+                binding.searchResultContainer.addView(rv)
+            } else {
+                binding.searchResultContainer.addView(rv)
+            }
+            searchAdapter.submitList(results)
+            recyclerView?.scrollToPosition(0)
+        }
+    }
+
+    private fun setupSearchInput() {
+        binding.etSearch.addTextChangedListener { text ->
+            val query = text?.toString()?.trim() ?: ""
+            // 어댑터 쿼리 업데이트는 위 observe 로직에서 처리하므로 삭제 가능
+
+            if (query.isEmpty()) {
+                viewModel.clearSearch()
+                showInitialState()
+            } else {
+                // 뷰모델에서 검색 수행 (검색 결과 flow가 방출됨)
+                viewModel.searchSchedules(query)
+            }
+        }
+    }
+
+    private fun setupButtons() {
+        binding.btnBack.setOnClickListener {
+            parentFragmentManager.popBackStack()
+        }
+
+        binding.ivList.setOnClickListener {
+            SearchFilterBottomSheet().show(childFragmentManager, "filter")
+        }
+    }
+
     private fun showInitialState() {
         binding.searchResultContainer.removeAllViews()
-        // [추가] 어댑터의 리스트도 비워줘야 잔상이 사라집니다.
         searchAdapter.submitList(emptyList())
         searchAdapter.updateQuery("")
     }
 
-
-    private fun updateUI(results: List<Schedule>) {
-        if (results.isEmpty()) {
-            showEmptyState()
-        } else {
-            showResultList(results) // showResults 대신 이미 정의된 showResultList 사용
-        }
-    }
-
-    // 2. showEmptyState 내의 바인딩 ID 참조 수정
     private fun showEmptyState() {
         binding.searchResultContainer.removeAllViews()
-
-        // LayoutSearchEmptyBinding 사용
         val emptyBinding = LayoutSearchEmptyBinding.inflate(layoutInflater, binding.searchResultContainer, true)
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.searchRangeText.collect { range ->
-                // tv_empty_range(XML) -> tvEmptyRange(Binding)
                 emptyBinding.tvEmptyRange.text = range
             }
         }
@@ -206,9 +230,84 @@ class SearchFragment : Fragment() {
     private fun showKeyboard() {
         binding.etSearch.postDelayed({
             val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            imm?.showSoftInput(binding.etSearch, InputMethodManager.SHOW_IMPLICIT)
+            imm.showSoftInput(binding.etSearch, InputMethodManager.SHOW_IMPLICIT)
         }, 100)
     }
+
+    private fun showDeleteDialog(schedule: Schedule) {
+        // 1. 경로 일정 (ROUTE)
+        if (schedule.type == "ROUTE") {
+            DeleteScheduleDialog(requireContext()).apply {
+                setOnConfirmListener {
+                    viewModel.deleteSchedule(schedule.id, withRoute = true)
+                }
+            }.show()
+        }
+        // 2. 반복 일정 여부 체크
+        else if (!schedule.repeatRule.isNullOrEmpty()) {
+            DeleteRepeatScheduleDialog(requireContext()).apply {
+                setOnOptionSelectedListener { option ->
+                    when (option) {
+                        "ONLY_THIS" -> {
+                            // schedule.startDate는 expandSchedules에 의해 해당 회차 날짜로 이미 채워져 있음
+                            val occurrenceDate = java.time.LocalDate.parse(schedule.startDate)
+                            viewModel.deleteOnlyThisOccurrence(schedule, occurrenceDate)
+                        }
+                        "ALL" -> viewModel.deleteSchedule(schedule.id, withRoute = false)
+                    }
+                }
+            }.show()
+        }
+        // 3. 일반 단일 일정
+        else {
+            DeleteScheduleDialog(requireContext()).apply {
+                setOnConfirmListener {
+                    viewModel.deleteSchedule(schedule.id, withRoute = false)
+                }
+            }.show()
+        }
+    }
+
+    private fun transformToSearchItems(schedules: List<Schedule>): List<ScheduleListItem> {
+        val resultList = mutableListOf<ScheduleListItem>()
+
+        // 1. 날짜별 그룹화 (문자열 처리를 통해 yyyy-MM-dd 형태 추출)
+        val grouped = schedules.groupBy { it.startDate.substring(0, 10) }
+
+        // 2. 날짜순 정렬
+        val sortedDates = grouped.keys.sorted()
+
+        for (dateStr in sortedDates) {
+            val date = java.time.LocalDate.parse(dateStr)
+
+            // 리스트 프래그먼트와 동일한 날짜 헤더 추가 (yyyy년 MM월 dd일 (E))
+            resultList.add(ScheduleListItem.DateHeader(formatDateToHeader(date)))
+
+            grouped[dateStr]?.let { daySchedules ->
+                // 3. 해당 날짜 내 정렬 (리스트 화면과 동일: 고정 -> 종일 -> 시간순)
+                val sortedList = daySchedules.sortedWith(
+                    compareBy(
+                        { !it.isPinned },
+                        { !it.isAllDay },
+                        { it.startTime }
+                    )
+                )
+                resultList.addAll(sortedList.map { ScheduleListItem.ScheduleItem(it) })
+            }
+        }
+        return resultList
+    }
+
+    // 리스트 프래그먼트와 동일한 포맷 함수 추가
+    private fun formatDateToHeader(date: java.time.LocalDate): String {
+        return try {
+            val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy년 MM월 dd일 (E)", java.util.Locale.KOREAN)
+            date.format(formatter)
+        } catch (e: Exception) {
+            date.toString()
+        }
+    }
+
 
     override fun onDestroyView() {
         super.onDestroyView()

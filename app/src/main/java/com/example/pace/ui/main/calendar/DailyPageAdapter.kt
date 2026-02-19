@@ -5,6 +5,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.data.model.Schedule
+import com.example.pace.data.model.response.RouteInfo
 import com.example.pace.databinding.ItemSchedulePageBinding
 import com.example.pace.ui.main.calendar.ScheduleAdapter
 import com.example.pace.ui.main.calendar.ScheduleListItem
@@ -18,11 +19,14 @@ class DailyPageAdapter(
     private val onEditSelect: (Long) -> Unit = {}
 ) : RecyclerView.Adapter<DailyPageAdapter.PageViewHolder>() {
 
+    private var routeInfoMap: Map<Long, RouteInfo> = emptyMap()
+
     // 오늘 날짜를 기준으로 아주 먼 과거/미래까지 스와이프 가능하게 설정
     val START_POSITION = Int.MAX_VALUE / 2
 
-    fun updateEvents(newEvents: Map<LocalDate, List<Schedule>>) {
+    fun updateEvents(newEvents: Map<LocalDate, List<Schedule>>, newRouteMap: Map<Long, RouteInfo> = emptyMap()) {
         this.events = newEvents
+        this.routeInfoMap = newRouteMap
         notifyDataSetChanged()
     }
 
@@ -43,7 +47,8 @@ class DailyPageAdapter(
                 context = context,
                 items = sortedItems,
                 onPinClick = onScheduleClick,
-                onEditSelect = onEditSelect
+                onEditSelect = onEditSelect,
+                routeInfoMap = routeInfoMap
             )
             scheduleAdapter.setEditMode(false)
             scheduleAdapter.updateSelectedIds(emptySet())

@@ -8,6 +8,7 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.R
 import com.example.pace.data.model.Schedule
+import com.example.pace.data.model.response.RouteInfo
 import com.example.pace.databinding.ItemDateHeaderBinding
 import com.example.pace.databinding.ItemScheduleBinding
 import com.example.pace.ui.main.home.DeleteScheduleDialog
@@ -17,7 +18,8 @@ class ScheduleAdapter(
     private val context: Context,
     private var items: List<ScheduleListItem>,
     private val onPinClick: (Schedule) -> Unit,
-    private val onEditSelect: (Long) -> Unit // 추가: 아이템 선택 시 호출될 콜백
+    private val onEditSelect: (Long) -> Unit, // 추가: 아이템 선택 시 호출될 콜백
+    private var routeInfoMap: Map<Long, RouteInfo> = emptyMap()
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     lateinit var scheduleTouchHelper: ScheduleTouchHelper
@@ -90,6 +92,12 @@ class ScheduleAdapter(
         }
     }
 
+
+    fun updateRouteInfo(newRouteMap: Map<Long, RouteInfo>) {
+        this.routeInfoMap = newRouteMap
+        notifyDataSetChanged()
+    }
+
     // ViewHolder for Schedule Item
     inner class ScheduleItemViewHolder(private val binding: ItemScheduleBinding) :
         RecyclerView.ViewHolder(binding.root) {
@@ -111,7 +119,8 @@ class ScheduleAdapter(
             } else {
                 // 일반 모드일 때
                 binding.scheduleCheckbox.visibility = View.GONE // 일반 모드에서는 체크박스 숨김
-                binding.schedulePinnedIv.visibility = if (schedule.isPinned) View.VISIBLE else View.GONE // 고정 여부에 따라 아이콘 표시
+                binding.schedulePinnedIv.visibility =
+                    if (schedule.isPinned) View.VISIBLE else View.GONE // 고정 여부에 따라 아이콘 표시
 
                 binding.root.setOnClickListener { /* TODO: 상세보기 등 기존 로직 */ } // 일반 모드에서 아이템 클릭 리스너
                 binding.schedulePinIv.setOnClickListener {
@@ -133,7 +142,8 @@ class ScheduleAdapter(
                 schedule.calendarColor != null && schedule.calendarColor != 0 -> schedule.calendarColor
                 else -> android.graphics.Color.parseColor("#A2BD3B") // 기본 색상 (원하는 색상으로 변경 가능)
             }
-            binding.scheduleCategoryIv.imageTintList = android.content.res.ColorStateList.valueOf(colorResId)
+            binding.scheduleCategoryIv.imageTintList =
+                android.content.res.ColorStateList.valueOf(colorResId)
 
             // 3. 시간 표시
             if (schedule.isAllDay) {
@@ -155,18 +165,51 @@ class ScheduleAdapter(
                 binding.scheduleRepeatTv.visibility = View.GONE
             }
 
-            // 5. 장소 표시
-            if (!schedule.location.isNullOrEmpty()) {
-                binding.scheduleNormalLocationLl.visibility = View.VISIBLE
-                binding.scheduleNormalLocationIv.visibility = View.VISIBLE
-                binding.scheduleNormalLocationTv.text = schedule.location
-                binding.scheduleRouteLocationLl.visibility = View.GONE // 일반 일정에서는 경로 위치 숨김
-            } else {
+            val routeDetail = routeInfoMap[schedule.id]
+
+            if (schedule.type == "ROUTE") {
+                // 경로 일정일 때
                 binding.scheduleNormalLocationLl.visibility = View.GONE
-                binding.scheduleNormalLocationIv.visibility = View.GONE
-                binding.scheduleNormalLocationTv.text = "" // 텍스트도 비워둠
-                // 경로 일정이 withRoute 플래그를 사용하는 경우를 위해 추가 확인
-                binding.scheduleRouteLocationLl.visibility = if (schedule.type == "ROUTE" && schedule.withRoute) View.VISIBLE else View.GONE
+                binding.scheduleRouteLocationLl.visibility = View.VISIBLE
+
+                if (routeDetail != null) {
+                    // 데이터가 있을 때: 실제 경로 정보 바인딩
+                    binding.scheduleRouteNameTv.text =
+                        "${routeDetail.originName} → ${routeDetail.destName}"
+
+                    // 시간 포맷팅 (HH:mm)
+                    val formatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
+                    val startTime = routeDetail.departureTime?.let {
+                        java.time.LocalDateTime.parse(it).plusHours(9).format(formatter)
+                    } ?: "00:00"
+                    val endTime = routeDetail.arrivalTime?.let {
+                        java.time.LocalDateTime.parse(it).plusHours(9).format(formatter)
+                    } ?: "00:00"
+
+                    binding.scheduleRouteRangeTv.text = "$startTime - $endTime"
+
+                    // 소요 시간 계산
+                    val totalSeconds = routeDetail.totalTime
+                    val hours = totalSeconds / 3600
+                    val minutes = (totalSeconds % 3600) / 60
+                    binding.scheduleRouteDurationTv.text = "${hours}시간 ${minutes}분"
+                } else {
+                    // 데이터 로딩 중이거나 없을 때 기본 처리
+                    binding.scheduleRouteNameTv.text = schedule.location ?: "경로를 불러오는 중..."
+                    binding.scheduleRouteRangeTv.text =
+                        "${schedule.startTime} - ${schedule.endTime}"
+                    binding.scheduleRouteDurationTv.text = "0시간 0분"
+                }
+            } else {
+                // 일반 일정일 때 (기존 로직 유지)
+                binding.scheduleRouteLocationLl.visibility = View.GONE
+                if (!schedule.location.isNullOrEmpty()) {
+                    binding.scheduleNormalLocationLl.visibility = View.VISIBLE
+                    binding.scheduleNormalLocationIv.visibility = View.VISIBLE
+                    binding.scheduleNormalLocationTv.text = schedule.location
+                } else {
+                    binding.scheduleNormalLocationLl.visibility = View.GONE
+                }
             }
         }
     }

@@ -3,13 +3,14 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/white">
+    android:background="@color/background">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:gravity="center_vertical"
         android:orientation="horizontal"
+        android:background="@color/white"
         android:paddingHorizontal="16dp">
 
         <ImageView
@@ -60,6 +61,9 @@
     <FrameLayout
         android:id="@+id/search_result_container"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:clipToPadding="false" />
 
 </LinearLayout>
