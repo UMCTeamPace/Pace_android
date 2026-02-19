@@ -228,6 +228,7 @@
                 style="@style/TextColor.Primary"/>
         </LinearLayout>
         <LinearLayout
+            android:id="@+id/modal_departure_reminder_ll"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
