@@ -138,11 +138,25 @@ class GroupViewModel @Inject constructor(
                 } else {
                     _errorMessage.value = response.message
                 }
+            } catch (e: retrofit2.HttpException) {
+                val errorJson = e.response()?.errorBody()?.string()
+                try {
+                    val errorResponse = com.google.gson.Gson().fromJson(errorJson, com.example.pace.data.model.response.RawDefaultResponse::class.java)
+                    _errorCode.value = errorResponse.code
+                    _errorMessage.value = errorResponse.message
+                } catch (parsingError: Exception) {
+                    _errorMessage.value = "서버 통신 오류 (400)"
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
                 _errorMessage.value = "저장 실패: ${e.message}"
             }
         }
+    }
+
+    fun clearErrorState() {
+        _errorCode.value = null
+        _errorMessage.value = ""
     }
 
     fun getSavedPlaces(groupId: Long, sortType: String = "LATEST") {

@@ -29,13 +29,16 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.gms.maps.model.PointOfInterest
 import com.google.android.gms.maps.model.PolylineOptions
 import com.google.maps.android.PolyUtil
 
 class MapFragment : Fragment(), OnMapReadyCallback {
     private var googleMap: GoogleMap? = null
     private val currentMarkers = mutableListOf<Marker>()
+    private var tempPoiMarker: Marker? = null
     var onMapTouched: (() -> Unit)? = null
+    var onPoiClick: ((PointOfInterest) -> Unit)? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -84,6 +87,10 @@ class MapFragment : Fragment(), OnMapReadyCallback {
 
         map.setOnMapClickListener {
             onMapTouched?.invoke()
+        }
+
+        map.setOnPoiClickListener { poi ->
+            onPoiClick?.invoke(poi)
         }
 
         map.setOnCameraMoveStartedListener { reason ->
@@ -291,6 +298,29 @@ class MapFragment : Fragment(), OnMapReadyCallback {
                 true
             }
         }
+    }
+
+    fun showTemporaryMarker(item: SearchItem) {
+        val map = googleMap ?: return
+
+        tempPoiMarker?.remove()
+
+        val position = LatLng(item.lat, item.lng)
+        val markerOptions = MarkerOptions()
+            .position(position)
+            .title(item.name)
+            .icon(bitmapDescriptorFromVector(requireContext(), R.drawable.ic_search_location_pin)) // 핀 모양
+            .zIndex(100f) // 다른 마커보다 위에 보이게
+
+        tempPoiMarker = map.addMarker(markerOptions)
+        tempPoiMarker?.tag = item
+
+        map.animateCamera(CameraUpdateFactory.newLatLng(position))
+    }
+
+    fun clearTemporaryMarker() {
+        tempPoiMarker?.remove()
+        tempPoiMarker = null
     }
 
     fun showOnlySelectedMarker(selectedItem: SearchItem) {
