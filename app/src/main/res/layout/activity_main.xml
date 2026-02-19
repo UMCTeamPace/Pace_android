@@ -84,8 +84,8 @@
 <!--        경로 탭꺼-->
         <ImageView
             android:id="@+id/main_back_iv"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
             android:layout_marginTop="10dp"
             android:layout_marginLeft="15dp"
             android:src="@drawable/ic_arrow_opened"

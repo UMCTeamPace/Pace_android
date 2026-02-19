@@ -24,6 +24,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.example.pace.BuildConfig
@@ -43,6 +44,7 @@ import com.example.pace.data.util.RouteConstants
 import com.example.pace.data.viewmodel.RouteViewModel
 import com.example.pace.data.viewmodel.SearchViewModel
 import com.example.pace.data.viewmodel.SearchViewModelFactory
+import com.example.pace.data.viewmodel.SettingsViewModel
 import com.example.pace.databinding.FragmentRouteBinding
 import com.example.pace.ui.add_schedule.AddScheduleActivity
 import com.example.pace.ui.main.MainActivity
@@ -94,6 +96,7 @@ class RouteFragment : Fragment() {
     }
 
     private val routeViewModel: RouteViewModel by viewModels()
+    private val settingsViewModel: SettingsViewModel by activityViewModels()
 
     private var hasSchedule: Boolean = true
     private var currentTransitType: String? = null // 칩 선택 값
@@ -120,7 +123,7 @@ class RouteFragment : Fragment() {
     private var currentMapAddress: String? = ""
     private var currentMapCategory: String? = ""
     private var currentMyLocation: LatLng? = null
-    private var earlyArriveTime: Int = 0
+    private var earlyArriveTime: Int = -1
     private var currentSortOption: RouteSortOption = RouteSortOption.BEST
 
     private var isDetailFromRecommend = false
@@ -216,6 +219,7 @@ class RouteFragment : Fragment() {
         routeViewModel.fetchRouteOnlySchedule()
 
         observeRouteViewModel()
+        observeSettings()
     }
 
     private fun showDefaultScheduleOverlay(data: RouteOnlyScheduleData? = null) {
@@ -388,6 +392,16 @@ class RouteFragment : Fragment() {
         }
     }
 
+    private fun observeSettings() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            settingsViewModel.userSettings.collect { settings ->
+                settings?.let {
+                    Log.d("RouteOnboarding", "관찰된 온보딩 값: ${it.earlyArrivalTime}")
+                }
+            }
+        }
+    }
+
 
 
     private fun setupMainActivityListeners() {
@@ -438,6 +452,14 @@ class RouteFragment : Fragment() {
     }
     private fun FinalfetchRouteData(){
         lifecycleScope.launch {
+            if (earlyArriveTime == -1) {
+                val onboardingValue = settingsViewModel.userSettings.value?.earlyArrivalTime ?: 10
+                earlyArriveTime = onboardingValue
+
+                // 이 시점에서는 뷰모델 데이터(8분 등)가 이미 로드되어 있을 것이므로 정확한 차감 계산이 가능합니다.
+                updateRequestSearchTimeWithEarlyArrival(earlyArriveTime)
+                Log.d("RouteOnboarding", "검색 직전 온보딩 값($earlyArriveTime) 최종 반영 및 시간 차감 완료")
+            }
             // 출발지 좌표가 없다면 ID로 조회
             if (startLatLng == null && selectedStartPlace != null) {
                 startLatLng = fetchLatLngFromPlaceId(selectedStartPlace!!.second)
@@ -451,6 +473,39 @@ class RouteFragment : Fragment() {
             // 좌표 확보 후 API 호출
             Log.d("Route", "66${selectedStartPlace.toString()}--${selectedEndPlace.toString()} +${startLatLng.toString()}--${endLatLng.toString()} ")
             fetchRouteData()
+        }
+    }
+    private fun updateRequestSearchTimeWithEarlyArrival(minutes: Int) {
+        try {
+            // 1. 원본 일정 시간 문자열 생성 (예: "2026-02-11T13:30:00")
+            val dateTimeString = "${scheduleDate}T${scheduleTime}:00"
+            val scheduledDateTime = LocalDateTime.parse(dateTimeString)
+
+            // 2. 입력받은 분(minutes)만큼 차감 (미리 도착)
+            val adjustedDateTime = scheduledDateTime.minusMinutes(minutes.toLong())
+
+            // 3. 서버 전송용 시간(UTC) 업데이트
+            // 기기 로컬 시간대(KST)를 기준으로 UTC로 변환하여 ISO 8601 형식으로 포맷팅
+            requestSearchTime = adjustedDateTime.atZone(ZoneId.systemDefault())
+                .withZoneSameInstant(ZoneOffset.UTC)
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"))
+
+            // 4. UI 텍스트(tvTimeFilter) 업데이트
+            val today = LocalDate.now()
+            val targetDate = scheduledDateTime.toLocalDate()
+
+            val datePrefix = when (targetDate) {
+                today -> "오늘"
+                today.plusDays(1) -> "내일"
+                else -> targetDate.format(DateTimeFormatter.ofPattern("MM월 dd일"))
+            }
+
+            val timeText = adjustedDateTime.format(DateTimeFormatter.ofPattern("HH:mm"))
+            binding.layoutRouteInputHeader.tvTimeFilter.text = "$datePrefix $timeText 도착"
+
+            Log.d("RouteOnboarding", "시간 재계산 완료: $minutes 분 차감 반영됨 ($requestSearchTime)")
+        } catch (e: Exception) {
+            Log.e("RouteOnboarding", "시간 재계산 실패: ${e.message}")
         }
     }
 
@@ -586,7 +641,14 @@ class RouteFragment : Fragment() {
 
         updateClearButtonVisibility()
 
-        earlyArriveTime = intent.getIntExtra("EARLY_ARRIVE_TIME", 0) //todo 기본 검색이 온보딩값을 미리도착
+        val receivedEarlyTime = intent.getIntExtra("EARLY_ARRIVE_TIME", -1)
+        if (startLatVal.isNaN()) {
+            earlyArriveTime = -1
+            Log.d("RouteOnboarding", "장소 정보 없음: earlyArriveTime을 -1로 설정")
+        } else {
+            earlyArriveTime = if (receivedEarlyTime != -1) receivedEarlyTime else 0
+            Log.d("RouteOnboarding", "장소 정보 있음: 초기값 $earlyArriveTime 설정")
+        }
 
         binding.layoutMapSelectOverlay.root.visibility = View.GONE
         if (::bottomSheetBehavior.isInitialized) {
