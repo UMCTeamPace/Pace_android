@@ -80,6 +80,7 @@ class CalendarFragment: Fragment() {
         val calendarFragmentAdapter = CalendarFragmentAdapter(this)
         binding.calendarVp.adapter = calendarFragmentAdapter
         binding.calendarVp.isUserInputEnabled = false
+        binding.calendarVp.setCurrentItem(1, false)
 
         val tabTitles = listOf("리스트", "캘린더")
         TabLayoutMediator(binding.calendarTabLayout, binding.calendarVp) { tab, position ->
