@@ -44,7 +44,7 @@ object NetworkModule {
     @BaseRetrofit
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("http://ec2-3-35-233-51.ap-northeast-2.compute.amazonaws.com:8080/")
+            .baseUrl("https://pace-server.kro.kr/")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()

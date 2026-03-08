@@ -52,6 +52,7 @@ import androidx.viewpager2.widget.ViewPager2
 import kotlinx.coroutines.*
 import java.time.LocalTime
 import androidx.fragment.app.activityViewModels // 추가
+import com.example.pace.data.viewmodel.ScheduleViewModel
 import com.example.pace.databinding.ItemMonthViewMultipleDaysBinding
 import com.example.pace.databinding.ItemMonthViewSingleDayBinding
 import com.example.pace.databinding.ItemWeekViewBinding

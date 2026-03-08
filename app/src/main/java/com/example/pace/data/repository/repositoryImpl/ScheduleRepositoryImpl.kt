@@ -840,6 +840,20 @@ class ScheduleRepositoryImpl @Inject constructor(
 
         // 3. 타입 판별 (경로 포함 여부)
         val isRouteType = (this.scheduleInfo.isPathIncluded == true) || (this.route != null)
+
+        val allReminders = this.reminders ?: emptyList()
+        val eventRemindersList = allReminders
+            .filter { it.reminderType == "EVENT" }
+            .map { it.minutesBefore }
+        val departureRemindersList = allReminders
+            .filter { it.reminderType == "DEPARTURE" }
+            .map { it.minutesBefore }
+
+        // 💡 2. 덮어쓰기 방지! JSON 바구니에 압축해서 담기
+        val gson = Gson()
+        val placeJsonString = this.place?.let { gson.toJson(it) }
+        val routeJsonString = this.route?.let { gson.toJson(it) }
+
         return Schedule(
             id = this.scheduleId,
             title = this.scheduleInfo.title,
@@ -849,15 +863,21 @@ class ScheduleRepositoryImpl @Inject constructor(
             endTime = this.scheduleInfo.endTime?.take(5) ?: "23:59",
             isAllDay = this.scheduleInfo.isAllDay,
             memo = this.scheduleInfo.memo,
-            location = this.place?.targetName,
 
-            // 💡 서버 데이터 반영
+            // 경로 일정이면 도착지 이름을, 아니면 장소 이름을 위치로 지정
+            location = this.route?.destName ?: this.place?.targetName,
+
             calendarId = serverCalendarId,
-            eventColor = colorInt,       // 서버에서 온 색상
-            calendarColor = colorInt,    // 서버에서 온 색상
-
-            calendarDisplayName = "내 일정", // 필요 시 위에서 배운 쿼리 로직 추가
+            eventColor = colorInt,
+            calendarColor = colorInt,
+            calendarDisplayName = "내 일정",
             calendarAccountName = "Pace",
+
+            // ✨ [가장 중요] 방금 분리/압축한 데이터들 주입! 이걸 안 넣어서 다 날아갔던 겁니다! ✨
+            reminders = eventRemindersList,
+            departureReminders = departureRemindersList,
+            placeJson = placeJsonString,
+            routeJson = routeJsonString,
 
             withRoute = isRouteType,
             type = if (isRouteType) "ROUTE" else "NORMAL",

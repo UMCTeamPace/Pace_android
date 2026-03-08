@@ -1,10 +1,13 @@
-package com.example.pace.ui.main.calendar
+package com.example.pace.data.viewmodel
 
 import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.pace.data.api.AuthControllerService
+import androidx.work.Data
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.example.pace.data.datasource.AuthDataStore
 import com.example.pace.data.model.Schedule
 import com.example.pace.data.model.UserSettingsEntity
@@ -12,37 +15,35 @@ import com.example.pace.data.model.request.CreateScheduleRequest
 import com.example.pace.data.model.request.PlaceRequest
 import com.example.pace.data.model.request.ReminderRequest
 import com.example.pace.data.model.request.RepeatInfo
-import com.example.pace.data.model.request.RouteRequest
 import com.example.pace.data.model.request.UpdateScheduleEditRouteRequest
 import com.example.pace.data.model.request.UpdateScheduleRequest
-import com.example.pace.data.model.request.UpdateScheduleRouteRequest
-import com.example.pace.data.model.response.RawDefaultResponse
 import com.example.pace.data.model.response.RouteInfo
 import com.example.pace.data.model.response.ScheduleDetailResponse
-import com.example.pace.data.model.response.UpdateScheduleRouteResponse
 import com.example.pace.data.repository.repository.ScheduleRepository
+import com.example.pace.data.repository.repository.SettingsRepository
+import com.example.pace.data.worker.ScheduleFinalizeWorker
+import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import kotlinx.coroutines.Dispatchers // 추가
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flowOn // 추가
-import kotlinx.coroutines.withContext
-import com.example.pace.data.repository.repository.SettingsRepository
-import com.google.gson.Gson
-import dagger.hilt.android.internal.Contexts.getApplication
-import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.flow.firstOrNull
-
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.firstOrNull // searchSchedules에서 필요
-import kotlinx.coroutines.flow.update
 
 @HiltViewModel
 class ScheduleViewModel @Inject constructor(
@@ -97,7 +98,8 @@ class ScheduleViewModel @Inject constructor(
     // 일정 상세 조회
     private val _scheduleDetailInfo = MutableStateFlow<ScheduleDetailResponse?>(null)
     val scheduleDetailInfo: StateFlow<ScheduleDetailResponse?> = _scheduleDetailInfo
-    private val _scheduleDetailInfoMap = MutableStateFlow<Map<Long, ScheduleDetailResponse>>(emptyMap())
+    private val _scheduleDetailInfoMap =
+        MutableStateFlow<Map<Long, ScheduleDetailResponse>>(emptyMap())
     val scheduleDetailInfoMap = _scheduleDetailInfoMap
 
     private val _updateScheduleEvent = MutableStateFlow<Boolean?>(null)
@@ -138,13 +140,13 @@ class ScheduleViewModel @Inject constructor(
         .flowOn(Dispatchers.IO)
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
+            started = SharingStarted.Companion.WhileSubscribed(5000),
             initialValue = emptyList()
         )
 
     val userSettings: StateFlow<UserSettingsEntity?> = settingsRepository.getUserSettings()
         .flowOn(Dispatchers.IO)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+        .stateIn(viewModelScope, SharingStarted.Companion.WhileSubscribed(5000), null)
     init {
         updateRangeText()
         refreshSchedules()
@@ -183,7 +185,7 @@ class ScheduleViewModel @Inject constructor(
         _filterColors.value = current
 
         // 로그 4: 색상 변경 확인
-        android.util.Log.d("SearchFlow", "색상 필터 변경됨: ${_filterColors.value}")
+        Log.d("SearchFlow", "색상 필터 변경됨: ${_filterColors.value}")
 
         searchSchedules(lastQuery)
     }
@@ -235,7 +237,7 @@ class ScheduleViewModel @Inject constructor(
     }.flowOn(Dispatchers.IO)
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
+            started = SharingStarted.Companion.WhileSubscribed(5000),
             initialValue = emptyMap()
         )
 
@@ -402,7 +404,7 @@ class ScheduleViewModel @Inject constructor(
         // 2. 검색 결과 리스트 비우기
         _searchResults.value = emptyList()
 
-        android.util.Log.d("SearchFlow", "ScheduleViewModel: 검색어 및 데이터 완전 초기화 완료")
+        Log.d("SearchFlow", "ScheduleViewModel: 검색어 및 데이터 완전 초기화 완료")
     }
 
     fun createSchedule(
@@ -598,7 +600,7 @@ class ScheduleViewModel @Inject constructor(
         viewModelScope.launch {
             if (withRoute) {
                 // 💡 [추가] 예약된 워커 취소 (태그나 이름을 통해 취소 가능)
-                androidx.work.WorkManager.getInstance(context).cancelUniqueWork("finalize_$id")
+                WorkManager.getInstance(context).cancelUniqueWork("finalize_$id")
                 Log.d("WorkManagerTest", "🗑️ 경로 일정 삭제로 인한 워커 예약 취소: finalize_$id")
                 deleteRouteSchedule(id)
             } else {
@@ -797,11 +799,11 @@ class ScheduleViewModel @Inject constructor(
             }
 
             // 2. SDF 설정 및 타임존 지정
-            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.KOREA)
+            val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.KOREA)
 
             // 💡 중요: 서버 시간이 UTC라면 한국 시간으로 바꾸기 위해 타임존 설정
             // 만약 서버가 이미 한국 시간을 주는데 파싱이 꼬이는 거라면 아래 줄을 주석 처리하세요.
-            sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
+            sdf.timeZone = TimeZone.getTimeZone("UTC")
 
             val arrivalDate = sdf.parse(cleanArrival)
             val currentTime = System.currentTimeMillis()
@@ -812,27 +814,27 @@ class ScheduleViewModel @Inject constructor(
             Log.d("WorkManagerTest", """
             [타임존 체크]
             입력된 시간: $cleanArrival
-            현재 시간(KST): ${java.text.SimpleDateFormat("HH:mm").format(java.util.Date(currentTime))}
-            계산된 실행 시간(KST): ${java.text.SimpleDateFormat("HH:mm").format(arrivalDate)}
+            현재 시간(KST): ${SimpleDateFormat("HH:mm").format(Date(currentTime))}
+            계산된 실행 시간(KST): ${SimpleDateFormat("HH:mm").format(arrivalDate)}
             남은 초: ${delay / 1000}초
         """.trimIndent())
 
             // 10초는 0보다 크므로 아래 예약 로직이 바로 실행됩니다.
             if (delay > 0) {
-                val data = androidx.work.Data.Builder()
+                val data = Data.Builder()
                     .putLong("schedule_id", scheduleId)
                     .build()
 
-                val workRequest = androidx.work.OneTimeWorkRequestBuilder<com.example.pace.data.worker.ScheduleFinalizeWorker>()
-                    .setInitialDelay(delay, java.util.concurrent.TimeUnit.MILLISECONDS) // 10초 뒤로 예약
+                val workRequest = OneTimeWorkRequestBuilder<ScheduleFinalizeWorker>()
+                    .setInitialDelay(delay, TimeUnit.MILLISECONDS) // 10초 뒤로 예약
                     .setInputData(data)
                     .addTag("FINALIZE_$scheduleId")
                     .build()
 
-                androidx.work.WorkManager.getInstance(context)
+                WorkManager.getInstance(context)
                     .enqueueUniqueWork(
                         "finalize_$scheduleId",
-                        androidx.work.ExistingWorkPolicy.REPLACE,
+                        ExistingWorkPolicy.REPLACE,
                         workRequest
                     )
             }

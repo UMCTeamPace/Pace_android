@@ -25,7 +25,7 @@ import androidx.recyclerview.widget.RecyclerView
 import biweekly.util.Recurrence
 import com.example.pace.R
 import com.example.pace.databinding.FragmentGeneralScheduleBinding
-import com.example.pace.ui.main.calendar.ScheduleViewModel
+import com.example.pace.data.viewmodel.ScheduleViewModel
 import com.kizitonwose.calendar.core.CalendarDay
 import com.kizitonwose.calendar.view.MonthDayBinder
 import dagger.hilt.android.AndroidEntryPoint

@@ -16,7 +16,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.example.pace.data.model.Schedule
 import com.example.pace.data.model.response.ScheduleDetailResponse
 import com.example.pace.databinding.DialogModalCaseBinding
-import com.example.pace.ui.main.calendar.ScheduleViewModel
+import com.example.pace.data.viewmodel.ScheduleViewModel
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.TextStyle

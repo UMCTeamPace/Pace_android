@@ -26,7 +26,7 @@ import java.util.*
 import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.ItemTouchHelper
 import com.example.pace.ui.main.MainActivity
-import com.example.pace.ui.main.calendar.ScheduleViewModel
+import com.example.pace.data.viewmodel.ScheduleViewModel
 import androidx.fragment.app.activityViewModels // 추가
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
