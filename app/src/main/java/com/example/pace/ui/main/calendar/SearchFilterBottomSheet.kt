@@ -10,6 +10,7 @@ import android.widget.ImageView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.pace.R
+import com.example.pace.data.viewmodel.ScheduleViewModel
 import com.example.pace.databinding.BottomSheetSearchFilterBinding
 import com.example.pace.ui.main.MainActivity
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment

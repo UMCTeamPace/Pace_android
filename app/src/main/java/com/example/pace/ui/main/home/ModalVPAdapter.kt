@@ -22,7 +22,7 @@ import com.example.pace.data.model.response.ScheduleDetailResponse
 import com.example.pace.databinding.ItemRouteDetailBriefBinding
 import com.example.pace.databinding.ItemRouteVehicleBinding
 import com.example.pace.ui.RouteCalculator
-import com.example.pace.ui.main.calendar.ScheduleViewModel
+import com.example.pace.data.viewmodel.ScheduleViewModel
 import dagger.hilt.android.qualifiers.ActivityContext
 
 class ModalVPAdapter(

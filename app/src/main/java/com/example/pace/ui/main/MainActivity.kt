@@ -38,7 +38,7 @@ import com.example.pace.AlertActivity
 import com.example.pace.PaceApplication
 import com.example.pace.data.db.ScheduleDatabase
 import com.example.pace.data.datasource.NormalScheduleRemoteDataSource
-import com.example.pace.ui.main.calendar.ScheduleViewModel
+import com.example.pace.data.viewmodel.ScheduleViewModel
 import com.example.pace.data.repository.repository.ScheduleRepository
 import dagger.hilt.android.AndroidEntryPoint // 추가
 

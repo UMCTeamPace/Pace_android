@@ -14,6 +14,7 @@ import com.example.pace.ui.main.calendar.SearchFragment
 import com.example.pace.R
 import com.example.pace.ui.add_schedule.AddScheduleActivity
 import androidx.fragment.app.activityViewModels // 추가
+import com.example.pace.data.viewmodel.ScheduleViewModel
 import dagger.hilt.android.AndroidEntryPoint // 추가
 
 @AndroidEntryPoint
