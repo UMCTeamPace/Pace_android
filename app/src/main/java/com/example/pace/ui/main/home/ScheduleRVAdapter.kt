@@ -7,8 +7,10 @@ import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.constraintlayout.widget.ConstraintLayout
+import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
+import com.daimajia.swipe.SwipeLayout
+import com.daimajia.swipe.adapters.RecyclerSwipeAdapter
 import com.example.pace.R
 import com.example.pace.data.model.Schedule
 import com.example.pace.data.model.response.RouteInfo
@@ -18,10 +20,9 @@ class ScheduleRVAdapter(
     private var scheduleList: MutableList<Schedule>,
     private val context: Context,
     private val onPinClick: (Schedule) -> Unit,
-) : RecyclerView.Adapter<ScheduleRVAdapter.ViewHolder>() {
+) : RecyclerSwipeAdapter<ScheduleRVAdapter.ViewHolder>() {
 
     lateinit var mOnClickListener: MyOnClickListener
-    lateinit var scheduleTouchHelper: ScheduleTouchHelper
 
     private var routeInfoMap: Map<Long, RouteInfo> = emptyMap()
 
@@ -50,28 +51,34 @@ class ScheduleRVAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val schedule = scheduleList[position]
-
-        // 스와이프 상태 초기화
         val viewTop = holder.binding.scheduleViewTop
-        viewTop.translationX = 0f
 
         holder.bind(schedule)
+
+        // --- 스와이프 구현 ---
+        holder.binding.root.showMode = SwipeLayout.ShowMode.LayDown
+        holder.binding.root.addDrag(SwipeLayout.DragEdge.Left, holder.binding.scheduleLeftBottomWrapper)
+        holder.binding.root.addDrag(SwipeLayout.DragEdge.Right, holder.binding.scheduleRightBottomWrapper)
+
+        mItemManger.bindView(holder.itemView, position)
+
 
         // --- 이벤트 리스너 설정 ---
         holder.binding.schedulePinIv.setOnClickListener {
             onPinClick(schedule)
-            scheduleTouchHelper.closeSwipedMenu(holder)
+            mItemManger.closeItem(position)
         }
 
         holder.binding.scheduleEditIv.setOnClickListener {
             mOnClickListener.onEdit(schedule)
-            scheduleTouchHelper.closeSwipedMenu(holder)
+            mItemManger.closeItem(position)
         }
 
         holder.binding.scheduleDeleteIv.setOnClickListener {
             mOnClickListener.onDelete(schedule)
-            scheduleTouchHelper.closeSwipedMenu(holder)
+            mItemManger.closeItem(position)
         }
+
 
         viewTop.setOnClickListener {
             if (viewTop.translationX == 0f) {
@@ -81,6 +88,7 @@ class ScheduleRVAdapter(
     }
 
     override fun getItemCount(): Int = scheduleList.size
+    override fun getSwipeLayoutResourceId(p0: Int): Int = R.id.item_schedule
 
 
     inner class ViewHolder(val binding: ItemScheduleBinding) : RecyclerView.ViewHolder(binding.root) {
