@@ -7,25 +7,25 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
+import com.daimajia.swipe.SwipeLayout
+import com.daimajia.swipe.adapters.RecyclerSwipeAdapter
 import com.example.pace.R
 import com.example.pace.data.model.Schedule
 import com.example.pace.data.model.response.RouteInfo // 추가
 import com.example.pace.databinding.ItemDateHeaderBinding
 import com.example.pace.databinding.ItemScheduleBinding
-import com.example.pace.ui.main.home.ScheduleTouchHelper
 
 class ScheduleListRVAdapter(
     private val context: Context,
     private val onPinClick: (Schedule) -> Unit,
     private val onDeleteClick: (Schedule) -> Unit,
     private val onEditClick: (Schedule) -> Unit
-) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+) : RecyclerSwipeAdapter<RecyclerView.ViewHolder>() {
 
     private var items = mutableListOf<ScheduleListItem>()
     private var isEditMode = false
     private var selectedIds = setOf<Long>()
     private var routeInfoMap: Map<Long, RouteInfo> = emptyMap() // 경로 정보 맵 추가
-    lateinit var scheduleTouchHelper: ScheduleTouchHelper
 
     companion object {
         private const val TYPE_HEADER = 0
@@ -75,6 +75,7 @@ class ScheduleListRVAdapter(
     }
 
     override fun getItemCount(): Int = items.size
+    override fun getSwipeLayoutResourceId(position: Int): Int = R.id.item_schedule
 
     inner class HeaderViewHolder(private val binding: ItemDateHeaderBinding) :
         RecyclerView.ViewHolder(binding.root) {
@@ -163,16 +164,23 @@ class ScheduleListRVAdapter(
             // 5. 버튼 리스너
             binding.schedulePinIv.setOnClickListener {
                 onPinClick(schedule)
-                scheduleTouchHelper.closeSwipedMenu(this)
+                mItemManger.closeItem(this.position)
             }
             binding.scheduleEditIv.setOnClickListener {
                 onEditClick(schedule)
-                scheduleTouchHelper.closeSwipedMenu(this)
+                mItemManger.closeItem(this.position)
             }
             binding.scheduleDeleteIv.setOnClickListener {
                 onDeleteClick(schedule)
-                scheduleTouchHelper.closeSwipedMenu(this)
+                mItemManger.closeItem(this.position)
             }
+
+            // 6. 스와이프 로직
+            binding.root.showMode = SwipeLayout.ShowMode.LayDown
+            binding.root.addDrag(SwipeLayout.DragEdge.Left, binding.scheduleLeftBottomWrapper)
+            binding.root.addDrag(SwipeLayout.DragEdge.Right, binding.scheduleRightBottomWrapper)
+
+            mItemManger.bindView(itemView, this.position)
         }
     }
 }

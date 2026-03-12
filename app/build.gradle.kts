@@ -171,4 +171,7 @@ dependencies {
     //viewmodelprovider
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.1")
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.6.1")
+
+    implementation("com.daimajia.swipelayout:library:1.2.0@aar")
+
 }
