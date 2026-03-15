@@ -2,12 +2,12 @@
     <string name="app_name">Pace</string>
     <string name="schedule_title">일정</string>
     <string-array name="weekdays_short">
-        <item>Sun</item>
-        <item>Mon</item>
-        <item>Tue</item>
-        <item>Wed</item>
-        <item>Thu</item>
-        <item>Fri</item>
-        <item>Sat</item>
+        <item>일</item>
+        <item>월</item>
+        <item>화</item>
+        <item>수</item>
+        <item>목</item>
+        <item>금</item>
+        <item>토</item>
     </string-array>
 </resources>

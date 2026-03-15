@@ -873,7 +873,7 @@ class ScheduleRepositoryImpl @Inject constructor(
             calendarDisplayName = "내 일정",
             calendarAccountName = "Pace",
 
-            // ✨ [가장 중요] 방금 분리/압축한 데이터들 주입! 이걸 안 넣어서 다 날아갔던 겁니다! ✨
+            // 알림과 경로 상세 필드 추가
             reminders = eventRemindersList,
             departureReminders = departureRemindersList,
             placeJson = placeJsonString,
