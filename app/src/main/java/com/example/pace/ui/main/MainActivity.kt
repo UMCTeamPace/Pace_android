@@ -246,7 +246,7 @@ class MainActivity : AppCompatActivity() {
                 ).commit()
                 binding.mainLogoIv.visibility = android.view.View.GONE
                 binding.mainSettingsIv.visibility = android.view.View.GONE
-                binding.scheduleEditIv.visibility = android.view.View.VISIBLE
+                binding.scheduleEditIv.visibility = android.view.View.GONE
                 binding.scheduleTitleTv.visibility = android.view.View.VISIBLE
                 binding.scheduleSearchIv.visibility = android.view.View.VISIBLE
                 binding.scheduleAddIv.visibility = View.VISIBLE
