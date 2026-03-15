@@ -1,15 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout
+<com.daimajia.swipe.SwipeLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/item_schedule"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:layout_marginTop="8dp">
     <androidx.constraintlayout.widget.ConstraintLayout
-        android:layout_width="match_parent"
+        android:id="@+id/schedule_left_bottom_wrapper"
+        android:layout_width="80dp"
         android:layout_height="match_parent"
-        android:layout_marginTop="8dp"
         android:padding="12dp"
-        android:background="@drawable/box_schedule">
+        android:background="@drawable/box_left_schedule">
         <ImageView
             android:id="@+id/schedule_pin_iv"
             android:layout_width="40dp"
@@ -20,6 +22,14 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"/>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/schedule_right_bottom_wrapper"
+        android:layout_width="135dp"
+        android:layout_height="match_parent"
+        android:layout_marginTop="8dp"
+        android:padding="12dp"
+        android:background="@drawable/box_right_schedule">
         <ImageView
             android:id="@+id/schedule_edit_iv"
             android:layout_width="40dp"
@@ -233,6 +243,5 @@
 
         </LinearLayout>
 
-
     </androidx.constraintlayout.widget.ConstraintLayout>
-</FrameLayout>
+</com.daimajia.swipe.SwipeLayout>
