@@ -596,6 +596,14 @@ class ScheduleViewModel @Inject constructor(
         }
     }
 
+    fun getCalendarColorById(calendarId: Long): Int? {
+        return try {
+            repository.getCalendarColor(calendarId)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     fun deleteSchedule(id: Long, withRoute: Boolean) {
         viewModelScope.launch {
             if (withRoute) {

@@ -563,6 +563,17 @@ class ScheduleRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun getCalendarColor(calendarId: Long): Int? {
+        val projection = arrayOf(CalendarContract.Calendars.CALENDAR_COLOR)
+        val uri = CalendarContract.Calendars.CONTENT_URI
+        val selection = "${CalendarContract.Calendars._ID} = ?"
+        val selectionArgs = arrayOf(calendarId.toString())
+
+        return context.contentResolver.query(uri, projection, selection, selectionArgs, null)?.use { cursor ->
+            if (cursor.moveToFirst()) cursor.getInt(0) else null
+        }
+    }
+
     // --- 반복 일정 전개 및 헬퍼 함수 (기존 유지) ---
     private fun expandSchedules(rawSchedules: List<Schedule>): List<Schedule> {
         val expandedList = mutableListOf<Schedule>()

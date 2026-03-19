@@ -15,6 +15,7 @@ interface ScheduleRepository {
 
     fun getUsedColors(): Flow<List<String>>
     fun getCalendarName(calendarId: Long): String?
+    fun getCalendarColor(calendarId: Long): Int?
 
     suspend fun searchSchedules(
         query: String,
