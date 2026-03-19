@@ -41,9 +41,11 @@ android {
 
         val weatherKey = properties.getProperty("YOUR_OPENWEATHER_API_KEY") ?: ""
         val bearerToken = properties.getProperty("BEARER_TOKEN") ?: ""
+        val subwayKey = properties.getProperty("SUBWAY_API_KEY") ?: ""
 
         buildConfigField("String", "YOUR_OPENWEATHER_API_KEY", "\"$weatherKey\"")
         buildConfigField("String", "BEARER_TOKEN", "\"$bearerToken\"")
+        buildConfigField("String", "SUBWAY_API_KEY", "\"$subwayKey\"")
 
     }
 

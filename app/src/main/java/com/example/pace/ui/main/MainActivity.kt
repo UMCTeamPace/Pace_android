@@ -34,19 +34,26 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import androidx.activity.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.example.pace.AlertActivity
 import com.example.pace.PaceApplication
+import com.example.pace.data.datasource.AuthDataStore
 import com.example.pace.data.db.ScheduleDatabase
 import com.example.pace.data.datasource.NormalScheduleRemoteDataSource
 import com.example.pace.data.viewmodel.ScheduleViewModel
 import com.example.pace.data.repository.repository.ScheduleRepository
+import com.example.pace.data.viewmodel.TransitViewModel
 import dagger.hilt.android.AndroidEntryPoint // 추가
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
     lateinit var binding: ActivityMainBinding
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private val viewModel: ScheduleViewModel by viewModels()
+    val transitViewModel: TransitViewModel by viewModels()
     // ViewModel injection
 
 
@@ -152,6 +159,23 @@ class MainActivity : AppCompatActivity() {
         }
 
         handleIntent(intent)
+
+        // todo: 지하철 api 테스트
+        lifecycleScope.launch {
+            transitViewModel.getRealTimeSubwayArrivals(
+                "마천",
+                "방화",
+                "5호선"
+            )
+        }
+        lifecycleScope.launch {
+            transitViewModel.getSubwayTimeTable(
+                "마천",
+                "05호선",
+                "1",
+                "1"
+            )
+        }
     }
 
     private fun checkCalendarPermissions() {

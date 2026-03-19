@@ -1,8 +1,28 @@
 package com.example.pace.data.model.response
 
+import com.google.gson.Gson
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonElement
 import com.google.gson.annotations.SerializedName
 
-data class SubwayTransitResponse(
+data class SubwayTransitResponse<T>(
+    @SerializedName("code") val code: String,
+    @SerializedName("message") val message: String,
+    @SerializedName("isSuccess") val isSuccess: Boolean,
+    @SerializedName("result") val result: JsonElement?
+){
+    fun returnToList(gson: Gson): List<SubwayTransitResult>{
+        return if(result?.isJsonArray == true){
+            result.asJsonArray.map{
+                gson.fromJson(it, SubwayTransitResult::class.java)
+            }
+        }else{
+            emptyList()
+        }
+    }
+}
+
+data class SubwayTransitResult(
     @SerializedName("subwayId") val subwayId: String,
     @SerializedName("trainLineNm") val trainLineNm: String,
     @SerializedName("barvlDt") val barvlDt: String,
@@ -13,6 +33,35 @@ data class SubwayTransitResponse(
     @SerializedName("beforeSubwayCount") val beforeSubwayCount: Int
 )
 
+data class SubwayTimeTableResponse(
+    @SerializedName("LINE_NUM") val lineNum: String,
+    @SerializedName("FR_CODE") val frCode: String,
+    @SerializedName("STATION_CD") val stationCD: String,
+    @SerializedName("TRAIN_NO") val trainNo : String,
+    @SerializedName("ARRIVETIME") val arriveTime: String,
+    @SerializedName("LEFTTIME") val leftTime: String,
+    @SerializedName("ORIGINSTATION") val originStation: String,
+    @SerializedName("DESTINATION") val destination: String,
+    @SerializedName("SUBWAYSNAME") val subwaysName: String,
+    @SerializedName("SUBWAYENAME") val subwayName: String,
+    @SerializedName("WEEK_TAG") val weekTag: String,
+    @SerializedName("INOUT_TAG") val inoutTag: String,
+    @SerializedName("FL_FLAG") val flFlag: String,
+    @SerializedName("DESTSTATION2") val destination2: String,
+    @SerializedName("EXPRESS_YN") val expressYN: String,
+    @SerializedName("BRANCH_LINE") val branchLine: String
+)
+
+data class SubwayStationCodeResponse(
+    @SerializedName("STATION_CD") val stationCd: String,
+    @SerializedName("STATION_NM") val stationNM: String,
+    @SerializedName("LINE_NUM") val lineNum: String,
+    @SerializedName("FR_CODE") val frCode: String
+)
+
+
+
+// todo: 추후 수정
 data class BusTransitResponse(
     @SerializedName("comMsgHeader") val comMessageHeader: String,
     @SerializedName("msgHeader") val msgHeader: MsgHeader,

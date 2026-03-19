@@ -1,5 +1,6 @@
 package com.example.pace.data.api
 
+import com.example.pace.BuildConfig
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -7,9 +8,10 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
     // 본인의 서버 베이스 URL을 입력하세요.
-    private const val BASE_URL = "http://ec2-3-35-233-51.ap-northeast-2.compute.amazonaws.com:8080/"
+    private const val BASE_URL = "https://pace-server.kro.kr"
     private const val WEATHER_BASE_URL = "https://api.openweathermap.org/"
     private const val BUS_BASE_URL = "http://ws.bus.go.kr/api/rest/arrive"
+    private const val SUBWAY_BASE_URL = "http://openapi.seoul.go.kr:8088/${BuildConfig.SUBWAY_API_KEY}/json/"
 
     //공통 okHttpClient
     private val okHttpClient: OkHttpClient by lazy {
@@ -44,7 +46,17 @@ object RetrofitClient {
         Retrofit.Builder()
             .baseUrl(BUS_BASE_URL)
             .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())     // returnType 변경 가능한 지 보고 추후 수정
+            // todo: XML -> Json -> Gson
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
+    // 지하철 시간표용 Retrofit
+    private val subwayRetrofit: Retrofit by lazy{
+        Retrofit.Builder()
+            .baseUrl(SUBWAY_BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
 
@@ -61,5 +73,15 @@ object RetrofitClient {
     // 실시간 버스 서비스
     val busService: BusService by lazy{
         busRetrofit.create(BusService::class.java)
+    }
+
+    // 실시간 지하철 서비스
+    val subwayService: SubwayService by lazy{
+        retrofit.create(SubwayService::class.java)
+    }
+
+    // 지하철 시간표 서비스
+    val subwayTimetableService: SubwayService by lazy{
+        subwayRetrofit.create(SubwayService::class.java)
     }
 }
