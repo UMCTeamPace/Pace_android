@@ -167,6 +167,23 @@ class MainActivity : AppCompatActivity() {
         }
 
         handleIntent(intent)
+
+        // todo: 지하철 api 테스트
+        lifecycleScope.launch {
+            transitViewModel.getRealTimeSubwayArrivals(
+                "마천",
+                "방화",
+                "5호선"
+            )
+        }
+        lifecycleScope.launch {
+            transitViewModel.getSubwayTimeTable(
+                "마천",
+                "05호선",
+                "1",
+                "1"
+            )
+        }
     }
 
     private fun checkCalendarPermissions() {
