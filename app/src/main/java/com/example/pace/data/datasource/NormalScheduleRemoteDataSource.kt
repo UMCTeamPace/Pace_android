@@ -11,12 +11,18 @@ import com.example.pace.data.model.request.RepeatInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
+import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.*
 import dagger.hilt.android.qualifiers.ApplicationContext // 추가
 import javax.inject.Inject // 추가
 class NormalScheduleRemoteDataSource @Inject constructor(
     @ApplicationContext private val applicationContext: Context
 ) {
+    companion object {
+        private const val REPEAT_DEBUG_TAG = "RepeatDebug"
+    }
+
     suspend fun insertToCalendarProvider(
         request: CreateScheduleRequest,
         selectedCalendarId: Long? = null,
@@ -24,20 +30,34 @@ class NormalScheduleRemoteDataSource @Inject constructor(
     ): Long = withContext(Dispatchers.IO) {
         val contentResolver = applicationContext.contentResolver
 
-        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-        val startMillis = sdf.parse("${request.startDate} ${request.startTime ?: "00:00"}")?.time ?: System.currentTimeMillis()
-        val endMillis = sdf.parse("${request.endDate} ${request.endTime ?: "23:59"}")?.time ?: (startMillis + 3600000)
+        val timing = buildCalendarEventTiming(
+            startDate = request.startDate,
+            endDate = request.endDate,
+            startTime = request.startTime,
+            endTime = request.endTime,
+            isAllDay = request.isAllDay
+        )
 
         val generatedRrule = buildRRule(request.repeatInfo)
+        if (generatedRrule != null) {
+            Log.d(
+                REPEAT_DEBUG_TAG,
+                "반복 저장 요청: title=${request.title}, isAllDay=${request.isAllDay}, startDate=${request.startDate}, endDate=${request.endDate}, startTime=${request.startTime}, endTime=${request.endTime}, repeatInfo=${request.repeatInfo}"
+            )
+            Log.d(
+                REPEAT_DEBUG_TAG,
+                "반복 저장 값: dtStart=${timing.startMillis}, dtEnd=${timing.endMillis}, duration=${timing.durationForRecurring}, timezone=${timing.timeZoneId}, rrule=$generatedRrule"
+            )
+        }
 
         val values = ContentValues().apply {
             put(CalendarContract.Events.TITLE, request.title)
             put(CalendarContract.Events.DESCRIPTION, request.memo)
             put(CalendarContract.Events.EVENT_LOCATION, request.place?.targetName ?: "")
-            put(CalendarContract.Events.DTSTART, startMillis)
+            put(CalendarContract.Events.DTSTART, timing.startMillis)
             put(CalendarContract.Events.ALL_DAY, if (request.isAllDay) 1 else 0)
             put(CalendarContract.Events.CALENDAR_ID, selectedCalendarId ?: 1L)
-            put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
+            put(CalendarContract.Events.EVENT_TIMEZONE, timing.timeZoneId)
 
             // [색상 처리]
             val finalColor = if (selectedColor != null && selectedColor != 0) selectedColor
@@ -49,13 +69,12 @@ class NormalScheduleRemoteDataSource @Inject constructor(
                 put(CalendarContract.Events.RRULE, generatedRrule)
 
                 // 반복 일정은 DTEND 대신 DURATION 사용 권장 (P3600S = 3600초 = 1시간)
-                val durationSeconds = (endMillis - startMillis) / 1000
-                put(CalendarContract.Events.DURATION, "P${durationSeconds}S")
+                put(CalendarContract.Events.DURATION, timing.durationForRecurring)
                 // 반복 일정 시 DTEND는 null로 비워두는 것이 표준입니다.
                 putNull(CalendarContract.Events.DTEND)
             } else {
                 // 반복이 아닐 때는 일반적인 DTEND 사용
-                put(CalendarContract.Events.DTEND, endMillis)
+                put(CalendarContract.Events.DTEND, timing.endMillis)
             }
 
             put(CalendarContract.Events.HAS_ALARM, if (request.reminders.isNotEmpty()) 1 else 0)
@@ -184,6 +203,15 @@ class NormalScheduleRemoteDataSource @Inject constructor(
                     }
 
                     val isAllDay = it.getInt(allDayIdx) == 1
+                    val normalizedEndMillis = normalizeEndMillisForDisplay(
+                        startMillis = dtStart,
+                        endMillis = dtEnd,
+                        isAllDay = isAllDay
+                    )
+                    val startDate = if (isAllDay) formatMillisToUtcDate(dtStart) else formatMillisToDate(dtStart)
+                    val endDate = if (isAllDay) formatMillisToUtcDate(normalizedEndMillis) else formatMillisToDate(normalizedEndMillis)
+                    val startTime = if (isAllDay) "00:00" else formatMillisToTime(dtStart)
+                    val endTime = if (isAllDay) "23:59" else formatMillisToTime(normalizedEndMillis)
                     val memo = it.getString(descIdx)
                     val location = it.getString(locIdx)
                     val rrule = it.getString(rruleIdx)
@@ -194,6 +222,12 @@ class NormalScheduleRemoteDataSource @Inject constructor(
                     val calendarColor = it.getInt(calColorIdx)
 
                     val reminders = fetchReminders(id)
+                    if (!rrule.isNullOrEmpty()) {
+                        Log.d(
+                            REPEAT_DEBUG_TAG,
+                            "반복 조회 값: id=$id, title=$title, dtStart=$dtStart, rawDtEnd=$dtEnd, duration=$durationStr, isAllDay=$isAllDay, startDate=$startDate, endDate=$endDate, startTime=$startTime, endTime=$endTime, rrule=$rrule"
+                        )
+                    }
 
                     scheduleList.add(
                         Schedule(
@@ -201,10 +235,10 @@ class NormalScheduleRemoteDataSource @Inject constructor(
                             originalId = originalId,
                             status = status,
                             title = title,
-                            startDate = formatMillisToDate(dtStart),
-                            endDate = formatMillisToDate(dtEnd),
-                            startTime = formatMillisToTime(dtStart),
-                            endTime = formatMillisToTime(dtEnd),
+                            startDate = startDate,
+                            endDate = endDate,
+                            startTime = startTime,
+                            endTime = endTime,
                             isAllDay = isAllDay,
                             memo = memo,
                             location = location,
@@ -255,9 +289,79 @@ class NormalScheduleRemoteDataSource @Inject constructor(
         return sdf.format(Date(millis))
     }
 
+    private fun formatMillisToUtcDate(millis: Long): String {
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
+        return sdf.format(Date(millis))
+    }
+
     private fun formatMillisToTime(millis: Long): String {
         val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
         return sdf.format(Date(millis))
+    }
+
+    private fun normalizeEndMillisForDisplay(
+        startMillis: Long,
+        endMillis: Long,
+        isAllDay: Boolean
+    ): Long {
+        if (!isAllDay || endMillis <= startMillis) return endMillis
+
+        val calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+            timeInMillis = endMillis
+        }
+        val isExclusiveMidnightEnd = calendar.get(Calendar.HOUR_OF_DAY) == 0 &&
+            calendar.get(Calendar.MINUTE) == 0 &&
+            calendar.get(Calendar.SECOND) == 0
+
+        return if (isExclusiveMidnightEnd) {
+            endMillis - 1L
+        } else {
+            endMillis
+        }
+    }
+
+    private data class CalendarEventTiming(
+        val startMillis: Long,
+        val endMillis: Long,
+        val durationForRecurring: String,
+        val timeZoneId: String
+    )
+
+    private fun buildCalendarEventTiming(
+        startDate: String,
+        endDate: String,
+        startTime: String?,
+        endTime: String?,
+        isAllDay: Boolean
+    ): CalendarEventTiming {
+        return if (isAllDay) {
+            val startLocalDate = LocalDate.parse(startDate)
+            val endLocalDate = LocalDate.parse(endDate)
+            val startMillis = startLocalDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+            val endMillis = endLocalDate.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+            val inclusiveDays = java.time.temporal.ChronoUnit.DAYS.between(startLocalDate, endLocalDate).toInt() + 1
+
+            CalendarEventTiming(
+                startMillis = startMillis,
+                endMillis = endMillis,
+                durationForRecurring = "P${inclusiveDays}D",
+                timeZoneId = "UTC"
+            )
+        } else {
+            val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+            val startMillis = sdf.parse("$startDate ${startTime ?: "00:00"}")?.time ?: System.currentTimeMillis()
+            val endMillis = sdf.parse("$endDate ${endTime ?: "23:59"}")?.time ?: (startMillis + 3600000)
+            val durationSeconds = ((endMillis - startMillis) / 1000).coerceAtLeast(0)
+
+            CalendarEventTiming(
+                startMillis = startMillis,
+                endMillis = endMillis,
+                durationForRecurring = "P${durationSeconds}S",
+                timeZoneId = TimeZone.getDefault().id
+            )
+        }
     }
 
     // rrule에 맞춰서 변환
@@ -306,23 +410,22 @@ class NormalScheduleRemoteDataSource @Inject constructor(
         val contentResolver = applicationContext.contentResolver
 
         // 1. 날짜 및 시간 파싱 (기존 로직 유지)
-        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-        val startMillis = try {
-            sdf.parse("${schedule.startDate} ${schedule.startTime ?: "00:00"}")?.time ?: System.currentTimeMillis()
-        } catch (e: Exception) { System.currentTimeMillis() }
-
-        val endMillis = try {
-            sdf.parse("${schedule.endDate} ${schedule.endTime ?: "23:59"}")?.time ?: startMillis
-        } catch (e: Exception) { startMillis }
+        val timing = buildCalendarEventTiming(
+            startDate = schedule.startDate,
+            endDate = schedule.endDate,
+            startTime = schedule.startTime,
+            endTime = schedule.endTime,
+            isAllDay = schedule.isAllDay
+        )
         Log.d("CALENDAR_UPDATE", "수정 시도 - 제목: ${schedule.title}, 장소: ${schedule.location}")
         // 2. 업데이트할 데이터 세팅
         val values = ContentValues().apply {
             put(CalendarContract.Events.TITLE, schedule.title)
             put(CalendarContract.Events.DESCRIPTION, schedule.memo)
             put(CalendarContract.Events.EVENT_LOCATION, schedule.location ?: "")
-            put(CalendarContract.Events.DTSTART, startMillis)
+            put(CalendarContract.Events.DTSTART, timing.startMillis)
             put(CalendarContract.Events.ALL_DAY, if (schedule.isAllDay) 1 else 0)
-            put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
+            put(CalendarContract.Events.EVENT_TIMEZONE, timing.timeZoneId)
 
             // 💡 [해결 1] 캘린더 ID 명시적 업데이트 (중요!)
             put(CalendarContract.Events.CALENDAR_ID, schedule.calendarId)
@@ -334,11 +437,10 @@ class NormalScheduleRemoteDataSource @Inject constructor(
 
             if (!schedule.repeatRule.isNullOrEmpty()) {
                 put(CalendarContract.Events.RRULE, schedule.repeatRule)
-                val durationSeconds = (endMillis - startMillis) / 1000
-                put(CalendarContract.Events.DURATION, "P${durationSeconds}S")
+                put(CalendarContract.Events.DURATION, timing.durationForRecurring)
                 putNull(CalendarContract.Events.DTEND)
             } else {
-                put(CalendarContract.Events.DTEND, endMillis)
+                put(CalendarContract.Events.DTEND, timing.endMillis)
                 putNull(CalendarContract.Events.DURATION)
                 putNull(CalendarContract.Events.RRULE)
             }

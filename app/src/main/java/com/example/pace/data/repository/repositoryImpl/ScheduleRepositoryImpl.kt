@@ -26,6 +26,7 @@ import com.example.pace.data.model.response.*
 import com.example.pace.data.repository.repository.ScheduleRepository
 import com.example.pace.data.util.safeApiCall
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -34,8 +35,13 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
 import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
 import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import java.util.*
 import javax.inject.Inject
 import kotlin.code
@@ -48,6 +54,15 @@ class ScheduleRepositoryImpl @Inject constructor(
     private val authDataStore: AuthDataStore,
     @ApplicationContext private val context: Context
 ) : ScheduleRepository {
+
+    companion object {
+        private val ROUTE_SOURCE_ZONE: ZoneId = ZoneId.of("Asia/Seoul")
+        private val UTC_API_TIME_FORMATTER: DateTimeFormatter =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+        private const val SWAGGER_LOG_TAG = "SwaggerScheduleRequest"
+        private const val LOG_CHUNK_SIZE = 3000
+        private const val REPEAT_EXPAND_TAG = "RepeatExpand"
+    }
 
     // 1. 로컬 데이터 Flow (RRULE 전개 로직 적용)
     override val allSchedules: Flow<List<Schedule>> = scheduleDao.getAllSchedules()
@@ -432,8 +447,12 @@ class ScheduleRepositoryImpl @Inject constructor(
         } else {
             // --- [CASE 2] 경로 일정: 서버 API 호출 ---
             val token = accessToken ?: ""
-            val response =
-                api.createSchedule(token, request.copy(calendarId = calendarId?.toString()))
+            val routeRequest = request.toCreateRouteScheduleRequest(calendarId)
+            logRequestForSwagger("POST /api/v1/schedules", routeRequest)
+            val response = api.createRouteSchedule(
+                token,
+                routeRequest
+            )
 
             if (response.isSuccess && response.result != null) {
                 val serverResult = response.result
@@ -552,6 +571,87 @@ class ScheduleRepositoryImpl @Inject constructor(
             }
         }
     }
+
+    private fun CreateScheduleRequest.toCreateRouteScheduleRequest(
+        calendarId: Long?
+    ): CreateRouteScheduleRequest {
+        return CreateRouteScheduleRequest(
+            title = title,
+            startDate = startDate,
+            endDate = endDate,
+            startTime = startTime,
+            endTime = endTime,
+            calendarId = calendarId?.toString() ?: this.calendarId,
+            color = color,
+            memo = memo,
+            isPathIncluded = isPathIncluded,
+            place = place,
+            reminders = reminders,
+            route = requireNotNull(route) { "Route schedule request requires route" }.normalizeRouteTimesForApi()
+        )
+    }
+
+    private fun RouteRequest.normalizeRouteTimesForApi(): RouteRequest {
+        return copy(
+            arrivalTime = arrivalTime.toUtcIsoString(),
+            departureTime = departureTime.toUtcIsoString(),
+            routeDetails = routeDetails.map { detail ->
+                detail.copy(
+                    transitDetail = detail.transitDetail?.copy(
+                        departureTime = detail.transitDetail.departureTime.toUtcIsoString(),
+                        arrivalTime = detail.transitDetail.arrivalTime.toUtcIsoString()
+                    )
+                )
+            }
+        )
+    }
+
+    private fun UpdateScheduleEditRouteRequest.normalizeRouteTimesForApi(): UpdateScheduleEditRouteRequest {
+        return copy(
+            arrivalTime = arrivalTime.toUtcIsoString(),
+            departureTime = departureTime.toUtcIsoString(),
+            routeDetails = routeDetails.map { detail ->
+                detail.copy(
+                    transitDetail = detail.transitDetail?.copy(
+                        departureTime = detail.transitDetail.departureTime.toUtcIsoString(),
+                        arrivalTime = detail.transitDetail.arrivalTime.toUtcIsoString()
+                    )
+                )
+            }
+        )
+    }
+
+    private fun String?.toUtcIsoString(): String? {
+        if (this.isNullOrBlank()) return this
+        return try {
+            if (endsWith("Z")) {
+                OffsetDateTime.parse(this)
+                    .withOffsetSameInstant(ZoneOffset.UTC)
+                    .format(UTC_API_TIME_FORMATTER)
+            } else {
+                LocalDateTime.parse(this)
+                    .atZone(ROUTE_SOURCE_ZONE)
+                    .withZoneSameInstant(ZoneOffset.UTC)
+                    .format(UTC_API_TIME_FORMATTER)
+            }
+        } catch (_: DateTimeParseException) {
+            this
+        }
+    }
+
+    private fun logRequestForSwagger(endpoint: String, body: Any) {
+        val prettyJson = GsonBuilder()
+            .serializeNulls()
+            .setPrettyPrinting()
+            .create()
+            .toJson(body)
+
+        Log.d(SWAGGER_LOG_TAG, endpoint)
+        prettyJson.chunked(LOG_CHUNK_SIZE).forEachIndexed { index, chunk ->
+            Log.d(SWAGGER_LOG_TAG, "chunk=${index + 1}\n$chunk")
+        }
+    }
+
     override fun getCalendarName(calendarId: Long): String? {
         val projection = arrayOf(CalendarContract.Calendars.CALENDAR_DISPLAY_NAME)
         val uri = CalendarContract.Calendars.CONTENT_URI
@@ -611,8 +711,13 @@ class ScheduleRepositoryImpl @Inject constructor(
             // 1. 반복 일정 처리
             if (!schedule.repeatRule.isNullOrBlank()) {
                 val dtStartString = "${schedule.startDate} 00:00"
-                val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+                val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).apply {
+                    if (schedule.isAllDay) {
+                        timeZone = TimeZone.getTimeZone("UTC")
+                    }
+                }
                 val dtStartDate = try { sdf.parse(dtStartString) } catch (e: Exception) { null }
+                val spanDays = ChronoUnit.DAYS.between(startLocalDate, endLocalDate).coerceAtLeast(0)
 
                 if (dtStartDate != null) {
                     try {
@@ -680,15 +785,28 @@ class ScheduleRepositoryImpl @Inject constructor(
                         }
 
                         // 전개 시작
-                        val iterator = event.getDateIterator(TimeZone.getDefault())
+                        val iterator = event.getDateIterator(
+                            if (schedule.isAllDay) TimeZone.getTimeZone("UTC") else TimeZone.getDefault()
+                        )
                         iterator.advanceTo(rangeStartDate)
                         var count = 0
                         while (iterator.hasNext() && count < 1000) {
                             val occurrenceDate = iterator.next()
                             if (occurrenceDate.after(rangeEndDate)) break
 
-                            val oZDT = occurrenceDate.toInstant().atZone(ZoneId.systemDefault())
-                            val formattedDate = oZDT.toLocalDate().format(dateFormatter)
+                            val occurrenceLocalDate = if (schedule.isAllDay) {
+                                occurrenceDate.toInstant().atZone(ZoneOffset.UTC).toLocalDate()
+                            } else {
+                                occurrenceDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
+                            }
+                            val occurrenceEndLocalDate = occurrenceLocalDate.plusDays(spanDays)
+                            val formattedDate = occurrenceLocalDate.format(dateFormatter)
+                            if (schedule.isAllDay) {
+                                Log.d(
+                                    REPEAT_EXPAND_TAG,
+                                    "반복 확장: id=${schedule.id}, title=${schedule.title}, 원본=${schedule.startDate}~${schedule.endDate}, occurrence=${formattedDate}~${occurrenceEndLocalDate.format(dateFormatter)}, rawInstant=${occurrenceDate.toInstant()}"
+                                )
+                            }
 
                             // 💡 [중요] ICal4j 라이브러리에 따라 addExceptionDates가 완벽히 필터링 못할 경우를 대비한 2중 체크
                             // cancellationMap에 해당 부모ID와 현재 날짜가 등록되어 있다면 건너뜁니다.
@@ -699,8 +817,9 @@ class ScheduleRepositoryImpl @Inject constructor(
 
                             expandedList.add(schedule.copy(
                                 startDate = formattedDate,
-                                endDate = formattedDate,
-                                startTime = schedule.startTime
+                                endDate = occurrenceEndLocalDate.format(dateFormatter),
+                                startTime = if (schedule.isAllDay) "00:00" else schedule.startTime,
+                                endTime = if (schedule.isAllDay) "23:59" else schedule.endTime
                             ))
                             count++
                         }
@@ -1160,7 +1279,7 @@ class ScheduleRepositoryImpl @Inject constructor(
             accessToken = accessToken,
             scheduleId = scheduleId,
             scope = "SINGLE",
-            request = finalRequest
+            request = finalRequest.toCreateRouteScheduleRequest(calendarId)
         )
 
         // 3. 성공 시 로컬 DB 업데이트 로직 (기존 구현 유지)
@@ -1212,7 +1331,11 @@ class ScheduleRepositoryImpl @Inject constructor(
             Log.d("UpdateFlow", "2단계 - 기본 정보 수정 성공")
 
             // 3단계: 새로운 경로 등록 (PUT)
-            val putRes = api.updateScheduleEditRoute(accessToken, scheduleId, routeRequest)
+            val putRes = api.updateScheduleEditRoute(
+                accessToken,
+                scheduleId,
+                routeRequest.normalizeRouteTimesForApi()
+            )
 
             if (putRes.isSuccess) {
                 Log.d("UpdateFlow", "3단계 - 경로 등록 성공")

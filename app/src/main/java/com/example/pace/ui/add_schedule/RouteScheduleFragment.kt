@@ -151,7 +151,6 @@ class RouteScheduleFragment : Fragment() {
                 if (parentFragmentManager.backStackEntryCount > 0) {
                     parentFragmentManager.popBackStack()
                 } else {
-                    requireActivity().finish()
                 }
             }
             dialog.show()
@@ -454,7 +453,6 @@ class RouteScheduleFragment : Fragment() {
                         viewModel.deleteSchedule(scheduleId, true)
                     }
                     saveAsNormalSchedule()
-                    requireActivity().finish()
                 }
                 dialog.show()
             }else{
@@ -586,7 +584,6 @@ class RouteScheduleFragment : Fragment() {
                 }
 
                 // 서버 응답 여부와 관계없이 로컬 알람 예약 로직 즉시 실행
-                scheduleSavedAlarms()
             }
         }
 

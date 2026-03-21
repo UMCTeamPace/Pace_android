@@ -231,9 +231,21 @@ class ScheduleViewModel @Inject constructor(
         schedules.filter { schedule ->
             // 💡 백엔드(ROUTE) 일정은 무조건 노출 || 일반 일정은 선택된 캘린더일 때만 노출
             schedule.type == "ROUTE" || selectedIds.isEmpty() || selectedIds.contains(schedule.calendarId)
-        }.groupBy { schedule ->
-            LocalDate.parse(schedule.startDate, dateFormatter)
-        }
+        }.flatMap { schedule ->
+            val startDate = runCatching { LocalDate.parse(schedule.startDate, dateFormatter) }.getOrNull()
+                ?: return@flatMap emptyList()
+            val endDate = runCatching { LocalDate.parse(schedule.endDate, dateFormatter) }.getOrNull()
+                ?: startDate
+
+            generateSequence(startDate) { current ->
+                current.plusDays(1).takeIf { !it.isAfter(endDate) }
+            }.map { date ->
+                date to schedule
+            }.toList()
+        }.groupBy(
+            keySelector = { it.first },
+            valueTransform = { it.second }
+        )
     }.flowOn(Dispatchers.IO)
         .stateIn(
             scope = viewModelScope,

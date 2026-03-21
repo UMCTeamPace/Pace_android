@@ -47,6 +47,21 @@ data class CreateScheduleRequest(
     @SerializedName("route") val route: RouteRequest?
 )
 
+data class CreateRouteScheduleRequest(
+    @SerializedName("title") val title: String,
+    @SerializedName("startDate") val startDate: String,
+    @SerializedName("endDate") val endDate: String,
+    @SerializedName("startTime") val startTime: String?,
+    @SerializedName("endTime") val endTime: String?,
+    @SerializedName("calendarId") val calendarId: String?,
+    @SerializedName("color") val color: String? = "#DC354B",
+    @SerializedName("memo") val memo: String?,
+    @SerializedName("isPathIncluded") val isPathIncluded: Boolean,
+    @SerializedName("place") val place: PlaceRequest?,
+    @SerializedName("reminders") val reminders: List<ReminderRequest>,
+    @SerializedName("route") val route: RouteRequest
+)
+
 
 data class RepeatInfo(
     @SerializedName("repeatType") val repeatType: String,      // DAILY, WEEKLY, MONTHLY, YEARLY, NONE
