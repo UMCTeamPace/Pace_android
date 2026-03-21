@@ -68,7 +68,7 @@ class CalendarPageFragment: Fragment() {
     // 캘린더에 표시할 데이터를 담을 Map (날짜 -> 일정 리스트)
     private var events = mapOf<LocalDate, List<Schedule>>()
     private var allSchedules:List<Schedule> = emptyList()
-    private var rowMap = mutableMapOf<Long, Int>()
+    private var rowAssignmentCache = mutableMapOf<String, Int>()
 
     private var selectedMonth: YearMonth = YearMonth.now()
     private var selectedDate: LocalDate? = null
@@ -127,6 +127,10 @@ class CalendarPageFragment: Fragment() {
                 // 현재 달의 날짜(MonthDate)일 때만 활성화 하기
                 val isCurrentMonth = day.position == DayPosition.MonthDate
                 updateDayUI(container.textView, container.rootLayout, day.date, isCurrentMonth)
+                if (!isCurrentMonth && bottomSheetBehavior.state == BottomSheetBehavior.STATE_HIDDEN) {
+                    container.eventContainer.removeAllViews()
+                    return
+                }
                 // 바텀 시트 여부에 따라 다른 UI 적용
                 when(bottomSheetBehavior.state){
                     BottomSheetBehavior.STATE_HIDDEN -> {
@@ -180,7 +184,6 @@ class CalendarPageFragment: Fragment() {
 
         // 주간 캘린더 스크롤 리스너
         binding.weekCalendarView.weekScrollListener = { week ->
-
             val weekFirstDate = week.days.first().date
             selectedMonth = YearMonth.from(weekFirstDate)
             updateTitle()
@@ -288,6 +291,7 @@ class CalendarPageFragment: Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.scheduleMap.collectLatest { groupedMap ->
                 events = groupedMap
+                rowAssignmentCache.clear()
 
                 if (groupedMap.isNotEmpty()) {
                     groupedMap.values.flatten()
@@ -308,6 +312,7 @@ class CalendarPageFragment: Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.allSchedules.collectLatest { schedules ->
                 allSchedules = schedules
+                rowAssignmentCache.clear()
                 binding.calendarView.notifyCalendarChanged()
                 binding.weekCalendarView.notifyCalendarChanged()
             }
@@ -384,19 +389,25 @@ class CalendarPageFragment: Fragment() {
                             binding.calendarView.layoutParams.height = targetHeight
                             binding.calendarView.requestLayout()
                         }
+                        notifyVisibleCalendarDates()
                     }
                     BottomSheetBehavior.STATE_EXPANDED -> {
-                        crossfade(
-                            fadeInView = binding.weekCalendarView,
-                            fadeOutView = binding.calendarView
-                        )
-                        binding.weekCalendarView.scrollToWeek(selectedDate ?: today)
+                        binding.weekCalendarView.alpha = 0f
+                        binding.weekCalendarView.visibility = View.INVISIBLE
+                        binding.weekCalendarView.post {
+                            binding.weekCalendarView.scrollToWeek(selectedDate ?: today)
+                            notifyVisibleCalendarDates()
+                            binding.weekCalendarView.visibility = View.VISIBLE
+                            crossfade(
+                                fadeInView = binding.weekCalendarView,
+                                fadeOutView = binding.calendarView
+                            )
+                        }
                     }
                 }
             }
 
             override fun onSlide(bottomSheet: View, slideOffset: Float) {
-                // no-op
             }
         })
     }
@@ -473,7 +484,7 @@ class CalendarPageFragment: Fragment() {
         }
     }
 
-    private fun crossfade(fadeInView: View, fadeOutView: View, durationMs: Long = 200) {
+    private fun crossfade(fadeInView: View, fadeOutView: View, durationMs: Long = 350) {
         /*
          * 두 화면 요소를 부드럽게 바꿔치기 한다.
          * 하나는 천천히 나타나고, 다른 하나는 천천히 사라진다.
@@ -505,6 +516,23 @@ class CalendarPageFragment: Fragment() {
             fadeOutView.alpha = 0f
             fadeOutView.visibility = View.GONE
         }
+    }
+
+    private fun notifyVisibleCalendarDates() {
+        binding.calendarView.findFirstVisibleMonth()?.weekDays
+            ?.flatten()
+            ?.map { it.date }
+            ?.distinct()
+            ?.forEach { date ->
+                binding.calendarView.notifyDateChanged(date)
+            }
+
+        binding.weekCalendarView.findFirstVisibleWeek()?.days
+            ?.map { it.date }
+            ?.distinct()
+            ?.forEach { date ->
+                binding.weekCalendarView.notifyDateChanged(date)
+            }
     }
 
     // CalendarPageFragment.kt 의 selectDate 수정
@@ -550,14 +578,13 @@ class CalendarPageFragment: Fragment() {
                 if (!fromScroll) {
                     // 이 안에서 scrollToMonth 등이 호출될 때 리스너가 동작하지 않도록 보장
                     binding.calendarView.scrollToMonth(YearMonth.from(date))
-                    binding.weekCalendarView.scrollToWeek(date)
                 }
 
                 // 약간의 딜레이 뒤에 해제 (스크롤이 완전히 끝날 때까지 보호)
                 binding.root.postDelayed({ isProgrammaticScroll = false }, 100)
             }
 
-            if (bottomSheetBehavior.state == BottomSheetBehavior.STATE_HIDDEN) {
+            if (!fromScroll && bottomSheetBehavior.state == BottomSheetBehavior.STATE_HIDDEN) {
                 bottomSheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
             }
         }
@@ -691,15 +718,14 @@ class CalendarPageFragment: Fragment() {
         if(!events[date].isNullOrEmpty()){
             val sortedEvents = getSortedScheduleListOfDate(date)
             var row = 0
-            var index = 0
 
             if(sortedEvents.isNotEmpty()){
-                val n = setPageItemNumber(sortedEvents)
+                val maxVisibleRows = setPageItemNumber(sortedEvents)
                 for(schedule in sortedEvents) {
-                    val allDatesForThisSchedule = getAllDatesForThisSchedule(schedule)
+                    val allDatesForThisSchedule = getDisplayDatesForSchedule(schedule)
                     if(allDatesForThisSchedule.isNotEmpty()){
-                        // 상위 일정 3-4개만 표시
-                        if(row == 3 || index == n){
+                        val scheduleRow = getAssignedRow(schedule)
+                        if (scheduleRow >= maxVisibleRows) {
                             break
                         }
 
@@ -709,8 +735,19 @@ class CalendarPageFragment: Fragment() {
                         val isEnd = date.isEqual(lastDate)
                         val params = LinearLayout.LayoutParams(MATCH_PARENT, (16 * resources.displayMetrics.density).roundToInt())
 
+                        if (row < scheduleRow) {
+                            val spaceCount = scheduleRow - row
+                            repeat(spaceCount) {
+                                val binding = ItemMonthViewMultipleDaysBinding.inflate(layoutInflater, eventContainer, false)
+                                binding.root.visibility = View.INVISIBLE
+                                binding.root.layoutParams = params
+                                eventContainer.addView(binding.root)
+                            }
+                            row = scheduleRow
+                        }
+
                         // 하루 일정 or 반복 일정
-                        if(firstDate == lastDate || !schedule.repeatRule.isNullOrEmpty()){
+                        if(firstDate == lastDate){
                             val binding = ItemMonthViewSingleDayBinding.inflate(layoutInflater)
                             val icon = binding.itemMonthViewSingleColor
                             icon.backgroundTintList = setBackgroundTintByScheduleColor(schedule)
@@ -720,23 +757,6 @@ class CalendarPageFragment: Fragment() {
                         }
                         // 장기 일정
                         else{
-                            // 장기 일정 시작일 때 현재 위치 기록
-                            if(isStart){
-                                rowMap[schedule.id] = row
-                            }
-                            // 이미 장기 일정이 작성됐다면 해당 줄 전까지 빈 뷰 작성
-                            val scheduleRow = rowMap[schedule.id]
-                            if (!isStart && scheduleRow != null && row < scheduleRow){
-                                val spaceCount = scheduleRow - row
-                                for(i in 1..spaceCount){
-                                    val binding = ItemMonthViewMultipleDaysBinding.inflate(layoutInflater, eventContainer,false)
-                                    binding.itemMonthViewMultipleDays.text = "test"
-                                    binding.root.visibility = View.INVISIBLE
-                                    binding.root.layoutParams = params
-                                    eventContainer.addView(binding.root)
-                                }
-                                row = scheduleRow
-                            }
                             // 장기 일정 바인딩
                             val binding = ItemMonthViewMultipleDaysBinding.inflate(layoutInflater)
                             binding.itemMonthViewMultipleDays.backgroundTintList = setBackgroundTintByScheduleColor(schedule)
@@ -750,24 +770,17 @@ class CalendarPageFragment: Fragment() {
                                 else -> ""
                             }
 
-                            // 장기 일정 마지막 날이라면, 위치 제거
-                            if(isEnd){
-                                rowMap.remove(schedule.id)
-                            }
-
                             binding.root.layoutParams = params
                             eventContainer.addView(binding.root)
                         }
                     }
                     row++
-                    index++
-
                 }
-                // 총 일정이 4개 초과거나 장기 일정으로 3칸을 모두 차지했을 경우, 남은 개수 표시
-                if(n == 3 || row == 3){
+                val hiddenCount = sortedEvents.count { getAssignedRow(it) >= maxVisibleRows }
+                if(maxVisibleRows == 3 && hiddenCount > 0){
                     val binding = ItemMonthViewMultipleDaysBinding.inflate(layoutInflater)
                     binding.itemMonthViewMultipleDays.backgroundTintList = ColorStateList.valueOf(resources.getColor(R.color.transparent))
-                    binding.itemMonthViewMultipleDays.text = if(n == 3) "+${sortedEvents.size - 3}" else if(sortedEvents.size - index > 0)"+${sortedEvents.size - index}" else ""
+                    binding.itemMonthViewMultipleDays.text = "+$hiddenCount"
                     eventContainer.addView(binding.root)
                 }
             }
@@ -782,15 +795,14 @@ class CalendarPageFragment: Fragment() {
         if(!events[date].isNullOrEmpty()){
             val sortedEvents = getSortedScheduleListOfDate(date)
             var row = 0
-            var index = 0
 
             if(sortedEvents.isNotEmpty()){
-                val n = setPageItemNumber(sortedEvents)
+                val maxVisibleRows = setPageItemNumber(sortedEvents)
                 for(schedule in sortedEvents) {
-                    val allDatesForThisSchedule = getAllDatesForThisSchedule(schedule)
+                    val allDatesForThisSchedule = getDisplayDatesForSchedule(schedule)
                     if(allDatesForThisSchedule.isNotEmpty()){
-                        // 상위 일정 3-4개만 표시
-                        if(row == 3 || index == n){
+                        val scheduleRow = getAssignedRow(schedule)
+                        if (scheduleRow >= maxVisibleRows) {
                             break
                         }
 
@@ -800,8 +812,19 @@ class CalendarPageFragment: Fragment() {
                         val isEnd = date.isEqual(lastDate)
                         val params = LinearLayout.LayoutParams(MATCH_PARENT, (8 * resources.displayMetrics.density).roundToInt())
 
+                        if (row < scheduleRow) {
+                            val spaceCount = scheduleRow - row
+                            repeat(spaceCount) {
+                                val binding = ItemWeekViewBinding.inflate(layoutInflater, eventContainer, false)
+                                binding.itemWeekTv.visibility = View.INVISIBLE
+                                binding.itemWeekTv.layoutParams = params
+                                eventContainer.addView(binding.root)
+                            }
+                            row = scheduleRow
+                        }
+
                         // 하루 일정 or 반복 일정
-                        if(firstDate == lastDate || !schedule.repeatRule.isNullOrEmpty()){
+                        if(firstDate == lastDate){
                             val binding = ItemWeekViewBinding.inflate(layoutInflater)
                             binding.itemWeekTv.backgroundTintList = setBackgroundTintByScheduleColor(schedule)
                             binding.itemWeekTv.layoutParams = params
@@ -809,24 +832,6 @@ class CalendarPageFragment: Fragment() {
                         }
                         // 장기 일정
                         else{
-                            // 장기 일정 시작일 때 현재 위치 기록
-                            if(isStart){
-                                rowMap[schedule.id] = row
-                            }
-
-                            // 이미 장기 일정이 작성됐다면 해당 줄 전까지 빈 뷰 작성
-                            val scheduleRow = rowMap[schedule.id]
-                            if (!isStart && scheduleRow != null && row < scheduleRow){
-                                val spaceCount = scheduleRow - row
-                                for(i in 1..spaceCount){
-                                    val binding = ItemWeekViewBinding.inflate(layoutInflater, eventContainer,false)
-                                    binding.itemWeekTv.visibility = View.INVISIBLE
-                                    binding.itemWeekTv.layoutParams = params
-                                    eventContainer.addView(binding.root)
-                                }
-                                row = scheduleRow
-                            }
-
                             // 장기 일정 바인딩
                             val binding = ItemWeekViewBinding.inflate(layoutInflater)
                             binding.itemWeekTv.backgroundTintList = setBackgroundTintByScheduleColor(schedule)
@@ -836,17 +841,11 @@ class CalendarPageFragment: Fragment() {
                                 else -> R.drawable.bg_item_week_view_middle
                             })
 
-                            // 장기 일정 마지막 날이라면, 위치 제거
-                            if(isEnd){
-                                rowMap.remove(schedule.id)
-                            }
-
                             binding.itemWeekTv.layoutParams = params
                             eventContainer.addView(binding.root)
                         }
                     }
                     row++
-                    index++
                 }
             }
         }
@@ -855,17 +854,132 @@ class CalendarPageFragment: Fragment() {
     // date의 일정을 장기 -> 하루 일정 순으로 정렬
     private fun getSortedScheduleListOfDate(date: LocalDate): List<Schedule>{
         return events[date]?.sortedWith(compareBy<Schedule> { schedule ->
-            val allDates = allSchedules.filter {
-                it.id == schedule.id
-            }.map {
-                it.startDate
-            }.distinct()
-            if (allDates.size > 1 && schedule.repeatRule.isNullOrEmpty()) -1 else 0
+            getAssignedRow(schedule)
+        }.thenBy { schedule ->
+            val allDates = getDisplayDatesForSchedule(schedule)
+            if (allDates.size > 1) 0 else 1
+        }.thenBy { schedule ->
+            if (schedule.isAllDay) 0 else 1
+        }.thenBy { schedule ->
+            schedule.startTime
+        }.thenBy { schedule ->
+            schedule.title.orEmpty()
+        }.thenBy { schedule ->
+            schedule.startDate
+        }.thenBy { schedule ->
+            schedule.id
         }) ?: emptyList()
     }
 
     // 해당 일정이 속한 모든 날짜 가져오기
     private fun getAllDatesForThisSchedule(schedule: Schedule): List<String> = allSchedules.filter { it.id == schedule.id }.map{ it.startDate }.distinct().sorted()
+
+    private fun getDisplayDatesForSchedule(schedule: Schedule): List<String> {
+        return if (!schedule.repeatRule.isNullOrEmpty()) {
+            val start = runCatching { LocalDate.parse(schedule.startDate) }.getOrNull() ?: return listOf(schedule.startDate)
+            val end = runCatching { LocalDate.parse(schedule.endDate) }.getOrNull() ?: return listOf(schedule.startDate)
+            generateSequence(start) { current ->
+                current.plusDays(1).takeIf { !it.isAfter(end) }
+            }.map { it.toString() }.toList()
+        } else {
+            getAllDatesForThisSchedule(schedule)
+        }
+    }
+
+    private fun getOccurrenceKey(schedule: Schedule): String {
+        return if (!schedule.repeatRule.isNullOrEmpty()) {
+            "${schedule.id}_${schedule.startDate}_${schedule.endDate}"
+        } else {
+            schedule.id.toString()
+        }
+    }
+
+    private fun getAssignedRow(schedule: Schedule): Int {
+        if (rowAssignmentCache.isEmpty()) {
+            rowAssignmentCache = buildRowAssignments().toMutableMap()
+        }
+        return rowAssignmentCache[getOccurrenceKey(schedule)] ?: 0
+    }
+
+    private fun buildRowAssignments(): Map<String, Int> {
+        data class DisplayOccurrence(
+            val key: String,
+            val start: LocalDate,
+            val end: LocalDate,
+            val priority: Int,
+            val title: String,
+            val id: Long
+        )
+
+        val occurrences = allSchedules
+            .groupBy { schedule -> getOccurrenceKey(schedule) }
+            .mapNotNull { (key, schedules) ->
+                val representative = schedules.firstOrNull() ?: return@mapNotNull null
+                val dates = getDisplayDatesForSchedule(representative)
+                    .mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }
+                    .distinct()
+                    .sorted()
+
+                if (dates.isEmpty()) {
+                    null
+                } else {
+                    val isMultiDay = dates.size > 1
+                    val priority = when {
+                        isMultiDay && representative.isAllDay && !representative.repeatRule.isNullOrEmpty() -> 0
+                        isMultiDay && representative.isAllDay -> 1
+                        isMultiDay && !representative.repeatRule.isNullOrEmpty() -> 2
+                        isMultiDay -> 3
+                        representative.isAllDay && !representative.repeatRule.isNullOrEmpty() -> 4
+                        representative.isAllDay -> 5
+                        !representative.repeatRule.isNullOrEmpty() -> 6
+                        else -> 7
+                    }
+                    DisplayOccurrence(
+                        key = key,
+                        start = dates.first(),
+                        end = dates.last(),
+                        priority = priority,
+                        title = representative.title.orEmpty(),
+                        id = representative.id
+                    )
+                }
+            }
+            .sortedWith(
+                compareBy<DisplayOccurrence>({ it.priority }, { it.start }, { it.end }, { it.title }, { it.id })
+            )
+
+        val occupiedByDate = mutableMapOf<LocalDate, MutableSet<Int>>()
+        val assignments = mutableMapOf<String, Int>()
+
+        occurrences.forEach { occurrence ->
+            var row = 0
+            while (isRowOccupied(occurrence.start, occurrence.end, row, occupiedByDate)) {
+                row++
+            }
+            assignments[occurrence.key] = row
+
+            generateSequence(occurrence.start) { current ->
+                current.plusDays(1).takeIf { !it.isAfter(occurrence.end) }
+            }.forEach { date ->
+                occupiedByDate.getOrPut(date) { mutableSetOf() }.add(row)
+            }
+        }
+
+        return assignments
+    }
+
+    private fun isRowOccupied(
+        start: LocalDate,
+        end: LocalDate,
+        row: Int,
+        occupiedByDate: Map<LocalDate, Set<Int>>
+    ): Boolean {
+        return generateSequence(start) { current ->
+            current.plusDays(1).takeIf { !it.isAfter(end) }
+        }.any { date ->
+            occupiedByDate[date]?.contains(row) == true
+        }
+    }
 
     // 일정 색상에 따라 텍스트뷰 배경 적용
     private fun setBackgroundTintByScheduleColor(schedule: Schedule): ColorStateList{

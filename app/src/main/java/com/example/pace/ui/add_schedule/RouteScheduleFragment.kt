@@ -67,8 +67,12 @@ import kotlin.compareTo
 @AndroidEntryPoint
 class RouteScheduleFragment : Fragment() {
 
+    // 바인딩
     private var _binding: FragmentRouteScheduleBinding? = null
     private val binding get() = _binding!!
+
+    // ViewModel
+    private val viewModel: ScheduleViewModel by viewModels()
 
     // 수정 모드 관련 변수
     private var isEditMode = false
@@ -76,8 +80,6 @@ class RouteScheduleFragment : Fragment() {
 
     // 경로 검색 -> 일정 추가 시 받는 ROUTE_DETAIL
     private var route: RouteResponse? = null
-
-    private var isEditingStartTime: Boolean = true
 
     // 경로탐색으로 전환될 때 같이 보낼 색깔(선택된 일정 색)
     private var selectedColor: String = "#DC354B"
@@ -97,24 +99,23 @@ class RouteScheduleFragment : Fragment() {
     private var lastDestLng: Double = Double.NaN
     private var lastRouteJson: String? = null
 
-
-    private val viewModel: ScheduleViewModel by viewModels()
-
+    // 날짜/시간
+    private var isEditingStartTime: Boolean = true
     private var startDate: LocalDate? = null
     private var endDate: LocalDate? = null
-
     private val dateFormatter = DateTimeFormatter.ofPattern("M월 d일 (E)", Locale.KOREAN)
 
+    // 색상/알림/캘린더
     private var selectedColorHex: String = "#53B332" // 기본 색상
 
     private var isFirstLoad = true // 최상단 멤버 변수로 추가
     private var currentSelectedAlarms: IntArray? = null
+    private var currentSelectedStartAlarms: IntArray? = null
     private var currentSelectedCalendarId: Long? = null
     private var currentSelectedCalendarName: String? = null
+    private var currentSelectedCalendarColor: Int? = null
 
-    private var currentSelectedStartAlarms: IntArray? = null
-
-
+    // 런처/콜백
     private val routeSearchLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -144,18 +145,18 @@ class RouteScheduleFragment : Fragment() {
         }
     }
 
-    val backPressedCallback = object: OnBackPressedCallback(true){
+    private val backPressedCallback = object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
-            val dialog = AddCancelDialog(requireContext()){
+            val dialog = AddCancelDialog(requireContext()) {
                 if (parentFragmentManager.backStackEntryCount > 0) {
                     parentFragmentManager.popBackStack()
                 } else {
-                    requireActivity().finish()
                 }
             }
             dialog.show()
         }
     }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -238,28 +239,6 @@ class RouteScheduleFragment : Fragment() {
                 // 경로가 확실히 있으므로 삭제 버튼 활성화
                 binding.deleteRouteIv.visibility = View.VISIBLE
                 binding.deleteRouteIv.bringToFront() // ⭐ 다른 뷰들보다 위로 올리기
-                binding.deleteRouteIv.setOnClickListener {
-                    Log.d("ROUTE_DELETE", "삭제 버튼 클릭")
-                    val dialog = DeleteRouteDialog(requireContext()) {
-                        // 1. 모든 관련 데이터 변수를 "진짜" 초기 상태로 리셋
-                        this.route = null           // 경로 객체
-                        this.lastRouteJson = null   // JSON 문자열
-
-                        // 출발지 정보 초기화
-                        this.lastStartName = null
-                        this.lastStartLat = Double.NaN
-                        this.lastStartLng = Double.NaN
-
-                        // 도착지 정보 초기화
-                        this.lastDestName = null
-                        this.lastDestLat = Double.NaN
-                        this.lastDestLng = Double.NaN
-
-                        // 2. UI를 초기 상태로 되돌리기 (null을 넘기면 내부의 removeAllViews()가 작동함)
-                        updateRouteInfo("", "", null)
-                    }
-                    dialog.show()
-                }
             } catch (e: Exception) {
                 // 만약 JSON 형식이 잘못되었다면 safe하게 처리
                 Log.e("RouteError", "JSON 파싱 실패: ${e.message}")
@@ -286,6 +265,7 @@ class RouteScheduleFragment : Fragment() {
 
 
 
+        //일정 알람 화면으로 갔다가 올 때 데이터 받는 부분
         parentFragmentManager.setFragmentResultListener("ROUTE_ALARM_KEY", viewLifecycleOwner) { _, bundle ->
             // 경로 일정 로직 수행
             val resultText = bundle.getString("selectedAlarm")
@@ -298,31 +278,27 @@ class RouteScheduleFragment : Fragment() {
                 // UI 업데이트 (ID: tvAlarmStatus 확인)
                 binding.tvAlarmStatus.text = resultText
                 binding.tvAlarmStatus.setTextColor(Color.BLACK)
-
             }
         }
 
-        // 2. 출발 알림 결과 받기
 
+        // 출발 알림 결과 받기
         parentFragmentManager.setFragmentResultListener("startAlarmKey", viewLifecycleOwner) { _, bundle ->
             val resultText = bundle.getString("selectedAlarm") ?: "출발 알림 안함"
             val resultMinutes = bundle.getIntArray("selectedAlarmMinutes")
 
             if (resultMinutes != null) {
-                currentSelectedStartAlarms = resultMinutes // 여기서 전역 변수 업데이트!
+                currentSelectedStartAlarms = resultMinutes
                 binding.tvStartalarmStatus.text = resultText
                 binding.tvStartalarmStatus.setTextColor(Color.BLACK)
-                Log.d("ROUTE_RECEIVE", "데이터 저장 완료: ${resultMinutes.contentToString()}")
             }
         }
 
-        // "calendarSelectKey" 대신 "ROUTE_CALENDAR_KEY" 사용
+        // 캘린더 선택 결과 받기
         parentFragmentManager.setFragmentResultListener("ROUTE_CALENDAR_KEY", viewLifecycleOwner) { _, bundle ->
             val selectedId = bundle.getLong("calendarId", -1L)
             val selectedName = bundle.getString("calendarName") ?: "내 일정"
             val calendarColor = bundle.getInt("selectedCalendarColor", -1)
-
-            android.util.Log.d("CALENDAR_RECEIVE", "경로 일정 수신: $selectedName")
 
             if (selectedId != -1L) {
                 currentSelectedCalendarId = selectedId
@@ -332,6 +308,7 @@ class RouteScheduleFragment : Fragment() {
                 binding.tvCalendarStatus.setTextColor(Color.BLACK)
 
                 if (calendarColor != -1) {
+                    currentSelectedCalendarColor = calendarColor
                     binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(calendarColor)
                 }
             }
@@ -463,6 +440,8 @@ class RouteScheduleFragment : Fragment() {
             val finalEndDate = endDate ?: finalStartDate
             val startTime = binding.tvStartTime.text.toString()
             val endTime = binding.tvEndTime.text.toString()
+            val saveColorInt = getSaveColorInt()
+            val saveColorHex = colorIntToHex(saveColorInt)
 
             // [디버깅] 현재 모드와 ID 확인 - 로그캣에서 "ConfirmMode"를 검색하세요.
             Log.d("ConfirmMode", "isEditMode: $isEditMode, scheduleId: $scheduleId, selectedColor: $selectedColorHex, calendarId: $currentSelectedCalendarId")
@@ -474,7 +453,6 @@ class RouteScheduleFragment : Fragment() {
                         viewModel.deleteSchedule(scheduleId, true)
                     }
                     saveAsNormalSchedule()
-                    requireActivity().finish()
                 }
                 dialog.show()
             }else{
@@ -555,7 +533,7 @@ class RouteScheduleFragment : Fragment() {
                         startTime = startTime,
                         endTime = endTime,
                         calendarId = currentSelectedCalendarId?.toString(), // 💡 캘린더 반영
-                        color = selectedColorHex,                           // 💡 색상 String 반영
+                        color = saveColorHex,                               // 💡 선택한 캘린더 색상 반영
                         isPathIncluded = true,
                         repeatInfo = null,
                         place = PlaceRequest(lastDestName ?: "", lastDestLat, lastDestLng),
@@ -597,17 +575,15 @@ class RouteScheduleFragment : Fragment() {
                         place = PlaceRequest(lastDestName ?: "", lastDestLat, lastDestLng),
                         reminders = reminders,
                         route = routeObj,
-                        color = selectedColorHex, // 💡 선택한 색상 반영
+                        color = saveColorHex, // 💡 선택한 캘린더 색상 반영
                         calendarId = currentSelectedCalendarId?.toString() // 💡 서버 명세에 맞춰 String으로 추가
                     )
-                    val selectedColorInt = Color.parseColor(selectedColor)
                     // ViewModel의 createSchedule 호출
                     Log.d("ConfirmMode", "..., calendarId: $currentSelectedCalendarId")
-                    viewModel.createSchedule(createRequest, null, currentSelectedCalendarId, selectedColorInt)
+                    viewModel.createSchedule(createRequest, null, currentSelectedCalendarId, saveColorInt)
                 }
 
                 // 서버 응답 여부와 관계없이 로컬 알람 예약 로직 즉시 실행
-                scheduleSavedAlarms()
             }
         }
 
@@ -1052,6 +1028,8 @@ class RouteScheduleFragment : Fragment() {
 
         val color = Color.parseColor(colorStr)
         binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(color)
+        // 수동 색상 선택 시 캘린더 색상 우선순위 해제
+        currentSelectedCalendarColor = null
 
         // 2. UI 처리
         binding.layoutColorSelector.visibility = View.GONE
@@ -1368,6 +1346,7 @@ class RouteScheduleFragment : Fragment() {
                 currentSelectedCalendarId = settings.calendarId
                 val calendarName = viewModel.getCalendarNameById(settings.calendarId)
                 binding.tvCalendarStatus.text = calendarName
+                applyCalendarColor(settings.calendarId)
             }
         }
     }
@@ -1505,6 +1484,22 @@ class RouteScheduleFragment : Fragment() {
         binding.tvStartalarmStatus.setTextColor(Color.BLACK) // 선택되면 검정색으로 변경
     }
 
+    private fun applyCalendarColor(calendarId: Long?) {
+        if (calendarId == null || calendarId == -1L) return
+        val color = viewModel.getCalendarColorById(calendarId) ?: return
+        if (color == 0) return
+        currentSelectedCalendarColor = color
+        binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(color)
+    }
+
+    private fun getSaveColorInt(): Int {
+        return currentSelectedCalendarColor ?: Color.parseColor(selectedColorHex)
+    }
+
+    private fun colorIntToHex(color: Int): String {
+        return String.format("#%06X", 0xFFFFFF and color)
+    }
+
 
     // [함수 추가] 기존 데이터 로드 및 UI 세팅
     private fun setupEditMode(id: Long) {
@@ -1537,6 +1532,7 @@ class RouteScheduleFragment : Fragment() {
                         }
                         binding.tvCalendarStatus.text = calendarName ?: "내 일정"
                         binding.tvCalendarStatus.setTextColor(Color.BLACK)
+                        applyCalendarColor(currentSelectedCalendarId)
 
                         // (2) 날짜 및 시간 정보
                         startDate = LocalDate.parse(detail.scheduleInfo.startDate)
@@ -1610,7 +1606,7 @@ class RouteScheduleFragment : Fragment() {
             placeId = null,
             customAlarms = currentSelectedAlarms?.toList(),
             calendarId = currentSelectedCalendarId,
-            selectedColor = Color.parseColor(selectedColorHex),
+            selectedColor = getSaveColorInt(),
             repeatInfo = null // 보정된 RepeatInfo 전달
         )
     }
