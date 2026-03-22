@@ -7,7 +7,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
     // 본인의 서버 베이스 URL을 입력하세요.
-    private const val BASE_URL = "http://ec2-3-35-233-51.ap-northeast-2.compute.amazonaws.com:8080/"
+    private const val BASE_URL = "https://pace-server.kro.kr/"
     private const val WEATHER_BASE_URL = "https://api.openweathermap.org/"
 
     //공통 okHttpClient

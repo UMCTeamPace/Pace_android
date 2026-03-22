@@ -17,10 +17,15 @@ import kotlin.jvm.java
 import android.content.Context
 import com.example.pace.data.api.RouteService
 import com.example.pace.data.api.ScheduleService
+import com.example.pace.data.api.WeatherService
 
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class BaseRetrofit
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class WeatherRetrofit
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -28,13 +33,22 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
+    fun provideOkHttpClient(authDataStore: AuthDataStore): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }
 
         return OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
+            .addInterceptor { chain ->
+                val token = authDataStore.getAccessToken()
+                val request = chain.request().newBuilder().apply {
+                    if (token != null) {
+                        addHeader("Authorization", "Bearer $token")
+                    }
+                }.build()
+                chain.proceed(request)
+            }
             .build()
     }
 
@@ -44,10 +58,27 @@ object NetworkModule {
     @BaseRetrofit
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("http://ec2-3-35-233-51.ap-northeast-2.compute.amazonaws.com:8080/")
+            .baseUrl("https://pace-server.kro.kr/")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
+    }
+
+    @Provides
+    @Singleton
+    @WeatherRetrofit
+    fun provideWeatherRetrofit(okHttpClient: OkHttpClient): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl("https://api.openweathermap.org/data/2.5/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideWeatherService(@WeatherRetrofit retrofit: Retrofit): WeatherService {
+        return retrofit.create(WeatherService::class.java)
     }
 
     @Provides
