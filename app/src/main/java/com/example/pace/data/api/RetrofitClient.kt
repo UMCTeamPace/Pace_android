@@ -1,17 +1,19 @@
 package com.example.pace.data.api
 
 import com.example.pace.BuildConfig
+import com.google.gson.GsonBuilder
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import com.tickaroo.tikxml.retrofit.TikXmlConverterFactory;
 
 object RetrofitClient {
     // 본인의 서버 베이스 URL을 입력하세요.
     private const val BASE_URL = "https://pace-server.kro.kr"
     private const val WEATHER_BASE_URL = "https://api.openweathermap.org/"
-    private const val BUS_BASE_URL = "http://ws.bus.go.kr/api/rest/arrive"
-    private const val SUBWAY_BASE_URL = "http://openapi.seoul.go.kr:8088/${BuildConfig.SUBWAY_API_KEY}/json/"
+    private const val BUS_BASE_URL = "http://ws.bus.go.kr/"
+    private const val SUBWAY_BASE_URL = "https://apis.data.go.kr/B553766/schedule/"
 
     //공통 okHttpClient
     private val okHttpClient: OkHttpClient by lazy {
@@ -46,17 +48,17 @@ object RetrofitClient {
         Retrofit.Builder()
             .baseUrl(BUS_BASE_URL)
             .client(okHttpClient)
-            // todo: XML -> Json -> Gson
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(TikXmlConverterFactory.create())
             .build()
     }
 
     // 지하철 시간표용 Retrofit
     private val subwayRetrofit: Retrofit by lazy{
+        val gson = GsonBuilder().setLenient().create()
         Retrofit.Builder()
             .baseUrl(SUBWAY_BASE_URL)
             .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
     }
 
@@ -70,17 +72,18 @@ object RetrofitClient {
         weatherRetrofit.create(WeatherService::class.java)
     }
 
-    // 실시간 버스 서비스
+    // 버스 서비스
     val busService: BusService by lazy{
         busRetrofit.create(BusService::class.java)
     }
+    val busParameterService: BusService by lazy{
+        retrofit.create(BusService::class.java)
+    }
 
-    // 실시간 지하철 서비스
+    // 지하철 서비스
     val subwayService: SubwayService by lazy{
         retrofit.create(SubwayService::class.java)
     }
-
-    // 지하철 시간표 서비스
     val subwayTimetableService: SubwayService by lazy{
         subwayRetrofit.create(SubwayService::class.java)
     }
