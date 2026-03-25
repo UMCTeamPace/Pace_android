@@ -77,6 +77,18 @@
             android:layout_marginStart="16dp"/>
     </LinearLayout>
     <LinearLayout
+        android:visibility="visible"
+        android:id="@+id/item_route_detail_realtime_ll"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:padding="10dp"
+        android:orientation="vertical"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_route_detail_vehicle"
+        app:layout_constraintTop_toBottomOf="@id/item_route_detail_vehicle_ll"
+        app:layout_constraintStart_toStartOf="@id/item_route_detail_vehicle_ll"
+        app:layout_constraintEnd_toEndOf="parent"/>
+    <LinearLayout
         android:id="@+id/item_route_detail_vehicle_stations_ll"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
