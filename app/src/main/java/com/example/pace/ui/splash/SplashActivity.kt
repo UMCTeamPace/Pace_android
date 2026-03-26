@@ -8,20 +8,25 @@ import androidx.appcompat.app.AppCompatActivity
 import com.airbnb.lottie.LottieAnimationView
 import com.example.pace.PaceApplication
 import com.example.pace.R
+import com.example.pace.data.datasource.AuthDataStore
 import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.onboarding.OnboardingActivity
 import com.example.pace.ui.onboarding.PermissionActivity
 import com.kakao.sdk.auth.AuthApiClient
 import com.kakao.sdk.user.UserApiClient
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class SplashActivity : AppCompatActivity() {
 
-    private val authDataStore by lazy { (application as PaceApplication).authDataStore }
+    @Inject
+    lateinit var authDataStore: AuthDataStore
+
+    //private val authDataStore by lazy { (application as PaceApplication).authDataStore }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-
         setContentView(R.layout.activity_splash)
 
         val lottieView = findViewById<LottieAnimationView>(R.id.lottieAnimationView)
@@ -33,23 +38,14 @@ class SplashActivity : AppCompatActivity() {
         lottieView.addAnimatorListener(object : Animator.AnimatorListener {
 
             override fun onAnimationEnd(animation: Animator) {
-                if (AuthApiClient.instance.hasToken()) {
-                    UserApiClient.instance.me { user, error ->
-                        if (error == null && user != null) {
-                            // [로그인 성공]
-                            // 💡 여기서 설정 완료 여부를 체크합니다!
-                            if (authDataStore.isOnboardingComplete()) { // isOnboardingComplete는 DataStore에 구현해야 할 함수 이름입니다.
-                                navigateToMain() // 설정 완료 유저 -> 메인행
-                            } else {
-                                navigateToOnboarding() // 가입은 됐는데 설정 안 한 유저 -> 온보딩행
-                            }
-                        } else {
-                            // 로그인 실패(토큰 만료 등) -> 온보딩(로그인부터 다시)
-                            navigateToOnboarding()
-                        }
-                    }
+                // 핵심 수정 부분: 저장된 액세스 토큰이 있는지 확인
+                val accessToken = authDataStore.getAccessToken()
+
+                if (accessToken != null) {
+                    // 1. 토큰이 있으면 로그인된 상태 -> 메인으로
+                    navigateToMain()
                 } else {
-                    // [토큰 없음] 로그아웃/탈퇴 유저 -> 온보딩으로 가서 가입부터 새로
+                    // 2. 토큰이 없으면 로그인 필요 -> 온보딩으로
                     navigateToOnboarding()
                 }
             }
