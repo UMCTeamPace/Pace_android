@@ -1,6 +1,6 @@
 package com.example.pace.data.api
 
-import com.example.pace.data.model.request.CreateScheduleRequest
+import com.example.pace.data.model.request.CreateRouteScheduleRequest
 import com.example.pace.data.model.request.DeleteScheduleRequest
 import com.example.pace.data.model.request.UpdateRouteRequest
 import com.example.pace.data.model.request.UpdateScheduleEditRouteRequest
@@ -50,9 +50,9 @@ interface ScheduleService {
     ): RawDefaultResponse<SchedulePagingResponse>
 
     @POST("/api/v1/schedules")
-    suspend fun createSchedule(
+    suspend fun createRouteSchedule(
         @Header("Authorization") accessToken: String,
-        @Body request: CreateScheduleRequest
+        @Body request: CreateRouteScheduleRequest
     ): RawDefaultResponse<CreateScheduleResponse>
 
     @HTTP(method = "DELETE", path = "/api/v1/schedules", hasBody = true)
@@ -82,7 +82,7 @@ interface ScheduleService {
         @Header("Authorization") accessToken: String,
         @Path("scheduleId") scheduleId: Long,
         @Query("scope") scope: String = "SINGLE",
-        @Body request: CreateScheduleRequest // 바디 타입 확인!
+        @Body request: CreateRouteScheduleRequest // 바디 타입 확인!
     ): RawDefaultResponse<CreateScheduleResponse>
 
     @PATCH("/api/v1/schedules/{id}/conversion")

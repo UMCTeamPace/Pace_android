@@ -48,7 +48,7 @@ data class ScheduleItem(
 
 data class ScheduleInfo(
     @SerializedName("title") val title: String,
-    @SerializedName("isAllDay") val isAllDay: Boolean,
+    @SerializedName("isAllDay") val isAllDay: Boolean = false,
     @SerializedName("startDate") val startDate: String,
     @SerializedName("endDate") val endDate: String,
     @SerializedName("startTime") val startTime: String?,

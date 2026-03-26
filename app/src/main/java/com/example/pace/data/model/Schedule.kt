@@ -117,5 +117,8 @@ data class Schedule(
     val placeJson: String? = null,
 
     @ColumnInfo(name = "route_id")
-    val routeId: Long? = null
+    val routeId: Long? = null,
+
+    @ColumnInfo(name = "route_json")
+    val routeJson: String? = null
 )

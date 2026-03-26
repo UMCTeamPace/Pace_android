@@ -14,6 +14,7 @@ import com.example.pace.ui.main.calendar.SearchFragment
 import com.example.pace.R
 import com.example.pace.ui.add_schedule.AddScheduleActivity
 import androidx.fragment.app.activityViewModels // 추가
+import com.example.pace.data.viewmodel.ScheduleViewModel
 import dagger.hilt.android.AndroidEntryPoint // 추가
 
 @AndroidEntryPoint
@@ -81,6 +82,8 @@ class CalendarFragment: Fragment() {
         binding.calendarVp.adapter = calendarFragmentAdapter
         binding.calendarVp.isUserInputEnabled = false
         binding.calendarVp.setCurrentItem(1, false)
+        // 처음 진입 시 캘린더 탭이 기본이라 수정 버튼은 숨김
+        mainActivity.binding.scheduleEditIv.visibility = View.GONE
 
         val tabTitles = listOf("리스트", "캘린더")
         TabLayoutMediator(binding.calendarTabLayout, binding.calendarVp) { tab, position ->

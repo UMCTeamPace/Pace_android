@@ -1,10 +1,9 @@
-package com.example.pace.ui.main.calendar
+﻿package com.example.pace.ui.main.calendar
 
 import DailyPageAdapter
 import android.R.attr.firstDayOfWeek
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
-import android.animation.ValueAnimator
 import android.app.ActionBar
 import android.app.AlertDialog
 import android.content.res.ColorStateList
@@ -19,7 +18,6 @@ import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.view.ViewTreeObserver
-import android.view.animation.DecelerateInterpolator
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -30,47 +28,47 @@ import androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
 import androidx.core.content.ContextCompat
 import androidx.core.view.children
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.lifecycleScope // 추가
+import androidx.lifecycle.lifecycleScope
 import com.example.pace.R
-import com.example.pace.data.model.Schedule // Schedule 모델 import 필요
+import com.example.pace.data.model.Schedule
 import com.example.pace.databinding.FragmentCalendarPageBinding
-import com.example.pace.ui.main.MainActivity // MainActivity import
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.kizitonwose.calendar.core.*
 import com.kizitonwose.calendar.view.*
-import kotlinx.coroutines.flow.collectLatest // 추가
-import kotlinx.coroutines.launch // 추가
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter // 추가
-import java.time.format.TextStyle
+import java.time.format.DateTimeFormatter
 import java.util.Locale
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
-import kotlinx.coroutines.*
-import java.time.LocalTime
-import androidx.fragment.app.activityViewModels // 추가
+import androidx.fragment.app.activityViewModels
+import com.example.pace.data.viewmodel.ScheduleViewModel
 import com.example.pace.databinding.ItemMonthViewMultipleDaysBinding
 import com.example.pace.databinding.ItemMonthViewSingleDayBinding
 import com.example.pace.databinding.ItemWeekViewBinding
-import dagger.hilt.android.AndroidEntryPoint // 추가
-import java.text.DateFormat
+import dagger.hilt.android.AndroidEntryPoint
 import kotlin.math.roundToInt
 
 @AndroidEntryPoint
 class CalendarPageFragment: Fragment() {
+    /*
+     * 이 화면은 일정 탭의 캘린더 페이지 화면임
+     * 달력 영역은 위쪽 제목 높이를 뺀 나머지 높이를 기준으로 계산
+     * 그 높이를 다섯 칸으로 나누고, 그중 한 칸 높이를 주간 달력의 높이로 적용
+     * 월간 달력은 나머지 높이 전체로 적용
+     */
     private var _binding: FragmentCalendarPageBinding? = null
     private val binding get() = _binding!!
     private lateinit var bottomSheetBehavior: BottomSheetBehavior<FrameLayout>
 
     private val viewModel: ScheduleViewModel by activityViewModels()
 
-    // 2. 캘린더에 표시할 데이터를 담을 Map (날짜 -> 일정 리스트)
+    // 캘린더에 표시할 데이터를 담을 Map (날짜 -> 일정 리스트)
     private var events = mapOf<LocalDate, List<Schedule>>()
     private var allSchedules:List<Schedule> = emptyList()
-    private var rowMap = mutableMapOf<Long, Int>()
+    private var rowAssignmentCache = mutableMapOf<String, Int>()
 
     private var selectedMonth: YearMonth = YearMonth.now()
     private var selectedDate: LocalDate? = null
@@ -121,27 +119,31 @@ class CalendarPageFragment: Fragment() {
             }
         }
 
-        // 월간 바인더
+        // 월간 달력 바인딩
         binding.calendarView.dayBinder = object : MonthDayBinder<DayViewContainer> {
             override fun create(view: View) = DayViewContainer(view)
             override fun bind(container: DayViewContainer, day: CalendarDay) {
                 container.date = day.date
-                // [수정] 현재 달의 날짜(MonthDate)일 때만 '활성화' 상태로 UI 업데이트
+                // 현재 달의 날짜(MonthDate)일 때만 활성화 하기
                 val isCurrentMonth = day.position == DayPosition.MonthDate
                 updateDayUI(container.textView, container.rootLayout, day.date, isCurrentMonth)
+                if (!isCurrentMonth && bottomSheetBehavior.state == BottomSheetBehavior.STATE_HIDDEN) {
+                    container.eventContainer.removeAllViews()
+                    return
+                }
                 // 바텀 시트 여부에 따라 다른 UI 적용
                 when(bottomSheetBehavior.state){
                     BottomSheetBehavior.STATE_HIDDEN -> {
                         setMonthCalendarWithoutBottomSheetUI(container.eventContainer, day.date)
                     }
-                    BottomSheetBehavior.STATE_COLLAPSED -> {
+                    else -> {
                         setWeekAndMonthCalendarUI(container.eventContainer, day.date)
                     }
-                    else -> {}
                 }
             }
         }
 
+        // 주간 달력 바인딩
         binding.weekCalendarView.dayBinder = object : WeekDayBinder<DayViewContainer> {
             override fun create(view: View) = DayViewContainer(view)
             override fun bind(container: DayViewContainer, day: WeekDay) {
@@ -159,7 +161,7 @@ class CalendarPageFragment: Fragment() {
             if (!isProgrammaticScroll) {
                 val currentSelected = selectedDate ?: today
 
-                // [수정 핵심] 이동하려는 월이 현재 이미 선택된 날짜의 월과 같은지 확인
+                // 이동하려는 월이 현재 이미 선택된 날짜의 월과 같은지 확인
                 val isAlreadyInMonth = YearMonth.from(currentSelected) == month.yearMonth
 
                 // 초기 진입(오늘 날짜 포함 월)이거나, 주간에서 이미 해당 월의 날짜를 선택했다면 유지
@@ -180,9 +182,8 @@ class CalendarPageFragment: Fragment() {
             }
         }
 
-        // 주간 캘린더 스크롤 리스너 수정
+        // 주간 캘린더 스크롤 리스너
         binding.weekCalendarView.weekScrollListener = { week ->
-
             val weekFirstDate = week.days.first().date
             selectedMonth = YearMonth.from(weekFirstDate)
             updateTitle()
@@ -214,19 +215,18 @@ class CalendarPageFragment: Fragment() {
 
         observeSchedules()
 
-        // [추가] 요일 헤더 설정 함수 호출
+        // 요일 헤더 설정 함수 호출
         setupDayHeaders(firstDayOfWeek)
 
         binding.btnReturnToToday.setOnClickListener {
             val targetMonth = YearMonth.now()
 
-            // 1. 프로그래밍적 이동임을 선언 (리스너의 '1일 선택' 로직 방지)
             isProgrammaticScroll = true
 
-            // 2. 날짜 먼저 선택 (데이터 및 텍스트 업데이트)
+            // 날짜 먼저 선택
             selectDate(today, scrollToPager = true, fromScroll = false)
 
-            // 3. 캘린더 이동
+            // 캘린더 이동
             val currentMonth = selectedMonth
             val monthDiff = java.time.temporal.ChronoUnit.MONTHS.between(currentMonth, targetMonth)
 
@@ -238,13 +238,13 @@ class CalendarPageFragment: Fragment() {
                 binding.calendarView.smoothScrollToMonth(targetMonth)
             }
 
-            // 주간 캘린더도 오늘로
+            // 주간 캘린더도 오늘로 설정
             binding.weekCalendarView.scrollToWeek(today)
 
-            // 4. 이동이 완료된 후 리스너 해제 (핸들러를 사용해 안전하게 처리)
+            // 이동이 완료된 후 리스너 해제
             binding.calendarView.postDelayed({
                 isProgrammaticScroll = false
-            }, 500) // 스크롤 애니메이션 시간만큼 충분히 줌
+            }, 500) // 스크롤 애니메이션 시간만큼 충분히 줌 이거 없으면 UI충돌날때 있음
         }
 
         // 초기 날짜 텍스트 설정
@@ -252,19 +252,31 @@ class CalendarPageFragment: Fragment() {
         binding.btnReturnToToday.visibility = if (selectedDate == today) View.GONE else View.VISIBLE
     }
 
-    // 헬퍼 함수: 상단 "202X년 X월 X일" 텍스트 업데이트
+    // 상단 텍스트 업데이트
     private fun updateSelectedDateText(date: LocalDate) {
         val headerFormat = DateTimeFormatter.ofPattern("yyyy년 M월 d일 (E)", Locale.KOREAN)
         binding.root.findViewById<TextView>(R.id.tv_selected_date)?.text = date.format(headerFormat)
     }
 
 
-    // [추가] 요일 헤더(일~토) 설정 함수
+    // 요일 헤더(일~토) 설정 함수
     private fun setupDayHeaders(firstDayOfWeek: DayOfWeek) {
         val daysOfWeek = daysOfWeek(firstDayOfWeek)
+        val dayLabels = resources.getStringArray(R.array.weekdays_short)
+        fun labelFor(day: DayOfWeek): String {
+            return when (day) {
+                DayOfWeek.SUNDAY -> dayLabels[0]
+                DayOfWeek.MONDAY -> dayLabels[1]
+                DayOfWeek.TUESDAY -> dayLabels[2]
+                DayOfWeek.WEDNESDAY -> dayLabels[3]
+                DayOfWeek.THURSDAY -> dayLabels[4]
+                DayOfWeek.FRIDAY -> dayLabels[5]
+                DayOfWeek.SATURDAY -> dayLabels[6]
+            }
+        }
         binding.legendLayout.root.children.forEachIndexed { index, view ->
             val tv = view as TextView
-            tv.text = daysOfWeek[index].getDisplayName(TextStyle.SHORT, Locale.getDefault())
+            tv.text = labelFor(daysOfWeek[index])
             when (daysOfWeek[index]) {
                 DayOfWeek.SUNDAY -> tv.setTextColor(ContextCompat.getColor(requireContext(), R.color.semantic_error))
                 DayOfWeek.SATURDAY -> tv.setTextColor(ContextCompat.getColor(requireContext(), R.color.semantic_success))
@@ -274,19 +286,17 @@ class CalendarPageFragment: Fragment() {
     }
 
 
-    // 5. 뷰모델 데이터 관찰 함수 구현
+    // 뷰모델 데이터 관찰 함수 구현
     private fun observeSchedules() {
         viewLifecycleOwner.lifecycleScope.launch {
-            // [수정] viewModel.allSchedules 대신 viewModel.scheduleMap을 관찰합니다.
             viewModel.scheduleMap.collectLatest { groupedMap ->
-                // 뷰모델에서 이미 LocalDate 키로 그룹화된 데이터를 주므로 바로 할당합니다.
                 events = groupedMap
+                rowAssignmentCache.clear()
 
                 if (groupedMap.isNotEmpty()) {
                     groupedMap.values.flatten()
                         .filter { it.type == "ROUTE" }
                         .forEach { schedule ->
-                            // 뷰모델에 작성하신 그 함수를 여기서 호출!
                             viewModel.fetchRouteDetail(schedule.id)
                         }
                 }
@@ -302,6 +312,7 @@ class CalendarPageFragment: Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.allSchedules.collectLatest { schedules ->
                 allSchedules = schedules
+                rowAssignmentCache.clear()
                 binding.calendarView.notifyCalendarChanged()
                 binding.weekCalendarView.notifyCalendarChanged()
             }
@@ -320,44 +331,56 @@ class CalendarPageFragment: Fragment() {
     }
 
     private fun setupCalendarLayout() {
+        /*
+         * 실제 화면이 그려진 뒤에 높이를 읽음
+         * 위쪽 제목 높이를 빼서 달력이 쓸 수 있는 높이를 구함
+         * 그 높이를 다섯 칸으로 나눠서 한 칸 높이를 주간 달력 높이로 사용
+         */
         binding.calendarContainer.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
             override fun onGlobalLayout() {
                 binding.calendarContainer.viewTreeObserver.removeOnGlobalLayoutListener(this)
                 containerHeight = binding.calendarContainer.height
                 headerHeight = binding.headerContainer.height
 
-                val collapsedCalendarHeight = containerHeight - headerHeight - bottomSheetBehavior.peekHeight
-                if (collapsedCalendarHeight > 0) {
-                    weekViewHeight = collapsedCalendarHeight / 5
+                val availableHeight = containerHeight - headerHeight
+                if (availableHeight > 0) {
+                    weekViewHeight = availableHeight / 5
                     binding.weekCalendarView.layoutParams.height = weekViewHeight
                 }
                 bottomSheetBehavior.expandedOffset = headerHeight + weekViewHeight
 
-                val targetHeight = containerHeight - headerHeight
-                if (targetHeight > 0 && binding.calendarView.layoutParams.height != targetHeight) {
-                    binding.calendarView.layoutParams.height = targetHeight
+                if (availableHeight > 0 && binding.calendarView.layoutParams.height != availableHeight) {
+                    binding.calendarView.layoutParams.height = availableHeight
                 }
             }
         })
     }
 
     private fun setupBottomSheet() {
+        /*
+         * 아래쪽 일정 목록은 두 가지 상태만 사용
+         * 숨김 상태: 월간 달력이 보임
+         * 펼침 상태: 주간 달력이 보임
+         * 중간 단계는 쓰지 않으며, 두 화면을 페이드 인 페이드 아웃을 나누어서 적용
+         */
         bottomSheetBehavior.apply {
             state = BottomSheetBehavior.STATE_HIDDEN
-            peekHeight = 500
+            peekHeight = 0
             isFitToContents = false
             halfExpandedRatio = 0.0001f
             isHideable = true
+            skipCollapsed = true
         }
         // ... 바텀시트 콜백 로직 (기존 코드 그대로 유지) ...
-        var lastBottomSheetState: Int = bottomSheetBehavior.state
         bottomSheetBehavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
             override fun onStateChanged(bottomSheet: View, newState: Int) {
                 // 기존 애니메이션 및 상태 변경 로직 그대로 유지
                 when (newState) {
                     BottomSheetBehavior.STATE_HIDDEN -> {
-                        binding.weekCalendarView.visibility = View.GONE
-                        binding.calendarView.visibility = View.VISIBLE
+                        crossfade(
+                            fadeInView = binding.calendarView,
+                            fadeOutView = binding.weekCalendarView
+                        )
                         // 현재 선택된 날짜가 있는 달로 월간 캘린더 이동(주간에서 스크롤만 하다가 월간으로 전환시 오류발생 보완)
                         val targetMonth = selectedDate?.let { YearMonth.from(it) } ?: selectedMonth
                         binding.calendarView.scrollToMonth(targetMonth)
@@ -366,94 +389,28 @@ class CalendarPageFragment: Fragment() {
                             binding.calendarView.layoutParams.height = targetHeight
                             binding.calendarView.requestLayout()
                         }
-                    }
-                    BottomSheetBehavior.STATE_COLLAPSED -> {
-                        val calendar = binding.calendarView
-                        val weekCalendar = binding.weekCalendarView
-                        val collapsedHeight = containerHeight - headerHeight - bottomSheetBehavior.peekHeight
-
-                        if (lastBottomSheetState == BottomSheetBehavior.STATE_EXPANDED) {
-                            calendar.visibility = View.VISIBLE
-                            val animator = ValueAnimator.ofInt(weekViewHeight, collapsedHeight).apply {
-                                duration = 250
-                                interpolator = DecelerateInterpolator()
-                                addUpdateListener { animation ->
-                                    calendar.layoutParams.height = animation.animatedValue as Int
-                                    calendar.requestLayout()
-                                }
-                                addListener(object : AnimatorListenerAdapter() {
-                                    override fun onAnimationEnd(animation: Animator) {
-                                        weekCalendar.visibility = View.GONE
-                                        binding.calendarView.scrollToMonth(selectedMonth)
-                                    }
-                                })
-                            }
-                            animator.start()
-                        } else {
-                            weekCalendar.visibility = View.GONE
-                            calendar.visibility = View.VISIBLE
-                            binding.calendarView.scrollToMonth(selectedMonth)
-                            if (collapsedHeight > 0 && calendar.layoutParams.height != collapsedHeight) {
-                                calendar.layoutParams.height = collapsedHeight
-                                calendar.requestLayout()
-                            }
-                        }
+                        notifyVisibleCalendarDates()
                     }
                     BottomSheetBehavior.STATE_EXPANDED -> {
-                        if (weekViewHeight > 0) {
-                            val calendar = binding.calendarView
-                            val weekCalendar = binding.weekCalendarView
-
-                            val animator = ValueAnimator.ofInt(calendar.height, weekViewHeight).apply {
-                                duration = 250
-                                interpolator = DecelerateInterpolator()
-                                addUpdateListener { animation ->
-                                    val layoutParams = calendar.layoutParams
-                                    layoutParams.height = animation.animatedValue as Int
-                                    calendar.layoutParams = layoutParams
-                                }
-                                addListener(object : AnimatorListenerAdapter() {
-                                    override fun onAnimationEnd(animation: Animator) {
-                                        calendar.visibility = View.GONE
-                                        weekCalendar.visibility = View.VISIBLE
-                                        weekCalendar.scrollToWeek(selectedDate ?: today)
-                                    }
-                                })
-                            }
-                            animator.start()
-                        } else {
-                            binding.calendarView.visibility = View.GONE
-                            binding.weekCalendarView.visibility = View.VISIBLE
+                        binding.weekCalendarView.alpha = 0f
+                        binding.weekCalendarView.visibility = View.INVISIBLE
+                        binding.weekCalendarView.post {
                             binding.weekCalendarView.scrollToWeek(selectedDate ?: today)
+                            notifyVisibleCalendarDates()
+                            binding.weekCalendarView.visibility = View.VISIBLE
+                            crossfade(
+                                fadeInView = binding.weekCalendarView,
+                                fadeOutView = binding.calendarView
+                            )
                         }
                     }
                 }
-                lastBottomSheetState = newState
             }
 
             override fun onSlide(bottomSheet: View, slideOffset: Float) {
-                // 기존 슬라이드 로직 유지
-                if (slideOffset <= 0) {
-                    val calendarView = binding.calendarView
-                    val peekHeight = bottomSheetBehavior.peekHeight
-
-                    if (containerHeight == 0 || headerHeight == 0) return
-
-                    val hiddenHeight = containerHeight - headerHeight
-                    val collapsedHeight = containerHeight - headerHeight - peekHeight
-
-                    if (collapsedHeight > 0 && hiddenHeight > 0) {
-                        val newHeight = (collapsedHeight * (1 + slideOffset) + hiddenHeight * (-slideOffset)).toInt()
-                        if (newHeight > 0) {
-                            calendarView.layoutParams.height = newHeight
-                            calendarView.requestLayout()
-                        }
-                    }
-                }
             }
         })
     }
-
     private fun setupMonthYearPicker() {
         binding.calendarNumberPickerTv.setOnClickListener {
             showMonthYearPicker()
@@ -527,12 +484,70 @@ class CalendarPageFragment: Fragment() {
         }
     }
 
+    private fun crossfade(fadeInView: View, fadeOutView: View, durationMs: Long = 350) {
+        /*
+         * 두 화면 요소를 부드럽게 바꿔치기 한다.
+         * 하나는 천천히 나타나고, 다른 하나는 천천히 사라진다.
+         */
+        fadeInView.animate().cancel()
+        fadeOutView.animate().cancel()
+
+        if (fadeInView.visibility != View.VISIBLE) {
+            fadeInView.alpha = 0f
+            fadeInView.visibility = View.VISIBLE
+        }
+        fadeInView.animate()
+            .alpha(1f)
+            .setDuration(durationMs)
+            .setListener(null)
+            .start()
+
+        if (fadeOutView.visibility == View.VISIBLE) {
+            fadeOutView.animate()
+                .alpha(0f)
+                .setDuration(durationMs)
+                .setListener(object : AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: Animator) {
+                        fadeOutView.visibility = View.GONE
+                    }
+                })
+                .start()
+        } else {
+            fadeOutView.alpha = 0f
+            fadeOutView.visibility = View.GONE
+        }
+    }
+
+    private fun notifyVisibleCalendarDates() {
+        binding.calendarView.findFirstVisibleMonth()?.weekDays
+            ?.flatten()
+            ?.map { it.date }
+            ?.distinct()
+            ?.forEach { date ->
+                binding.calendarView.notifyDateChanged(date)
+            }
+
+        binding.weekCalendarView.findFirstVisibleWeek()?.days
+            ?.map { it.date }
+            ?.distinct()
+            ?.forEach { date ->
+                binding.weekCalendarView.notifyDateChanged(date)
+            }
+    }
+
     // CalendarPageFragment.kt 의 selectDate 수정
     private fun selectDate(date: LocalDate, scrollToPager: Boolean = true, fromScroll: Boolean = false) {
+        /*
+         * 날짜를 눌렀을 때의 핵심 흐름
+         * 1. 선택 날짜를 저장하고 데이터 변경 알림
+         * 2. 월간과 주간 달력에서 선택 표시를 갱신한다.
+         * 3. 하루 일정 화면도 같은 날짜로 맞춘다.
+         * 4. 같은 날짜를 다시 누르면 아래쪽 목록을 열거나 닫는다.
+         */
         if (selectedDate == date && scrollToPager && !fromScroll) {
             // 바텀시트 토글 로직 그대로 유지
             bottomSheetBehavior.state = if (bottomSheetBehavior.state == BottomSheetBehavior.STATE_HIDDEN) {
-                BottomSheetBehavior.STATE_COLLAPSED
+                BottomSheetBehavior.STATE_EXPANDED
             } else {
                 BottomSheetBehavior.STATE_HIDDEN
             }
@@ -563,15 +578,14 @@ class CalendarPageFragment: Fragment() {
                 if (!fromScroll) {
                     // 이 안에서 scrollToMonth 등이 호출될 때 리스너가 동작하지 않도록 보장
                     binding.calendarView.scrollToMonth(YearMonth.from(date))
-                    binding.weekCalendarView.scrollToWeek(date)
                 }
 
                 // 약간의 딜레이 뒤에 해제 (스크롤이 완전히 끝날 때까지 보호)
                 binding.root.postDelayed({ isProgrammaticScroll = false }, 100)
             }
 
-            if (bottomSheetBehavior.state == BottomSheetBehavior.STATE_HIDDEN) {
-                bottomSheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
+            if (!fromScroll && bottomSheetBehavior.state == BottomSheetBehavior.STATE_HIDDEN) {
+                bottomSheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
             }
         }
     }
@@ -599,6 +613,12 @@ class CalendarPageFragment: Fragment() {
 
     // UI를 그리는 공통 로직 (따로 빼두면 편합니다)
     private fun updateDayUI(textView: TextView, root: View, date: LocalDate, isActive: Boolean) {
+        /*
+         * 날짜 칸의 모양을 정하는 규칙
+         * - 선택된 날짜는 강조 색상과 테두리를 사용
+         * - 오늘 날짜는 특별한 색을 사용
+         * - 현재 달이 아닌 날짜는 흐리게 표시
+         */
         textView.text = date.dayOfMonth.toString()
 
         // [핵심 수정] isActive가 true일 때만 선택 UI를 그립니다.
@@ -698,15 +718,14 @@ class CalendarPageFragment: Fragment() {
         if(!events[date].isNullOrEmpty()){
             val sortedEvents = getSortedScheduleListOfDate(date)
             var row = 0
-            var index = 0
 
             if(sortedEvents.isNotEmpty()){
-                val n = setPageItemNumber(sortedEvents)
+                val maxVisibleRows = setPageItemNumber(sortedEvents)
                 for(schedule in sortedEvents) {
-                    val allDatesForThisSchedule = getAllDatesForThisSchedule(schedule)
+                    val allDatesForThisSchedule = getDisplayDatesForSchedule(schedule)
                     if(allDatesForThisSchedule.isNotEmpty()){
-                        // 상위 일정 3-4개만 표시
-                        if(row == 3 || index == n){
+                        val scheduleRow = getAssignedRow(schedule)
+                        if (scheduleRow >= maxVisibleRows) {
                             break
                         }
 
@@ -716,8 +735,19 @@ class CalendarPageFragment: Fragment() {
                         val isEnd = date.isEqual(lastDate)
                         val params = LinearLayout.LayoutParams(MATCH_PARENT, (16 * resources.displayMetrics.density).roundToInt())
 
+                        if (row < scheduleRow) {
+                            val spaceCount = scheduleRow - row
+                            repeat(spaceCount) {
+                                val binding = ItemMonthViewMultipleDaysBinding.inflate(layoutInflater, eventContainer, false)
+                                binding.root.visibility = View.INVISIBLE
+                                binding.root.layoutParams = params
+                                eventContainer.addView(binding.root)
+                            }
+                            row = scheduleRow
+                        }
+
                         // 하루 일정 or 반복 일정
-                        if(firstDate == lastDate || !schedule.repeatRule.isNullOrEmpty()){
+                        if(firstDate == lastDate){
                             val binding = ItemMonthViewSingleDayBinding.inflate(layoutInflater)
                             val icon = binding.itemMonthViewSingleColor
                             icon.backgroundTintList = setBackgroundTintByScheduleColor(schedule)
@@ -727,23 +757,6 @@ class CalendarPageFragment: Fragment() {
                         }
                         // 장기 일정
                         else{
-                            // 장기 일정 시작일 때 현재 위치 기록
-                            if(isStart){
-                                rowMap[schedule.id] = row
-                            }
-                            // 이미 장기 일정이 작성됐다면 해당 줄 전까지 빈 뷰 작성
-                            val scheduleRow = rowMap[schedule.id]
-                            if (!isStart && scheduleRow != null && row < scheduleRow){
-                                val spaceCount = scheduleRow - row
-                                for(i in 1..spaceCount){
-                                    val binding = ItemMonthViewMultipleDaysBinding.inflate(layoutInflater, eventContainer,false)
-                                    binding.itemMonthViewMultipleDays.text = "test"
-                                    binding.root.visibility = View.INVISIBLE
-                                    binding.root.layoutParams = params
-                                    eventContainer.addView(binding.root)
-                                }
-                                row = scheduleRow
-                            }
                             // 장기 일정 바인딩
                             val binding = ItemMonthViewMultipleDaysBinding.inflate(layoutInflater)
                             binding.itemMonthViewMultipleDays.backgroundTintList = setBackgroundTintByScheduleColor(schedule)
@@ -757,24 +770,17 @@ class CalendarPageFragment: Fragment() {
                                 else -> ""
                             }
 
-                            // 장기 일정 마지막 날이라면, 위치 제거
-                            if(isEnd){
-                                rowMap.remove(schedule.id)
-                            }
-
                             binding.root.layoutParams = params
                             eventContainer.addView(binding.root)
                         }
                     }
                     row++
-                    index++
-
                 }
-                // 총 일정이 4개 초과거나 장기 일정으로 3칸을 모두 차지했을 경우, 남은 개수 표시
-                if(n == 3 || row == 3){
+                val hiddenCount = sortedEvents.count { getAssignedRow(it) >= maxVisibleRows }
+                if(maxVisibleRows == 3 && hiddenCount > 0){
                     val binding = ItemMonthViewMultipleDaysBinding.inflate(layoutInflater)
                     binding.itemMonthViewMultipleDays.backgroundTintList = ColorStateList.valueOf(resources.getColor(R.color.transparent))
-                    binding.itemMonthViewMultipleDays.text = if(n == 3) "+${sortedEvents.size - 3}" else if(sortedEvents.size - index > 0)"+${sortedEvents.size - index}" else ""
+                    binding.itemMonthViewMultipleDays.text = "+$hiddenCount"
                     eventContainer.addView(binding.root)
                 }
             }
@@ -789,15 +795,14 @@ class CalendarPageFragment: Fragment() {
         if(!events[date].isNullOrEmpty()){
             val sortedEvents = getSortedScheduleListOfDate(date)
             var row = 0
-            var index = 0
 
             if(sortedEvents.isNotEmpty()){
-                val n = setPageItemNumber(sortedEvents)
+                val maxVisibleRows = setPageItemNumber(sortedEvents)
                 for(schedule in sortedEvents) {
-                    val allDatesForThisSchedule = getAllDatesForThisSchedule(schedule)
+                    val allDatesForThisSchedule = getDisplayDatesForSchedule(schedule)
                     if(allDatesForThisSchedule.isNotEmpty()){
-                        // 상위 일정 3-4개만 표시
-                        if(row == 3 || index == n){
+                        val scheduleRow = getAssignedRow(schedule)
+                        if (scheduleRow >= maxVisibleRows) {
                             break
                         }
 
@@ -807,8 +812,19 @@ class CalendarPageFragment: Fragment() {
                         val isEnd = date.isEqual(lastDate)
                         val params = LinearLayout.LayoutParams(MATCH_PARENT, (8 * resources.displayMetrics.density).roundToInt())
 
+                        if (row < scheduleRow) {
+                            val spaceCount = scheduleRow - row
+                            repeat(spaceCount) {
+                                val binding = ItemWeekViewBinding.inflate(layoutInflater, eventContainer, false)
+                                binding.itemWeekTv.visibility = View.INVISIBLE
+                                binding.itemWeekTv.layoutParams = params
+                                eventContainer.addView(binding.root)
+                            }
+                            row = scheduleRow
+                        }
+
                         // 하루 일정 or 반복 일정
-                        if(firstDate == lastDate || !schedule.repeatRule.isNullOrEmpty()){
+                        if(firstDate == lastDate){
                             val binding = ItemWeekViewBinding.inflate(layoutInflater)
                             binding.itemWeekTv.backgroundTintList = setBackgroundTintByScheduleColor(schedule)
                             binding.itemWeekTv.layoutParams = params
@@ -816,24 +832,6 @@ class CalendarPageFragment: Fragment() {
                         }
                         // 장기 일정
                         else{
-                            // 장기 일정 시작일 때 현재 위치 기록
-                            if(isStart){
-                                rowMap[schedule.id] = row
-                            }
-
-                            // 이미 장기 일정이 작성됐다면 해당 줄 전까지 빈 뷰 작성
-                            val scheduleRow = rowMap[schedule.id]
-                            if (!isStart && scheduleRow != null && row < scheduleRow){
-                                val spaceCount = scheduleRow - row
-                                for(i in 1..spaceCount){
-                                    val binding = ItemWeekViewBinding.inflate(layoutInflater, eventContainer,false)
-                                    binding.itemWeekTv.visibility = View.INVISIBLE
-                                    binding.itemWeekTv.layoutParams = params
-                                    eventContainer.addView(binding.root)
-                                }
-                                row = scheduleRow
-                            }
-
                             // 장기 일정 바인딩
                             val binding = ItemWeekViewBinding.inflate(layoutInflater)
                             binding.itemWeekTv.backgroundTintList = setBackgroundTintByScheduleColor(schedule)
@@ -843,17 +841,11 @@ class CalendarPageFragment: Fragment() {
                                 else -> R.drawable.bg_item_week_view_middle
                             })
 
-                            // 장기 일정 마지막 날이라면, 위치 제거
-                            if(isEnd){
-                                rowMap.remove(schedule.id)
-                            }
-
                             binding.itemWeekTv.layoutParams = params
                             eventContainer.addView(binding.root)
                         }
                     }
                     row++
-                    index++
                 }
             }
         }
@@ -862,17 +854,132 @@ class CalendarPageFragment: Fragment() {
     // date의 일정을 장기 -> 하루 일정 순으로 정렬
     private fun getSortedScheduleListOfDate(date: LocalDate): List<Schedule>{
         return events[date]?.sortedWith(compareBy<Schedule> { schedule ->
-            val allDates = allSchedules.filter {
-                it.id == schedule.id
-            }.map {
-                it.startDate
-            }.distinct()
-            if (allDates.size > 1 && schedule.repeatRule.isNullOrEmpty()) -1 else 0
+            getAssignedRow(schedule)
+        }.thenBy { schedule ->
+            val allDates = getDisplayDatesForSchedule(schedule)
+            if (allDates.size > 1) 0 else 1
+        }.thenBy { schedule ->
+            if (schedule.isAllDay) 0 else 1
+        }.thenBy { schedule ->
+            schedule.startTime
+        }.thenBy { schedule ->
+            schedule.title.orEmpty()
+        }.thenBy { schedule ->
+            schedule.startDate
+        }.thenBy { schedule ->
+            schedule.id
         }) ?: emptyList()
     }
 
     // 해당 일정이 속한 모든 날짜 가져오기
     private fun getAllDatesForThisSchedule(schedule: Schedule): List<String> = allSchedules.filter { it.id == schedule.id }.map{ it.startDate }.distinct().sorted()
+
+    private fun getDisplayDatesForSchedule(schedule: Schedule): List<String> {
+        return if (!schedule.repeatRule.isNullOrEmpty()) {
+            val start = runCatching { LocalDate.parse(schedule.startDate) }.getOrNull() ?: return listOf(schedule.startDate)
+            val end = runCatching { LocalDate.parse(schedule.endDate) }.getOrNull() ?: return listOf(schedule.startDate)
+            generateSequence(start) { current ->
+                current.plusDays(1).takeIf { !it.isAfter(end) }
+            }.map { it.toString() }.toList()
+        } else {
+            getAllDatesForThisSchedule(schedule)
+        }
+    }
+
+    private fun getOccurrenceKey(schedule: Schedule): String {
+        return if (!schedule.repeatRule.isNullOrEmpty()) {
+            "${schedule.id}_${schedule.startDate}_${schedule.endDate}"
+        } else {
+            schedule.id.toString()
+        }
+    }
+
+    private fun getAssignedRow(schedule: Schedule): Int {
+        if (rowAssignmentCache.isEmpty()) {
+            rowAssignmentCache = buildRowAssignments().toMutableMap()
+        }
+        return rowAssignmentCache[getOccurrenceKey(schedule)] ?: 0
+    }
+
+    private fun buildRowAssignments(): Map<String, Int> {
+        data class DisplayOccurrence(
+            val key: String,
+            val start: LocalDate,
+            val end: LocalDate,
+            val priority: Int,
+            val title: String,
+            val id: Long
+        )
+
+        val occurrences = allSchedules
+            .groupBy { schedule -> getOccurrenceKey(schedule) }
+            .mapNotNull { (key, schedules) ->
+                val representative = schedules.firstOrNull() ?: return@mapNotNull null
+                val dates = getDisplayDatesForSchedule(representative)
+                    .mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }
+                    .distinct()
+                    .sorted()
+
+                if (dates.isEmpty()) {
+                    null
+                } else {
+                    val isMultiDay = dates.size > 1
+                    val priority = when {
+                        isMultiDay && representative.isAllDay && !representative.repeatRule.isNullOrEmpty() -> 0
+                        isMultiDay && representative.isAllDay -> 1
+                        isMultiDay && !representative.repeatRule.isNullOrEmpty() -> 2
+                        isMultiDay -> 3
+                        representative.isAllDay && !representative.repeatRule.isNullOrEmpty() -> 4
+                        representative.isAllDay -> 5
+                        !representative.repeatRule.isNullOrEmpty() -> 6
+                        else -> 7
+                    }
+                    DisplayOccurrence(
+                        key = key,
+                        start = dates.first(),
+                        end = dates.last(),
+                        priority = priority,
+                        title = representative.title.orEmpty(),
+                        id = representative.id
+                    )
+                }
+            }
+            .sortedWith(
+                compareBy<DisplayOccurrence>({ it.priority }, { it.start }, { it.end }, { it.title }, { it.id })
+            )
+
+        val occupiedByDate = mutableMapOf<LocalDate, MutableSet<Int>>()
+        val assignments = mutableMapOf<String, Int>()
+
+        occurrences.forEach { occurrence ->
+            var row = 0
+            while (isRowOccupied(occurrence.start, occurrence.end, row, occupiedByDate)) {
+                row++
+            }
+            assignments[occurrence.key] = row
+
+            generateSequence(occurrence.start) { current ->
+                current.plusDays(1).takeIf { !it.isAfter(occurrence.end) }
+            }.forEach { date ->
+                occupiedByDate.getOrPut(date) { mutableSetOf() }.add(row)
+            }
+        }
+
+        return assignments
+    }
+
+    private fun isRowOccupied(
+        start: LocalDate,
+        end: LocalDate,
+        row: Int,
+        occupiedByDate: Map<LocalDate, Set<Int>>
+    ): Boolean {
+        return generateSequence(start) { current ->
+            current.plusDays(1).takeIf { !it.isAfter(end) }
+        }.any { date ->
+            occupiedByDate[date]?.contains(row) == true
+        }
+    }
 
     // 일정 색상에 따라 텍스트뷰 배경 적용
     private fun setBackgroundTintByScheduleColor(schedule: Schedule): ColorStateList{

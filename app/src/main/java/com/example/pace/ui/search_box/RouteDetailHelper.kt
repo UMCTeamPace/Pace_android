@@ -133,7 +133,7 @@ object RouteDetailHelper {
                         departureStopName += "역"
                     }
                     expandedVehicleBinding.itemRouteDetailVehicleTv.text = "${departureStopName} 승차"
-                    expandedVehicleBinding.itemRouteDetailVehicleTimeTv.text = data.transitDetail.departureTime.split("T").last().take(5)
+                    expandedVehicleBinding.itemRouteDetailVehicleTimeTv.text = RouteCalculator.convertUtcToKst(data.transitDetail.departureTime)
                     expandedVehicleBinding.itemRouteDetailVehicleLineTv.text = data.transitDetail.shortName
 
                     if(data.transitDetail.stationPath.isNullOrEmpty()){

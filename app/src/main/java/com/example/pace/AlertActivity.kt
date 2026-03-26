@@ -34,6 +34,8 @@ class AlertActivity : AppCompatActivity() {
             )
         }
 
+        setupLockScreenFlags()
+
         super.onCreate(savedInstanceState)
         binding = ActivityAlertBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -50,7 +52,8 @@ class AlertActivity : AppCompatActivity() {
 
         // AlertActivity.onCreate 내부
         val minutesLeft = intent.getIntExtra("MINUTES_LEFT", 0)
-        viewModel.loadAlertData("Seoul", BuildConfig.YOUR_OPENWEATHER_API_KEY, minutesLeft)
+
+        viewModel.loadAlertData("Seoul,KR", BuildConfig.YOUR_OPENWEATHER_API_KEY, minutesLeft)
         Log.d("PaceAlarm", "액티비티에서 최종 확인한 시간: $minutesLeft")
 
         viewModel.initAlarmData(minutesLeft)
@@ -100,6 +103,22 @@ class AlertActivity : AppCompatActivity() {
         // [로딩 상태 관찰] 필요한 경우 ProgressBar 등의 UI 제어를 할 수 있습니다.
         viewModel.isLoading.observe(this) { isLoading ->
             // binding.loadingBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+        }
+    }
+
+    private fun setupLockScreenFlags() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+            val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+            keyguardManager.requestDismissKeyguard(this, null)
+        } else {
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                        WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+            )
         }
     }
 }

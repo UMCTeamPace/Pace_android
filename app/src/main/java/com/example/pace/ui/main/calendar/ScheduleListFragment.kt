@@ -26,7 +26,7 @@ import java.util.*
 import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.ItemTouchHelper
 import com.example.pace.ui.main.MainActivity
-import com.example.pace.ui.main.calendar.ScheduleViewModel
+import com.example.pace.data.viewmodel.ScheduleViewModel
 import androidx.fragment.app.activityViewModels // 추가
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
@@ -41,7 +41,6 @@ class ScheduleListFragment : Fragment() {
     private val binding get() = _binding!!
 
     private lateinit var scheduleListAdapter: ScheduleListRVAdapter
-    private lateinit var scheduleTouchHelper: ScheduleTouchHelper
 
     private val viewModel: ScheduleViewModel by activityViewModels()
 
@@ -132,13 +131,6 @@ class ScheduleListFragment : Fragment() {
                 startActivity(intent)
             }
         )
-
-        // TouchHelper 연결 (이하 동일)
-        scheduleTouchHelper = ScheduleTouchHelper(scheduleListAdapter)
-        val itemTouchHelper = ItemTouchHelper(scheduleTouchHelper)
-        scheduleListAdapter.scheduleTouchHelper = scheduleTouchHelper
-        // 이거는 없애도 되는건가?
-        itemTouchHelper.attachToRecyclerView(binding.scheduleListRv)
 
         binding.scheduleListRv.apply {
             layoutManager = LinearLayoutManager(context)

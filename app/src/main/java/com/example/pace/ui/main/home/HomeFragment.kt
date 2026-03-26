@@ -14,7 +14,6 @@ import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.LinearSmoothScroller
 import androidx.recyclerview.widget.LinearSnapHelper
@@ -23,7 +22,7 @@ import com.example.pace.data.model.Schedule
 import com.example.pace.databinding.FragmentHomeBinding
 import com.example.pace.ui.add_schedule.AddScheduleActivity
 import com.example.pace.ui.main.MainActivity
-import com.example.pace.ui.main.calendar.ScheduleViewModel
+import com.example.pace.data.viewmodel.ScheduleViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
@@ -36,7 +35,6 @@ class HomeFragment: Fragment() {
     lateinit var binding: FragmentHomeBinding
     private val viewModel: ScheduleViewModel by activityViewModels()
     private lateinit var scheduleAdapter: ScheduleRVAdapter
-    private lateinit var scheduleTouchHelper: ScheduleTouchHelper
 
     // 선택한 날짜 저장 및 불러오기
     private lateinit var spf: SharedPreferences
@@ -73,8 +71,6 @@ class HomeFragment: Fragment() {
             viewModel.togglePinLocally(selectedDate, schedule.id)
             Log.d("PinClick", "클릭된 일정: ${schedule.title}, 나중 핀 상태: ${schedule.isPinned}")
         }
-        scheduleTouchHelper = ScheduleTouchHelper(scheduleAdapter)
-        val itemTouchHelper = ItemTouchHelper(scheduleTouchHelper)
 
         binding.homeScheduleRv.adapter = scheduleAdapter
         scheduleAdapter.setMyOnClickListener(object: ScheduleRVAdapter.MyOnClickListener{
@@ -127,8 +123,6 @@ class HomeFragment: Fragment() {
             }
 
         })
-        scheduleAdapter.scheduleTouchHelper = scheduleTouchHelper
-        itemTouchHelper.attachToRecyclerView(binding.homeScheduleRv)
     }
 
     private fun setupCalendar() {

@@ -25,7 +25,7 @@ import androidx.recyclerview.widget.RecyclerView
 import biweekly.util.Recurrence
 import com.example.pace.R
 import com.example.pace.databinding.FragmentGeneralScheduleBinding
-import com.example.pace.ui.main.calendar.ScheduleViewModel
+import com.example.pace.data.viewmodel.ScheduleViewModel
 import com.kizitonwose.calendar.core.CalendarDay
 import com.kizitonwose.calendar.view.MonthDayBinder
 import dagger.hilt.android.AndroidEntryPoint
@@ -68,6 +68,7 @@ class GeneralScheduleFragment : Fragment() {
     private var currentSelectedAlarms: IntArray? = null
     private var currentSelectedCalendarId: Long? = null
     private var currentSelectedCalendarName: String? = null
+    private var currentSelectedCalendarColor: Int? = null
 
     private val dateFormatter = DateTimeFormatter.ofPattern("M월 d일 (E)", Locale.KOREAN)
     val colorInt = android.graphics.Color.parseColor(selectedColorHex)
@@ -160,7 +161,7 @@ class GeneralScheduleFragment : Fragment() {
                         val calendarName = viewModel.getCalendarNameById(it.calendarId)
                         binding.tvCalendarStatus.text = calendarName
                         binding.tvCalendarStatus.setTextColor(Color.BLACK)
-                        // 필요 시 색상 점 초기화 로직 추가
+                        applyCalendarColor(it.calendarId)
                     }
                 }
             }
@@ -234,11 +235,7 @@ class GeneralScheduleFragment : Fragment() {
             }
 
             // 색상 String -> Int 변환
-            val selectedColorInt = try {
-                android.graphics.Color.parseColor(selectedColorHex)
-            } catch (e: Exception) {
-                android.graphics.Color.parseColor("#DC354B")
-            }
+            val saveColorInt = getSaveColorInt()
 
             if (isEditMode && scheduleIdForEdit != -1L) {
                 // A. 수정 모드
@@ -256,7 +253,7 @@ class GeneralScheduleFragment : Fragment() {
                             endTime = if (isAllDay) "23:59" else binding.tvEndTime.text.toString(),
                             isAllDay = isAllDay,
                             calendarId = currentSelectedCalendarId ?: existing.calendarId,
-                            eventColor = selectedColorInt,
+                            eventColor = saveColorInt,
                             placeJson = placeRequest?.let { com.google.gson.Gson().toJson(it) },
                             reminders = currentSelectedAlarms?.toList() ?: existing.reminders,
 
@@ -289,7 +286,7 @@ class GeneralScheduleFragment : Fragment() {
                     placeId = selectedPlaceId,
                     customAlarms = currentSelectedAlarms?.toList(),
                     calendarId = currentSelectedCalendarId,
-                    selectedColor = selectedColorInt,
+                    selectedColor = saveColorInt,
                     repeatInfo = currentRepeatInfo // 보정된 RepeatInfo 전달
                 )
             }
@@ -601,6 +598,7 @@ class GeneralScheduleFragment : Fragment() {
                 binding.tvCalendarStatus.setTextColor(Color.BLACK)
 
                 if (calendarColor != -1) {
+                    currentSelectedCalendarColor = calendarColor
                     binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(calendarColor)
                 }
             }
@@ -628,6 +626,8 @@ class GeneralScheduleFragment : Fragment() {
 
         val color = Color.parseColor(colorStr)
         binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(color)
+        // 수동 색상 선택 시 캘린더 색상 우선순위 해제
+        currentSelectedCalendarColor = null
 
         // 2. UI 처리
         binding.layoutColorSelector.visibility = View.GONE
@@ -1026,6 +1026,7 @@ class GeneralScheduleFragment : Fragment() {
                 val calendarName = viewModel.getCalendarNameById(settings.calendarId)
                 binding.tvCalendarStatus.text = calendarName
                 binding.tvCalendarStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.black))
+                applyCalendarColor(settings.calendarId)
             }
         }
     }
@@ -1036,6 +1037,18 @@ class GeneralScheduleFragment : Fragment() {
             val texts = alarms.map { minutesToText(it) } // minutesToText 함수를 여기도 복사하거나 유틸로 분리
             binding.tvRemindStatus.text = texts.joinToString(", ")
         }
+    }
+
+    private fun applyCalendarColor(calendarId: Long?) {
+        if (calendarId == null || calendarId == -1L) return
+        val color = viewModel.getCalendarColorById(calendarId) ?: return
+        if (color == 0) return
+        currentSelectedCalendarColor = color
+        binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(color)
+    }
+
+    private fun getSaveColorInt(): Int {
+        return currentSelectedCalendarColor ?: Color.parseColor(selectedColorHex)
     }
     private fun minutesToText(minutes: Int): String {
         return when (minutes) {
@@ -1081,6 +1094,8 @@ class GeneralScheduleFragment : Fragment() {
                 // 1. 이름 및 메모
                 binding.etScheduleName.setText(s.title)
                 binding.etMemo.setText(s.memo)
+                binding.etScheduleName.setTextColor(Color.BLACK)
+                binding.etMemo.setTextColor(Color.BLACK)
 
                 // 3. 날짜 (안전한 파싱)
                 try {
@@ -1109,6 +1124,8 @@ class GeneralScheduleFragment : Fragment() {
                 // 시간 텍스트 직접 할당
                 binding.tvStartTime.text = if (isAllDay) "오전 00:00" else s.startTime
                 binding.tvEndTime.text = if (isAllDay) "오후 11:59" else s.endTime
+                binding.tvStartTime.setTextColor(Color.BLACK)
+                binding.tvEndTime.setTextColor(Color.BLACK)
                 updateTimeVisibility()
 
                 // 4. 반복 필드(repeatRule) 파싱 (RRULE -> RepeatInfo)
@@ -1135,11 +1152,16 @@ class GeneralScheduleFragment : Fragment() {
                         selectedLat = placeRequest.targetLat
                         selectedLng = placeRequest.targetLng
 
-                        binding.tvLocationStatus.text = selectedPlaceName
+                        binding.tvLocationStatus.text = if (!selectedPlaceName.isNullOrBlank()) {
+                            selectedPlaceName
+                        } else {
+                            s.location ?: "장소 정보 없음"
+                        }
                         binding.tvLocationStatus.setTextColor(Color.BLACK)
                     } catch (e: Exception) {
                         // 파싱 실패 시 일반 텍스트로라도 보여줌
                         binding.tvLocationStatus.text = s.location ?: "장소 정보 없음"
+                        binding.tvLocationStatus.setTextColor(Color.BLACK)
                     }
                 } else if (!s.location.isNullOrEmpty()) {
                     // 구글 캘린더 등 외부에서 온 일반 장소 텍스트만 있는 경우
@@ -1153,20 +1175,36 @@ class GeneralScheduleFragment : Fragment() {
                 }
 
                 // 6. 색상 및 알람
-                s.eventColor?.let { colorInt ->
-                    val hexColor = String.format("#%06X", (0xFFFFFF and colorInt))
-                    changeSelectedColor(hexColor)
-                    selectedColorHex = hexColor
+                val effectiveColor = when {
+                    s.eventColor != null && s.eventColor != 0 -> s.eventColor
+                    s.calendarColor != null && s.calendarColor != 0 -> s.calendarColor
+                    else -> null
+                }
+                if (effectiveColor != null) {
+                    val hexColor = String.format("#%06X", (0xFFFFFF and effectiveColor))
+                    if (s.eventColor != null && s.eventColor != 0) {
+                        changeSelectedColor(hexColor)
+                        selectedColorHex = hexColor
+                    } else {
+                        currentSelectedCalendarColor = effectiveColor
+                        binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(effectiveColor)
+                    }
+                } else {
+                    applyCalendarColor(s.calendarId)
                 }
                 if (s.reminders.isNotEmpty()) {
                     currentSelectedAlarms = s.reminders.toIntArray()
                     updateAlarmText(currentSelectedAlarms!!)
+                    binding.tvRemindStatus.setTextColor(Color.BLACK)
                 }
 
                 // 7. 캘린더 정보
                 currentSelectedCalendarId = s.calendarId
                 binding.tvCalendarStatus.text = viewModel.getCalendarNameById(s.calendarId)
                 binding.tvCalendarStatus.setTextColor(Color.BLACK)
+                if (s.eventColor == null || s.eventColor == 0) {
+                    applyCalendarColor(s.calendarId)
+                }
             }
         }
     }
