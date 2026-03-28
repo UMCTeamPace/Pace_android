@@ -67,6 +67,14 @@ data class RepeatInfo(
     @SerializedName("repeatType") val repeatType: String,      // DAILY, WEEKLY, MONTHLY, YEARLY, NONE
     @SerializedName("repeatInterval") val repeatInterval: Int = 1,
     @SerializedName("daysOfWeek") val daysOfWeek: String? = null, // "MO,WE,FR"
+    @SerializedName("monthlyOption") val monthlyOption: String? = null,
+    @SerializedName("monthlyDays") val monthlyDays: String? = null,
+    @SerializedName("yearlyOption") val yearlyOption: String? = null,
+    @SerializedName("yearlyMonths") val yearlyMonths: String? = null,
+    @SerializedName("referenceDayOfMonth") val referenceDayOfMonth: Int? = null,
+    @SerializedName("referenceMonth") val referenceMonth: Int? = null,
+    @SerializedName("referenceDayOfWeek") val referenceDayOfWeek: String? = null,
+    @SerializedName("referenceWeekOfMonth") val referenceWeekOfMonth: Int? = null,
     @SerializedName("endType") val endType: String,            // NEVER, COUNT, DATE
     @SerializedName("endCount") val endCount: Int? = null,     // endType이 COUNT일 때만 사용
     @SerializedName("repeatEndDate") var repeatEndDate: String? = null // endType이 DATE일 때만 사용

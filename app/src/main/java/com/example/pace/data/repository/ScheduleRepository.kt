@@ -5,6 +5,7 @@ import com.example.pace.data.db.ScheduleDao
 import com.example.pace.data.datasource.NormalScheduleRemoteDataSource
 import com.example.pace.data.model.Schedule
 import com.example.pace.data.createCalendarObserver
+import com.example.pace.data.repeat.RepeatRuleHelper
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
@@ -177,6 +178,7 @@ class ScheduleRepository(
     }
 
     private fun parseRecurrenceString(rruleStr: String): Recurrence? {
+        return RepeatRuleHelper.parseRecurrenceString(rruleStr)
         try {
             val parts = rruleStr.split(";")
             val params = parts.associate {
@@ -222,6 +224,16 @@ class ScheduleRepository(
                         val num = if (prefix.isNotEmpty()) prefix.toInt() else null
                         if(dayOfWeek != null) builder.byDay(num, dayOfWeek)
                     } catch(e: Exception) {}
+                }
+            }
+            params["BYMONTHDAY"]?.let { byMonthDayStr ->
+                byMonthDayStr.split(",").mapNotNull { it.trim().toIntOrNull() }.forEach { day ->
+                    builder.byMonthDay(day)
+                }
+            }
+            params["BYMONTH"]?.let { byMonthStr ->
+                byMonthStr.split(",").mapNotNull { it.trim().toIntOrNull() }.forEach { month ->
+                    builder.byMonth(month)
                 }
             }
 

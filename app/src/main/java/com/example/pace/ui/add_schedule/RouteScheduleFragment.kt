@@ -82,7 +82,7 @@ class RouteScheduleFragment : Fragment() {
     private var route: RouteResponse? = null
 
     // 경로탐색으로 전환될 때 같이 보낼 색깔(선택된 일정 색)
-    private var selectedColor: String = "#DC354B"
+    private var selectedColor: String = "#53B332"
 
     // 경로 탐색에서 받아온 데이터
     private var routeJson: String? = null
@@ -170,6 +170,8 @@ class RouteScheduleFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        binding.viewColorDot.alpha = 0f
 
         arguments?.let { bundle ->
             isEditMode = bundle.getBoolean("isEdit", false)
@@ -309,7 +311,7 @@ class RouteScheduleFragment : Fragment() {
 
                 if (calendarColor != -1) {
                     currentSelectedCalendarColor = calendarColor
-                    binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(calendarColor)
+                    showColorDot(calendarColor)
                 }
             }
         }
@@ -762,7 +764,7 @@ class RouteScheduleFragment : Fragment() {
                 putExtra("ACTION_MODE", "SCHEDULE_ROUTE")
 
                 putExtra("SCHEDULE_NAME", scheduleName)
-                putExtra("SCHEDULE_COLOR", selectedColor)
+                putExtra("SCHEDULE_COLOR", colorIntToHex(getSaveColorInt()))
                 putExtra("SCHEDULE_DATE", dateToPass) // 받는 쪽에서 "SCHEDULE_DATE"로 꺼냄
                 putExtra("SCHEDULE_TIME", timeToPass) // 받는 쪽에서 "SCHEDULE_TIME"으로 꺼냄
                 putExtra("EARLY_ARRIVE_TIME", earlyArriveTime)
@@ -1024,10 +1026,11 @@ class RouteScheduleFragment : Fragment() {
 
 
     private fun changeSelectedColor(colorStr: String) {
+        selectedColor = colorStr
         selectedColorHex = colorStr
 
         val color = Color.parseColor(colorStr)
-        binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(color)
+        showColorDot(color)
         // 수동 색상 선택 시 캘린더 색상 우선순위 해제
         currentSelectedCalendarColor = null
 
@@ -1489,7 +1492,12 @@ class RouteScheduleFragment : Fragment() {
         val color = viewModel.getCalendarColorById(calendarId) ?: return
         if (color == 0) return
         currentSelectedCalendarColor = color
+        showColorDot(color)
+    }
+
+    private fun showColorDot(color: Int) {
         binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(color)
+        binding.viewColorDot.alpha = 1f
     }
 
     private fun getSaveColorInt(): Int {
@@ -1521,9 +1529,10 @@ class RouteScheduleFragment : Fragment() {
                         binding.etMemo.setText(detail.scheduleInfo.memo)
 
                         // 서버 색상 반영
-                        selectedColorHex = detail.scheduleInfo.color ?: "#DC354B"
+                        selectedColorHex = detail.scheduleInfo.color ?: selectedColorHex
+                        selectedColor = selectedColorHex
                         val colorInt = Color.parseColor(selectedColorHex)
-                        binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(colorInt)
+                        showColorDot(colorInt)
 
                         // 서버 캘린더 정보 반영
                         currentSelectedCalendarId = detail.scheduleInfo.calendarId?.toLongOrNull()

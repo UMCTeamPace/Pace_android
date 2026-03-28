@@ -502,6 +502,22 @@ class ScheduleRepeatFragment : Fragment() {
 
         // 요일(daysOfWeek) 추출 (주간 반복일 때만)
         var daysOfWeekStr: String? = null
+        var monthlyOption: String? = null
+        var monthlyDays: String? = null
+        var yearlyOption: String? = null
+        var yearlyMonths: String? = null
+        val referenceDayOfMonth = baseDate.dayOfMonth
+        val referenceMonth = baseDate.monthValue
+        val referenceDayOfWeek = when (baseDate.dayOfWeek.name) {
+            "MONDAY" -> "MO"
+            "TUESDAY" -> "TU"
+            "WEDNESDAY" -> "WE"
+            "THURSDAY" -> "TH"
+            "FRIDAY" -> "FR"
+            "SATURDAY" -> "SA"
+            else -> "SU"
+        }
+        val referenceWeekOfMonth = ((baseDate.dayOfMonth - 1) / 7) + 1
         if (typeId == R.id.rb_week) {
             val selectedDays = mutableListOf<String>()
             val codes = listOf("SU", "MO", "TU", "WE", "TH", "FR", "SA")
@@ -512,6 +528,42 @@ class ScheduleRepeatFragment : Fragment() {
                 }
             }
             if (selectedDays.isNotEmpty()) daysOfWeekStr = selectedDays.joinToString(",")
+        } else if (typeId == R.id.rb_month) {
+            val v = detailView
+            monthlyOption = when {
+                v?.findViewById<RadioButton>(R.id.rb_monthly_day_fixed)?.isChecked == true -> "FIXED_DAY"
+                v?.findViewById<RadioButton>(R.id.rb_monthly_ordinal_day)?.isChecked == true -> "ORDINAL_DAY"
+                v?.findViewById<RadioButton>(R.id.rb_monthly_specific_date)?.isChecked == true -> "SPECIFIC_DATE"
+                else -> "FIXED_DAY"
+            }
+            if (monthlyOption == "SPECIFIC_DATE") {
+                val grid = v?.findViewById<GridLayout>(R.id.grid_monthly_dates)
+                val selectedDates = mutableListOf<Int>()
+                for (i in 0 until (grid?.childCount ?: 0)) {
+                    val cb = grid?.getChildAt(i) as? CheckBox
+                    if (cb?.isChecked == true) selectedDates.add(cb.text.toString().toInt())
+                }
+                monthlyDays = selectedDates.sorted().joinToString(",").ifBlank { baseDate.dayOfMonth.toString() }
+            }
+        } else if (typeId == R.id.rb_year) {
+            val v = detailView
+            yearlyOption = when {
+                v?.findViewById<RadioButton>(R.id.rb_yearly_day_fixed)?.isChecked == true -> "FIXED_DAY"
+                v?.findViewById<RadioButton>(R.id.rb_yearly_ordinal_day)?.isChecked == true -> "ORDINAL_DAY"
+                v?.findViewById<RadioButton>(R.id.rb_yearly_specific_date)?.isChecked == true -> "SPECIFIC_DATE"
+                else -> "FIXED_DAY"
+            }
+            if (yearlyOption == "SPECIFIC_DATE") {
+                val grid = v?.findViewById<GridLayout>(R.id.grid_yearly_months)
+                val selectedMonths = mutableListOf<Int>()
+                for (i in 0 until (grid?.childCount ?: 0)) {
+                    val cb = grid?.getChildAt(i) as? CheckBox
+                    if (cb?.isChecked == true) {
+                        selectedMonths.add(cb.text.toString().replace("월", "").trim().toInt())
+                    }
+                }
+                yearlyMonths = selectedMonths.sorted().joinToString(",").ifBlank { baseDate.monthValue.toString() }
+            }
         }
 
         // 종료 조건 추출
@@ -534,6 +586,14 @@ class ScheduleRepeatFragment : Fragment() {
             repeatType = repeatType,
             repeatInterval = interval,
             daysOfWeek = daysOfWeekStr,
+            monthlyOption = monthlyOption,
+            monthlyDays = monthlyDays,
+            yearlyOption = yearlyOption,
+            yearlyMonths = yearlyMonths,
+            referenceDayOfMonth = referenceDayOfMonth,
+            referenceMonth = referenceMonth,
+            referenceDayOfWeek = referenceDayOfWeek,
+            referenceWeekOfMonth = referenceWeekOfMonth,
             endType = endType,
             endCount = endCount,
             repeatEndDate = repeatEndDate
@@ -627,12 +687,41 @@ class ScheduleRepeatFragment : Fragment() {
                 "MONTHLY" -> {
                     v.findViewById<EditText>(R.id.et_month_interval)?.setText(info.repeatInterval.toString())
                     updateDynamicTexts(v, "MONTHLY")
+                    when (info.monthlyOption) {
+                        "ORDINAL_DAY" -> v.findViewById<RadioButton>(R.id.rb_monthly_ordinal_day)?.isChecked = true
+                        "SPECIFIC_DATE" -> {
+                            v.findViewById<RadioButton>(R.id.rb_monthly_specific_date)?.isChecked = true
+                            v.findViewById<GridLayout>(R.id.grid_monthly_dates)?.visibility = View.VISIBLE
+                            val selectedDays = info.monthlyDays?.split(",")?.mapNotNull { it.trim().toIntOrNull() } ?: emptyList()
+                            val grid = v.findViewById<GridLayout>(R.id.grid_monthly_dates)
+                            for (i in 0 until (grid?.childCount ?: 0)) {
+                                val cb = grid?.getChildAt(i) as? CheckBox
+                                cb?.isChecked = cb?.text?.toString()?.toIntOrNull() in selectedDays
+                            }
+                        }
+                        else -> v.findViewById<RadioButton>(R.id.rb_monthly_day_fixed)?.isChecked = true
+                    }
                     // 월간 세부 타입(고정일/요일)은 현재 모델에 없으므로
                     // 필요시 baseDate 기준으로 기본 라디오 버튼을 체크하게 둡니다.
                 }
                 "YEARLY" -> {
                     v.findViewById<EditText>(R.id.et_year_interval)?.setText(info.repeatInterval.toString())
                     updateDynamicTexts(v, "YEARLY")
+                    when (info.yearlyOption) {
+                        "ORDINAL_DAY" -> v.findViewById<RadioButton>(R.id.rb_yearly_ordinal_day)?.isChecked = true
+                        "SPECIFIC_DATE" -> {
+                            v.findViewById<RadioButton>(R.id.rb_yearly_specific_date)?.isChecked = true
+                            v.findViewById<GridLayout>(R.id.grid_yearly_months)?.visibility = View.VISIBLE
+                            val selectedMonths = info.yearlyMonths?.split(",")?.mapNotNull { it.trim().toIntOrNull() } ?: emptyList()
+                            val grid = v.findViewById<GridLayout>(R.id.grid_yearly_months)
+                            for (i in 0 until (grid?.childCount ?: 0)) {
+                                val cb = grid?.getChildAt(i) as? CheckBox
+                                val month = cb?.text?.toString()?.replace("월", "")?.trim()?.toIntOrNull()
+                                cb?.isChecked = month in selectedMonths
+                            }
+                        }
+                        else -> v.findViewById<RadioButton>(R.id.rb_yearly_day_fixed)?.isChecked = true
+                    }
                 }
             }
         }

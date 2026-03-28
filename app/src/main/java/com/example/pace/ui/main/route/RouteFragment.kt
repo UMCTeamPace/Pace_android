@@ -741,7 +741,7 @@ class RouteFragment : Fragment() {
                 binding.routeSearchFcv.visibility = View.VISIBLE
             }else{
                 val resultIntent = android.content.Intent().apply {
-                    putExtra("placeName", name)
+                    putExtra("placeName", finalName)
                     putExtra("placeId", placeId)
                 }
 

@@ -31,6 +31,7 @@ class AddScheduleActivity : AppCompatActivity() {
                     putBoolean("isEdit", intent.getBooleanExtra("isEdit", false))
                     putLong("SCHEDULE_ID", intent.getLongExtra("SCHEDULE_ID", -1L))
                     putString("SCHEDULE_TYPE", intent.getStringExtra("SCHEDULE_TYPE"))
+                    putString("OCCURRENCE_DATE", intent.getStringExtra("OCCURRENCE_DATE"))
 
                     // [기존] 경로 데이터 전달
                     putString("START_NAME", intent.getStringExtra("START_NAME"))
