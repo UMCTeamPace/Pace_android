@@ -543,7 +543,7 @@ class RouteFragment : Fragment() {
             destLng = end.longitude,
             arrivalTime = if (!isStart) requestSearchTime else null,
             departureTime = if (isStart) requestSearchTime else null,
-            transitType = currentTransitType,
+            transitType = currentTransitType ?: "SUBWAY",
             searchWay = currentSortOption.apiValue?:"EFFICIENT"
         )
 

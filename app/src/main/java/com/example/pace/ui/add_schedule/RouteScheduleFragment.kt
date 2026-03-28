@@ -151,6 +151,7 @@ class RouteScheduleFragment : Fragment() {
                 if (parentFragmentManager.backStackEntryCount > 0) {
                     parentFragmentManager.popBackStack()
                 } else {
+                    requireActivity().finish()
                 }
             }
             dialog.show()

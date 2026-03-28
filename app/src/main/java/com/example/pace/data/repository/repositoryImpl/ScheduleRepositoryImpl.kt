@@ -448,7 +448,6 @@ class ScheduleRepositoryImpl @Inject constructor(
             // --- [CASE 2] 경로 일정: 서버 API 호출 ---
             val token = accessToken ?: ""
             val routeRequest = request.toCreateRouteScheduleRequest(calendarId)
-            logRequestForSwagger("POST /api/v1/schedules", routeRequest)
             val response = api.createRouteSchedule(
                 token,
                 routeRequest
@@ -636,19 +635,6 @@ class ScheduleRepositoryImpl @Inject constructor(
             }
         } catch (_: DateTimeParseException) {
             this
-        }
-    }
-
-    private fun logRequestForSwagger(endpoint: String, body: Any) {
-        val prettyJson = GsonBuilder()
-            .serializeNulls()
-            .setPrettyPrinting()
-            .create()
-            .toJson(body)
-
-        Log.d(SWAGGER_LOG_TAG, endpoint)
-        prettyJson.chunked(LOG_CHUNK_SIZE).forEachIndexed { index, chunk ->
-            Log.d(SWAGGER_LOG_TAG, "chunk=${index + 1}\n$chunk")
         }
     }
 
