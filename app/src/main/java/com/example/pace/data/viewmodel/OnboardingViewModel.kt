@@ -1,5 +1,6 @@
 package com.example.pace.data.viewmodel
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -16,30 +17,29 @@ import com.example.pace.data.model.request.OnboardingRequest
 import com.example.pace.data.repository.repository.OnboardingRepository
 import com.example.pace.data.worker.SyncSettingsWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 @HiltViewModel
 class OnboardingViewModel @Inject constructor(
     private val repository: OnboardingRepository,
     private val authDataStore: AuthDataStore,
-    @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
-    // --- 수집 정보 변수 ---
     var earlyArrivalTime: Int = 0
     var departureAlarms = mutableListOf<Int>()
     var scheduleAlarms = mutableListOf<Int>()
     var selectedCalendarId: Long = -1L
     var isReminderActive: Boolean = true
 
-    // --- 화면 전환 이벤트 ---
     private val _onboardingSuccess = MutableSharedFlow<Boolean>()
     val onboardingSuccess = _onboardingSuccess.asSharedFlow()
 
-    // --- 온보딩 완료 시 실행 ---
     fun completeOnboarding(allCalendarIds: List<Long>) {
         viewModelScope.launch {
             val tempEntity = UserSettingsEntity(
@@ -47,54 +47,62 @@ class OnboardingViewModel @Inject constructor(
                 isReminderActive = isReminderActive,
                 earlyArrivalTime = earlyArrivalTime,
                 calendarId = selectedCalendarId,
-                syncedCalendarIds = allCalendarIds, // 👈 캘린더 동기화 목록에 전체 추가 (기본값 ON)
+                syncedCalendarIds = allCalendarIds,
                 departureAlarms = departureAlarms,
                 scheduleAlarms = scheduleAlarms,
                 isSynced = false
             )
 
+            val onboardingToken = authDataStore.getTempToken()
+                ?: authDataStore.getAccessToken()
+                ?: ""
+
+            if (onboardingToken.isBlank()) {
+                Log.e("PACE_DEBUG", "온보딩 요청에 사용할 토큰이 없습니다.")
+                handleFail(tempEntity)
+                return@launch
+            }
+
             val request = mapToRequest(tempEntity)
-            val accessToken = authDataStore.getAccessToken() ?: ""
 
             try {
                 val response = repository.saveOnboardingSettings(
-                    accessToken = "$accessToken",
+                    accessToken = if (onboardingToken.startsWith("Bearer ")) {
+                        onboardingToken
+                    } else {
+                        "Bearer $onboardingToken"
+                    },
                     request = request
                 )
 
                 if (response.isSuccess && response.result != null) {
-                    Log.d("PACE_DEBUG", "응답 데이터: ${response.result}")
+                    val actualData = response.result
+                    authDataStore.saveAuthData(
+                        accessToken = actualData.accessToken,
+                        refreshToken = actualData.refreshToken
+                    )
+                    authDataStore.clearTempToken()
+                    authDataStore.setOnboardingComplete(true)
 
-                    if (response.isSuccess && response.result != null) {
-                        // 💡 response.result 자체가 이제 OnboardingResponse 객체입니다.
-                        val actualData = response.result
+                    repository.saveSettingsToLocal(tempEntity.copy(isSynced = true))
+                    _onboardingSuccess.emit(true)
 
-                        authDataStore.saveAuthData(
-                            accessToken = actualData.accessToken, // 👈 바로 접근 가능!
-                            refreshToken = actualData.refreshToken
-                        )
-
-                        repository.saveSettingsToLocal(tempEntity.copy(isSynced = true))
-                        _onboardingSuccess.emit(true)
-
-                        Log.d("PACE_DEBUG", "✅ 온보딩 완료! 토큰: ${actualData.accessToken}")
-                    }
+                    Log.d("PACE_DEBUG", "온보딩 완료, 정식 토큰 저장 완료")
                 } else {
+                    Log.e("PACE_DEBUG", "온보딩 서버 저장 실패: ${response.code}, ${response.message}")
                     handleFail(tempEntity)
                 }
             } catch (e: Exception) {
-                Log.e("PACE_DEBUG", "❌ 온보딩 실패: ${e.message}")
+                Log.e("PACE_DEBUG", "온보딩 저장 예외: ${e.message}", e)
                 handleFail(tempEntity)
             }
         }
     }
 
-    // 실패 시 로컬에만 저장하고 나중에 동기화하도록 WorkManager 예약
     private suspend fun handleFail(entity: UserSettingsEntity) {
         repository.saveSettingsToLocal(entity)
         scheduleSync()
-        // 실패하더라도 일단 메인으로 보낼지 여부는 정책에 따라 선택 (현재는 일단 보냄)
-        _onboardingSuccess.emit(true)
+        _onboardingSuccess.emit(false)
     }
 
     private fun mapToRequest(entity: UserSettingsEntity): OnboardingRequest {
@@ -109,7 +117,7 @@ class OnboardingViewModel @Inject constructor(
         return OnboardingRequest(
             isReminderActive = entity.isReminderActive,
             earlyArrivalTime = entity.earlyArrivalTime,
-            calendarType = "GOOGLE", // 혹은 실제 사용하는 타입
+            calendarId = entity.calendarId.toString(),
             alarms = alarms
         )
     }
@@ -121,7 +129,7 @@ class OnboardingViewModel @Inject constructor(
 
         val syncRequest = OneTimeWorkRequestBuilder<SyncSettingsWorker>()
             .setConstraints(constraints)
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 1, java.util.concurrent.TimeUnit.MINUTES)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 1, TimeUnit.MINUTES)
             .build()
 
         WorkManager.getInstance(context).enqueueUniqueWork(

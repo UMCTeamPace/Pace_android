@@ -1,6 +1,8 @@
 package com.example.pace.module
 
 import android.content.SharedPreferences
+import android.content.Context
+import com.example.pace.data.auth.TokenAuthenticator
 import com.example.pace.data.datasource.AuthDataStore
 import dagger.Module
 import dagger.Provides
@@ -14,7 +16,6 @@ import retrofit2.converter.gson.GsonConverterFactory
 import javax.inject.Qualifier
 import javax.inject.Singleton
 import kotlin.jvm.java
-import android.content.Context
 import com.example.pace.data.api.RouteService
 import com.example.pace.data.api.ScheduleService
 import com.example.pace.data.api.WeatherService
@@ -33,7 +34,10 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(authDataStore: AuthDataStore): OkHttpClient {
+    fun provideOkHttpClient(
+        authDataStore: AuthDataStore,
+        tokenAuthenticator: TokenAuthenticator
+    ): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }
@@ -50,6 +54,7 @@ object NetworkModule {
                 }.build()
                 chain.proceed(request)
             }
+            .authenticator(tokenAuthenticator)
             .build()
     }
 

@@ -25,7 +25,11 @@ class AuthControllerRepositoryImpl @Inject constructor(
             if (response.isSuccess) {
                 val result = response.result
                 if (result != null) {
-                    authDataStore.saveTokens(result.accessToken, result.refreshToken)
+                    when {
+                        !result.tempToken.isNullOrBlank() -> authDataStore.saveTempToken(result.tempToken)
+                        !result.accessToken.isNullOrBlank() && !result.refreshToken.isNullOrBlank() ->
+                            authDataStore.saveTokens(result.accessToken, result.refreshToken)
+                    }
                 }
                 DefaultResponse.Success(result)
             } else {

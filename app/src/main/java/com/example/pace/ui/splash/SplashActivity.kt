@@ -40,12 +40,13 @@ class SplashActivity : AppCompatActivity() {
             override fun onAnimationEnd(animation: Animator) {
                 // 핵심 수정 부분: 저장된 액세스 토큰이 있는지 확인
                 val accessToken = authDataStore.getAccessToken()
-
+                // 첫 회원가입 시 템프토큰 발행받아서 온보딩 완료할 때 승격
+                val tempToken = authDataStore.getTempToken()
                 if (accessToken != null) {
-                    // 1. 토큰이 있으면 로그인된 상태 -> 메인으로
                     navigateToMain()
+                } else if (tempToken != null) {
+                    navigateToPermission()
                 } else {
-                    // 2. 토큰이 없으면 로그인 필요 -> 온보딩으로
                     navigateToOnboarding()
                 }
             }
@@ -80,6 +81,13 @@ class SplashActivity : AppCompatActivity() {
     // 메인 화면으로 이동하는 함수
     private fun navigateToMain() {
         val intent = Intent(this, MainActivity::class.java)
+        startActivity(intent)
+        applyTransition()
+        finish()
+    }
+
+    private fun navigateToPermission() {
+        val intent = Intent(this, PermissionActivity::class.java)
         startActivity(intent)
         applyTransition()
         finish()

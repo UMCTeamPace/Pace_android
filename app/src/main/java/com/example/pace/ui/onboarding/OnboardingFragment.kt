@@ -1,4 +1,4 @@
-package com.example.pace.ui.onboarding
+﻿package com.example.pace.ui.onboarding
 
 import android.content.Intent
 import android.net.ConnectivityManager
@@ -10,7 +10,12 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat.getSystemService
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.adapter.FragmentStateAdapter
+import com.example.pace.PaceApplication
+import com.example.pace.data.model.request.KakaoLoginRequest
+import com.example.pace.data.model.response.DefaultResponse
+import com.example.pace.data.repository.repository.AuthControllerRepository
 import com.example.pace.databinding.FragmentOnboardingBinding
 import com.example.pace.ui.NetworkErrorDialog
 import com.example.pace.ui.main.MainActivity
@@ -19,9 +24,15 @@ import com.kakao.sdk.user.UserApiClient
 import com.kakao.sdk.common.model.ClientError
 import com.kakao.sdk.common.model.ClientErrorCause
 import com.kakao.sdk.common.util.Utility
-import kotlin.jvm.java
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class OnboardingFragment : Fragment() {
+    @Inject
+    lateinit var authControllerRepository: AuthControllerRepository
+
     private var _binding: FragmentOnboardingBinding? = null
     private val binding get() = _binding!!
 
@@ -112,8 +123,8 @@ class OnboardingFragment : Fragment() {
             if (error != null) {
                 Log.e("KakaoLogin", "로그인 실패", error)
             } else if (token != null) {
-                // 💡 로그인 성공 직후 체크!
-                handleLoginSuccess()
+                Log.d("KakaoLogin", "kakaoAccessToken=${token.accessToken}")
+                handleKakaoToken(token.accessToken)
             }
         }
 
@@ -123,8 +134,8 @@ class OnboardingFragment : Fragment() {
                     if (error is ClientError && error.reason == ClientErrorCause.Cancelled) return@loginWithKakaoTalk
                     UserApiClient.instance.loginWithKakaoAccount(requireContext(), callback = callback)
                 } else if (token != null) {
-                    // 💡 여기도 로그인 성공 직후 체크!
-                    handleLoginSuccess()
+                    Log.d("KakaoLogin", "kakaoAccessToken=${token.accessToken}")
+                    handleKakaoToken(token.accessToken)
                 }
             }
         } else {
@@ -132,23 +143,45 @@ class OnboardingFragment : Fragment() {
         }
     }
 
-    private fun handleLoginSuccess() {
-        val app = (requireActivity().application as com.example.pace.PaceApplication)
+    private fun handleKakaoToken(kakaoAccessToken: String) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            when (
+                val response = authControllerRepository.kakaoLogin(
+                    kakaoQueryToken = kakaoAccessToken,
+                    request = KakaoLoginRequest(kakaoAccessToken)
+                )
+            ) {
+                is DefaultResponse.Success -> {
+                    val result = response.data
+                    if (result == null) {
+                        Log.e("KakaoLogin", "서버 로그인 응답 result가 비어 있습니다.")
+                        return@launch
+                    }
 
-        if (app.authDataStore.isOnboardingComplete()) {
-            // [로그아웃 후 재로그인 유저]
-            // 데이터가 살아있으므로 온보딩/권한설정 다 건너뛰고 메인으로 직행!
-            Log.d("LOGIN_FLOW", "재로그인 확인: 메인으로 직행합니다.")
-            val intent = Intent(requireContext(), MainActivity::class.java)
-            startActivity(intent)
-        } else {
-            // [회원탈퇴 후 재가입 유저]
-            // 데이터가 지워졌으므로 온보딩(권한설정부터) 시작!
-            Log.d("LOGIN_FLOW", "재가입 확인: 권한 설정으로 이동합니다.")
-            val intent = Intent(requireContext(), PermissionActivity::class.java)
-            startActivity(intent)
+                    val app = requireActivity().application as PaceApplication
+                    when {
+                        !result.tempToken.isNullOrBlank() -> {
+                            Log.d("LOGIN_FLOW", "임시 토큰 발급 완료: 온보딩으로 이동합니다.")
+                            app.authDataStore.setOnboardingComplete(false)
+                            startActivity(Intent(requireContext(), PermissionActivity::class.java))
+                            activity?.finish()
+                        }
+                        !result.accessToken.isNullOrBlank() && !result.refreshToken.isNullOrBlank() -> {
+                            Log.d("LOGIN_FLOW", "정식 토큰 발급 완료: 메인으로 이동합니다.")
+                            app.authDataStore.setOnboardingComplete(true)
+                            startActivity(Intent(requireContext(), MainActivity::class.java))
+                            activity?.finish()
+                        }
+                        else -> {
+                            Log.e("KakaoLogin", "서버 로그인 응답에 사용할 수 있는 토큰이 없습니다.")
+                        }
+                    }
+                }
+                is DefaultResponse.Failure -> {
+                    Log.e("KakaoLogin", "서버 로그인 실패: ${response.code}, ${response.message}")
+                }
+            }
         }
-        activity?.finish()
     }
 
     override fun onDestroyView() {
