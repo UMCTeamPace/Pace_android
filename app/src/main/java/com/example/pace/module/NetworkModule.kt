@@ -42,9 +42,10 @@ object NetworkModule {
             .addInterceptor(loggingInterceptor)
             .addInterceptor { chain ->
                 val token = authDataStore.getAccessToken()
+                val originalRequest = chain.request()
                 val request = chain.request().newBuilder().apply {
-                    if (token != null) {
-                        addHeader("Authorization", "Bearer $token")
+                    if (originalRequest.header("Authorization") == null && token != null) {
+                        header("Authorization", token)
                     }
                 }.build()
                 chain.proceed(request)

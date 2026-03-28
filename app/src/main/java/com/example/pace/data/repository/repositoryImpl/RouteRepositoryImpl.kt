@@ -1,5 +1,6 @@
 package com.example.pace.data.repository.repositoryImpl
 
+import android.util.Log
 import com.example.pace.data.api.RouteService
 import com.example.pace.data.model.request.RouteSearchRequest
 import com.example.pace.data.model.response.RouteApiResponse
@@ -14,6 +15,14 @@ class RouteRepositoryImpl @Inject constructor(
         accessToken: String,
         request: RouteSearchRequest
     ): RouteApiResponse {
+        Log.d(
+            "RouteApiRequest",
+            "originLat=${request.originLat}, originLng=${request.originLng}, " +
+                "destLat=${request.destLat}, destLng=${request.destLng}, " +
+                "arrivalTime=${request.arrivalTime}, departureTime=${request.departureTime}, " +
+                "transitType=${request.transitType}, searchWay=${request.searchWay}"
+        )
+
         val response = api.getRoutes(
             accessToken = accessToken,
             originLat = request.originLat,

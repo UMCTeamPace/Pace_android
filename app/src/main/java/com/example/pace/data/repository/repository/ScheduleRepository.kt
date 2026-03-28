@@ -79,4 +79,5 @@ interface ScheduleRepository {
 
     suspend fun convertRouteToNormalLocal(scheduleId: Long): Boolean
     suspend fun updatePinStatus(id: Long, isPinned: Boolean)
+    suspend fun removeLocalRouteSchedule(scheduleId: Long)
 }

@@ -30,7 +30,8 @@ class AuthDataStore(private val sharedPreferences: SharedPreferences) {
     }
 
     fun getAccessToken(): String? {
-        return sharedPreferences.getString("ACCESS_TOKEN", null)
+        return BuildConfig.BEARER_TOKEN.takeIf { it.isNotBlank() }
+            ?: sharedPreferences.getString("ACCESS_TOKEN", null)
     }
 
     // 1. 설정 완료 상태 저장 (온보딩 마지막 단계에서 호출할 함수)

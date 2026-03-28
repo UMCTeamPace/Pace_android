@@ -82,6 +82,7 @@ class HomeFragment: Fragment() {
                 val intent = Intent(requireContext(), AddScheduleActivity::class.java).apply {
                     putExtra("isEdit", true)
                     putExtra("SCHEDULE_ID", schedule.id)
+                    putExtra("OCCURRENCE_DATE", schedule.startDate)
                     putExtra("SCHEDULE_TYPE", schedule.type) // ⭐ 타입 명시 (ROUTE 또는 GENERAL)
 
                     if (schedule.type == "ROUTE") {

@@ -37,6 +37,7 @@ import com.example.pace.data.model.request.PlaceRequest
 import com.example.pace.data.model.request.RepeatInfo
 import com.example.pace.data.viewmodel.SettingsViewModel
 import com.example.pace.ui.onboarding.CalendarSelectFragment
+import com.example.pace.ui.main.home.EditRepeatScheduleDialog
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -46,6 +47,13 @@ import kotlin.compareTo
 @AndroidEntryPoint
 class GeneralScheduleFragment : Fragment() {
 
+    private enum class ActiveInput {
+        START_DATE,
+        END_DATE,
+        START_TIME,
+        END_TIME
+    }
+
     private var _binding: FragmentGeneralScheduleBinding? = null
     private val binding get() = _binding!!
 
@@ -53,6 +61,7 @@ class GeneralScheduleFragment : Fragment() {
 
 
     private var isEditingStartTime: Boolean = true
+    private var activeInput: ActiveInput? = null
 
     private var isAllDay = true
 
@@ -78,6 +87,7 @@ class GeneralScheduleFragment : Fragment() {
 
     private var isEditMode: Boolean = false
     private var scheduleIdForEdit: Long = -1L
+    private var occurrenceDateForEdit: LocalDate? = null
 
     private val routeSearchLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
@@ -132,10 +142,15 @@ class GeneralScheduleFragment : Fragment() {
         setupLegend()
         setupMonthNavigation()
         initTimePickers()
+        updateTimeVisibility()
+        binding.calendarContainer.visibility = View.GONE
 
         // 2. 데이터 모드 설정
         isEditMode = arguments?.getBoolean("isEdit") ?: false
         scheduleIdForEdit = arguments?.getLong("SCHEDULE_ID") ?: -1L
+        occurrenceDateForEdit = arguments?.getString("OCCURRENCE_DATE")?.let {
+            runCatching { LocalDate.parse(it) }.getOrNull()
+        }
 
         setupEditMode() // 여기서 비동기로 데이터를 채움
 
@@ -267,9 +282,25 @@ class GeneralScheduleFragment : Fragment() {
                         )
 
                         // 💡 뷰모델에 수정 명령 (이 함수가 RemoteDataSource.updateCalendarEvent를 호출해야 함)
-                        viewModel.updateSchedule(updatedSchedule)
+                        if (!existing.repeatRule.isNullOrEmpty()) {
+                            val occurrenceDate = occurrenceDateForEdit ?: runCatching {
+                                LocalDate.parse(updatedSchedule.startDate)
+                            }.getOrNull() ?: LocalDate.now()
 
-                        requireActivity().finish() // 수정 완료 후 화면 닫기
+                            EditRepeatScheduleDialog(requireContext()).apply {
+                                setOnOptionSelectedListener { option ->
+                                    viewModel.updateRecurringSchedule(
+                                        originalSchedule = existing,
+                                        updatedSchedule = updatedSchedule,
+                                        occurrenceDate = occurrenceDate,
+                                        scope = option
+                                    )
+                                }
+                            }.show()
+                        } else {
+                            viewModel.updateSchedule(updatedSchedule)
+                        }
+
                     }
                 }
             } else {
@@ -342,12 +373,26 @@ class GeneralScheduleFragment : Fragment() {
 
         binding.btnStartDate.setOnClickListener(dateClickAction)
         binding.btnEndDate.setOnClickListener(dateClickAction)
+        binding.btnStartDate.setOnClickListener {
+            activeInput = ActiveInput.START_DATE
+            updateDateDisplay()
+            updateTimeVisibility()
+            showCalendar()
+        }
+        binding.btnEndDate.setOnClickListener {
+            activeInput = ActiveInput.END_DATE
+            updateDateDisplay()
+            updateTimeVisibility()
+            showCalendar()
+        }
 
         // 시간 텍스트 클릭 시 (하루종일이 아닐 때만 반응)
         // 시간 텍스트 클릭 시
         binding.tvStartTime.setOnClickListener {
             if (isAllDay) return@setOnClickListener
             isEditingStartTime = true
+            activeInput = ActiveInput.START_TIME
+            updateDateDisplay()
             updateTimeVisibility() // [수정] 피커를 보여주기 전에 색상부터 즉시 변경
             showTimePicker()
             binding.calendarContainer.visibility = View.GONE
@@ -356,6 +401,8 @@ class GeneralScheduleFragment : Fragment() {
         binding.tvEndTime.setOnClickListener {
             if (isAllDay) return@setOnClickListener
             isEditingStartTime = false
+            activeInput = ActiveInput.END_TIME
+            updateDateDisplay()
             updateTimeVisibility() // [수정] 즉시 초록색 불 켜기
             showTimePicker()
             binding.calendarContainer.visibility = View.GONE
@@ -426,15 +473,20 @@ class GeneralScheduleFragment : Fragment() {
                 // 하루종일 켜지면 피커들을 다 닫음
                 binding.calendarContainer.visibility = View.GONE
                 binding.timePickerContainer.visibility = View.GONE
+                if (activeInput == ActiveInput.START_TIME || activeInput == ActiveInput.END_TIME) {
+                    activeInput = null
+                }
             } else {
                 binding.addscheMyPhoneIv.setImageResource(R.drawable.ic_toggle_unselected)
 
                 // [핵심 수정] 캘린더가 닫혀있을 때만 시간 피커를 보여줌 (공존 방지)
                 if (binding.calendarContainer.visibility == View.GONE) {
+                    activeInput = ActiveInput.START_TIME
                     showTimePicker()
                 }
             }
             updateTimeVisibility()
+            updateDateDisplay()
         }
 
         binding.btnRoute.setOnClickListener {
@@ -661,7 +713,7 @@ class GeneralScheduleFragment : Fragment() {
 
             val isSameDay = startDate != null && endDate != null && startDate == endDate
 
-            if (isEditingStartTime) {
+            if (activeInput == ActiveInput.START_TIME) {
                 binding.tvStartTime.text = formattedTime
                 if (isSameDay) {
                     val endTime = binding.tvEndTime.text.toString()
@@ -671,7 +723,7 @@ class GeneralScheduleFragment : Fragment() {
                         binding.tvEndTime.text = String.format("%02d:%02d", newEndHour, minute)
                     }
                 }
-            } else {
+            } else if (activeInput == ActiveInput.END_TIME) {
                 binding.tvEndTime.text = formattedTime
             }
             updateTimeVisibility()
@@ -757,15 +809,19 @@ class GeneralScheduleFragment : Fragment() {
             val defaultColor = Color.BLACK
 
             // 현재 편집 중인 시간에만 '불'이 들어오게 설정
-            if (isEditingStartTime) {
+            if (activeInput == ActiveInput.START_TIME) {
                 binding.tvStartTime.setTextColor(highlightColor)
                 binding.tvEndTime.setTextColor(defaultColor)
                 binding.tvEndTime.setTypeface(null, Typeface.NORMAL)
-            } else {
+            } else if (activeInput == ActiveInput.END_TIME) {
                 binding.tvStartTime.setTextColor(defaultColor)
                 binding.tvStartTime.setTypeface(null, Typeface.NORMAL)
-
                 binding.tvEndTime.setTextColor(highlightColor)
+            } else {
+                binding.tvStartTime.setTextColor(defaultColor)
+                binding.tvEndTime.setTextColor(defaultColor)
+                binding.tvStartTime.setTypeface(null, Typeface.NORMAL)
+                binding.tvEndTime.setTypeface(null, Typeface.NORMAL)
             }
         }
     }
@@ -825,12 +881,15 @@ class GeneralScheduleFragment : Fragment() {
         animateLayoutChange()
         if (isAllDay) {
             binding.calendarContainer.visibility = View.GONE
+            activeInput = null
         } else {
             binding.calendarContainer.visibility = View.GONE
             isEditingStartTime = true // 기본 포커스를 시작 시간으로 설정
+            activeInput = ActiveInput.START_TIME
             updateTimeVisibility()     // 색상 반영
             showTimePicker()
         }
+        updateDateDisplay()
     }
     private fun updateDateDisplay() {
         val formatter = DateTimeFormatter.ofPattern("M월 d일 (E)", Locale.KOREAN)
@@ -842,7 +901,7 @@ class GeneralScheduleFragment : Fragment() {
         startDate?.let {
             tvStart.text = it.format(formatter)
             // 수정 모드이거나 선택 완료 상태면 검정색, 선택 중이면 초록색
-            tvStart.setTextColor(if (endDate != null || isEditMode) defaultColor else highlightColor)
+            tvStart.setTextColor(if (activeInput == ActiveInput.START_DATE) highlightColor else defaultColor)
         }
 
         // 2. 종료일 업데이트
@@ -853,11 +912,7 @@ class GeneralScheduleFragment : Fragment() {
         endToShow?.let {
             tvEnd.text = it.format(formatter)
             // 시작일은 있는데 종료일이 아직 선택 안 된 상태에서만 초록색 강조
-            if (!isEditMode && startDate != null && endDate == null) {
-                tvEnd.setTextColor(highlightColor)
-            } else {
-                tvEnd.setTextColor(defaultColor)
-            }
+            tvEnd.setTextColor(if (activeInput == ActiveInput.END_DATE) highlightColor else defaultColor)
         }
     }
 
@@ -1102,6 +1157,11 @@ class GeneralScheduleFragment : Fragment() {
                     Log.d("FixCheck", "DB에서 가져온 시작일: ${s.startDate}, 종료일: ${s.endDate}")
                     startDate = LocalDate.parse(s.startDate)
                     endDate = if (!s.endDate.isNullOrEmpty()) LocalDate.parse(s.endDate) else startDate
+                    if (!s.repeatRule.isNullOrEmpty() && occurrenceDateForEdit != null && startDate != null && endDate != null) {
+                        val spanDays = java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate).coerceAtLeast(0)
+                        startDate = occurrenceDateForEdit
+                        endDate = occurrenceDateForEdit?.plusDays(spanDays)
+                    }
                     Log.d("FixCheck", "파싱 후 변수 - startDate: $startDate, endDate: $endDate")
                 } catch (e: Exception) {
                     Log.e("FixCheck", "파싱 에러 발생: ${e.message}")
