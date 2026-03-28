@@ -8,6 +8,7 @@ plugins {
     id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
     id("com.google.dagger.hilt.android")
     id("kotlin-parcelize")
+    id("org.jetbrains.kotlin.kapt")
 }
 
 val localProperties = Properties()
@@ -41,9 +42,13 @@ android {
 
         val weatherKey = properties.getProperty("YOUR_OPENWEATHER_API_KEY") ?: ""
         val bearerToken = properties.getProperty("BEARER_TOKEN") ?: ""
+        val subwayKey = properties.getProperty("SUBWAY_API_KEY") ?: ""
+        val publicKey = properties.getProperty("PUBLIC_API_KEY") ?: ""
 
         buildConfigField("String", "YOUR_OPENWEATHER_API_KEY", "\"$weatherKey\"")
         buildConfigField("String", "BEARER_TOKEN", "\"$bearerToken\"")
+        buildConfigField("String", "SUBWAY_API_KEY", "\"$subwayKey\"")
+        buildConfigField("String", "PUBLIC_API_KEY", "\"$publicKey\"")
 
     }
 
@@ -152,6 +157,8 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     // JSON 변환을 위한 Gson 컨버터
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    // XML 변환을 위한 TikXML 컨버터
+    implementation("com.tickaroo.tikxml:retrofit-converter:0.8.13")
 
     //splash
     implementation("com.airbnb.android:lottie:6.4.0")
@@ -172,6 +179,11 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.1")
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.6.1")
 
+    // swipe package
     implementation("com.daimajia.swipelayout:library:1.2.0@aar")
 
+    // xml parser
+    implementation("com.tickaroo.tikxml:annotation:0.8.13")
+    implementation("com.tickaroo.tikxml:core:0.8.13")
+    kapt("com.tickaroo.tikxml:processor:0.8.13")
 }
