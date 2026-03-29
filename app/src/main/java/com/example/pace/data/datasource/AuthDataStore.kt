@@ -1,12 +1,18 @@
 package com.example.pace.data.datasource
 
 import android.content.SharedPreferences
-import com.example.pace.BuildConfig
-
 class AuthDataStore(private val sharedPreferences: SharedPreferences) {
 
     fun deleteToken() {
         sharedPreferences.edit().remove("ACCESS_TOKEN").apply()
+    }
+
+    fun clearTokens() {
+        sharedPreferences.edit()
+            .remove("ACCESS_TOKEN")
+            .remove("REFRESH_TOKEN")
+            .remove("TEMP_TOKEN")
+            .apply()
     }
 
     fun clearAllData() {
@@ -29,9 +35,29 @@ class AuthDataStore(private val sharedPreferences: SharedPreferences) {
         }
     }
 
+    fun saveTempToken(tempToken: String) {
+        sharedPreferences.edit()
+            .remove("ACCESS_TOKEN")
+            .remove("REFRESH_TOKEN")
+            .putString("TEMP_TOKEN", tempToken)
+            .putBoolean("onboarding_complete", false)
+            .apply()
+    }
+
     fun getAccessToken(): String? {
-        return BuildConfig.BEARER_TOKEN.takeIf { it.isNotBlank() }
-            ?: sharedPreferences.getString("ACCESS_TOKEN", null)
+        return sharedPreferences.getString("ACCESS_TOKEN", null)
+    }
+
+    fun getRefreshToken(): String? {
+        return sharedPreferences.getString("REFRESH_TOKEN", null)
+    }
+
+    fun getTempToken(): String? {
+        return sharedPreferences.getString("TEMP_TOKEN", null)
+    }
+
+    fun clearTempToken() {
+        sharedPreferences.edit().remove("TEMP_TOKEN").apply()
     }
 
     // 1. 설정 완료 상태 저장 (온보딩 마지막 단계에서 호출할 함수)

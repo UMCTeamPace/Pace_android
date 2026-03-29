@@ -67,6 +67,13 @@ import kotlin.compareTo
 @AndroidEntryPoint
 class RouteScheduleFragment : Fragment() {
 
+    private enum class ActiveInput {
+        START_DATE,
+        END_DATE,
+        START_TIME,
+        END_TIME
+    }
+
     // 바인딩
     private var _binding: FragmentRouteScheduleBinding? = null
     private val binding get() = _binding!!
@@ -101,6 +108,7 @@ class RouteScheduleFragment : Fragment() {
 
     // 날짜/시간
     private var isEditingStartTime: Boolean = true
+    private var activeInput: ActiveInput? = null
     private var startDate: LocalDate? = null
     private var endDate: LocalDate? = null
     private val dateFormatter = DateTimeFormatter.ofPattern("M월 d일 (E)", Locale.KOREAN)
@@ -171,7 +179,7 @@ class RouteScheduleFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        binding.viewColorDot.alpha = 0f
+        showColorDot(Color.parseColor(selectedColorHex))
 
         arguments?.let { bundle ->
             isEditMode = bundle.getBoolean("isEdit", false)
@@ -263,6 +271,9 @@ class RouteScheduleFragment : Fragment() {
 
         initTimePickers()
 
+        binding.calendarContainer.visibility = View.GONE
+        binding.timePickerContainer.visibility = View.GONE
+        activeInput = null
         updateTimeVisibility()
 
 
@@ -343,6 +354,14 @@ class RouteScheduleFragment : Fragment() {
         }
 
         // 1. 결과 관찰 (성공 시 화면 닫기)
+        binding.etScheduleName.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                binding.calendarContainer.visibility = View.GONE
+                binding.timePickerContainer.visibility = View.GONE
+                binding.layoutColorSelector.visibility = View.GONE
+            }
+        }
+
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.createScheduleEvent.collect { isSuccess ->
@@ -666,17 +685,31 @@ class RouteScheduleFragment : Fragment() {
         }
 
 
-        binding.btnStartDate.setOnClickListener { showCalendar() }
+        binding.btnStartDate.setOnClickListener {
+            activeInput = ActiveInput.START_DATE
+            updateDateDisplay()
+            updateTimeVisibility()
+            showCalendar()
+        }
         binding.tvStartTime.setOnClickListener {
             isEditingStartTime = true
+            activeInput = ActiveInput.START_TIME
+            updateDateDisplay()
             updateTimeVisibility()
             showTimePicker()
         }
 
 
-        binding.btnEndDate.setOnClickListener { showCalendar() }
+        binding.btnEndDate.setOnClickListener {
+            activeInput = ActiveInput.END_DATE
+            updateDateDisplay()
+            updateTimeVisibility()
+            showCalendar()
+        }
         binding.tvEndTime.setOnClickListener {
             isEditingStartTime = false
+            activeInput = ActiveInput.END_TIME
+            updateDateDisplay()
             updateTimeVisibility()
             showTimePicker()
         }
@@ -1159,6 +1192,28 @@ class RouteScheduleFragment : Fragment() {
         val highlightColor = Color.parseColor("#8BC34A")
         val defaultColor = Color.BLACK
 
+        if (activeInput == ActiveInput.START_TIME) {
+            binding.tvStartTime.setTextColor(highlightColor)
+            binding.tvStartTime.setTypeface(null, Typeface.BOLD)
+            binding.tvEndTime.setTextColor(defaultColor)
+            binding.tvEndTime.setTypeface(null, Typeface.NORMAL)
+            return
+        }
+
+        if (activeInput == ActiveInput.END_TIME) {
+            binding.tvStartTime.setTextColor(defaultColor)
+            binding.tvStartTime.setTypeface(null, Typeface.NORMAL)
+            binding.tvEndTime.setTextColor(highlightColor)
+            binding.tvEndTime.setTypeface(null, Typeface.BOLD)
+            return
+        }
+
+        binding.tvStartTime.setTextColor(defaultColor)
+        binding.tvStartTime.setTypeface(null, Typeface.NORMAL)
+        binding.tvEndTime.setTextColor(defaultColor)
+        binding.tvEndTime.setTypeface(null, Typeface.NORMAL)
+        return
+
         // 2. 현재 편집 중인 시간에만 초록색 하이라이트 적용
         if (isEditingStartTime) {
             // 시작 시간 편집 중
@@ -1237,6 +1292,8 @@ class RouteScheduleFragment : Fragment() {
 
         // 2. 시간 설정 모드 초기화 (시작 시간부터 편집)
         isEditingStartTime = true
+        activeInput = ActiveInput.START_TIME
+        updateDateDisplay()
         updateTimeVisibility()
         showTimePicker() // 기존에 구현된 showTimePicker() 호출
     }
@@ -1275,6 +1332,10 @@ class RouteScheduleFragment : Fragment() {
                 tvEnd.setTextColor(defaultColor)
             }
         }
+        val currentStartText = binding.btnStartDate.findViewById<TextView>(R.id.tv_start_date)
+        val currentEndText = binding.btnEndDate.findViewById<TextView>(R.id.tv_end_date)
+        currentStartText.setTextColor(if (activeInput == ActiveInput.START_DATE) highlightColor else defaultColor)
+        currentEndText.setTextColor(if (activeInput == ActiveInput.END_DATE) highlightColor else defaultColor)
     }
 
     private fun setupLegend() {
@@ -1346,10 +1407,11 @@ class RouteScheduleFragment : Fragment() {
 
             // 3. 캘린더 초기화
             if (currentSelectedCalendarId == null) {
-                currentSelectedCalendarId = settings.calendarId
-                val calendarName = viewModel.getCalendarNameById(settings.calendarId)
+                val resolvedCalendarId = resolveDefaultCalendarId(settings.calendarId)
+                currentSelectedCalendarId = resolvedCalendarId
+                val calendarName = viewModel.getCalendarNameById(resolvedCalendarId)
                 binding.tvCalendarStatus.text = calendarName
-                applyCalendarColor(settings.calendarId)
+                applyCalendarColor(resolvedCalendarId)
             }
         }
     }
@@ -1495,6 +1557,32 @@ class RouteScheduleFragment : Fragment() {
         showColorDot(color)
     }
 
+    private fun resolveDefaultCalendarId(preferredId: Long): Long {
+        if (preferredId == -1L) return -1L
+
+        val projection = arrayOf(android.provider.CalendarContract.Calendars._ID)
+        val cursor = requireContext().contentResolver.query(
+            android.provider.CalendarContract.Calendars.CONTENT_URI,
+            projection,
+            null,
+            null,
+            null
+        )
+
+        val availableIds = mutableListOf<Long>()
+        cursor?.use {
+            while (it.moveToNext()) {
+                availableIds.add(it.getLong(0))
+            }
+        }
+
+        return when {
+            preferredId in availableIds -> preferredId
+            availableIds.isNotEmpty() -> availableIds.first()
+            else -> -1L
+        }
+    }
+
     private fun showColorDot(color: Int) {
         binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(color)
         binding.viewColorDot.alpha = 1f
@@ -1529,10 +1617,6 @@ class RouteScheduleFragment : Fragment() {
                         binding.etMemo.setText(detail.scheduleInfo.memo)
 
                         // 서버 색상 반영
-                        selectedColorHex = detail.scheduleInfo.color ?: selectedColorHex
-                        selectedColor = selectedColorHex
-                        val colorInt = Color.parseColor(selectedColorHex)
-                        showColorDot(colorInt)
 
                         // 서버 캘린더 정보 반영
                         currentSelectedCalendarId = detail.scheduleInfo.calendarId?.toLongOrNull()
@@ -1541,7 +1625,12 @@ class RouteScheduleFragment : Fragment() {
                         }
                         binding.tvCalendarStatus.text = calendarName ?: "내 일정"
                         binding.tvCalendarStatus.setTextColor(Color.BLACK)
-                        applyCalendarColor(currentSelectedCalendarId)
+                        val scheduleColorHex = detail.scheduleInfo.color
+                        if (!scheduleColorHex.isNullOrBlank()) {
+                            changeSelectedColor(scheduleColorHex)
+                        } else {
+                            applyCalendarColor(currentSelectedCalendarId)
+                        }
 
                         // (2) 날짜 및 시간 정보
                         startDate = LocalDate.parse(detail.scheduleInfo.startDate)

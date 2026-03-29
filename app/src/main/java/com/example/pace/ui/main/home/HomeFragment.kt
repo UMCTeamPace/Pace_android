@@ -35,6 +35,7 @@ class HomeFragment: Fragment() {
     lateinit var binding: FragmentHomeBinding
     private val viewModel: ScheduleViewModel by activityViewModels()
     private lateinit var scheduleAdapter: ScheduleRVAdapter
+    private var modalCaseDialog: ModalCaseDialog? = null
 
     // 선택한 날짜 저장 및 불러오기
     private lateinit var spf: SharedPreferences
@@ -75,8 +76,21 @@ class HomeFragment: Fragment() {
         binding.homeScheduleRv.adapter = scheduleAdapter
         scheduleAdapter.setMyOnClickListener(object: ScheduleRVAdapter.MyOnClickListener{
             override fun showModalCase(scheduleList: List<Schedule>, position: Int) {
-                val modalCaseDialog = ModalCaseDialog(requireContext(), scheduleList, position, selectedDate, viewModel, viewLifecycleOwner)
-                modalCaseDialog.show()
+                modalCaseDialog?.dismiss()
+                val activity = activity ?: return
+                if (activity.isFinishing || activity.isDestroyed) return
+
+                modalCaseDialog = ModalCaseDialog(
+                    requireContext(),
+                    scheduleList,
+                    position,
+                    selectedDate,
+                    viewModel,
+                    viewLifecycleOwner
+                ).also { dialog ->
+                    dialog.setOnDismissListener { modalCaseDialog = null }
+                    dialog.show()
+                }
             }
             override fun onEdit(schedule: Schedule) {
                 val intent = Intent(requireContext(), AddScheduleActivity::class.java).apply {
@@ -267,6 +281,18 @@ class HomeFragment: Fragment() {
             binding.homeNoSchedule.visibility = View.GONE
             binding.homeScheduleRv.visibility = View.VISIBLE
         }
+    }
+
+    override fun onStop() {
+        modalCaseDialog?.dismiss()
+        modalCaseDialog = null
+        super.onStop()
+    }
+
+    override fun onDestroyView() {
+        modalCaseDialog?.dismiss()
+        modalCaseDialog = null
+        super.onDestroyView()
     }
 
 }

@@ -1,4 +1,4 @@
-﻿package com.example.pace.ui.main.calendar
+package com.example.pace.ui.main.calendar
 
 import DailyPageAdapter
 import android.R.attr.firstDayOfWeek

@@ -1,12 +1,8 @@
 package com.example.pace.ui.onboarding
 
-import android.Manifest
 import android.graphics.Color
-import com.example.pace.R
-import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.Typeface
+import android.content.Intent
 import android.os.Bundle
 import android.provider.CalendarContract
 import android.text.Spannable
@@ -20,12 +16,14 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.lifecycleScope
+import com.example.pace.R
+import com.example.pace.data.viewmodel.OnboardingViewModel
 import com.example.pace.databinding.FragmentCalendarSelectBinding
 import com.example.pace.ui.main.MainActivity
-import androidx.fragment.app.activityViewModels // 추가
-import com.example.pace.data.viewmodel.OnboardingViewModel
-import dagger.hilt.android.AndroidEntryPoint // 추가
-
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class CalendarSelectFragment : Fragment() {
@@ -33,11 +31,14 @@ class CalendarSelectFragment : Fragment() {
     private val binding get() = _binding!!
     private val viewModel: OnboardingViewModel by activityViewModels()
 
-    // 선택된 캘린더 ID 저장용 (동적 생성되므로 리스트 대신 변수로 관리)
     private var selectedId: Long = -1L
     private val checkBoxMap = mutableMapOf<Long, CheckBox>()
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
         _binding = FragmentCalendarSelectBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -45,11 +46,12 @@ class CalendarSelectFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        loadCalendars() // 시스템 캘린더 불러오기
+        loadCalendars()
+        observeOnboardingResult()
 
         binding.btnStart.setOnClickListener {
             if (selectedId == -1L) {
-                Toast.makeText(requireContext(), "사용하실 캘린더를 선택해주세요.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "사용할 캘린더를 선택해주세요.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             handleCompleteOnboarding()
@@ -66,7 +68,9 @@ class CalendarSelectFragment : Fragment() {
         val cursor = requireContext().contentResolver.query(
             CalendarContract.Calendars.CONTENT_URI,
             projection,
-            null, null, null
+            null,
+            null,
+            null
         )
 
         cursor?.use {
@@ -78,7 +82,6 @@ class CalendarSelectFragment : Fragment() {
                 val id = it.getLong(idColumn)
                 val name = it.getString(nameColumn)
                 val account = it.getString(accountColumn)
-
                 addCalendarCheckBox(id, name, account)
             }
         }
@@ -87,7 +90,7 @@ class CalendarSelectFragment : Fragment() {
     private fun addCalendarCheckBox(id: Long, name: String, account: String) {
         val checkBox = CheckBox(requireContext()).apply {
             text = "$name\n($account)"
-            buttonDrawable = null // 기본 체크박스 제거
+            buttonDrawable = null
             setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.selector_circle_checkbox, 0)
             setPadding(48, 32, 48, 32)
             background = null
@@ -98,8 +101,7 @@ class CalendarSelectFragment : Fragment() {
         }
 
         checkBox.setOnClickListener {
-            // 단일 선택 로직
-            checkBoxMap.values.forEach { it.isChecked = false }
+            checkBoxMap.values.forEach { item -> item.isChecked = false }
             checkBox.isChecked = true
             selectedId = id
         }
@@ -107,9 +109,11 @@ class CalendarSelectFragment : Fragment() {
         checkBoxMap[id] = checkBox
         binding.layoutCalendarList.addView(checkBox)
 
-        // 구분선 추가
         val divider = View(requireContext()).apply {
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                1
+            )
             setBackgroundColor(Color.parseColor("#F1F3F5"))
         }
         binding.layoutCalendarList.addView(divider)
@@ -117,18 +121,21 @@ class CalendarSelectFragment : Fragment() {
 
     private fun handleCompleteOnboarding() {
         val allCalendarIds = checkBoxMap.keys.toList()
-
         viewModel.selectedCalendarId = selectedId
         viewModel.completeOnboarding(allCalendarIds)
+    }
 
-        // 💡 [핵심] 여기에 도장을 찍습니다!
-        // PaceApplication에 있는 authDataStore를 가져와서 설정을 완료했다고 저장합니다.
-        val app = (requireActivity().application as com.example.pace.PaceApplication)
-        app.authDataStore.setOnboardingComplete(true)
-
-        android.util.Log.d("ONBOARDING_FLOW", "온보딩 최종 완료! 데이터 저장됨.")
-
-        moveToMainActivity()
+    private fun observeOnboardingResult() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.onboardingSuccess.collect { isSuccess ->
+                if (isSuccess) {
+                    android.util.Log.d("ONBOARDING_FLOW", "온보딩 최종 완료, 메인으로 이동합니다.")
+                    moveToMainActivity()
+                } else {
+                    Toast.makeText(requireContext(), "온보딩 저장에 실패했습니다. 다시 시도해주세요.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
     private fun moveToMainActivity() {
@@ -152,7 +159,7 @@ class CalendarSelectFragment : Fragment() {
                 )
             }
         }
-        this.text = spannable
+        text = spannable
     }
 
     override fun onDestroyView() {

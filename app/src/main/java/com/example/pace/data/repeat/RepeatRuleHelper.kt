@@ -185,10 +185,10 @@ object RepeatRuleHelper {
     }
 
     private fun parseParams(rruleStr: String): Map<String, String> {
-        return rruleStr.replace("RRULE:", "").trim().split(";").associate {
-            val split = it.split("=")
-            if (split.size == 2) split[0].uppercase() to split[1] else "" to ""
-        }
+        return rruleStr.removePrefix("RRULE:").trim().split(";")
+            .map { it.split("=", limit = 2) }
+            .filter { it.size == 2 && it[0].isNotBlank() }
+            .associate { (key, value) -> key.uppercase() to value }
     }
 
     private fun normalizeDayToken(day: String): String? {

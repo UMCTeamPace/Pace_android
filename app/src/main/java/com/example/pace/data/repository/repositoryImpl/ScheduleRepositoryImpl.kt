@@ -209,19 +209,16 @@ class ScheduleRepositoryImpl @Inject constructor(
                             // Merge provider data with locally managed fields.
                             // Provider values stay primary, but app-only flags and overrides are preserved.
                             remote.copy(
-                                // 1. ?怨뺚봺 ?源놁벥 ?⑥쥙? ?怨밴묶 癰귣똻??
                                 isPinned = local.isPinned,
                                 isCompleted = local.isCompleted,
                                 isSwiped = local.isSwiped,
 
-                                // 2. [揶쎛??餓λ쵐?? ?關???類ｋ궖 獄??귐됱춳?紐껊쐭 癰귣똻??
                                 placeJson = local.placeJson,
                                 departureReminders = local.departureReminders,
                                 reminders = if (remote.reminders.isEmpty()) local.reminders else remote.reminders,
                                 repeatRule = local.repeatRule ?: remote.repeatRule,
                                 exDate = local.exDate ?: remote.exDate,
 
-                                // 3. ?????類ｋ궖 ?醫?
                                 type = local.type,
                                 sourceType = local.sourceType,
                                 serverId = local.serverId,
@@ -608,15 +605,26 @@ class ScheduleRepositoryImpl @Inject constructor(
     private fun String?.toUtcIsoString(): String? {
         if (this.isNullOrBlank()) return this
         return try {
-            if (endsWith("Z")) {
-                OffsetDateTime.parse(this)
-                    .withOffsetSameInstant(ZoneOffset.UTC)
-                    .format(UTC_API_TIME_FORMATTER)
-            } else {
-                LocalDateTime.parse(this)
-                    .atZone(ROUTE_SOURCE_ZONE)
-                    .withZoneSameInstant(ZoneOffset.UTC)
-                    .format(UTC_API_TIME_FORMATTER)
+            when {
+                endsWith("Z") -> {
+                    OffsetDateTime.parse(this)
+                        .withOffsetSameInstant(ZoneOffset.UTC)
+                        .format(UTC_API_TIME_FORMATTER)
+                }
+
+                contains("+") || lastIndexOf('-') > "yyyy-MM-dd".lastIndex -> {
+                    OffsetDateTime.parse(this)
+                        .withOffsetSameInstant(ZoneOffset.UTC)
+                        .format(UTC_API_TIME_FORMATTER)
+                }
+
+                else -> {
+                    // Route API currently returns UTC timestamps without an explicit offset.
+                    // Treat timezone-less route times as already-UTC and only normalize format.
+                    LocalDateTime.parse(this)
+                        .atOffset(ZoneOffset.UTC)
+                        .format(UTC_API_TIME_FORMATTER)
+                }
             }
         } catch (_: DateTimeParseException) {
             this
@@ -828,7 +836,6 @@ class ScheduleRepositoryImpl @Inject constructor(
                     current = current.plusDays(1)
                 }
             }
-            // 3. ??곗뺘 ??μ뵬 ??깆젟
             else {
                 if (!startLocalDate.isBefore(rangeStartLocalDate) && startLocalDate.isBefore(rangeEndLocalDate)) {
                     expandedList.add(schedule)
