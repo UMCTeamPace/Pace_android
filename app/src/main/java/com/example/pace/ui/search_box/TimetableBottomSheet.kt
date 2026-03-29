@@ -217,9 +217,11 @@ class TimetableBottomSheet(
         }
     }
     fun observeFirstAndLast(daily: String = "01"){
+        viewModel.getSubwayFirstAndLast(stationName, lineName, daily, "U")
+        viewModel.getSubwayFirstAndLast(stationName, lineName, daily, "D")
+
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.getSubwayFirstAndLast(stationName, lineName, daily, "U")
                 viewModel.firstUpSubway.collect {
                     updateTimetableUI(it, isFirst = true, isUp = true)
                 }
@@ -227,7 +229,6 @@ class TimetableBottomSheet(
         }
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.getSubwayFirstAndLast(stationName, lineName, daily, "U")
                 viewModel.lastUpSubway.collect {
                     updateTimetableUI(it, isFirst = false, isUp = true)
                 }
@@ -235,7 +236,6 @@ class TimetableBottomSheet(
         }
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED){
-                viewModel.getSubwayFirstAndLast(stationName, lineName, daily, "D")
                 viewModel.firstDownSubway.collect {
                     updateTimetableUI(it, isFirst = true, isUp = false)
                 }
@@ -243,7 +243,6 @@ class TimetableBottomSheet(
         }
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED){
-                viewModel.getSubwayFirstAndLast(stationName, lineName, daily, "D")
                 viewModel.lastDownSubway.collect {
                     updateTimetableUI(it, isFirst = false, isUp = false)
                 }

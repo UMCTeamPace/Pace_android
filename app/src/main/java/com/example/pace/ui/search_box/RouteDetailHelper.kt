@@ -33,6 +33,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlin.math.exp
 
 
 object RouteDetailHelper {
@@ -147,18 +148,18 @@ object RouteDetailHelper {
                     expandedVehicleBinding.itemRouteDetailVehicleIv.setImageDrawable(layoutDrawable)
                     expandedVehicleBinding.itemRouteDetailVehicleView.setBackgroundColor(lineColor)
 
+                    if(data.sequence == 1){
+                        expandedVehicleBinding.itemRouteDetailVehicleStartTv.visibility = View.VISIBLE
+                        expandedVehicleBinding.itemRouteDetailVehicleStartTv.text = departureTime
+                    }else{
+                        expandedVehicleBinding.itemRouteDetailVehicleStartTv.visibility = View.INVISIBLE
+                    }
+
                     when(data.transitDetail.transitType){
                         "SUBWAY" -> {
-                            // todo: null임 ㅋ
-                            this.observeSubwayRealtime(departureStopName, arrivalStopName, lineName, viewModel)
-                            Log.d("TRANSIT_SUB", subwayResult.toString())
-
                             expandedVehicleBinding.itemRouteDetailVehicleTimetableTv.visibility = View.VISIBLE
                         }
                         "BUS" -> {
-                            // todo: 호출 여부는 추후 확인
-                            this.observeBusRealtime(departureStopName, arrivalStopName, lineName, viewModel)
-                            Log.d("TRANSIT_BUS", busResult.toString())
                             expandedVehicleBinding.itemRouteDetailVehicleTimetableTv.visibility = View.INVISIBLE
                         }
                     }
@@ -216,27 +217,4 @@ object RouteDetailHelper {
         binding.routeDetailExpandedLl.addView(arrivalBinding.root)
     }
 
-    fun observeSubwayRealtime(
-        subStartStation: String, subEndStation: String, subLineName: String,
-        transitViewModel: TransitViewModel
-    ){
-        scope.launch {
-            transitViewModel.getRealTimeSubwayArrivals(subStartStation, subEndStation, subLineName)
-            transitViewModel.subwayResult.collect{
-                subwayResult = it
-            }
-        }
-    }
-
-    fun observeBusRealtime(
-        busStartStation: String, busEndStation: String, busLineName: String,
-        transitViewModel: TransitViewModel
-    ){
-        scope.launch {
-            transitViewModel.getRealTimeBusArrivals(busLineName, busStartStation, busEndStation)
-            transitViewModel.busResult.collect{
-                busResult = it
-            }
-        }
-    }
 }

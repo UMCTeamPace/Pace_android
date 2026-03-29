@@ -4,15 +4,30 @@
     android:layout_height="wrap_content"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:background="@color/white"
-    android:layout_marginStart="44dp">
+    android:background="@color/white">
+    <TextView
+        android:visibility="gone"
+        android:id="@+id/item_route_detail_vehicle_start_tv"
+        android:layout_width="36dp"
+        android:layout_height="18dp"
+        android:text="11:04"
+        android:textAppearance="@style/TextAppearance.App.CaptionMd.Semibold"
+        style="@style/TextColor.Secondary"
+        android:background="@drawable/bg_item_route_detail"
+        android:paddingStart="4dp"
+        android:paddingEnd="4dp"
+        android:gravity="center"
+        android:layout_marginTop="7dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"/>
     <ImageView
         android:id="@+id/item_route_detail_vehicle_iv"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:src="@drawable/ic_route_detail"
+        android:layout_marginStart="8dp"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"/>
+        app:layout_constraintStart_toEndOf="@id/item_route_detail_vehicle_start_tv"/>
     <View
         android:id="@+id/item_route_detail_vehicle_view"
         android:layout_width="2dp"
@@ -78,7 +93,7 @@
             android:layout_marginStart="16dp"/>
     </LinearLayout>
     <LinearLayout
-        android:visibility="visible"
+        android:visibility="gone"
         android:id="@+id/item_route_detail_realtime_ll"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -96,7 +111,7 @@
         android:clickable="true"
         android:paddingBottom="17dp"
         android:layout_marginTop="12dp"
-        app:layout_constraintTop_toBottomOf="@id/item_route_detail_vehicle_ll"
+        app:layout_constraintTop_toBottomOf="@id/item_route_detail_realtime_ll"
         app:layout_constraintStart_toStartOf="@id/item_route_detail_vehicle_ll">
         <TextView
             android:id="@+id/item_route_detail_vehicle_stations_tv"
