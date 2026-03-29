@@ -1,30 +1,47 @@
 package com.example.pace.ui.search_box
 
 import android.content.Context
+import android.content.pm.ActivityInfo
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
+import android.view.WindowManager
 import android.widget.LinearLayout
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.text.buildSpannedString
 import androidx.core.text.color
 import androidx.core.view.setPadding
 import androidx.core.view.updatePadding
+import androidx.fragment.app.FragmentManager
 import com.example.pace.R
-import com.example.pace.data.model.RouteResponseSample
+import com.example.pace.data.model.response.BusItemList
 import com.example.pace.data.model.response.RouteResponse
+import com.example.pace.data.model.response.SubwayTransitResult
+import com.example.pace.data.viewmodel.TransitViewModel
 import com.example.pace.databinding.BottomSheetRouteDetailBinding
 import com.example.pace.databinding.ItemRouteDetailArrivalBinding
 import com.example.pace.databinding.ItemRouteDetailBriefBinding
 import com.example.pace.databinding.ItemRouteDetailVehicleBinding
 import com.example.pace.databinding.ItemRouteDetailWalkBinding
 import com.example.pace.ui.RouteCalculator
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlin.math.exp
+
 
 object RouteDetailHelper {
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    var subwayResult = emptyList<SubwayTransitResult>()
+    var busResult: BusItemList? = null
 
-    fun setupData(context: Context, bottomSheetView: View, item: RouteResponse, destination: String, startName: String) {
+    fun setupData(context: Context, bottomSheetView: View, item: RouteResponse, destination: String, startName: String, viewModel: TransitViewModel, supportFragmentManager: FragmentManager) {
         val binding = BottomSheetRouteDetailBinding.bind(bottomSheetView)
 
         // 기본 정보
@@ -94,7 +111,9 @@ object RouteDetailHelper {
                 // 대중교통
                 else -> {
                     val transitType = data.transitDetail.transitType
+                    var departureStopName = data.transitDetail.departureStop
                     var arrivalStopName = data.transitDetail.arrivalStop
+                    val lineName = data.transitDetail.lineName
 
                     if (transitType == "SUBWAY" && !arrivalStopName.endsWith("역")) {
                         arrivalStopName += "역"
@@ -128,7 +147,22 @@ object RouteDetailHelper {
                     // 상세 정보
                     expandedVehicleBinding.itemRouteDetailVehicleIv.setImageDrawable(layoutDrawable)
                     expandedVehicleBinding.itemRouteDetailVehicleView.setBackgroundColor(lineColor)
-                    var departureStopName = data.transitDetail.departureStop
+
+                    if(data.sequence == 1){
+                        expandedVehicleBinding.itemRouteDetailVehicleStartTv.visibility = View.VISIBLE
+                        expandedVehicleBinding.itemRouteDetailVehicleStartTv.text = departureTime
+                    }else{
+                        expandedVehicleBinding.itemRouteDetailVehicleStartTv.visibility = View.INVISIBLE
+                    }
+
+                    when(data.transitDetail.transitType){
+                        "SUBWAY" -> {
+                            expandedVehicleBinding.itemRouteDetailVehicleTimetableTv.visibility = View.VISIBLE
+                        }
+                        "BUS" -> {
+                            expandedVehicleBinding.itemRouteDetailVehicleTimetableTv.visibility = View.INVISIBLE
+                        }
+                    }
                     if (data.transitDetail.transitType == "SUBWAY" && !departureStopName.endsWith("역")) {
                         departureStopName += "역"
                     }
@@ -162,6 +196,12 @@ object RouteDetailHelper {
                     // 정류장 리사이클러뷰
                     val adapter = RouteDetailStationAdapter(context, data.transitDetail.stationPath!!, lineColor)
                     expandedVehicleBinding.itemRouteDetailVehicleRv.adapter = adapter
+
+                    // 지하철 시간표 바텀시트
+                    expandedVehicleBinding.itemRouteDetailVehicleTimetableTv.setOnClickListener {
+                        val bottomSheet = TimetableBottomSheet(departureStopName, lineName)
+                        bottomSheet.show(supportFragmentManager, bottomSheet.tag)
+                    }
                 }
             }
             // 일직선 데이터 추가
@@ -176,4 +216,5 @@ object RouteDetailHelper {
         arrivalBinding.itemRouteDetailArrivalTv.text = destination
         binding.routeDetailExpandedLl.addView(arrivalBinding.root)
     }
+
 }

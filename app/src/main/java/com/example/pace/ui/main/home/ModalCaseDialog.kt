@@ -11,6 +11,7 @@ import android.view.ViewGroup
 import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.example.pace.data.model.Schedule
@@ -37,6 +38,17 @@ class ModalCaseDialog(
         super.onCreate(savedInstanceState)
         binding = DialogModalCaseBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        lifecycleOwner.lifecycle.addObserver(object : DefaultLifecycleObserver {
+            override fun onStop(owner: LifecycleOwner) {
+                if (isShowing) dismiss()
+            }
+
+            override fun onDestroy(owner: LifecycleOwner) {
+                if (isShowing) dismiss()
+                lifecycleOwner.lifecycle.removeObserver(this)
+            }
+        })
 
         val adapter = ModalVPAdapter(context, scheduleList)
         binding.modalCaseTv.text = date.year.toString() + "년 " + date.monthValue.toString() + "월 " + date.dayOfMonth.toString() + "일 " + date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.KOREAN)

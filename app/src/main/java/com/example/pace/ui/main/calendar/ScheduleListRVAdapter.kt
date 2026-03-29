@@ -6,48 +6,69 @@ import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.daimajia.swipe.SwipeLayout
 import com.daimajia.swipe.adapters.RecyclerSwipeAdapter
 import com.example.pace.R
 import com.example.pace.data.model.Schedule
-import com.example.pace.data.model.response.RouteInfo // 추가
+import com.example.pace.data.model.response.RouteInfo
 import com.example.pace.databinding.ItemDateHeaderBinding
 import com.example.pace.databinding.ItemScheduleBinding
+import com.example.pace.ui.RouteCalculator
+import com.google.gson.Gson
 
 class ScheduleListRVAdapter(
     private val context: Context,
     private val onPinClick: (Schedule) -> Unit,
     private val onDeleteClick: (Schedule) -> Unit,
-    private val onEditClick: (Schedule) -> Unit
+    private val onEditClick: (Schedule) -> Unit,
+    private val onSelectionToggle: (Schedule) -> Unit
 ) : RecyclerSwipeAdapter<RecyclerView.ViewHolder>() {
+
+    private val gson = Gson()
 
     private var items = mutableListOf<ScheduleListItem>()
     private var isEditMode = false
-    private var selectedIds = setOf<Long>()
-    private var routeInfoMap: Map<Long, RouteInfo> = emptyMap() // 경로 정보 맵 추가
+    private var selectedKeys = setOf<String>()
+    private var routeInfoMap: Map<Long, RouteInfo> = emptyMap()
 
     companion object {
         private const val TYPE_HEADER = 0
         private const val TYPE_ITEM = 1
     }
 
-    // 데이터 업데이트 시 경로 정보도 함께 받을 수 있도록 수정
     fun updateData(newItems: List<ScheduleListItem>, newRouteMap: Map<Long, RouteInfo> = emptyMap()) {
-        this.routeInfoMap = newRouteMap
-        this.items = newItems.toMutableList()
-        notifyDataSetChanged()
+        val diffResult = DiffUtil.calculateDiff(
+            ScheduleListDiffCallback(
+                oldItems = items,
+                newItems = newItems,
+                oldRouteMap = routeInfoMap,
+                newRouteMap = newRouteMap
+            )
+        )
+        routeInfoMap = newRouteMap
+        items = newItems.toMutableList()
+        diffResult.dispatchUpdatesTo(this)
     }
 
     fun setEditMode(enabled: Boolean) {
-        this.isEditMode = enabled
+        isEditMode = enabled
         notifyDataSetChanged()
     }
 
-    fun updateSelectedIds(ids: Set<Long>) {
-        this.selectedIds = ids
+    fun updateSelectedKeys(keys: Set<String>) {
+        selectedKeys = keys
         notifyDataSetChanged()
     }
+
+    fun getSelectedSchedules(keys: Set<String>): List<Schedule> {
+        return items.mapNotNull { item ->
+            (item as? ScheduleListItem.ScheduleItem)?.schedule
+        }.filter { selectionKey(it) in keys }
+    }
+
+    private fun selectionKey(schedule: Schedule): String = "${schedule.id}|${schedule.startDate}"
 
     override fun getItemViewType(position: Int): Int {
         return when (items[position]) {
@@ -75,7 +96,49 @@ class ScheduleListRVAdapter(
     }
 
     override fun getItemCount(): Int = items.size
+
     override fun getSwipeLayoutResourceId(position: Int): Int = R.id.item_schedule
+
+    private class ScheduleListDiffCallback(
+        private val oldItems: List<ScheduleListItem>,
+        private val newItems: List<ScheduleListItem>,
+        private val oldRouteMap: Map<Long, RouteInfo>,
+        private val newRouteMap: Map<Long, RouteInfo>
+    ) : DiffUtil.Callback() {
+
+        override fun getOldListSize(): Int = oldItems.size
+
+        override fun getNewListSize(): Int = newItems.size
+
+        override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+            val oldItem = oldItems[oldItemPosition]
+            val newItem = newItems[newItemPosition]
+
+            return when {
+                oldItem is ScheduleListItem.DateHeader && newItem is ScheduleListItem.DateHeader ->
+                    oldItem.date == newItem.date
+
+                oldItem is ScheduleListItem.ScheduleItem && newItem is ScheduleListItem.ScheduleItem ->
+                    oldItem.schedule.id == newItem.schedule.id &&
+                        oldItem.schedule.startDate == newItem.schedule.startDate
+
+                else -> false
+            }
+        }
+
+        override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+            val oldItem = oldItems[oldItemPosition]
+            val newItem = newItems[newItemPosition]
+
+            if (oldItem != newItem) return false
+
+            return if (oldItem is ScheduleListItem.ScheduleItem && newItem is ScheduleListItem.ScheduleItem) {
+                oldRouteMap[oldItem.schedule.id] == newRouteMap[newItem.schedule.id]
+            } else {
+                true
+            }
+        }
+    }
 
     inner class HeaderViewHolder(private val binding: ItemDateHeaderBinding) :
         RecyclerView.ViewHolder(binding.root) {
@@ -89,68 +152,47 @@ class ScheduleListRVAdapter(
 
         fun bind(schedule: Schedule) {
             binding.scheduleViewTop.translationX = 0f
+            binding.root.setSwipeEnabled(!isEditMode)
 
-            // 1. 기본 텍스트 및 시간 설정
             binding.scheduleTitleTv.text = schedule.title ?: "제목 없음"
-            binding.scheduleTimeTv.text = if (schedule.isAllDay) "하루 종일" else "${schedule.startTime} - ${schedule.endTime}"
+            binding.scheduleTimeTv.text =
+                if (schedule.isAllDay) "하루 종일" else "${schedule.startTime} - ${schedule.endTime}"
 
-            // 2. 색상 설정 (기존 로직 유지)
             val colorResId = schedule.eventColor.takeIf { it != null && it != 0 }
                 ?: schedule.calendarColor.takeIf { it != null && it != 0 }
                 ?: Color.parseColor("#A2BD3B")
             binding.scheduleCategoryIv.imageTintList = ColorStateList.valueOf(colorResId)
 
-            // 3. 편집 모드 및 핀/반복 표시
             if (isEditMode) {
                 binding.scheduleCheckbox.visibility = View.VISIBLE
-                binding.scheduleCheckbox.isChecked = selectedIds.contains(schedule.id)
+                binding.scheduleCheckbox.isChecked = selectedKeys.contains(selectionKey(schedule))
+                binding.scheduleCheckbox.isClickable = false
                 binding.schedulePinnedIv.visibility = View.GONE
             } else {
                 binding.scheduleCheckbox.visibility = View.GONE
                 binding.schedulePinnedIv.visibility = if (schedule.isPinned) View.VISIBLE else View.GONE
             }
 
-            // 반복 아이콘 처리
             if (!schedule.repeatRule.isNullOrEmpty()) {
                 binding.scheduleRepeatIv.visibility = View.VISIBLE
                 binding.scheduleRepeatTv.visibility = View.VISIBLE
-                binding.scheduleRepeatTv.text = "반복 설정됨"
+                binding.scheduleRepeatTv.text = "반복 일정"
             } else {
                 binding.scheduleRepeatIv.visibility = View.GONE
                 binding.scheduleRepeatTv.visibility = View.GONE
             }
 
-            // 4. 경로(ROUTE) vs 일반 일정 분기 처리 ⭐핵심 추가 부분
-            val routeDetail = routeInfoMap[schedule.id]
+            val serverRouteInfo = routeInfoMap[schedule.id]
+            val localRouteInfo = schedule.routeJson?.let {
+                runCatching { gson.fromJson(it, RouteInfo::class.java) }.getOrNull()
+            }
 
             if (schedule.type == "ROUTE") {
                 binding.scheduleNormalLocationLl.visibility = View.GONE
                 binding.scheduleRouteLocationLl.visibility = View.VISIBLE
-
-                if (routeDetail != null) {
-                    binding.scheduleRouteNameTv.text = "${routeDetail.originName} → ${routeDetail.destName}"
-
-                    val formatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
-
-                    val startTime = routeDetail.departureTime?.let {
-                        java.time.LocalDateTime.parse(it).plusHours(9).format(formatter)
-                    } ?: "00:00"
-
-                    val endTime = routeDetail.arrivalTime?.let {
-                        java.time.LocalDateTime.parse(it).plusHours(9).format(formatter)
-                    } ?: "00:00"
-
-                    binding.scheduleRouteRangeTv.text = "$startTime - $endTime"
-
-                    val totalSeconds = routeDetail.totalTime
-                    val hours = totalSeconds / 3600
-                    val minutes = (totalSeconds % 3600) / 60
-                    binding.scheduleRouteDurationTv.text = "${hours}시간 ${minutes}분"
-                } else {
-                    binding.scheduleRouteNameTv.text = schedule.location ?: "경로를 불러오는 중..."
-                    binding.scheduleRouteRangeTv.text = "${schedule.startTime} - ${schedule.endTime}"
-                    binding.scheduleRouteDurationTv.text = "0시간 0분"
-                }
+                binding.scheduleRouteNameTv.text = buildRouteName(localRouteInfo, serverRouteInfo, schedule)
+                binding.scheduleRouteRangeTv.text = buildRouteRange(localRouteInfo, serverRouteInfo)
+                binding.scheduleRouteDurationTv.text = buildRouteDuration(localRouteInfo, serverRouteInfo)
             } else {
                 binding.scheduleRouteLocationLl.visibility = View.GONE
                 if (!schedule.location.isNullOrEmpty()) {
@@ -161,26 +203,103 @@ class ScheduleListRVAdapter(
                 }
             }
 
-            // 5. 버튼 리스너
             binding.schedulePinIv.setOnClickListener {
                 onPinClick(schedule)
-                mItemManger.closeItem(this.position)
+                mItemManger.closeItem(bindingAdapterPosition)
             }
             binding.scheduleEditIv.setOnClickListener {
                 onEditClick(schedule)
-                mItemManger.closeItem(this.position)
+                mItemManger.closeItem(bindingAdapterPosition)
             }
             binding.scheduleDeleteIv.setOnClickListener {
                 onDeleteClick(schedule)
-                mItemManger.closeItem(this.position)
+                mItemManger.closeItem(bindingAdapterPosition)
+            }
+            binding.scheduleViewTop.setOnClickListener {
+                if (isEditMode) {
+                    onSelectionToggle(schedule)
+                }
+            }
+            binding.scheduleCheckbox.setOnClickListener {
+                if (isEditMode) {
+                    onSelectionToggle(schedule)
+                }
             }
 
-            // 6. 스와이프 로직
             binding.root.showMode = SwipeLayout.ShowMode.LayDown
             binding.root.addDrag(SwipeLayout.DragEdge.Left, binding.scheduleLeftBottomWrapper)
             binding.root.addDrag(SwipeLayout.DragEdge.Right, binding.scheduleRightBottomWrapper)
 
-            mItemManger.bindView(itemView, this.position)
+            mItemManger.bindView(itemView, bindingAdapterPosition)
+        }
+
+        private fun buildRouteName(
+            localRouteInfo: RouteInfo?,
+            serverRouteInfo: RouteInfo?,
+            schedule: Schedule
+        ): String {
+            val serverName = serverRouteInfo?.let { info ->
+                if (info.originName.isNotBlank() && info.destName.isNotBlank()) {
+                    "${info.originName} -> ${info.destName}"
+                } else {
+                    null
+                }
+            }
+            val localName = localRouteInfo?.let { info ->
+                if (info.originName.isNotBlank() && info.destName.isNotBlank()) {
+                    "${info.originName} -> ${info.destName}"
+                } else {
+                    null
+                }
+            }
+
+            return serverName ?: localName ?: schedule.location ?: "경로 정보 없음"
+        }
+
+        private fun buildRouteRange(
+            localRouteInfo: RouteInfo?,
+            serverRouteInfo: RouteInfo?
+        ): String {
+            val serverRange = buildTimeRange(
+                serverRouteInfo?.departureTime?.let(::formatRouteTime),
+                serverRouteInfo?.arrivalTime?.let(::formatRouteTime)
+            )
+            val localRouteRange = buildTimeRange(
+                localRouteInfo?.departureTime?.let(::formatRouteTime),
+                localRouteInfo?.arrivalTime?.let(::formatRouteTime)
+            )
+
+            return serverRange ?: localRouteRange ?: "계산 중..."
+        }
+
+        private fun buildRouteDuration(
+            localRouteInfo: RouteInfo?,
+            serverRouteInfo: RouteInfo?
+        ): String {
+            val totalSeconds = serverRouteInfo?.totalTime?.takeIf { it > 0 }
+                ?: localRouteInfo?.totalTime?.takeIf { it > 0 }
+                ?: return "시간 정보 없음"
+
+            val hours = totalSeconds / 3600
+            val minutes = (totalSeconds % 3600) / 60
+
+            return if (hours > 0) {
+                "${hours}시간 ${minutes}분"
+            } else {
+                "${minutes}분"
+            }
+        }
+
+        private fun buildTimeRange(startTime: String?, endTime: String?): String? {
+            return if (!startTime.isNullOrBlank() && !endTime.isNullOrBlank()) {
+                "$startTime - $endTime"
+            } else {
+                null
+            }
+        }
+
+        private fun formatRouteTime(rawTime: String): String? {
+            return RouteCalculator.convertUtcToKst(rawTime).ifBlank { null }
         }
     }
 }

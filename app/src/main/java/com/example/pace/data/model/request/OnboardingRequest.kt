@@ -5,7 +5,7 @@ import com.google.gson.annotations.SerializedName
 data class OnboardingRequest(
     @SerializedName("isReminderActive") val isReminderActive: Boolean,
     @SerializedName("earlyArrivalTime") val earlyArrivalTime: Int,
-    @SerializedName("calendarType") val calendarType: String,
+    @SerializedName("calendarId") val calendarId: String,
     @SerializedName("alarms") val alarms: List<AlarmConfig>
 )
 

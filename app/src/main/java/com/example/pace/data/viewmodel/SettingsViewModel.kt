@@ -4,10 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pace.data.datasource.AuthDataStore
-import com.example.pace.data.db.UserSettingsDao
 import com.example.pace.data.model.UserSettingsEntity
-import com.example.pace.data.model.request.AlarmSettingRequest
-import com.example.pace.data.model.request.UpdateSettingsRequest
 import com.example.pace.data.repository.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -16,13 +13,10 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val dao: UserSettingsDao,
     private val repository: SettingsRepository,
     private val authDataStore: AuthDataStore // 👈 1. 토큰을 가져오기 위해 주입 추가
 ) : ViewModel() {
-    private val LOCAL_USER_ID = 1L
-
-    val userSettings: StateFlow<UserSettingsEntity?> = dao.getSettingsFlow(LOCAL_USER_ID)
+    val userSettings: StateFlow<UserSettingsEntity?> = repository.getUserSettings()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -84,7 +78,7 @@ class SettingsViewModel @Inject constructor(
                 lastUpdated = System.currentTimeMillis()
             )
 
-            repository.updateSettingsLocally(updatedSettings)
+            saveAndSync(updatedSettings)
 
             Log.d("LOCAL_DB", "캘린더 선택 상태 변경 (로컬): $calendarId -> $isChecked")
         }
@@ -113,7 +107,7 @@ class SettingsViewModel @Inject constructor(
             )
 
             // 서버 통신 없이 DB만 업데이트
-            repository.updateSettingsLocally(updatedSettings)
+            saveAndSync(updatedSettings)
 
             Log.d("LOCAL_DB", "선택된 캘린더 ID들 로컬 저장 완료: $selectedIds")
         }

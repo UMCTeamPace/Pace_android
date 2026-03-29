@@ -42,7 +42,7 @@
                         android:layout_width="16dp"
                         android:layout_height="16dp"
                         android:background="@drawable/circle_schedulecolor"
-                        android:backgroundTint="@color/schedule_5"
+                        android:backgroundTint="@color/route_branch_bus"
                         android:padding="8dp" />
 
                     <EditText
@@ -198,7 +198,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
                     android:orientation="vertical"
-                    android:visibility="visible">
+                    android:visibility="gone">
 
                     <RelativeLayout
                         android:layout_width="match_parent"

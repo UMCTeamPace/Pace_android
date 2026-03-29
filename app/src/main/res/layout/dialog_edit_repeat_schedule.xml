@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="300dp"
+    android:layout_height="wrap_content"
+    android:background="@drawable/box_delete_schedule"
+    android:paddingTop="30dp"
+    android:paddingBottom="30dp">
+
+    <TextView
+        android:id="@+id/edit_schedule_tv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="반복 일정을 어떻게 수정할까요?"
+        android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+        style="@style/TextColor.Primary"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/edit_schedule_repeat_ll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:orientation="vertical"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        app:layout_constraintTop_toBottomOf="@id/edit_schedule_tv"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/edit_schedule_selected_btn"
+            android:layout_width="252dp"
+            android:layout_height="40dp"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/btn_delete_schedule_red"
+            android:paddingStart="12dp"
+            android:paddingTop="8dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="8dp"
+            android:stateListAnimator="@null"
+            android:text="선택 일정만 수정"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Medium"
+            style="@style/TextColor.White" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/edit_schedule_all_btn"
+            android:layout_width="252dp"
+            android:layout_height="40dp"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/btn_delete_schedule"
+            android:paddingStart="12dp"
+            android:paddingTop="8dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="8dp"
+            android:stateListAnimator="@null"
+            android:text="모든 반복 일정 수정"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Medium"
+            style="@style/TextColor.Primary" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/edit_schedule_cancel_btn"
+            android:layout_width="252dp"
+            android:layout_height="40dp"
+            android:background="@drawable/btn_delete_schedule"
+            android:paddingStart="12dp"
+            android:paddingTop="8dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="8dp"
+            android:stateListAnimator="@null"
+            android:text="취소"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Medium"
+            style="@style/TextColor.Primary" />
+    </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

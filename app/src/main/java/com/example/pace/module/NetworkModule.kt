@@ -1,6 +1,8 @@
 package com.example.pace.module
 
 import android.content.SharedPreferences
+import android.content.Context
+import com.example.pace.data.auth.TokenAuthenticator
 import com.example.pace.data.datasource.AuthDataStore
 import dagger.Module
 import dagger.Provides
@@ -14,13 +16,17 @@ import retrofit2.converter.gson.GsonConverterFactory
 import javax.inject.Qualifier
 import javax.inject.Singleton
 import kotlin.jvm.java
-import android.content.Context
 import com.example.pace.data.api.RouteService
 import com.example.pace.data.api.ScheduleService
+import com.example.pace.data.api.WeatherService
 
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class BaseRetrofit
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class WeatherRetrofit
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -28,13 +34,27 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
+    fun provideOkHttpClient(
+        authDataStore: AuthDataStore,
+        tokenAuthenticator: TokenAuthenticator
+    ): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }
 
         return OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
+            .addInterceptor { chain ->
+                val token = authDataStore.getAccessToken()
+                val originalRequest = chain.request()
+                val request = chain.request().newBuilder().apply {
+                    if (originalRequest.header("Authorization") == null && token != null) {
+                        header("Authorization", token)
+                    }
+                }.build()
+                chain.proceed(request)
+            }
+            .authenticator(tokenAuthenticator)
             .build()
     }
 
@@ -48,6 +68,23 @@ object NetworkModule {
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
+    }
+
+    @Provides
+    @Singleton
+    @WeatherRetrofit
+    fun provideWeatherRetrofit(okHttpClient: OkHttpClient): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl("https://api.openweathermap.org/data/2.5/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideWeatherService(@WeatherRetrofit retrofit: Retrofit): WeatherService {
+        return retrofit.create(WeatherService::class.java)
     }
 
     @Provides

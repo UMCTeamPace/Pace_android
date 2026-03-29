@@ -18,22 +18,22 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="편집"
             android:layout_marginStart="20dp"
             android:layout_marginTop="10dp"
             android:layout_marginBottom="10dp"
+            android:text="편집"
             android:textColor="@color/black"
             android:textSize="18sp"
-            android:textStyle="bold"/>
+            android:textStyle="bold" />
     </FrameLayout>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/schedule_list_rv"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:splitMotionEvents="false"
         android:paddingStart="24dp"
         android:paddingEnd="24dp"
+        android:splitMotionEvents="false"
         app:layout_constraintBottom_toTopOf="@id/layout_edit_bar"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -42,10 +42,14 @@
     <LinearLayout
         android:id="@+id/layout_edit_bar"
         android:layout_width="0dp"
-        android:layout_height="70dp"
+        android:layout_height="88dp"
         android:background="@color/white"
         android:elevation="12dp"
         android:orientation="horizontal"
+        android:paddingStart="24dp"
+        android:paddingTop="16dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="16dp"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -56,31 +60,27 @@
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
-            android:background="?attr/selectableItemBackground"
+            android:background="@drawable/btn_cancel_bg"
             android:clickable="true"
             android:focusable="true"
             android:gravity="center"
             android:text="취소"
             android:textColor="@color/black"
-            android:textSize="16sp" />
-
-        <View
-            android:layout_width="1dp"
-            android:layout_height="24dp"
-            android:layout_gravity="center"
-            android:background="#E0E0E0" />
+            android:textSize="16sp"
+            android:textStyle="bold" />
 
         <TextView
             android:id="@+id/btn_edit_delete"
             android:layout_width="0dp"
             android:layout_height="match_parent"
+            android:layout_marginStart="12dp"
             android:layout_weight="1"
-            android:background="?attr/selectableItemBackground"
+            android:background="@drawable/btn_delete_schedule_red"
             android:clickable="true"
             android:focusable="true"
             android:gravity="center"
             android:text="삭제"
-            android:textColor="#FF5252"
+            android:textColor="@color/white"
             android:textSize="16sp"
             android:textStyle="bold" />
 

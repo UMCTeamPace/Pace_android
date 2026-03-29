@@ -92,6 +92,7 @@ class SearchFragment : Fragment() {
                 val intent = Intent(requireContext(), AddScheduleActivity::class.java).apply {
                     putExtra("isEdit", true)
                     putExtra("SCHEDULE_ID", schedule.id)
+                    putExtra("OCCURRENCE_DATE", schedule.startDate)
                     putExtra("SCHEDULE_TYPE", schedule.type)
                     if (schedule.type == "ROUTE") putExtra("OPEN_ROUTE_TAB", true)
                 }

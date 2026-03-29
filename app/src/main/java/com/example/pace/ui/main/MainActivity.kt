@@ -34,19 +34,34 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import androidx.activity.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.example.pace.AlertActivity
 import com.example.pace.PaceApplication
+import com.example.pace.data.datasource.AuthDataStore
 import com.example.pace.data.db.ScheduleDatabase
 import com.example.pace.data.datasource.NormalScheduleRemoteDataSource
+import com.example.pace.data.repository.repository.SettingsRepository
+import com.example.pace.data.util.syncMemberSettingsIfNeeded
 import com.example.pace.data.viewmodel.ScheduleViewModel
 import com.example.pace.data.repository.repository.ScheduleRepository
+import com.example.pace.data.viewmodel.TransitViewModel
 import dagger.hilt.android.AndroidEntryPoint // 추가
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
+    @javax.inject.Inject
+    lateinit var authDataStore: AuthDataStore
+
+    @javax.inject.Inject
+    lateinit var settingsRepository: SettingsRepository
+
     lateinit var binding: ActivityMainBinding
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private val viewModel: ScheduleViewModel by viewModels()
+    private val transitViewModel: TransitViewModel by viewModels()
     // ViewModel injection
 
 
@@ -169,6 +184,15 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        lifecycleScope.launch {
+            syncMemberSettingsIfNeeded(
+                authDataStore = authDataStore,
+                settingsRepository = settingsRepository,
+                source = "MainActivity",
+                force = false
+            )
+        }
+
         // Resume location updates
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             startLocationUpdates()
