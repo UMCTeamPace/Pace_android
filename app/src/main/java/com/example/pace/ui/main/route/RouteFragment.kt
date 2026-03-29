@@ -26,7 +26,9 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.example.pace.BuildConfig
 import com.example.pace.PaceApplication
 import com.example.pace.R
@@ -37,14 +39,17 @@ import com.example.pace.data.model.RecentHistoryItem
 import com.example.pace.data.model.RecentPlace
 import com.example.pace.data.model.RecentRoute
 import com.example.pace.data.model.request.RouteSearchRequest
+import com.example.pace.data.model.response.BusItemList
 import com.example.pace.data.model.response.RouteOnlyScheduleData
 import com.example.pace.data.model.response.RouteResponse
+import com.example.pace.data.model.response.SubwayTransitResult
 import com.example.pace.data.repository.SearchRepository
 import com.example.pace.data.util.RouteConstants
 import com.example.pace.data.viewmodel.RouteViewModel
 import com.example.pace.data.viewmodel.SearchViewModel
 import com.example.pace.data.viewmodel.SearchViewModelFactory
 import com.example.pace.data.viewmodel.SettingsViewModel
+import com.example.pace.data.viewmodel.TransitViewModel
 import com.example.pace.databinding.FragmentRouteBinding
 import com.example.pace.ui.add_schedule.AddScheduleActivity
 import com.example.pace.ui.main.MainActivity
@@ -97,6 +102,7 @@ class RouteFragment : Fragment() {
 
     private val routeViewModel: RouteViewModel by viewModels()
     private val settingsViewModel: SettingsViewModel by activityViewModels()
+    private val transitViewModel: TransitViewModel by viewModels()
 
     private var hasSchedule: Boolean = true
     private var currentTransitType: String? = null // 칩 선택 값
@@ -302,7 +308,7 @@ class RouteFragment : Fragment() {
 
             routeViewModel.updateScheduleForAdapter(assembledRouteResponse)
             // 헬퍼를 이용해 리사이클러뷰 데이터 채우기
-            RouteDetailHelper.setupData(requireContext(), bottomSheetView, assembledRouteResponse, routeInfo.destName ?: "", routeInfo.originName ?: "")
+            RouteDetailHelper.setupData(requireContext(), bottomSheetView, assembledRouteResponse, routeInfo.destName ?: "", routeInfo.originName ?: "", transitViewModel, parentFragmentManager)
 
             bottomSheetView.post {
                 val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
@@ -1032,7 +1038,7 @@ class RouteFragment : Fragment() {
             behavior.state = BottomSheetBehavior.STATE_COLLAPSED
             behavior.peekHeight = (250 * resources.displayMetrics.density).toInt() // 지도 보일 정도 높이
 
-            RouteDetailHelper.setupData(requireContext(),bottomSheetView, item, selectedEndPlace?.first ?: "", selectedStartPlace?.first ?: "")
+            RouteDetailHelper.setupData(requireContext(),bottomSheetView, item, selectedEndPlace?.first ?: "", selectedStartPlace?.first ?: "", transitViewModel, parentFragmentManager)
 
             bottomSheetView.post {
                 val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment

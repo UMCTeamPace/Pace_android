@@ -42,12 +42,10 @@ android {
 
         val weatherKey = properties.getProperty("YOUR_OPENWEATHER_API_KEY") ?: ""
         val bearerToken = properties.getProperty("BEARER_TOKEN") ?: ""
-        val subwayKey = properties.getProperty("SUBWAY_API_KEY") ?: ""
         val publicKey = properties.getProperty("PUBLIC_API_KEY") ?: ""
 
         buildConfigField("String", "YOUR_OPENWEATHER_API_KEY", "\"$weatherKey\"")
         buildConfigField("String", "BEARER_TOKEN", "\"$bearerToken\"")
-        buildConfigField("String", "SUBWAY_API_KEY", "\"$subwayKey\"")
         buildConfigField("String", "PUBLIC_API_KEY", "\"$publicKey\"")
 
     }
@@ -101,6 +99,7 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    implementation("com.google.android.material:material:1.13.0")
 
     // Room
     implementation(libs.androidx.room.runtime)
