@@ -13,7 +13,7 @@ object RetrofitClient {
     private const val BASE_URL = "https://pace-server.kro.kr/"
     private const val WEATHER_BASE_URL = "https://api.openweathermap.org/"
     private const val BUS_BASE_URL = "http://ws.bus.go.kr/"
-    private const val SUBWAY_BASE_URL = "https://apis.data.go.kr/B553766/schedule/"
+    private const val SUBWAY_BASE_URL = "https://apis.data.go.kr/1613000/SubwayInfo/"
 
     //공통 okHttpClient
     private val okHttpClient: OkHttpClient by lazy {

@@ -53,7 +53,7 @@ class MainActivity : AppCompatActivity() {
     lateinit var binding: ActivityMainBinding
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private val viewModel: ScheduleViewModel by viewModels()
-    val transitViewModel: TransitViewModel by viewModels()
+    private val transitViewModel: TransitViewModel by viewModels()
     // ViewModel injection
 
 

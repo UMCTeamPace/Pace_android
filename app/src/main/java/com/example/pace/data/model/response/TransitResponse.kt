@@ -37,53 +37,43 @@ data class SubwayTransitResult(
 )
 
 // 지하철 시간표 데이터 클래스
-data class TimetableResponse(
-    @SerializedName("header") val header: TimetableHeader,
-    @SerializedName("body") val body: TimetableBody
+data class TagoResponse<T>(
+    @SerializedName("header") val header: TagoHeader,
+    @SerializedName("body") val body: TagoBody<T>
 )
 
-data class TimetableHeader(
+data class TagoHeader(
     @SerializedName("resultCode") val resultCode: String,
     @SerializedName("resultMsg") val resultMsg: String,
 )
 
-data class TimetableBody(
-    @SerializedName("items") val items: TimetableItem,
+data class TagoBody<T>(
+    @SerializedName("items") val items: TagoItem<T>,
     @SerializedName("pageNo") val pageNo: String,
     @SerializedName("numOfRows") val nowOfRows: String,
     @SerializedName("totalCount") val totalCount: String
 )
 
-data class TimetableItem(
-    @SerializedName("item") val item: List<SubwayTimetableItem>
+data class TagoItem<T>(
+    @SerializedName("item") val item: List<T>
 )
 
-data class SubwayTimetableItem(
-    @SerializedName("trainno") val trainNo: String?,
-    @SerializedName("trainKnd") val trainKnd: String?,
-    @SerializedName("upbdnbSe") val upbdnbSe: String?,
-    @SerializedName("wkndSe") val wkndSe: String?,
-    @SerializedName("lineNm") val lineNm: String?,
-    @SerializedName("brlnNm") val brlnNm: String?,
-    @SerializedName("stnCd") val stnCd: String?,
-    @SerializedName("stnNo") val stnNo: String?,
-    @SerializedName("stnNm") val stnNm: String?,
-    @SerializedName("dptreLineNm") val dptreLineNm: String?,
-    @SerializedName("dptreStnCd") val dptreStnCd: String?,
-    @SerializedName("dptreStnNm") val dptreStnNm: String?,
-    @SerializedName("dptreStnNo") val dptreStnNo: String?,
-    @SerializedName("arvlLineNm") val arvlLineNm: String?,
-    @SerializedName("arvlStnCd") val arvlStnCd: String?,
-    @SerializedName("arvlStnNm") val arvlStnNm: String?,
-    @SerializedName("arvlStnNo") val arvlStnNo: String?,
-    @SerializedName("trainDptreTm") val trainDptreTm: String?,
-    @SerializedName("trainArvlTm") val trainArvlTm: String?,
-    @SerializedName("etrnYn") val etrnYn: String?,
-    @SerializedName("lnkgTrainno") val lnkgTrainno: String?,
-    @SerializedName("tmprTmtblYn") val tmprTmtblYn: String?,
-    @SerializedName("vldBgngDt") val vldBgngDt: String?,
-    @SerializedName("vldEndDt") val vldEndDt: String?,
-    @SerializedName("crtrYmd") val crtrYmd: String?
+data class StationIdItem(
+    @SerializedName("subwayStationId") val stationId: String,
+    @SerializedName("subwayStationName") val stationName: String,
+    @SerializedName("subwayRouteName") val routeName: String,
+)
+
+data class StationTimetableItem(
+    @SerializedName("subwayStationId") val stationId: String,
+    @SerializedName("subwayStationNm") val stationName: String,
+    @SerializedName("subwayRouteId") val routeId: String,
+    @SerializedName("endSubwayStationId") val endStationId: String?,
+    @SerializedName("endSubwayStationNm") val endSubwayStationName: String?,
+    @SerializedName("depTime") val depTime: String,
+    @SerializedName("arrTime") val arrTime: String,
+    @SerializedName("dailyTypeCode") val daily: String,
+    @SerializedName("upDownTypeCode") val upDown: String,
 )
 
 // 실시간 버스 데이터 클래스
