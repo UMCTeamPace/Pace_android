@@ -39,6 +39,7 @@
             android:elevation="0dp"
             android:clickable="true"
             android:focusable="true"
+            android:layout_marginTop="52dp"
             app:layout_constraintTop_toTopOf="@id/route_search_fcv"
             app:layout_constraintBottom_toBottomOf="@id/route_search_fcv"
             app:layout_constraintStart_toStartOf="@id/route_search_fcv"
