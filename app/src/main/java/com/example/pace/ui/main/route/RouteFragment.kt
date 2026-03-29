@@ -1255,45 +1255,45 @@ class RouteFragment : Fragment() {
         transaction.commitAllowingStateLoss()
     }
 
-private fun selectCurrentLocation() {
-    if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-        mainActivity?.checkPermissionAndStart()
-        return
-    }
+    private fun selectCurrentLocation() {
+        if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            mainActivity?.checkPermissionAndStart()
+            return
+        }
 
-    val location = mainActivity?.myLocation
+        val location = mainActivity?.myLocation
 
-    if (location == null) {
-        mainActivity?.startLocationUpdates()
-        return
-    }
+        if (location == null) {
+            mainActivity?.startLocationUpdates()
+            return
+        }
 
-    val latLng = LatLng(location.latitude, location.longitude)
-    val geocoder = android.location.Geocoder(requireContext(), Locale.KOREAN)
+        val latLng = LatLng(location.latitude, location.longitude)
+        val geocoder = android.location.Geocoder(requireContext(), Locale.KOREAN)
 
-    lifecycleScope.launch(Dispatchers.IO) {
-        try {
-            @Suppress("DEPRECATION")
-            val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
-            val fullAddress = addresses?.firstOrNull()?.getAddressLine(0)?.replace("대한민국 ", "") ?: "주소 미상"
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                @Suppress("DEPRECATION")
+                val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+                val fullAddress = addresses?.firstOrNull()?.getAddressLine(0)?.replace("대한민국 ", "") ?: "주소 미상"
 
-            withContext(Dispatchers.Main) {
-                if (isBookmarkSearchMode) {
-                    currentMyLocation = latLng
-                    val currentPlaceId = getNearbyPlaceId(latLng)
-                    onScheduleLocationSelected(fullAddress, currentPlaceId?:"")
-                } else {
-                    applyCurrentLocationSelection(fullAddress, latLng)
+                withContext(Dispatchers.Main) {
+                    if (isBookmarkSearchMode) {
+                        currentMyLocation = latLng
+                        val currentPlaceId = getNearbyPlaceId(latLng)
+                        onScheduleLocationSelected(fullAddress, currentPlaceId?:"")
+                    } else {
+                        applyCurrentLocationSelection(fullAddress, latLng)
+                    }
                 }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            withContext(Dispatchers.Main) {
-                applyCurrentLocationSelection("현재 위치", latLng)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    applyCurrentLocationSelection("현재 위치", latLng)
+                }
             }
         }
     }
-}
 
     private suspend fun getNearbyPlaceId(latLng: LatLng): String? = suspendCancellableCoroutine { continuation ->
         val circle = CircularBounds.newInstance(latLng, 30.0)
@@ -1384,7 +1384,7 @@ private fun selectCurrentLocation() {
         })
     }
 
-        fun onSavedPlaceClick(placeId: String) {
+    fun onSavedPlaceClick(placeId: String) {
         val ctx = context ?: return
 
         if(binding.layoutBookmarkHeader.root.visibility == View.VISIBLE){
@@ -2843,28 +2843,28 @@ private fun selectCurrentLocation() {
         mapFrag.setMapPadding(halfHeight)
     }
 
-private fun setupMyLocationButton() {
-    binding.layoutMapSelectOverlay.btnGoMyLocationOverlay.setOnClickListener {
-        if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            mainActivity?.checkPermissionAndStart()
-            return@setOnClickListener
-        }
+    private fun setupMyLocationButton() {
+        binding.layoutMapSelectOverlay.btnGoMyLocationOverlay.setOnClickListener {
+            if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                mainActivity?.checkPermissionAndStart()
+                return@setOnClickListener
+            }
 
-        val location = mainActivity?.myLocation
+            val location = mainActivity?.myLocation
 
-        if (location == null) {
-            mainActivity?.startLocationUpdates()
-            return@setOnClickListener
-        }
+            if (location == null) {
+                mainActivity?.startLocationUpdates()
+                return@setOnClickListener
+            }
 
-        val targetLocation = LatLng(location.latitude, location.longitude)
-        val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
-        val supportMapFrag = mapFrag?.childFragmentManager?.findFragmentById(R.id.google_map_container) as? SupportMapFragment
-        supportMapFrag?.getMapAsync { googleMap ->
-            googleMap.animateCamera(com.google.android.gms.maps.CameraUpdateFactory.newLatLngZoom(targetLocation, 15f))
+            val targetLocation = LatLng(location.latitude, location.longitude)
+            val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+            val supportMapFrag = mapFrag?.childFragmentManager?.findFragmentById(R.id.google_map_container) as? SupportMapFragment
+            supportMapFrag?.getMapAsync { googleMap ->
+                googleMap.animateCamera(com.google.android.gms.maps.CameraUpdateFactory.newLatLngZoom(targetLocation, 15f))
+            }
         }
     }
-}
     private fun saveRecentSearch(query: String){
         searchViewModel.insertSearch(query)
     }
