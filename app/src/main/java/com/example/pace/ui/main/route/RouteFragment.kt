@@ -46,6 +46,7 @@ import com.example.pace.data.viewmodel.SearchViewModel
 import com.example.pace.data.viewmodel.SearchViewModelFactory
 import com.example.pace.data.viewmodel.SettingsViewModel
 import com.example.pace.databinding.FragmentRouteBinding
+import com.example.pace.ui.NetworkErrorDialog
 import com.example.pace.ui.add_schedule.AddScheduleActivity
 import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.search_box.*
@@ -298,7 +299,8 @@ class RouteFragment : Fragment() {
 
             behavior.isHideable = false
             behavior.state = BottomSheetBehavior.STATE_COLLAPSED
-            behavior.peekHeight = (250 * resources.displayMetrics.density).toInt()
+//            behavior.peekHeight = (250 * resources.displayMetrics.density).toInt()
+            behavior.peekHeight = getScreenHeightPercentage(0.3f)
 
             routeViewModel.updateScheduleForAdapter(assembledRouteResponse)
             // 헬퍼를 이용해 리사이클러뷰 데이터 채우기
@@ -408,13 +410,30 @@ class RouteFragment : Fragment() {
     private fun setupMainActivityListeners() {
         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
         mainBinding?.searchEt?.apply {
-            setOnFocusChangeListener { _, hasFocus ->
+            setOnFocusChangeListener { view, hasFocus ->
                 if (hasFocus) {
+                    if (!isNetworkAvailable()) {
+                        view.clearFocus()
+                        hideKeyboard()
+                        // [추가] 다이얼로그 띄우기
+                        NetworkErrorDialog(requireContext()) {
+                            requestFocus() // 새로고침 시 다시 포커스 요청
+                        }.show()
+                        return@setOnFocusChangeListener
+                    }
                     enterSearchMode()
                 }
             }
 
-            setOnClickListener {
+            setOnClickListener { view ->
+                if (!isNetworkAvailable()) {
+                    view.clearFocus()
+                    hideKeyboard()
+                    NetworkErrorDialog(requireContext()) {
+                        requestFocus()
+                    }.show()
+                    return@setOnClickListener
+                }
                 if (!hasFocus()) {
                     requestFocus()
                 } else {
@@ -452,6 +471,13 @@ class RouteFragment : Fragment() {
         }
     }
     private fun FinalfetchRouteData(){
+        if (!isNetworkAvailable()) {
+            NetworkErrorDialog(requireContext()) {
+                FinalfetchRouteData()
+            }.show()
+            return
+        }
+
         lifecycleScope.launch {
             if (currentEntryMode == EntryMode.SCHEDULE_ROUTE && earlyArriveTime == -1) {
                 if (earlyArriveTime == -1) {
@@ -732,12 +758,26 @@ class RouteFragment : Fragment() {
             if(isBookmarkSearchMode){
                 handleBookmarkSingleRegistration(finalName, placeId)
 
+                val transaction = childFragmentManager.beginTransaction()
+                val detailFrag = childFragmentManager.findFragmentByTag("DETAIL")
+                val listFrag = childFragmentManager.findFragmentByTag(LocationBottomSheetFragment.TAG)
+                if (detailFrag != null) transaction.remove(detailFrag)
+                if (listFrag != null) transaction.remove(listFrag)
+                transaction.commitAllowingStateLoss()
+
                 if (::bottomSheetBehavior.isInitialized) {
+                    bottomSheetBehavior.isHideable = true
                     bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+                    bottomSheetBehavior.peekHeight = 0
                 }
+                binding.bottomSheetContainer.visibility = View.GONE
+
+                val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+
+                mapFrag?.setMapPadding(0)
+                mapFrag?.clearMarkers()
 
                 binding.layoutMapSelectOverlay.root.visibility = View.GONE
-
                 binding.routeSearchFcv.visibility = View.VISIBLE
             }else{
                 val resultIntent = android.content.Intent().apply {
@@ -868,6 +908,12 @@ class RouteFragment : Fragment() {
         }
 
         binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.setOnClickListener {
+            if (!isNetworkAvailable()) {
+                NetworkErrorDialog(requireContext()) {
+                    binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.performClick()
+                }.show()
+                return@setOnClickListener
+            }
 
             routeViewModel.fetchAllRouteSchedules()
 
@@ -930,7 +976,8 @@ class RouteFragment : Fragment() {
 
         // 바텀시트 높이 설정
         val bottomSheetBehavior = BottomSheetBehavior.from(sheetBinding.root.parent as View)
-        bottomSheetBehavior.peekHeight = (400 * resources.displayMetrics.density).toInt()
+//        bottomSheetBehavior.peekHeight = (400 * resources.displayMetrics.density).toInt()
+        bottomSheetBehavior.peekHeight = getScreenHeightPercentage(0.5f)
         bottomSheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
 
         dialog.show()
@@ -1030,7 +1077,8 @@ class RouteFragment : Fragment() {
 
             behavior.isHideable = false
             behavior.state = BottomSheetBehavior.STATE_COLLAPSED
-            behavior.peekHeight = (250 * resources.displayMetrics.density).toInt() // 지도 보일 정도 높이
+//            behavior.peekHeight = (250 * resources.displayMetrics.density).toInt() // 지도 보일 정도 높이
+            bottomSheetBehavior.peekHeight = getScreenHeightPercentage(0.3f)
 
             RouteDetailHelper.setupData(requireContext(),bottomSheetView, item, selectedEndPlace?.first ?: "", selectedStartPlace?.first ?: "")
 
@@ -1452,6 +1500,13 @@ private fun selectCurrentLocation() {
     }
 
     fun onPoiSelected(placeId: String) {
+        if (!isNetworkAvailable()) {
+            NetworkErrorDialog(requireContext()) {
+                onPoiSelected(placeId)
+            }.show()
+            return
+        }
+
         val ctx = context ?: return
 
         // 1. Google Place API 클라이언트 확인
@@ -1558,6 +1613,13 @@ private fun selectCurrentLocation() {
     }
 
     fun onRecommendItemClick(item: SearchItem) {
+        if (!isNetworkAvailable()) {
+            NetworkErrorDialog(requireContext()) {
+                onRecommendItemClick(item)
+            }.show()
+            return
+        }
+
         hideKeyboard()
         mainBinding?.searchEt?.clearFocus()
         Log.d("DEBUG_CLICK", "Clicked item ID: ${item.placeId}, Name: ${item.name}")
@@ -2055,6 +2117,38 @@ private fun selectCurrentLocation() {
             return
         }
 
+        val detailFrag = childFragmentManager.findFragmentByTag("DETAIL")
+        if (detailFrag != null && detailFrag.isVisible) {
+            childFragmentManager.popBackStack()
+            bottomSheetBehavior.isDraggable = true
+            if (isDetailFromRecommend) {
+                bottomSheetBehavior.isHideable = true
+                bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+                if (!isBookmarkSearchMode) {
+                    enterSearchMode()
+                }
+            } else {
+                bottomSheetBehavior.isHideable = false
+                val density = resources.displayMetrics.density
+//                bottomSheetBehavior.peekHeight = (130 * density).toInt()
+                bottomSheetBehavior.peekHeight = getScreenHeightPercentage(0.16f)
+                bottomSheetBehavior.expandedOffset = 0
+                bottomSheetBehavior.isFitToContents = false
+                bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
+
+                setMapPaddingToBottomSheetHeight()
+            }
+            val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+            mapFrag?.restoreAllMarkers()
+            return
+        }
+
+        if (isBottomSheetVisible()) {
+            bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+            enterSearchMode()
+            return
+        }
+
         if (isSearchMode()) {
             if (isBookmarkSearchMode) {
                 exitBookmarkSearchMode()
@@ -2135,7 +2229,8 @@ private fun selectCurrentLocation() {
             } else {
                 bottomSheetBehavior.isHideable = false
                 val density = resources.displayMetrics.density
-                bottomSheetBehavior.peekHeight = (130 * density).toInt()
+//                bottomSheetBehavior.peekHeight = (130 * density).toInt()
+                bottomSheetBehavior.peekHeight = getScreenHeightPercentage(0.16f)
                 bottomSheetBehavior.expandedOffset = 0
                 bottomSheetBehavior.isFitToContents = false
                 bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
@@ -2239,7 +2334,8 @@ private fun selectCurrentLocation() {
             } else {
                 bottomSheetBehavior.isHideable = false
                 val density = resources.displayMetrics.density
-                bottomSheetBehavior.peekHeight = (130 * density).toInt()
+//                bottomSheetBehavior.peekHeight = (130 * density).toInt()
+                bottomSheetBehavior.peekHeight = getScreenHeightPercentage(0.16f)
                 bottomSheetBehavior.expandedOffset = 0
                 bottomSheetBehavior.isFitToContents = false
                 bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
@@ -2637,7 +2733,8 @@ private fun selectCurrentLocation() {
             isHideable = false
 
             val density = resources.displayMetrics.density
-            peekHeight = (130 * density).toInt()
+//            peekHeight = (130 * density).toInt()
+            peekHeight = getScreenHeightPercentage(0.5f)
 
             expandedOffset = 0
             state = BottomSheetBehavior.STATE_HALF_EXPANDED
@@ -2669,7 +2766,8 @@ private fun selectCurrentLocation() {
         bottomSheetBehavior.apply {
             isFitToContents = false
             halfExpandedRatio = 0.5f
-            peekHeight = (130 * resources.displayMetrics.density).toInt()
+//            peekHeight = (130 * resources.displayMetrics.density).toInt()
+            peekHeight = getScreenHeightPercentage(0.16f)
             isHideable = true
             state = BottomSheetBehavior.STATE_HIDDEN
         }
@@ -2721,7 +2819,8 @@ private fun selectCurrentLocation() {
             bottomSheetBehavior.apply {
                 isDraggable = false
                 state = BottomSheetBehavior.STATE_COLLAPSED
-                peekHeight = (130 * resources.displayMetrics.density).toInt()
+//                peekHeight = (130 * resources.displayMetrics.density).toInt()
+                peekHeight = getScreenHeightPercentage(0.16f)
             }
         } else {
             bottomSheetBehavior.apply {
@@ -2745,10 +2844,11 @@ private fun selectCurrentLocation() {
 
         bottomSheetBehavior.apply {
             val density = resources.displayMetrics.density
-            peekHeight = (130 * density).toInt()
+//            peekHeight = (130 * density).toInt()
+            peekHeight = getScreenHeightPercentage(0.5f)
             isFitToContents = false
             halfExpandedRatio = 0.5f
-            expandedOffset = (resources.displayMetrics.heightPixels * 0.5).toInt()
+            expandedOffset = getScreenHeightPercentage(0.5f)
             isHideable = false
             state = BottomSheetBehavior.STATE_HALF_EXPANDED
         }
@@ -2893,6 +2993,21 @@ private fun setupMyLocationButton() {
         return insets?.isVisible(WindowInsetsCompat.Type.ime()) ?: false
     }
     private fun initPlacesClient() { if (!Places.isInitialized()) Places.initialize(requireContext(), BuildConfig.GOOGLE_API_KEY); placesClient = Places.createClient(requireContext()); sessionToken = AutocompleteSessionToken.newInstance() }
+
+    private fun isNetworkAvailable(): Boolean {
+        val connectivityManager = requireContext().getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val activeNetwork = connectivityManager.getNetworkCapabilities(network) ?: return false
+
+        return activeNetwork.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) ||
+                activeNetwork.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                activeNetwork.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)
+    }
+
+    private fun getScreenHeightPercentage(ratio: Float): Int {
+        val screenHeight = resources.displayMetrics.heightPixels
+        return (screenHeight * ratio).toInt()
+    }
 
     private fun convertTypeToKorean(types: List<String>): String {
         return when {
