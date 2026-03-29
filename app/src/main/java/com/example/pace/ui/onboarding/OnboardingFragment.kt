@@ -1,4 +1,4 @@
-﻿package com.example.pace.ui.onboarding
+package com.example.pace.ui.onboarding
 
 import android.content.Intent
 import android.net.ConnectivityManager

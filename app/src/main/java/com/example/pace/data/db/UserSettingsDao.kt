@@ -1,4 +1,4 @@
-﻿package com.example.pace.data.db
+package com.example.pace.data.db
 
 import androidx.room.*
 import com.example.pace.data.model.UserSettingsEntity

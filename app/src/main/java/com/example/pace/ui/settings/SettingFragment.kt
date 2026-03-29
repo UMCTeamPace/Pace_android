@@ -1,4 +1,4 @@
-﻿package com.example.pace.ui.settings
+package com.example.pace.ui.settings
 
 import android.content.Intent
 import android.net.Uri

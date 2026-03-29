@@ -1,4 +1,4 @@
-﻿package com.example.pace.data.repository.repositoryImpl
+package com.example.pace.data.repository.repositoryImpl
 
 import android.content.ContentUris
 import android.content.ContentValues
@@ -605,15 +605,26 @@ class ScheduleRepositoryImpl @Inject constructor(
     private fun String?.toUtcIsoString(): String? {
         if (this.isNullOrBlank()) return this
         return try {
-            if (endsWith("Z")) {
-                OffsetDateTime.parse(this)
-                    .withOffsetSameInstant(ZoneOffset.UTC)
-                    .format(UTC_API_TIME_FORMATTER)
-            } else {
-                LocalDateTime.parse(this)
-                    .atZone(ROUTE_SOURCE_ZONE)
-                    .withZoneSameInstant(ZoneOffset.UTC)
-                    .format(UTC_API_TIME_FORMATTER)
+            when {
+                endsWith("Z") -> {
+                    OffsetDateTime.parse(this)
+                        .withOffsetSameInstant(ZoneOffset.UTC)
+                        .format(UTC_API_TIME_FORMATTER)
+                }
+
+                contains("+") || lastIndexOf('-') > "yyyy-MM-dd".lastIndex -> {
+                    OffsetDateTime.parse(this)
+                        .withOffsetSameInstant(ZoneOffset.UTC)
+                        .format(UTC_API_TIME_FORMATTER)
+                }
+
+                else -> {
+                    // Route API currently returns UTC timestamps without an explicit offset.
+                    // Treat timezone-less route times as already-UTC and only normalize format.
+                    LocalDateTime.parse(this)
+                        .atOffset(ZoneOffset.UTC)
+                        .format(UTC_API_TIME_FORMATTER)
+                }
             }
         } catch (_: DateTimeParseException) {
             this

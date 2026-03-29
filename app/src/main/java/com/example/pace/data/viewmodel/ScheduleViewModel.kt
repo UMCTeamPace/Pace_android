@@ -96,6 +96,9 @@ class ScheduleViewModel @Inject constructor(
     private val _selectedIds = MutableStateFlow<Set<Long>>(emptySet())
     val selectedIds: StateFlow<Set<Long>> = _selectedIds
 
+    private val _selectedOccurrenceKeys = MutableStateFlow<Set<String>>(emptySet())
+    val selectedOccurrenceKeys: StateFlow<Set<String>> = _selectedOccurrenceKeys
+
     private val _createScheduleEvent = MutableStateFlow<Boolean?>(null)
     val createScheduleEvent: StateFlow<Boolean?> = _createScheduleEvent
 
@@ -121,12 +124,24 @@ class ScheduleViewModel @Inject constructor(
     fun setEditMode(enabled: Boolean) {
         _isEditMode.value = enabled
         if (!enabled) _selectedIds.value = emptySet() // Clear selection when edit mode ends
+        if (!enabled) _selectedOccurrenceKeys.value = emptySet()
     }
 
     fun toggleSelection(id: Long) {
         val current = _selectedIds.value.toMutableSet()
         if (current.contains(id)) current.remove(id) else current.add(id)
         _selectedIds.value = current
+    }
+
+    fun toggleOccurrenceSelection(scheduleId: Long, occurrenceDate: String) {
+        val key = buildOccurrenceSelectionKey(scheduleId, occurrenceDate)
+        val current = _selectedOccurrenceKeys.value.toMutableSet()
+        if (current.contains(key)) current.remove(key) else current.add(key)
+        _selectedOccurrenceKeys.value = current
+    }
+
+    fun buildOccurrenceSelectionKey(scheduleId: Long, occurrenceDate: String): String {
+        return "$scheduleId|$occurrenceDate"
     }
 
     fun deleteSelected() {
