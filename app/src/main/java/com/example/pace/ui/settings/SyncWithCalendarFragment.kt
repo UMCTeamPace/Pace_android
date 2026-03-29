@@ -53,9 +53,21 @@ class SyncWithCalendarFragment : Fragment() {
             viewModel.userSettings.collect { settings ->
                 val allCalendars = fetchAllCalendars()
                 // Entity에 저장된 동기화된 ID 리스트를 어댑터에 전달
-                syncAdapter.submitData(allCalendars, settings?.syncedCalendarIds ?: emptyList())
+                val effectiveIds = filterAvailableCalendarIds(
+                    settings?.syncedCalendarIds ?: emptyList(),
+                    allCalendars
+                )
+                syncAdapter.submitData(allCalendars, effectiveIds)
             }
         }
+    }
+
+    private fun filterAvailableCalendarIds(
+        selectedIds: List<Long>,
+        calendars: List<CalendarAccount>
+    ): List<Long> {
+        val availableIds = calendars.mapNotNull { it.id.toLongOrNull() }.toSet()
+        return selectedIds.filter { it in availableIds }
     }
 
     private fun fetchAllCalendars(): List<CalendarAccount> {

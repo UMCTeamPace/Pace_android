@@ -172,11 +172,12 @@ class GeneralScheduleFragment : Fragment() {
                     }
                     // 캘린더 초기화
                     if (currentSelectedCalendarId == null) {
-                        currentSelectedCalendarId = it.calendarId
-                        val calendarName = viewModel.getCalendarNameById(it.calendarId)
+                        val resolvedCalendarId = resolveDefaultCalendarId(it.calendarId)
+                        currentSelectedCalendarId = resolvedCalendarId
+                        val calendarName = viewModel.getCalendarNameById(resolvedCalendarId)
                         binding.tvCalendarStatus.text = calendarName
                         binding.tvCalendarStatus.setTextColor(Color.BLACK)
-                        applyCalendarColor(it.calendarId)
+                        applyCalendarColor(resolvedCalendarId)
                     }
                 }
             }
@@ -1077,11 +1078,12 @@ class GeneralScheduleFragment : Fragment() {
 
             // 캘린더: 사용자가 아직 수정 안 했다면 기본값 표시
             if (currentSelectedCalendarId == null) {
-                currentSelectedCalendarId = settings.calendarId
-                val calendarName = viewModel.getCalendarNameById(settings.calendarId)
+                val resolvedCalendarId = resolveDefaultCalendarId(settings.calendarId)
+                currentSelectedCalendarId = resolvedCalendarId
+                val calendarName = viewModel.getCalendarNameById(resolvedCalendarId)
                 binding.tvCalendarStatus.text = calendarName
                 binding.tvCalendarStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.black))
-                applyCalendarColor(settings.calendarId)
+                applyCalendarColor(resolvedCalendarId)
             }
         }
     }
@@ -1100,6 +1102,32 @@ class GeneralScheduleFragment : Fragment() {
         if (color == 0) return
         currentSelectedCalendarColor = color
         binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(color)
+    }
+
+    private fun resolveDefaultCalendarId(preferredId: Long): Long {
+        if (preferredId == -1L) return -1L
+
+        val projection = arrayOf(android.provider.CalendarContract.Calendars._ID)
+        val cursor = requireContext().contentResolver.query(
+            android.provider.CalendarContract.Calendars.CONTENT_URI,
+            projection,
+            null,
+            null,
+            null
+        )
+
+        val availableIds = mutableListOf<Long>()
+        cursor?.use {
+            while (it.moveToNext()) {
+                availableIds.add(it.getLong(0))
+            }
+        }
+
+        return when {
+            preferredId in availableIds -> preferredId
+            availableIds.isNotEmpty() -> availableIds.first()
+            else -> -1L
+        }
     }
 
     private fun getSaveColorInt(): Int {

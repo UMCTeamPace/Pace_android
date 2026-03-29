@@ -56,8 +56,21 @@ class DefaultCalendarFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.userSettings.collect { settings ->
                 val currentId = settings?.calendarId ?: -1L
-                calendarAdapter.submitList(allCalendars, currentId)
+                val effectiveId = resolveDefaultCalendarId(currentId, allCalendars)
+                calendarAdapter.submitList(allCalendars, effectiveId)
             }
+        }
+    }
+
+    private fun resolveDefaultCalendarId(
+        preferredId: Long,
+        calendars: List<CalendarAccount>
+    ): Long {
+        val availableIds = calendars.mapNotNull { it.id.toLongOrNull() }
+        return when {
+            preferredId in availableIds -> preferredId
+            availableIds.isNotEmpty() -> availableIds.first()
+            else -> -1L
         }
     }
 

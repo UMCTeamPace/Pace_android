@@ -7,8 +7,6 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.example.pace.data.datasource.AuthDataStore
 import com.example.pace.data.db.UserSettingsDao
-import com.example.pace.data.model.request.AlarmSettingRequest
-import com.example.pace.data.model.request.UpdateSettingsRequest
 import com.example.pace.data.model.toUpdateRequest
 import com.example.pace.data.repository.repository.SettingsRepository
 import dagger.assisted.Assisted
@@ -23,11 +21,9 @@ class SyncSettingsWorker @AssistedInject constructor(
     private val authDataStore: AuthDataStore
 ) : CoroutineWorker(context, workerParams) {
 
-    private val LOCAL_USER_ID = 1L
-
     override suspend fun doWork(): Result {
         // 1. 로컬 DB에서 최신 설정 데이터 가져오기
-        val settings = dao.getSettings(LOCAL_USER_ID) ?: return Result.success()
+        val settings = dao.getUnsyncedSettings() ?: return Result.success()
 
         // 2. 이미 만들어둔 확장 함수를 사용하여 Request 조립 (필요 없는 필드 자동 정리)
         val request = settings.toUpdateRequest()
@@ -47,7 +43,7 @@ class SyncSettingsWorker @AssistedInject constructor(
 
             if (response.isSuccess) {
                 // 5. 성공 시 로컬 DB 동기화 상태 업데이트
-                dao.updateSyncStatus(LOCAL_USER_ID, true)
+                dao.updateSyncStatus(settings.id, true)
                 Log.d("PACE_SYNC", "✅ 백그라운드 설정 동기화 완료")
                 Result.success()
             } else {

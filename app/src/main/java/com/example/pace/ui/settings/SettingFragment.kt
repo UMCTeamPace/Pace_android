@@ -1,4 +1,4 @@
-package com.example.pace.ui.settings
+﻿package com.example.pace.ui.settings
 
 import android.content.Intent
 import android.net.Uri
@@ -22,6 +22,7 @@ import com.example.pace.data.repository.repository.MemberControllerRepository
 import com.example.pace.data.viewmodel.SettingsViewModel
 import com.example.pace.databinding.FragmentSettingBinding
 import com.example.pace.ui.splash.SplashActivity
+import com.kakao.sdk.auth.AuthApiClient
 import com.kakao.sdk.user.UserApiClient
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -127,7 +128,7 @@ class SettingFragment : Fragment() {
 
         binding.settingsSignoutLl.setOnClickListener {
             val signoutDialog = SignoutDialog(requireContext())
-            signoutDialog.setOnOkClickListener { kakaoLogout() }
+            signoutDialog.setOnOkClickListener { logoutMember() }
             signoutDialog.show()
         }
 
@@ -165,6 +166,37 @@ class SettingFragment : Fragment() {
                 }
                 is DefaultResponse.Failure -> {
                     Log.e("WITHDRAW", "회원 탈퇴 API 실패: ${response.code}, ${response.message}")
+                }
+            }
+        }
+    }
+
+
+    private fun logoutMember() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val app = requireActivity().application as PaceApplication
+            val accessToken = app.authDataStore.getAccessToken()
+
+            if (accessToken.isNullOrBlank()) {
+                Log.e("LOGOUT", "저장된 액세스 토큰이 없어 로컬 정리 후 연결 해제를 진행합니다.")
+                app.authDataStore.clearTokens()
+                kakaoUnlink()
+                return@launch
+            }
+
+            val bearerToken = if (accessToken.startsWith("Bearer ")) {
+                accessToken
+            } else {
+                "Bearer $accessToken"
+            }
+
+            when (val response = memberControllerRepository.logout(bearerToken)) {
+                is DefaultResponse.Success -> {
+                    Log.i("LOGOUT", "로그아웃 API 성공")
+                    kakaoUnlink()
+                }
+                is DefaultResponse.Failure -> {
+                    Log.e("LOGOUT", "로그아웃 API 실패: ${response.code}, ${response.message}")
                 }
             }
         }
@@ -250,21 +282,44 @@ class SettingFragment : Fragment() {
     }
 
     private fun kakaoUnlink() {
-        UserApiClient.instance.unlink { error ->
-            if (error != null) {
-                Log.e("KAKAO", "탈퇴 통신 실패 - 하지만 데이터를 강제 초기화합니다.", error)
-            } else {
-                Log.i("KAKAO", "탈퇴 성공")
+        val app = requireActivity().application as PaceApplication
+        val hasKakaoToken = AuthApiClient.instance.hasToken()
+        Log.d("KAKAO", "Before unlink, SDK has token: $hasKakaoToken")
+
+        if (!hasKakaoToken) {
+            Log.e("KAKAO", "Cannot unlink because Kakao SDK token is missing.")
+            Log.d(
+                "KAKAO",
+                "Server token state access=${!app.authDataStore.getAccessToken().isNullOrBlank()}, refresh=${!app.authDataStore.getRefreshToken().isNullOrBlank()}, temp=${!app.authDataStore.getTempToken().isNullOrBlank()}"
+            )
+            app.authDataStore.clearAllData()
+            navigateToLogin()
+            return
+        }
+
+        UserApiClient.instance.accessTokenInfo { _, tokenError ->
+            if (tokenError != null) {
+                Log.e("KAKAO", "Kakao token validation/refresh failed before unlink.", tokenError)
+                app.authDataStore.clearAllData()
+                navigateToLogin()
+                return@accessTokenInfo
             }
 
-            val app = requireActivity().application as PaceApplication
-            app.authDataStore.clearAllData()
+            Log.d("KAKAO", "Kakao token validation succeeded before unlink.")
 
-            Log.d("KAKAO", "탈퇴 유저: 모든 설정 초기화 완료")
-            navigateToLogin()
+            UserApiClient.instance.unlink { error ->
+                if (error != null) {
+                    Log.e("KAKAO", "Unlink failed. Clearing local data anyway.", error)
+                } else {
+                    Log.i("KAKAO", "Unlink succeeded")
+                }
+
+                app.authDataStore.clearAllData()
+                Log.d("KAKAO", "Local auth data cleared after logout flow")
+                navigateToLogin()
+            }
         }
     }
-
     private fun navigateToLogin() {
         val intent = Intent(requireContext(), SplashActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK

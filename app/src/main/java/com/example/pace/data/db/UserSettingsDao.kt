@@ -1,4 +1,4 @@
-package com.example.pace.data.db
+﻿package com.example.pace.data.db
 
 import androidx.room.*
 import com.example.pace.data.model.UserSettingsEntity
@@ -31,7 +31,7 @@ interface UserSettingsDao {
     @Query("SELECT * FROM user_settings WHERE id = :memberId")
     fun getSettingsFlow(memberId: Long): Flow<UserSettingsEntity?>
 
-    @Query("SELECT * FROM user_settings LIMIT 1") // 테이블명은 본인의 엔티티에 맞게 수정
+    @Query("SELECT * FROM user_settings ORDER BY lastUpdated DESC LIMIT 1") // 테이블명은 본인의 엔티티에 맞게 수정
     fun getUserSettings(): Flow<UserSettingsEntity?>
 
 }

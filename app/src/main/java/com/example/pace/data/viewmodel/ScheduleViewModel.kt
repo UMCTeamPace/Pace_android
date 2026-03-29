@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
@@ -132,7 +133,7 @@ class ScheduleViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             // Bulk delete logic
             val idsToDelete = _selectedIds.value.toList()
-            // repository.deleteSchedules(idsToDelete) // ???⑥닔??repository???덉뼱???⑸땲??
+            // repository.deleteSchedules(idsToDelete) // 삭제 함수는 repository 쪽 구현 확인이 필요합니다.
 
             withContext(Dispatchers.Main) {
                 setEditMode(false) // Exit edit mode after delete
@@ -150,9 +151,26 @@ class ScheduleViewModel @Inject constructor(
     val userSettings: StateFlow<UserSettingsEntity?> = settingsRepository.getUserSettings()
         .flowOn(Dispatchers.IO)
         .stateIn(viewModelScope, SharingStarted.Companion.WhileSubscribed(5000), null)
+
+    // Raw schedule streams
+    val allSchedules = repository.allSchedules
+    val calendarEvents = repository.calendarEvents
+
     init {
         updateRangeText()
         refreshSchedules()
+        observeCalendarChanges()
+    }
+
+    private fun observeCalendarChanges() {
+        viewModelScope.launch {
+            calendarEvents
+                .debounce(500)
+                .collect {
+                    Log.d("CALENDAR_OBSERVER", "기기 캘린더 변경 감지, 일정 새로고침 실행")
+                    refreshSchedules()
+                }
+        }
     }
 
 
@@ -254,11 +272,6 @@ class ScheduleViewModel @Inject constructor(
             started = SharingStarted.Companion.WhileSubscribed(5000),
             initialValue = emptyMap()
         )
-
-
-    // Raw schedule streams
-    val allSchedules = repository.allSchedules
-    val calendarEvents = repository.calendarEvents
 
 
     fun refreshSchedules() {
@@ -574,8 +587,13 @@ class ScheduleViewModel @Inject constructor(
     fun getScheduleDetail(scheduleId: Long) {
         viewModelScope.launch {
             val token = authDataStore.getAccessToken() ?: ""
+            val fullToken = if (token.isNotEmpty() && !token.startsWith("Bearer ")) {
+                "Bearer $token"
+            } else {
+                token
+            }
 
-            val response = repository.getScheduleDetail(token, scheduleId)
+            val response = repository.getScheduleDetail(fullToken, scheduleId)
 
             if (response.isSuccess && response.result != null) {
                 _scheduleDetailInfo.value = response.result
@@ -782,7 +800,12 @@ class ScheduleViewModel @Inject constructor(
                 val accessToken = authDataStore.getAccessToken()
 
                 if (accessToken != null) {
-                    val response = repository.getScheduleDetail(accessToken, scheduleId)
+                    val fullToken = if (!accessToken.startsWith("Bearer ")) {
+                        "Bearer $accessToken"
+                    } else {
+                        accessToken
+                    }
+                    val response = repository.getScheduleDetail(fullToken, scheduleId)
 
                     if (response.isSuccess && response.result != null) {
                         val routeData = response.result.route

@@ -15,16 +15,20 @@ import androidx.viewpager2.adapter.FragmentStateAdapter
 import com.example.pace.PaceApplication
 import com.example.pace.data.model.request.KakaoLoginRequest
 import com.example.pace.data.model.response.DefaultResponse
+import com.example.pace.data.model.response.toEntity
 import com.example.pace.data.repository.repository.AuthControllerRepository
+import com.example.pace.data.repository.repository.SettingsRepository
 import com.example.pace.databinding.FragmentOnboardingBinding
 import com.example.pace.ui.NetworkErrorDialog
 import com.example.pace.ui.main.MainActivity
+import com.kakao.sdk.auth.AuthApiClient
 import com.kakao.sdk.auth.model.OAuthToken
 import com.kakao.sdk.user.UserApiClient
 import com.kakao.sdk.common.model.ClientError
 import com.kakao.sdk.common.model.ClientErrorCause
 import com.kakao.sdk.common.util.Utility
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -32,6 +36,8 @@ import javax.inject.Inject
 class OnboardingFragment : Fragment() {
     @Inject
     lateinit var authControllerRepository: AuthControllerRepository
+    @Inject
+    lateinit var settingsRepository: SettingsRepository
 
     private var _binding: FragmentOnboardingBinding? = null
     private val binding get() = _binding!!
@@ -124,6 +130,7 @@ class OnboardingFragment : Fragment() {
                 Log.e("KakaoLogin", "로그인 실패", error)
             } else if (token != null) {
                 Log.d("KakaoLogin", "kakaoAccessToken=${token.accessToken}")
+                Log.d("KakaoLogin", "SDK hasToken after login=${AuthApiClient.instance.hasToken()}")
                 handleKakaoToken(token.accessToken)
             }
         }
@@ -135,6 +142,7 @@ class OnboardingFragment : Fragment() {
                     UserApiClient.instance.loginWithKakaoAccount(requireContext(), callback = callback)
                 } else if (token != null) {
                     Log.d("KakaoLogin", "kakaoAccessToken=${token.accessToken}")
+                    Log.d("KakaoLogin", "SDK hasToken after login=${AuthApiClient.instance.hasToken()}")
                     handleKakaoToken(token.accessToken)
                 }
             }
@@ -168,6 +176,7 @@ class OnboardingFragment : Fragment() {
                         }
                         !result.accessToken.isNullOrBlank() && !result.refreshToken.isNullOrBlank() -> {
                             Log.d("LOGIN_FLOW", "정식 토큰 발급 완료: 메인으로 이동합니다.")
+                            fetchAndStoreMemberSettings(result.accessToken)
                             app.authDataStore.setOnboardingComplete(true)
                             startActivity(Intent(requireContext(), MainActivity::class.java))
                             activity?.finish()
@@ -181,6 +190,18 @@ class OnboardingFragment : Fragment() {
                     Log.e("KakaoLogin", "서버 로그인 실패: ${response.code}, ${response.message}")
                 }
             }
+        }
+    }
+
+    private suspend fun fetchAndStoreMemberSettings(accessToken: String) {
+        val bearerToken = if (accessToken.startsWith("Bearer ")) accessToken else "Bearer $accessToken"
+        val response = settingsRepository.getMemberSettings(bearerToken)
+        if (response.isSuccess && response.result != null) {
+            val existing = settingsRepository.getUserSettings().firstOrNull()
+            settingsRepository.updateSettingsLocally(response.result.toEntity(existing))
+            Log.d("SETTINGS_BOOTSTRAP", "기존 회원 설정을 로컬 DB에 저장했습니다.")
+        } else {
+            Log.e("SETTINGS_BOOTSTRAP", "설정 조회 실패: ${response.code}, ${response.message}")
         }
     }
 

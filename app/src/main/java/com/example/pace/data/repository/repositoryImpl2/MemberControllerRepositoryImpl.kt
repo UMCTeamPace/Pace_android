@@ -15,7 +15,7 @@ class MemberControllerRepositoryImpl @Inject constructor(
         val response = api.logout(accessToken)
 
         return if (response.isSuccess) {
-            authDataStore.deleteToken()
+            authDataStore.clearTokens()
             DefaultResponse.Success(response.result)
         } else {
             DefaultResponse.Failure(response.code, response.message)
