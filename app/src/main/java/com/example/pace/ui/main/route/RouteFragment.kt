@@ -1736,6 +1736,9 @@ private fun selectCurrentLocation() {
         val start = selectedStartPlace ?: return
         val end = selectedEndPlace ?: return
 
+        if (start.second == end.second && start.second.isNotEmpty()) return
+        if (start.first == end.first) return
+
         val newRoute = RecentRoute(
             startPlaceName = start.first,
             startPlaceId = start.second,
