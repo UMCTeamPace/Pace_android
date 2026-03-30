@@ -79,6 +79,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import java.lang.AutoCloseable
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -3000,7 +3001,19 @@ class RouteFragment : Fragment() {
         // 2. IME(입력기, 즉 키보드) 영역이 보이는지 확인
         return insets?.isVisible(WindowInsetsCompat.Type.ime()) ?: false
     }
-    private fun initPlacesClient() { if (!Places.isInitialized()) Places.initialize(requireContext(), BuildConfig.GOOGLE_API_KEY); placesClient = Places.createClient(requireContext()); sessionToken = AutocompleteSessionToken.newInstance() }
+    private fun initPlacesClient() {
+        if (!Places.isInitialized()) {
+            Places.initialize(requireContext(), BuildConfig.GOOGLE_API_KEY)
+        }
+
+        //이미 초기화 되어있으면 재생성하지 않음
+        if(!::placesClient.isInitialized){
+            placesClient = Places.createClient(requireContext())
+        }
+        if(sessionToken == null) {
+            sessionToken = AutocompleteSessionToken.newInstance()
+        }
+    }
 
     private fun isNetworkAvailable(): Boolean {
         val connectivityManager = requireContext().getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
@@ -3081,16 +3094,22 @@ class RouteFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        //placesClient 정리추가
+        if(::placesClient.isInitialized){
+            try{
+                (placesClient as? AutoCloseable)?.close()
+            }catch (e: Exception){
+                Log.e("PlacesClient", "close error: ${e.message}")
+            }
+        }
         (activity as? MainActivity)?.binding?.let { activityBinding ->
             activityBinding.searchEt.setOnFocusChangeListener(null)
             activityBinding.searchEt.setOnEditorActionListener(null)
-
             activityBinding.btnSearch.setOnClickListener(null)
             activityBinding.mainBackIv.setOnClickListener(null)
         }
 
         searchJob?.cancel()
-
         super.onDestroyView()
         _binding = null
     }
