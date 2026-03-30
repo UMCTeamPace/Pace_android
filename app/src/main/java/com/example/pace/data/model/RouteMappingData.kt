@@ -11,5 +11,5 @@ data class RouteMappingData(
     val item: RouteResponse,
     val startName: String,
     val destination: String,
-    val supportFragmentManager: FragmentManager
+    val fragmentManager: FragmentManager
 )

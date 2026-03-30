@@ -10,14 +10,17 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
 import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import androidx.core.text.buildSpannedString
 import androidx.core.text.color
 import androidx.core.view.setPadding
 import androidx.core.view.updatePadding
 import androidx.fragment.app.FragmentManager
 import com.example.pace.R
+import com.example.pace.data.model.RouteMappingData
 import com.example.pace.data.model.response.BusItemList
 import com.example.pace.data.model.response.RouteResponse
 import com.example.pace.data.model.response.SubwayTransitResult
@@ -29,19 +32,18 @@ import com.example.pace.databinding.ItemRouteDetailVehicleBinding
 import com.example.pace.databinding.ItemRouteDetailWalkBinding
 import com.example.pace.ui.RouteCalculator
 import com.google.android.material.bottomsheet.BottomSheetBehavior
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlin.math.exp
 
-
 object RouteDetailHelper {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     var subwayResult = emptyList<SubwayTransitResult>()
     var busResult: BusItemList? = null
-
-    fun setupData(context: Context, bottomSheetView: View, item: RouteResponse, destination: String, startName: String, viewModel: TransitViewModel, supportFragmentManager: FragmentManager) {
+    fun setupData(context: Context, bottomSheetView: View, item: RouteResponse, destination: String, startName: String, fragmentManager: FragmentManager){
         val binding = BottomSheetRouteDetailBinding.bind(bottomSheetView)
 
         // 기본 정보
@@ -158,9 +160,65 @@ object RouteDetailHelper {
                     when(data.transitDetail.transitType){
                         "SUBWAY" -> {
                             expandedVehicleBinding.itemRouteDetailVehicleTimetableTv.visibility = View.VISIBLE
+                            //val realtimeSubway = getSubwayDataFromVM(data.transitDetail.lineName, data.transitDetail.departureStop, data.transitDetail.arrivalStop)
+                            if(subwayResult.isNotEmpty()){
+                                subwayResult.forEach {
+                                    val childLayout = LinearLayout(context).apply {
+                                        layoutParams = LinearLayout.LayoutParams(
+                                            LinearLayout.LayoutParams.MATCH_PARENT,
+                                            LinearLayout.LayoutParams.WRAP_CONTENT
+                                        ).apply {
+                                            setPadding((10 * context.resources.displayMetrics.density).toInt())
+                                        }
+                                    }
+                                    val timeText = TextView(context).apply{
+                                        text = if(it.barvlDt == "0"){
+                                            it.arvlMsg2
+                                        }else{
+                                            (it.barvlDt.toInt() / 60).toString()
+                                        }
+                                        typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
+                                        setTextColor(ContextCompat.getColor(context, R.color.semantic_error))
+                                        textSize = 11f
+                                        layoutParams = LinearLayout.LayoutParams(
+                                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                                        )
+                                    }
+                                    val leftStationText = TextView(context).apply{
+                                        text = it.beforeSubwayCount.toString()
+                                        typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
+                                        setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
+                                        textSize = 11f
+                                        layoutParams = LinearLayout.LayoutParams(
+                                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                                        ).apply {
+                                            setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
+                                        }
+                                    }
+                                    val directionText = TextView(context).apply{
+                                        text = it.updnLine
+                                        typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
+                                        setTextColor(ContextCompat.getColor(context, R.color.semantic_error))
+                                        textSize = 11f
+                                        layoutParams = LinearLayout.LayoutParams(
+                                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                                        ).apply {
+                                            setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
+                                        }
+                                    }
+                                    childLayout.addView(timeText)
+                                    childLayout.addView(leftStationText)
+                                    childLayout.addView(directionText)
+                                    expandedVehicleBinding.itemRouteDetailRealtimeLl.addView(childLayout)
+                                }
+                            }
                         }
                         "BUS" -> {
                             expandedVehicleBinding.itemRouteDetailVehicleTimetableTv.visibility = View.INVISIBLE
+                            //val realtimeBus = getBusDataFromVM(data.transitDetail.departureStop, data.transitDetail.arrivalStop, data.transitDetail.lineName)
                         }
                     }
                     if (data.transitDetail.transitType == "SUBWAY" && !departureStopName.endsWith("역")) {
@@ -200,7 +258,7 @@ object RouteDetailHelper {
                     // 지하철 시간표 바텀시트
                     expandedVehicleBinding.itemRouteDetailVehicleTimetableTv.setOnClickListener {
                         val bottomSheet = TimetableBottomSheet(departureStopName, lineName)
-                        bottomSheet.show(supportFragmentManager, bottomSheet.tag)
+                        bottomSheet.show(fragmentManager, bottomSheet.tag)
                     }
                 }
             }
@@ -216,5 +274,4 @@ object RouteDetailHelper {
         arrivalBinding.itemRouteDetailArrivalTv.text = destination
         binding.routeDetailExpandedLl.addView(arrivalBinding.root)
     }
-
 }

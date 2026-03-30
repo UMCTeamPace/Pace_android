@@ -28,6 +28,13 @@ annotation class BaseRetrofit
 @Retention(AnnotationRetention.BINARY)
 annotation class WeatherRetrofit
 
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class SubwayRetrofit
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class BusRetrofit
+
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
@@ -49,7 +56,7 @@ object NetworkModule {
                 val originalRequest = chain.request()
                 val request = chain.request().newBuilder().apply {
                     if (originalRequest.header("Authorization") == null && token != null) {
-                        header("Authorization", token)
+                        header("Authorization", "Bearer $token")
                     }
                 }.build()
                 chain.proceed(request)
@@ -80,7 +87,6 @@ object NetworkModule {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
-
     @Provides
     @Singleton
     fun provideWeatherService(@WeatherRetrofit retrofit: Retrofit): WeatherService {

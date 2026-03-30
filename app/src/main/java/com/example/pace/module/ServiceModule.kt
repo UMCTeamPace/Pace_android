@@ -1,12 +1,14 @@
 package com.example.pace.module
 
 import com.example.pace.data.api.AuthControllerService
+import com.example.pace.data.api.BusService
 import com.example.pace.data.api.MemberControllerService
 import com.example.pace.data.api.OnboardingService
 import com.example.pace.data.api.PlaceGroupService
 import com.example.pace.data.api.SavedPlaceService
 import com.example.pace.data.api.ScheduleService
 import com.example.pace.data.api.SettingsService
+import com.example.pace.data.api.SubwayService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -82,6 +84,15 @@ object ServiceModule {
         return retrofit.create(AuthControllerService::class.java)
     }
 
+    @Provides
+    @Singleton
+    fun provideSubwayService(@BaseRetrofit retrofit: Retrofit): SubwayService{
+        return retrofit.create(SubwayService::class.java)
+    }
 
-
+    @Provides
+    @Singleton
+    fun provideBusService(@BaseRetrofit retrofit: Retrofit): BusService{
+        return retrofit.create(BusService::class.java)
+    }
 }

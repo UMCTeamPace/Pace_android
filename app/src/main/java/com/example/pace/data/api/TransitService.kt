@@ -17,7 +17,7 @@ interface SubwayService {
     // 실시간 지하철 도착 서비스
     @GET("/api/v1/transit/arrivals")
     suspend fun getRealTimeSubwayArrivals(
-        @Header("Authorization") token: String,
+        //@Header("Authorization") token: String,
         @Query("startStationName") startStationName: String,
         @Query("endStationName") endStationName: String,
         @Query("lineName") lineName: String
@@ -57,7 +57,7 @@ interface BusService{
 
     @GET("/api/v1/transit/bus/start-station")
     suspend fun getParameters(
-        @Header("Authorization") token: String,
+        //@Header("Authorization") token: String,
         @Query("lineName") lineName: String,
         @Query("startStation") startStation: String,
         @Query("endStation") endStation: String
