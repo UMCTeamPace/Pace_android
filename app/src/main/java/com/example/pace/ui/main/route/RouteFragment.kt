@@ -780,6 +780,7 @@ class RouteFragment : Fragment() {
 
                 val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
 
+
                 mapFrag?.setMapPadding(0)
                 mapFrag?.clearMarkers()
 
@@ -1088,6 +1089,7 @@ class RouteFragment : Fragment() {
                 peekHeight = getScreenHeightPercentage(0.4f)
                 state = BottomSheetBehavior.STATE_COLLAPSED // 강제로 접힌 상태 설정
             }
+
 
             RouteDetailHelper.setupData(requireContext(),bottomSheetView, item, selectedEndPlace?.first ?: "", selectedStartPlace?.first ?: "", transitViewModel, parentFragmentManager)
 
