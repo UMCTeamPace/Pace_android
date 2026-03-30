@@ -780,6 +780,7 @@ class RouteFragment : Fragment() {
 
                 val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
 
+
                 mapFrag?.setMapPadding(0)
                 mapFrag?.clearMarkers()
 
@@ -1079,18 +1080,20 @@ class RouteFragment : Fragment() {
             binding.layoutRouteDetailOverlay.tvScheduleRouteDetailTime.text = scheduleTime
 
             val bottomSheetView = binding.layoutRouteDetailOverlay.root.findViewById<View>(R.id.sheet_route_detail)
-            val behavior = BottomSheetBehavior.from(bottomSheetView)
+            val detailBehavior = BottomSheetBehavior.from(bottomSheetView) // 지역 변수 명확히 사용
 
-            behavior.isHideable = false
-            behavior.state = BottomSheetBehavior.STATE_COLLAPSED
-//            behavior.peekHeight = (250 * resources.displayMetrics.density).toInt() // 지도 보일 정도 높이
-            bottomSheetBehavior.peekHeight = getScreenHeightPercentage(0.3f)
+            detailBehavior.apply {
+                isHideable = false
+                // peekHeight를 전역 변수가 아닌 detailBehavior에 직접 설정
+                // 0.3f(30%)도 높다면 0.2f(20%) 정도로 조절하세요.
+                peekHeight = getScreenHeightPercentage(0.4f)
+                state = BottomSheetBehavior.STATE_COLLAPSED // 강제로 접힌 상태 설정
+            }
+
 
             RouteDetailHelper.setupData(requireContext(),bottomSheetView, item, selectedEndPlace?.first ?: "", selectedStartPlace?.first ?: "", transitViewModel, parentFragmentManager)
 
             bottomSheetView.post {
-                val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
-
                 val parentHeight = (bottomSheetView.parent as View).height
                 val currentSheetHeight = parentHeight - bottomSheetView.top
 

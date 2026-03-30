@@ -5,8 +5,8 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "recent_places")
 data class RecentPlace(
-    @PrimaryKey val placeId: String,
-    val name: String,
+    @PrimaryKey val name: String,
+    val placeId: String,
     val address: String,
     val category: String,
     val openStatus: String,
