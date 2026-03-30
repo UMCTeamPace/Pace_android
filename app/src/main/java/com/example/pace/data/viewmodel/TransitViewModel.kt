@@ -4,11 +4,14 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pace.BuildConfig
+import com.example.pace.data.api.BusService
 import com.example.pace.data.api.RetrofitClient
+import com.example.pace.data.api.SubwayService
 import com.example.pace.data.datasource.AuthDataStore
 import com.example.pace.data.model.response.BusItemList
 import com.example.pace.data.model.response.StationTimetableItem
 import com.example.pace.data.model.response.SubwayTransitResult
+import com.example.pace.module.BusRetrofit
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,7 +24,9 @@ import javax.inject.Inject
 
 @HiltViewModel
 class TransitViewModel @Inject constructor(
-    private val authStore: AuthDataStore
+    private val authStore: AuthDataStore,
+    private val subwayService: SubwayService,
+    private val busService: BusService,
 ) : ViewModel() {
     // 실시간 지하철
     private val _subwayResult = MutableStateFlow<List<SubwayTransitResult>>(emptyList())
@@ -45,14 +50,14 @@ class TransitViewModel @Inject constructor(
     val busResult = _busResult.asStateFlow()
 
     // 실시간 지하철 도착 정보
-    fun getRealTimeSubwayArrivals(startStationName: String, endStationName: String, lineName: String){
+    fun getRealTimeSubwayArrivals(lineName: String, startStationName: String, endStationName: String){
         val token = authStore.getAccessToken()
-        if(token == null){
+        if(token == null || token.isEmpty()){
             return
         }
         viewModelScope.launch {
             try{
-                val response = RetrofitClient.subwayService.getRealTimeSubwayArrivals(token, startStationName, endStationName, lineName)
+                val response = subwayService.getRealTimeSubwayArrivals(startStationName, endStationName, lineName)
                 val resultList = response.body()?.returnToList(Gson())
 
                 if(response.isSuccessful && !resultList.isNullOrEmpty()){
@@ -244,7 +249,7 @@ class TransitViewModel @Inject constructor(
         }
         viewModelScope.launch {
             try {
-                val parameters = RetrofitClient.busParameterService.getParameters(token, lineName, startStation, endStation)
+                val parameters = busService.getParameters(lineName, startStation, endStation)
 
                 if(parameters.result != null){
                     val routeId = parameters.result.routeId

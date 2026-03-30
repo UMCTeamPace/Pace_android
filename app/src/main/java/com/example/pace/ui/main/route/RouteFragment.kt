@@ -24,6 +24,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -38,6 +39,7 @@ import com.example.pace.data.model.MyPlace
 import com.example.pace.data.model.RecentHistoryItem
 import com.example.pace.data.model.RecentPlace
 import com.example.pace.data.model.RecentRoute
+import com.example.pace.data.model.RouteMappingData
 import com.example.pace.data.model.request.RouteSearchRequest
 import com.example.pace.data.model.response.BusItemList
 import com.example.pace.data.model.response.RouteOnlyScheduleData
@@ -169,7 +171,6 @@ class RouteFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
         searchViewModel.deleteExpiredData()
 
         initPlacesClient()
@@ -310,8 +311,7 @@ class RouteFragment : Fragment() {
 
             routeViewModel.updateScheduleForAdapter(assembledRouteResponse)
             // 헬퍼를 이용해 리사이클러뷰 데이터 채우기
-            RouteDetailHelper.setupData(requireContext(), bottomSheetView, assembledRouteResponse, routeInfo.destName ?: "", routeInfo.originName ?: "", transitViewModel, parentFragmentManager)
-
+            RouteDetailHelper.setupData(requireContext(), bottomSheetView, assembledRouteResponse, routeInfo.destName ?: "", routeInfo.originName ?: "", parentFragmentManager)
             bottomSheetView.post {
                 val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
 
@@ -1091,8 +1091,7 @@ class RouteFragment : Fragment() {
             }
 
 
-            RouteDetailHelper.setupData(requireContext(),bottomSheetView, item, selectedEndPlace?.first ?: "", selectedStartPlace?.first ?: "", transitViewModel, parentFragmentManager)
-
+            RouteDetailHelper.setupData(requireContext(),bottomSheetView, item, selectedEndPlace?.first ?: "", selectedStartPlace?.first ?: "", parentFragmentManager)
             bottomSheetView.post {
                 val parentHeight = (bottomSheetView.parent as View).height
                 val currentSheetHeight = parentHeight - bottomSheetView.top
