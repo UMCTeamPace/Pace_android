@@ -52,7 +52,13 @@ class LocationBottomSheetFragment : Fragment() {
 
         (view.parent as? View)?.backgroundTintList = null
 
-        placesClient = Places.createClient(requireContext())
+        if(!::placesClient.isInitialized) {
+            placesClient=Places.createClient(requireContext())
+        }
+
+        binding.tvFilterLocation.setOnClickListener {
+            showFilterDialog()
+        }
 
         setupRecyclerView()
         setupFilterListeners()
