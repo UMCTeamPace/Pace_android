@@ -221,7 +221,7 @@ object RouteDetailHelper {
             targetLayout.visibility = View.VISIBLE // 뷰 강제 노출
             targetLayout.removeAllViews()
 
-            // 1. 데이터가 비어있을 때 (운행 종료 등)
+            // 1. 데이터가 비어 있을 때 (운행 종료 등)
             if (resultList.isNullOrEmpty()) {
                 val emptyText = TextView(context).apply {
                     text = "현재 도착 예정인 열차가 없습니다."
