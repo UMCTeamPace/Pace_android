@@ -75,14 +75,18 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="3102"
-            android:textAppearance="@style/TextAppearance.App.CaptionLg.Semibold"/>
+            android:textAppearance="@style/TextAppearance.App.CaptionLg.Semibold"
+            android:textColor="@color/white"
+            android:background="@drawable/bg_route_detail_line"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"/>
         <TextView
             android:id="@+id/item_route_detail_vehicle_time_tv"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="11:10"
             android:textAppearance="@style/TextAppearance.App.CaptionLg.Semibold"
-            android:layout_marginStart="16dp"/>
+            android:layout_marginStart="16dp" />
         <TextView
             android:id="@+id/item_route_detail_vehicle_direction_tv"
             android:layout_width="wrap_content"
@@ -99,6 +103,7 @@
         android:layout_height="wrap_content"
         android:padding="10dp"
         android:orientation="vertical"
+        android:background="@drawable/bg_subway_realtime"
         android:layout_marginTop="12dp"
         app:layout_constraintTop_toBottomOf="@id/item_route_detail_vehicle_ll"
         app:layout_constraintStart_toStartOf="@id/item_route_detail_vehicle_ll"

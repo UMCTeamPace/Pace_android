@@ -174,7 +174,6 @@ class RouteFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         searchViewModel.deleteExpiredData()
-
         initPlacesClient()
         initBottomSheet()
         initDetailBottomSheet()
@@ -3008,7 +3007,7 @@ class RouteFragment : Fragment() {
                         }
                         "BUS" -> {
                             val result = transitViewModel.fetchRealTimeBusArrivals(param.lineName, param.startStation, param.endStation)
-                            // TODO: 버스용 UI 업데이트 함수도 Helper에 만들어서 연결 (updateBusUI)
+                            RouteDetailHelper.updateBusUI(requireContext(), param.targetLayout, result)
                         }
                     }
                 }
