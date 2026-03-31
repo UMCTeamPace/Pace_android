@@ -39,11 +39,20 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlin.math.exp
 
+data class RealtimeParam(
+    val type: String, // "SUBWAY" or "BUS"
+    val lineName: String,
+    val startStation: String,
+    val endStation: String,
+    val targetLayout: LinearLayout
+)
+
 object RouteDetailHelper {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     var subwayResult = emptyList<SubwayTransitResult>()
     var busResult: BusItemList? = null
-    fun setupData(context: Context, bottomSheetView: View, item: RouteResponse, destination: String, startName: String, fragmentManager: FragmentManager){
+    fun setupData(context: Context, bottomSheetView: View, item: RouteResponse, destination: String, startName: String, fragmentManager: FragmentManager): List<RealtimeParam> {
+        val realtimeParams = mutableListOf<RealtimeParam>()
         val binding = BottomSheetRouteDetailBinding.bind(bottomSheetView)
 
         // 기본 정보
@@ -117,28 +126,32 @@ object RouteDetailHelper {
                     var arrivalStopName = data.transitDetail.arrivalStop
                     val lineName = data.transitDetail.lineName
 
-                    if (transitType == "SUBWAY" && !arrivalStopName.endsWith("역")) {
-                        arrivalStopName += "역"
-                    }
-
-                    lastArrivalStop = arrivalStopName
-                    // 아이콘 및 색상 설정
                     val layoutDrawable = (ContextCompat.getDrawable(context, R.drawable.ic_route_detail))?.mutate() as LayerDrawable
                     val iconColor = layoutDrawable.findDrawableByLayerId(R.id.ic_route_detail_color)?.mutate() as GradientDrawable
                     val bgColor = briefBinding.itemRouteDetailBriefTv.background.mutate() as GradientDrawable
                     val lineColor = Color.parseColor(data.transitDetail.lineColor)
                     var moreStation = false
 
-                    when(data.transitDetail.transitType){
-                        "BUS" -> {
-                            val busDrawable = ContextCompat.getDrawable(context, R.drawable.ic_bus)
-                            layoutDrawable.setDrawableByLayerId(R.id.ic_route_detail_vehicle, busDrawable)
-                        }
-                        "SUBWAY" -> {
-                            val subwayDrawable = ContextCompat.getDrawable(context, R.drawable.ic_subway)
-                            layoutDrawable.setDrawableByLayerId(R.id.ic_route_detail_vehicle, subwayDrawable)
-                        }
+                    if (transitType == "BUS") {
+                        val busDrawable = ContextCompat.getDrawable(context, R.drawable.ic_bus)
+                        layoutDrawable.setDrawableByLayerId(R.id.ic_route_detail_vehicle, busDrawable)
+
+                        expandedVehicleBinding.itemRouteDetailVehicleTimetableTv.visibility = View.INVISIBLE
+                        realtimeParams.add(RealtimeParam("BUS", lineName, departureStopName, arrivalStopName, expandedVehicleBinding.itemRouteDetailRealtimeLl))
+                    } else if (transitType == "SUBWAY") {
+                        val subwayDrawable = ContextCompat.getDrawable(context, R.drawable.ic_subway)
+                        layoutDrawable.setDrawableByLayerId(R.id.ic_route_detail_vehicle, subwayDrawable)
+
+                        expandedVehicleBinding.itemRouteDetailVehicleTimetableTv.visibility = View.VISIBLE
+                        realtimeParams.add(RealtimeParam("SUBWAY", lineName, departureStopName, arrivalStopName, expandedVehicleBinding.itemRouteDetailRealtimeLl))
                     }
+
+                    if (transitType == "SUBWAY") {
+                        if (!arrivalStopName.endsWith("역")) arrivalStopName += "역"
+                        if (!departureStopName.endsWith("역")) departureStopName += "역"
+                    }
+
+                    lastArrivalStop = arrivalStopName
                     iconColor.setColor(lineColor)
                     bgColor.setColor(lineColor)
 
@@ -157,70 +170,6 @@ object RouteDetailHelper {
                         expandedVehicleBinding.itemRouteDetailVehicleStartTv.visibility = View.INVISIBLE
                     }
 
-                    when(data.transitDetail.transitType){
-                        "SUBWAY" -> {
-                            expandedVehicleBinding.itemRouteDetailVehicleTimetableTv.visibility = View.VISIBLE
-                            //val realtimeSubway = getSubwayDataFromVM(data.transitDetail.lineName, data.transitDetail.departureStop, data.transitDetail.arrivalStop)
-                            if(subwayResult.isNotEmpty()){
-                                subwayResult.forEach {
-                                    val childLayout = LinearLayout(context).apply {
-                                        layoutParams = LinearLayout.LayoutParams(
-                                            LinearLayout.LayoutParams.MATCH_PARENT,
-                                            LinearLayout.LayoutParams.WRAP_CONTENT
-                                        ).apply {
-                                            setPadding((10 * context.resources.displayMetrics.density).toInt())
-                                        }
-                                    }
-                                    val timeText = TextView(context).apply{
-                                        text = if(it.barvlDt == "0"){
-                                            it.arvlMsg2
-                                        }else{
-                                            (it.barvlDt.toInt() / 60).toString()
-                                        }
-                                        typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
-                                        setTextColor(ContextCompat.getColor(context, R.color.semantic_error))
-                                        textSize = 11f
-                                        layoutParams = LinearLayout.LayoutParams(
-                                            LinearLayout.LayoutParams.WRAP_CONTENT,
-                                            LinearLayout.LayoutParams.WRAP_CONTENT,
-                                        )
-                                    }
-                                    val leftStationText = TextView(context).apply{
-                                        text = it.beforeSubwayCount.toString()
-                                        typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
-                                        setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
-                                        textSize = 11f
-                                        layoutParams = LinearLayout.LayoutParams(
-                                            LinearLayout.LayoutParams.WRAP_CONTENT,
-                                            LinearLayout.LayoutParams.WRAP_CONTENT,
-                                        ).apply {
-                                            setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
-                                        }
-                                    }
-                                    val directionText = TextView(context).apply{
-                                        text = it.updnLine
-                                        typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
-                                        setTextColor(ContextCompat.getColor(context, R.color.semantic_error))
-                                        textSize = 11f
-                                        layoutParams = LinearLayout.LayoutParams(
-                                            LinearLayout.LayoutParams.WRAP_CONTENT,
-                                            LinearLayout.LayoutParams.WRAP_CONTENT,
-                                        ).apply {
-                                            setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
-                                        }
-                                    }
-                                    childLayout.addView(timeText)
-                                    childLayout.addView(leftStationText)
-                                    childLayout.addView(directionText)
-                                    expandedVehicleBinding.itemRouteDetailRealtimeLl.addView(childLayout)
-                                }
-                            }
-                        }
-                        "BUS" -> {
-                            expandedVehicleBinding.itemRouteDetailVehicleTimetableTv.visibility = View.INVISIBLE
-                            //val realtimeBus = getBusDataFromVM(data.transitDetail.departureStop, data.transitDetail.arrivalStop, data.transitDetail.lineName)
-                        }
-                    }
                     if (data.transitDetail.transitType == "SUBWAY" && !departureStopName.endsWith("역")) {
                         departureStopName += "역"
                     }
@@ -273,5 +222,61 @@ object RouteDetailHelper {
         arrivalBinding.itemRouteDetailArrivalTimeTv.text = arrivalTime
         arrivalBinding.itemRouteDetailArrivalTv.text = destination
         binding.routeDetailExpandedLl.addView(arrivalBinding.root)
+
+        return realtimeParams
+    }
+
+    fun updateSubwayUI(context: Context, targetLayout: LinearLayout, resultList: List<SubwayTransitResult>?) {
+        // UI 그리기 충돌을 막기 위해 post 블록 사용
+        targetLayout.post {
+            targetLayout.visibility = View.VISIBLE // 뷰 강제 노출
+            targetLayout.removeAllViews()
+
+            // 1. 데이터가 비어있을 때 (운행 종료 등)
+            if (resultList.isNullOrEmpty()) {
+                val emptyText = TextView(context).apply {
+                    text = "현재 도착 예정인 열차가 없습니다."
+                    setTextColor(Color.parseColor("#757575")) // 회색
+                    textSize = 12f
+
+                    val dp10 = (10 * context.resources.displayMetrics.density).toInt()
+                    setPadding(dp10, dp10, dp10, dp10)
+
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                }
+                targetLayout.addView(emptyText)
+                return@post
+            }
+
+            // 2. 데이터가 있을 때 정상적으로 그리기
+            resultList.forEach {
+                val childLayout = LinearLayout(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                        setPadding((10 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
+                    }
+                }
+                val timeText = TextView(context).apply {
+                    text = if(it.barvlDt == "0") it.arvlMsg2 else (it.barvlDt.toInt() / 60).toString() + "분"
+                    typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
+                    setTextColor(ContextCompat.getColor(context, R.color.semantic_error))
+                    textSize = 11f
+                }
+                val leftStationText = TextView(context).apply {
+                    text = "${it.beforeSubwayCount}정거장 전"
+                    typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
+                    setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
+                    textSize = 11f
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                        setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
+                    }
+                }
+                childLayout.addView(timeText)
+                childLayout.addView(leftStationText)
+                targetLayout.addView(childLayout)
+            }
+        }
     }
 }

@@ -50,26 +50,26 @@ class TransitViewModel @Inject constructor(
     val busResult = _busResult.asStateFlow()
 
     // 실시간 지하철 도착 정보
-    fun getRealTimeSubwayArrivals(lineName: String, startStationName: String, endStationName: String){
+    suspend fun fetchRealTimeSubwayArrivals(lineName: String, startStationName: String, endStationName: String): List<SubwayTransitResult>? {
         val token = authStore.getAccessToken()
-        if(token == null || token.isEmpty()){
-            return
-        }
-        viewModelScope.launch {
-            try{
-                val response = subwayService.getRealTimeSubwayArrivals(startStationName, endStationName, lineName)
-                val resultList = response.body()?.returnToList(Gson())
+        if(token.isNullOrEmpty()) return null
 
-                if(response.isSuccessful && !resultList.isNullOrEmpty()){
-                    _subwayResult.value = resultList
-                    Log.d("TRANSIT_SUCCESS", _subwayResult.value.toString())
-                }else{
-                    Log.e("TRANSIT_ERROR", "${response.message()}: ${response.errorBody()}")
-                }
-            }catch (e: Exception){
-                Log.e("TRANSIT_ERROR", "${e.cause}, ${e.message}")
+        val cleanStartStation = startStationName.removeSuffix("역")
+        val cleanEndStation = endStationName.removeSuffix("역")
+
+        Log.d("TransitApi", "지하철 요청 파라미터 -> 노선: $lineName, 출발: $cleanStartStation, 도착: $cleanEndStation")
+
+        return try {
+            val response = subwayService.getRealTimeSubwayArrivals(cleanStartStation, cleanEndStation, lineName)
+            if (response.isSuccessful) {
+                response.body()?.returnToList(Gson())
+            } else {
+                Log.e("TRANSIT_ERROR", "${response.message()}: ${response.errorBody()}")
+                null
             }
-
+        } catch (e: Exception) {
+            Log.e("TRANSIT_ERROR", "${e.cause}, ${e.message}")
+            null
         }
     }
 
@@ -242,31 +242,28 @@ class TransitViewModel @Inject constructor(
     }
 
     // 실시간 버스 도착 정보
-    fun getRealTimeBusArrivals(lineName: String, startStation: String, endStation: String){
+    suspend fun fetchRealTimeBusArrivals(lineName: String, startStation: String, endStation: String): BusItemList? {
         val token = authStore.getAccessToken()
-        if(token == null){
-            return
-        }
-        viewModelScope.launch {
-            try {
-                val parameters = busService.getParameters(lineName, startStation, endStation)
+        if(token.isNullOrEmpty()) return null
 
-                if(parameters.result != null){
-                    val routeId = parameters.result.routeId
-                    val ord = parameters.result.sequence.toString()
-                    val stationId = parameters.result.nodeId
+        Log.d("TransitApi", "버스 요청 파라미터 -> 노선: $lineName, 출발: $startStation, 도착: $endStation")
 
-                    val response = RetrofitClient.busService.getRealTimeBusArrivals(BuildConfig.PUBLIC_API_KEY, stationId, routeId, ord)
-                    val body = response.body()?.body
-                    _busResult.value = body?.itemList
+        return try {
+            val parameters = busService.getParameters(lineName, startStation, endStation)
+            if (parameters.result != null) {
+                val routeId = parameters.result.routeId
+                val ord = parameters.result.sequence.toString()
+                val stationId = parameters.result.nodeId
 
-                    Log.d("TRANSIT_SUCCESS", _busResult.value.toString())
-                } else{
-                    Log.e("TRANSIT_ERROR", "Result is null")
-                }
-            } catch (e:Exception){
-                Log.e("TRANSIT_ERROR", e.message.toString())
+                val response = RetrofitClient.busService.getRealTimeBusArrivals(BuildConfig.PUBLIC_API_KEY, stationId, routeId, ord)
+                response.body()?.body?.itemList
+            } else {
+                Log.e("TRANSIT_ERROR", "Result is null")
+                null
             }
+        } catch (e:Exception) {
+            Log.e("TRANSIT_ERROR", e.message.toString())
+            null
         }
     }
 }

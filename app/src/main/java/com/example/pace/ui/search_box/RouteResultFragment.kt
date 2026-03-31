@@ -15,7 +15,7 @@ import com.example.pace.databinding.FragmentRouteResultBinding
 import com.example.pace.ui.main.route.RouteFragment
 
 class RouteResultFragment(
-    private val destination: String
+    private var destination: String
 ) : Fragment(){
     private var _binding: FragmentRouteResultBinding? = null
     private val binding get() = _binding!!
@@ -72,13 +72,13 @@ class RouteResultFragment(
         }
     }
 
-    fun updateRoutes(newItems: List<RouteResponse>) {
-        // 어댑터를 새로 만들어서 갈아끼우거나, Adapter 내부에 updateItems 함수를 만들어서 호출
-        // 여기서는 간단하게 새로 생성하는 방식 유지 (Adapter에 update 기능이 없다면)
+    fun updateRoutes(newItems: List<RouteResponse>, newDestination: String) {
+        this.destination = newDestination
+
         adapter = RouteAdapter(
             context = requireContext(),
             items = newItems,
-            destination = destination,
+            destination = this.destination,
             onItemClick = { (parentFragment as? RouteFragment)?.showRouteDetailOverlay(it) },
             onSelectClick = { (parentFragment as? RouteFragment)?.onRouteSelectedFinal(it) }
         )
