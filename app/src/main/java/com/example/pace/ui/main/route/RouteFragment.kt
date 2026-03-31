@@ -160,6 +160,7 @@ class RouteFragment : Fragment() {
     private var cachedScheduleData: RouteOnlyScheduleData? = null
     private lateinit var bottomSheetBehavior: BottomSheetBehavior<View>
     private var searchJob: Job? = null
+    private var realtimePollingJob: Job? = null
     private var sessionToken: AutocompleteSessionToken? = null
 
     override fun onCreateView(
@@ -311,7 +312,9 @@ class RouteFragment : Fragment() {
 
             routeViewModel.updateScheduleForAdapter(assembledRouteResponse)
             // 헬퍼를 이용해 리사이클러뷰 데이터 채우기
-            RouteDetailHelper.setupData(requireContext(), bottomSheetView, assembledRouteResponse, routeInfo.destName ?: "", routeInfo.originName ?: "", parentFragmentManager)
+            val realtimeParams = RouteDetailHelper.setupData(requireContext(), bottomSheetView, assembledRouteResponse, routeInfo.destName ?: "", routeInfo.originName ?: "", childFragmentManager)
+
+            startRealtimePolling(realtimeParams)
             bottomSheetView.post {
                 val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
 
@@ -355,7 +358,7 @@ class RouteFragment : Fragment() {
             }else{
                 binding.layoutNoSearchResult.visibility = View.GONE
                 val fragment = childFragmentManager.findFragmentByTag("ROUTE_RESULT") as? RouteResultFragment
-                fragment?.updateRoutes(routes)
+                fragment?.updateRoutes(routes, selectedEndPlace?.first ?: "도착지 없음")
 
             }
 
@@ -1090,8 +1093,9 @@ class RouteFragment : Fragment() {
                 state = BottomSheetBehavior.STATE_COLLAPSED // 강제로 접힌 상태 설정
             }
 
+            val realtimeParams = RouteDetailHelper.setupData(requireContext(),bottomSheetView, item, selectedEndPlace?.first ?: "", selectedStartPlace?.first ?: "", parentFragmentManager)
+            startRealtimePolling(realtimeParams)
 
-            RouteDetailHelper.setupData(requireContext(),bottomSheetView, item, selectedEndPlace?.first ?: "", selectedStartPlace?.first ?: "", parentFragmentManager)
             bottomSheetView.post {
                 val parentHeight = (bottomSheetView.parent as View).height
                 val currentSheetHeight = parentHeight - bottomSheetView.top
@@ -2986,6 +2990,31 @@ class RouteFragment : Fragment() {
         )
 
         searchViewModel.insertPlace(recentPlace)
+    }
+
+    private fun startRealtimePolling(params: List<RealtimeParam>) {
+        realtimePollingJob?.cancel() // 기존 타이머가 있다면 취소
+
+        realtimePollingJob = viewLifecycleOwner.lifecycleScope.launch {
+            while (true) {
+                params.forEach { param ->
+                    when (param.type) {
+                        "SUBWAY" -> {
+                            // 뷰모델의 suspend 함수를 호출하고 결과를 바로 받음
+                            val result = transitViewModel.fetchRealTimeSubwayArrivals(param.lineName, param.startStation, param.endStation)
+                            // Helper에게 "해당 레이아웃(타겟)에 이 결과값으로 글씨 갱신해!" 라고 지시
+                            RouteDetailHelper.updateSubwayUI(requireContext(), param.targetLayout, result)
+                        }
+                        "BUS" -> {
+                            val result = transitViewModel.fetchRealTimeBusArrivals(param.lineName, param.startStation, param.endStation)
+                            // TODO: 버스용 UI 업데이트 함수도 Helper에 만들어서 연결 (updateBusUI)
+                        }
+                    }
+                }
+                Log.d("RouteFragment", "실시간 데이터 갱신 완료! 30초 대기...")
+                delay(30000) // 30초 대기 후 루프 반복
+            }
+        }
     }
 
     // 유틸리티 함수들
