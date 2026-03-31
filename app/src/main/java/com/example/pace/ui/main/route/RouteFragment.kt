@@ -162,6 +162,7 @@ class RouteFragment : Fragment() {
     private lateinit var bottomSheetBehavior: BottomSheetBehavior<View>
     private var searchJob: Job? = null
     private var realtimePollingJob: Job? = null
+    private var currentRealtimeParams: List<RealtimeParam>? = null
     private var sessionToken: AutocompleteSessionToken? = null
 
     override fun onCreateView(
@@ -252,7 +253,7 @@ class RouteFragment : Fragment() {
         binding.layoutRouteDetailOverlay.root.visibility = View.VISIBLE
         binding.layoutRouteDetailOverlay.btnRouteDetailBackDetail.visibility = View.GONE
         binding.layoutRouteDetailOverlay.root.bringToFront()
-        binding.layoutRouteDetailOverlay.btnRouteSelect.visibility = View.GONE
+        binding.layoutRouteDetailOverlay.layoutRouteSelectContainer.visibility = View.GONE
         binding.layoutRouteDetailOverlay.tvScheduleRouteDetailName.visibility = View.VISIBLE
         binding.layoutRouteDetailOverlay.tvScheduleRouteDetailTime.visibility = View.VISIBLE
         binding.layoutRouteDetailOverlay.viewColorDotRouteDetail.visibility = View.VISIBLE
@@ -398,7 +399,7 @@ class RouteFragment : Fragment() {
                     binding.layoutRouteDetailOverlay.tvScheduleRouteDetailTime.visibility = View.GONE
                     binding.layoutRouteDetailOverlay.viewColorDotRouteDetail.visibility = View.GONE
                     binding.layoutRouteDetailOverlay.btnRouteDetailBackDetail.visibility = View.GONE
-                    binding.layoutRouteDetailOverlay.btnRouteSelect.visibility = View.GONE
+                    binding.layoutRouteDetailOverlay.layoutRouteSelectContainer.visibility = View.GONE
                     binding.layoutRouteDetailOverlay.bottomSheetRouteDetail.visibility = View.GONE
                 }
             }
@@ -918,6 +919,12 @@ class RouteFragment : Fragment() {
             handleCustomBackClick()
         }
 
+        binding.layoutRouteDetailOverlay.btnRealtimeRefresh.setOnClickListener {
+            currentRealtimeParams?.let { params ->
+                startRealtimePolling(params)
+            }
+        }
+
         binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.setOnClickListener {
             if (!isNetworkAvailable()) {
                 NetworkErrorDialog(requireContext()) {
@@ -1058,7 +1065,7 @@ class RouteFragment : Fragment() {
             binding.layoutRouteDetailOverlay.root.visibility = View.VISIBLE
             binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.VISIBLE
             binding.layoutRouteDetailOverlay.btnRouteDetailBackDetail.visibility = View.VISIBLE
-            binding.layoutRouteDetailOverlay.btnRouteSelect.visibility = View.VISIBLE
+            binding.layoutRouteDetailOverlay.layoutRouteSelectContainer.visibility = View.VISIBLE
             binding.layoutRouteDetailOverlay.bottomSheetRouteDetail.visibility = View.VISIBLE
             binding.layoutRouteDetailOverlay.root.bringToFront()
 
@@ -2025,6 +2032,8 @@ class RouteFragment : Fragment() {
             }
             else{
                 exitSearchMode()
+                realtimePollingJob?.cancel()
+                binding.layoutRouteDetailOverlay.layoutRealtimeRefresh.visibility = View.GONE
 
                 mainBinding?.mainBnv?.visibility = View.VISIBLE
 
@@ -2042,7 +2051,7 @@ class RouteFragment : Fragment() {
                     binding.layoutRouteDetailOverlay.tvScheduleRouteDetailTime.visibility = View.GONE
                     binding.layoutRouteDetailOverlay.viewColorDotRouteDetail.visibility = View.GONE
                     binding.layoutRouteDetailOverlay.btnRouteDetailBackDetail.visibility = View.GONE
-                    binding.layoutRouteDetailOverlay.btnRouteSelect.visibility = View.GONE
+                    binding.layoutRouteDetailOverlay.layoutRouteSelectContainer.visibility = View.GONE
                     binding.layoutRouteDetailOverlay.bottomSheetRouteDetail.visibility = View.GONE
                 }
             }
@@ -2200,13 +2209,16 @@ class RouteFragment : Fragment() {
                 binding.layoutRouteDetailOverlay.tvScheduleRouteDetailTime.visibility = View.GONE
                 binding.layoutRouteDetailOverlay.viewColorDotRouteDetail.visibility = View.GONE
                 binding.layoutRouteDetailOverlay.btnRouteDetailBackDetail.visibility = View.GONE
-                binding.layoutRouteDetailOverlay.btnRouteSelect.visibility = View.GONE
+                binding.layoutRouteDetailOverlay.layoutRouteSelectContainer.visibility = View.GONE
                 binding.layoutRouteDetailOverlay.bottomSheetRouteDetail.visibility = View.GONE
             }
             return // 앱 종료 방지
         }
 
         if (binding.layoutRouteDetailOverlay.root.visibility == View.VISIBLE && currentEntryMode!=EntryMode.MAIN) {
+            realtimePollingJob?.cancel()
+            binding.layoutRouteDetailOverlay.layoutRealtimeRefresh.visibility = View.GONE
+
             binding.layoutRouteDetailOverlay.root.visibility = View.GONE
 
             val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
@@ -2302,7 +2314,7 @@ class RouteFragment : Fragment() {
                 binding.layoutRouteDetailOverlay.tvScheduleRouteDetailTime.visibility = View.GONE
                 binding.layoutRouteDetailOverlay.viewColorDotRouteDetail.visibility = View.GONE
                 binding.layoutRouteDetailOverlay.btnRouteDetailBackDetail.visibility = View.GONE
-                binding.layoutRouteDetailOverlay.btnRouteSelect.visibility = View.GONE
+                binding.layoutRouteDetailOverlay.layoutRouteSelectContainer.visibility = View.GONE
                 binding.layoutRouteDetailOverlay.bottomSheetRouteDetail.visibility = View.GONE
             }
             mainBinding?.mainBnv?.visibility = View.VISIBLE
@@ -2321,6 +2333,9 @@ class RouteFragment : Fragment() {
 
     private fun handleScheduleBackClick(){
         if (binding.layoutRouteDetailOverlay.root.visibility == View.VISIBLE) {
+            realtimePollingJob?.cancel()
+            binding.layoutRouteDetailOverlay.layoutRealtimeRefresh.visibility = View.GONE
+
             binding.layoutRouteDetailOverlay.root.visibility = View.GONE
 
             binding.routeSearchFcv.visibility = View.VISIBLE
@@ -2994,7 +3009,10 @@ class RouteFragment : Fragment() {
     }
 
     private fun startRealtimePolling(params: List<RealtimeParam>) {
-        realtimePollingJob?.cancel() // 기존 타이머가 있다면 취소
+        realtimePollingJob?.cancel()
+        currentRealtimeParams = params
+
+        binding.layoutRouteDetailOverlay.layoutRealtimeRefresh.visibility = View.VISIBLE
 
         realtimePollingJob = viewLifecycleOwner.lifecycleScope.launch {
             while (true) {
@@ -3012,8 +3030,12 @@ class RouteFragment : Fragment() {
                         }
                     }
                 }
-                Log.d("RouteFragment", "실시간 데이터 갱신 완료! 30초 대기...")
-                delay(30000) // 30초 대기 후 루프 반복
+                Log.d("RouteFragment", "실시간 데이터 15초 갱신 완료!")
+
+                for (i in 15 downTo 1) {
+                    binding.layoutRouteDetailOverlay.tvRefreshCountdown.text = i.toString()
+                    delay(1000) // 1초 대기
+                }
             }
         }
     }

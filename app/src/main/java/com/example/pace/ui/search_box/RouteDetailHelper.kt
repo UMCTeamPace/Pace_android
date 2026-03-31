@@ -132,18 +132,50 @@ object RouteDetailHelper {
                     val lineColor = Color.parseColor(data.transitDetail.lineColor)
                     var moreStation = false
 
+                    var isRealtimeAvailable = false
+                    try {
+                        // 현재 시간 (KST)
+                        val nowKst = java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Seoul"))
+
+                        // 서버에서 온 UTC 시간을 KST(+9시간)로 변환
+                        val depTimeKst = java.time.LocalDateTime.parse(data.transitDetail.departureTime).plusHours(9)
+                        val arrTimeKst = java.time.LocalDateTime.parse(data.transitDetail.arrivalTime).plusHours(9)
+
+                        val startTime = depTimeKst.minusMinutes(15)
+                        val endTime = arrTimeKst
+
+                        if (nowKst.isAfter(startTime) && nowKst.isBefore(endTime)) {
+                            isRealtimeAvailable = true
+                        }
+
+                        // ★ 대체 앱이 시간을 어떻게 계산했는지 확인하는 첩자 로그!
+                        Log.d("TimeCheck", "현재시간: $nowKst | 출발: $depTimeKst | 허용구간: $startTime ~ $endTime | 표시여부: $isRealtimeAvailable")
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        isRealtimeAvailable = true // 시간 파싱 에러 시 화면에 안 나오는 것보단 낫게 방어(true) 처리
+                    }
+
                     if (transitType == "BUS") {
                         val busDrawable = ContextCompat.getDrawable(context, R.drawable.ic_bus)
                         layoutDrawable.setDrawableByLayerId(R.id.ic_route_detail_vehicle, busDrawable)
-
                         expandedVehicleBinding.itemRouteDetailVehicleTimetableTv.visibility = View.INVISIBLE
-                        realtimeParams.add(RealtimeParam("BUS", lineName, departureStopName, arrivalStopName, expandedVehicleBinding.itemRouteDetailRealtimeLl))
+                        if (isRealtimeAvailable) {
+                            expandedVehicleBinding.itemRouteDetailRealtimeLl.visibility = View.VISIBLE
+                            realtimeParams.add(RealtimeParam("BUS", lineName, departureStopName, arrivalStopName, expandedVehicleBinding.itemRouteDetailRealtimeLl))
+                        } else {
+                            expandedVehicleBinding.itemRouteDetailRealtimeLl.visibility = View.GONE
+                        }
                     } else if (transitType == "SUBWAY") {
                         val subwayDrawable = ContextCompat.getDrawable(context, R.drawable.ic_subway)
                         layoutDrawable.setDrawableByLayerId(R.id.ic_route_detail_vehicle, subwayDrawable)
-
                         expandedVehicleBinding.itemRouteDetailVehicleTimetableTv.visibility = View.VISIBLE
-                        realtimeParams.add(RealtimeParam("SUBWAY", lineName, departureStopName, arrivalStopName, expandedVehicleBinding.itemRouteDetailRealtimeLl))
+
+                        if (isRealtimeAvailable) {
+                            expandedVehicleBinding.itemRouteDetailRealtimeLl.visibility = View.VISIBLE
+                            realtimeParams.add(RealtimeParam("SUBWAY", lineName, departureStopName, arrivalStopName, expandedVehicleBinding.itemRouteDetailRealtimeLl))
+                        } else {
+                            expandedVehicleBinding.itemRouteDetailRealtimeLl.visibility = View.GONE
+                        }
                     }
 
                     if (transitType == "SUBWAY") {
