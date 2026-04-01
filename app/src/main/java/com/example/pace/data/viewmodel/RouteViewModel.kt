@@ -5,7 +5,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.pace.BuildConfig
+import com.example.pace.data.datasource.AuthDataStore
 import com.example.pace.data.model.response.RouteResponse
 import com.example.pace.data.model.request.RouteSearchRequest
 import com.example.pace.data.model.response.RouteOnlyScheduleData
@@ -24,7 +24,8 @@ import javax.inject.Inject
 @HiltViewModel
 class RouteViewModel @Inject constructor(
     private val routeRepository: RouteRepository,
-    private val scheduleRepository: ScheduleRepository
+    private val scheduleRepository: ScheduleRepository,
+    private val authDataStore: AuthDataStore
 ) : ViewModel() {
     private val _routeResult = MutableLiveData<List<RouteResponse>>()
     val routeResult: LiveData<List<RouteResponse>> get() = _routeResult
@@ -43,7 +44,6 @@ class RouteViewModel @Inject constructor(
     private val _errorMessage = MutableLiveData<String>()
     val errorMessage: LiveData<String> get() = _errorMessage
 
-    val token = BuildConfig.BEARER_TOKEN
     fun searchRoutes(accessToken: String, request: RouteSearchRequest) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -84,13 +84,19 @@ class RouteViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 // 오늘 날짜 구하기 (yyyy-MM-dd)
+                val token = authDataStore.getAccessToken() ?: ""
+                val fullToken = if (token.isNotEmpty() && !token.startsWith("Bearer ")) "Bearer $token" else token
+                if (fullToken.isEmpty()) {
+                    _routeOnlySchedule.value = null
+                    return@launch
+                }
                 val today = LocalDate.now().toString()
 
                 Log.d("RouteViewModel", "스케줄 조회 시작: $today")
 
                 // 리포지토리 호출 (RawDefaultResponse 반환됨)
                 val response = scheduleRepository.getScheduleListForRoute(
-                    accessToken = token,
+                    accessToken = fullToken,
                     startDate = today,
                     endDate = today
                 )
@@ -128,17 +134,31 @@ class RouteViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             try {
+                val token = authDataStore.getAccessToken() ?: ""
+                val fullToken = if (token.isNotEmpty() && !token.startsWith("Bearer ")) "Bearer $token" else token
+                if (fullToken.isEmpty()) {
+                    _routeScheduleList.value = emptyList()
+                    return@launch
+                }
                 val today = LocalDate.now().toString()
 
                 // 새로 만든 리스트용 함수 호출 (endDate = null)
                 val response = scheduleRepository.getAllRouteSchedules(
-                    accessToken = token, // 뷰모델 직접 참조
+                    accessToken = fullToken, // 뷰모델 직접 참조
                     startDate = today,
                     endDate = null
                 )
 
                 if (response.isSuccess) {
-                    _routeScheduleList.value = response.result?.filterNotNull() ?: emptyList()
+                    val serverSchedules = response.result?.filterNotNull() ?: emptyList()
+                    _routeScheduleList.value = if (serverSchedules.isNotEmpty()) {
+                        serverSchedules
+                    } else {
+                        scheduleRepository.getLocalRouteSchedules(
+                            startDate = today,
+                            endDate = today
+                        )
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("RouteViewModel", "전체 목록 로드 실패: ${e.message}")
