@@ -5,7 +5,6 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.pace.BuildConfig
 import com.example.pace.data.datasource.AuthDataStore
 import com.example.pace.data.model.request.CreateGroupRequest
 import com.example.pace.data.model.request.DeletePlacesRequest
@@ -41,7 +40,15 @@ class GroupViewModel @Inject constructor(
     var currentSortType: String = "LATEST"
         private set
 
-    private val token: String = BuildConfig.BEARER_TOKEN
+    private val token: String
+        get() {
+            val accessToken = authDataStore.getAccessToken().orEmpty()
+            return if (accessToken.isNotEmpty() && !accessToken.startsWith("Bearer ")) {
+                "Bearer $accessToken"
+            } else {
+                accessToken
+            }
+        }
 
     private val _savedPlaces = MutableLiveData<List<SavePlaceResponse>>()
     val savedPlaces: LiveData<List<SavePlaceResponse>> get() = _savedPlaces

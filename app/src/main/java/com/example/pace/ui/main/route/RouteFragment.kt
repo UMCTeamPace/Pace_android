@@ -591,7 +591,14 @@ class RouteFragment : Fragment() {
         Log.d("RouteApi", "Full Request: $request")
         Log.d("RouteApi", "=====================================================")
 
-        val token = BuildConfig.BEARER_TOKEN
+        val app = requireActivity().application as PaceApplication
+        val accessToken = app.authDataStore.getAccessToken().orEmpty()
+        val token = if (accessToken.isNotEmpty() && !accessToken.startsWith("Bearer ")) {
+            "Bearer $accessToken"
+        } else {
+            accessToken
+        }
+        if (token.isEmpty()) return
 
         routeViewModel.searchRoutes(token, request)
     }
