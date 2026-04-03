@@ -33,6 +33,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.example.pace.BuildConfig
 import com.example.pace.PaceApplication
 import com.example.pace.R
+import com.example.pace.data.datasource.AuthDataStore
 import com.example.pace.data.db.SearchDatabase
 import com.example.pace.data.model.MarkScheduleProvider
 import com.example.pace.data.model.MyPlace
@@ -91,9 +92,13 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class RouteFragment : Fragment() {
+    @Inject
+    lateinit var authDataStore: AuthDataStore
+
     private var _binding: FragmentRouteBinding? = null
     private val binding get() = _binding!!
 
@@ -591,8 +596,7 @@ class RouteFragment : Fragment() {
         Log.d("RouteApi", "Full Request: $request")
         Log.d("RouteApi", "=====================================================")
 
-        val app = requireActivity().application as PaceApplication
-        val accessToken = app.authDataStore.getAccessToken().orEmpty()
+        val accessToken = authDataStore.getAccessToken().orEmpty()
         val token = if (accessToken.isNotEmpty() && !accessToken.startsWith("Bearer ")) {
             "Bearer $accessToken"
         } else {
