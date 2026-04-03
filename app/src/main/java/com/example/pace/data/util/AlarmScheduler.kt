@@ -4,12 +4,18 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import com.example.pace.AlarmReceiver
-import java.util.*
 
 object AlarmScheduler {
-    fun schedulePaceAlarm(context: Context, scheduleTimeMillis: Long, leadMinutes: Int) {
+    fun schedulePaceAlarm(
+        context: Context,
+        scheduleId: Long,
+        alarmType: String,
+        scheduleTimeMillis: Long,
+        leadMinutes: Int
+    ) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
         // 1. 트리거 시간 계산 (일정 시간 - 리드 타임)
@@ -24,19 +30,19 @@ object AlarmScheduler {
             return
         }
 
-        val intent = Intent(context, AlarmReceiver::class.java).apply {
-            // ⭐ 핵심: 이 데이터를 리시버가 받아서 액티비티로 넘겨야 함
+        val intent = buildAlarmIntent(context, scheduleId, alarmType, leadMinutes).apply {
             putExtra("MINUTES_LEFT", leadMinutes)
+            putExtra("SCHEDULE_ID", scheduleId)
+            putExtra("ALARM_TYPE", alarmType)
         }
 
         val pendingIntent = PendingIntent.getBroadcast(
             context,
-            leadMinutes, // 각 리드타임(60, 30, 10)별로 고유한 알람을 가짐
+            0,
             intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE // Android 14+ 대응
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // 2. 정확한 알람 예약
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (alarmManager.canScheduleExactAlarms()) {
                 alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
@@ -45,6 +51,52 @@ object AlarmScheduler {
             }
         } else {
             alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
+        }
+    }
+
+    fun cancelPaceAlarm(
+        context: Context,
+        scheduleId: Long,
+        alarmType: String,
+        leadMinutes: Int
+    ) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            0,
+            buildAlarmIntent(context, scheduleId, alarmType, leadMinutes),
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        if (pendingIntent != null) {
+            alarmManager.cancel(pendingIntent)
+            pendingIntent.cancel()
+        }
+    }
+
+    fun cancelPaceAlarms(
+        context: Context,
+        scheduleId: Long,
+        eventReminders: List<Int>,
+        departureReminders: List<Int>
+    ) {
+        eventReminders.forEach { minutes ->
+            cancelPaceAlarm(context, scheduleId, "EVENT", minutes)
+        }
+        departureReminders.forEach { minutes ->
+            cancelPaceAlarm(context, scheduleId, "DEPARTURE", minutes)
+        }
+    }
+
+    private fun buildAlarmIntent(
+        context: Context,
+        scheduleId: Long,
+        alarmType: String,
+        leadMinutes: Int
+    ): Intent {
+        return Intent(context, AlarmReceiver::class.java).apply {
+            action = "com.example.pace.ALARM"
+            data = Uri.parse("pace://alarm/$scheduleId/$alarmType/$leadMinutes")
         }
     }
 }

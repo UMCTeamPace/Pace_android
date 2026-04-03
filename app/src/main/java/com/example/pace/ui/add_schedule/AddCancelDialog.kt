@@ -1,13 +1,11 @@
 package com.example.pace.ui.add_schedule
 
-import android.R
 import android.app.Dialog
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import com.example.pace.databinding.DialogAddCancelBinding
-import com.example.pace.databinding.DialogDeleteRouteBinding
 
 class AddCancelDialog(
     context: Context,
