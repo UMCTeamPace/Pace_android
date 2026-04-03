@@ -65,6 +65,10 @@
             android:name=".ui.onboarding.PermissionActivity"
             android:exported="false"
             android:screenOrientation="portrait"/>
+        <activity
+            android:name=".ui.onboarding.UserSetupActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"/>
 
         <activity
             android:name=".ui.splash.SplashActivity"

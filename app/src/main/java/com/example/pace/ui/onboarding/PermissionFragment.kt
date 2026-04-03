@@ -17,11 +17,17 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.example.pace.R
+import com.example.pace.data.datasource.AuthDataStore
 import com.example.pace.databinding.FragmentPermissionBinding
 import com.example.pace.ui.main.MainActivity
-import kotlin.jvm.java
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class PermissionFragment : Fragment() {
+
+    @Inject
+    lateinit var authDataStore: AuthDataStore
 
     private var _binding: FragmentPermissionBinding? = null
     private val binding get() = _binding!!
@@ -139,10 +145,13 @@ class PermissionFragment : Fragment() {
     }
 
     private fun moveToNextStep() {
-        parentFragmentManager.beginTransaction()
-            .replace(R.id.permission_container, AppSettingPagerFragment())
-            .addToBackStack(null)
-            .commit()
+        val nextIntent = if (!authDataStore.getTempToken().isNullOrBlank()) {
+            Intent(requireContext(), UserSetupActivity::class.java)
+        } else {
+            Intent(requireContext(), MainActivity::class.java)
+        }
+        startActivity(nextIntent)
+        requireActivity().finish()
     }
 
     override fun onDestroyView() {
