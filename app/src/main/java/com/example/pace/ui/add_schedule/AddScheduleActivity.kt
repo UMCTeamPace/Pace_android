@@ -1,13 +1,10 @@
 package com.example.pace.ui.add_schedule
 
-import android.graphics.Color
-import android.graphics.Typeface
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.adapter.FragmentStateAdapter
-import androidx.viewpager2.widget.ViewPager2
 import com.example.pace.data.datasource.AuthDataStore
 import com.example.pace.data.repository.repository.SettingsRepository
 import com.example.pace.data.util.syncMemberSettingsIfNeeded

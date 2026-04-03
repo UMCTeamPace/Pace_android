@@ -8,7 +8,6 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
 import android.os.Bundle
-import android.text.TextUtils.replace
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -20,9 +19,9 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.toColorInt
 import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.setFragmentResultListener
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -30,28 +29,22 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import androidx.room.Delete
 import com.example.pace.R
 import com.example.pace.data.model.request.CreateScheduleRequest
 import com.example.pace.data.model.request.PlaceRequest
 import com.example.pace.data.model.request.ReminderRequest
-import com.example.pace.data.model.request.RouteDetail
 import com.example.pace.data.model.request.RouteDetailRequest
 import com.example.pace.data.model.request.RouteRequest
 import com.example.pace.data.model.request.TransitDetailRequest
 import com.example.pace.data.model.request.UpdateScheduleEditRouteRequest
 import com.example.pace.data.model.request.UpdateScheduleRequest
-import com.example.pace.data.model.request.UpdateScheduleRouteRequest
 import com.example.pace.data.model.response.RouteResponse
-import com.example.pace.data.util.RouteConstants
-import com.example.pace.data.viewmodel.SettingsViewModel
 import com.example.pace.databinding.FragmentRouteScheduleBinding
 import com.example.pace.databinding.ItemRouteDetailBriefBinding
 import com.example.pace.databinding.ItemRouteVehicleBinding
 import com.example.pace.ui.RouteCalculator
 import com.example.pace.ui.main.MainActivity
 import com.example.pace.data.viewmodel.ScheduleViewModel
-import com.example.pace.ui.onboarding.CalendarSelectFragment
 import com.google.gson.Gson
 import com.kizitonwose.calendar.core.CalendarDay
 import com.kizitonwose.calendar.view.MonthDayBinder
@@ -62,7 +55,6 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import kotlin.compareTo
 
 @AndroidEntryPoint
 class RouteScheduleFragment : Fragment() {
@@ -89,10 +81,8 @@ class RouteScheduleFragment : Fragment() {
     private var route: RouteResponse? = null
 
     // 경로탐색으로 전환될 때 같이 보낼 색깔(선택된 일정 색)
-    private var selectedColor: String = "#53B332"
+    private var selectedColor: String = ""
 
-    // 경로 탐색에서 받아온 데이터
-    private var routeJson: String? = null
     private var earlyArriveTime: Int = -1
 
     // 출발지 정보
@@ -114,9 +104,7 @@ class RouteScheduleFragment : Fragment() {
     private val dateFormatter = DateTimeFormatter.ofPattern("M월 d일 (E)", Locale.KOREAN)
 
     // 색상/알림/캘린더
-    private var selectedColorHex: String = "#53B332" // 기본 색상
-
-    private var isFirstLoad = true // 최상단 멤버 변수로 추가
+    private var selectedColorHex: String = ""
     private var currentSelectedAlarms: IntArray? = null
     private var currentSelectedStartAlarms: IntArray? = null
     private var currentSelectedCalendarId: Long? = null
@@ -179,7 +167,12 @@ class RouteScheduleFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        showColorDot(Color.parseColor(selectedColorHex))
+        if (selectedColorHex.isEmpty()) {
+            selectedColorHex = colorIntToHex(ContextCompat.getColor(requireContext(), R.color.route_branch_bus))
+            selectedColor = selectedColorHex
+        }
+
+        showColorDot(selectedColorHex.toColorInt())
 
         arguments?.let { bundle ->
             isEditMode = bundle.getBoolean("isEdit", false)
@@ -368,7 +361,6 @@ class RouteScheduleFragment : Fragment() {
                     when (isSuccess) {
                         true -> {
                             // 일정 저장 성공 시 알람 예약 실행
-                            scheduleSavedAlarms()
                             Toast.makeText(context, "일정이 저장되었습니다.", Toast.LENGTH_SHORT).show()
                             viewModel.resetCreateEvent() // 이벤트 초기화
                             requireActivity().finish()   // 화면 종료
@@ -613,7 +605,6 @@ class RouteScheduleFragment : Fragment() {
                 viewModel.updateScheduleEvent.collect { isSuccess ->
                     if (isSuccess == true) {
                         // 💡 일정 수정 성공 시 알람 예약 실행
-                        scheduleSavedAlarms()
                         Toast.makeText(context, "일정이 수정되었습니다.", Toast.LENGTH_SHORT).show()
                         viewModel.resetUpdateEvent() // 이벤트 소모
                         activity?.finish()
@@ -839,54 +830,6 @@ class RouteScheduleFragment : Fragment() {
         }
     }
 
-    // 선택된 날짜/시간과 알림 설정을 기반으로 실제 알람을 예약
-    private fun scheduleSavedAlarms() {
-        val finalStartDate = startDate ?: LocalDate.now()
-        val startTime = binding.tvStartTime.text.toString() // "HH:mm"
-        
-        try {
-            // 날짜와 시간을 합쳐서 로컬 시간 타임스탬프 생성
-            val dateTimeStr = "${finalStartDate}T${startTime}:00"
-            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
-
-            val scheduleTimeMillis = sdf.parse(dateTimeStr)?.time ?: System.currentTimeMillis()
-            
-            Log.d("PaceAlarm", "알람 예약 프로세스 시작: $dateTimeStr (현지시간 Millis: $scheduleTimeMillis)")
-
-            // 일정 알림 예약
-            val eventAlarms = currentSelectedAlarms
-            if (eventAlarms != null && eventAlarms.isNotEmpty()) {
-                eventAlarms.forEach { minutes ->
-                    com.example.pace.data.util.AlarmScheduler.schedulePaceAlarm(
-                        requireContext(),
-                        scheduleTimeMillis,
-                        minutes
-                    )
-                    Log.d("PaceAlarm", "일정 알림 예약 명령 전송: $minutes 분 전")
-                }
-            } else {
-                Log.w("PaceAlarm", "예약할 '일정 알림' 데이터가 없습니다.")
-            }
-            
-            // 출발 알림(DEPARTURE) 예약
-            val departAlarms = currentSelectedStartAlarms
-            if (departAlarms != null && departAlarms.isNotEmpty()) {
-                departAlarms.forEach { minutes ->
-                    com.example.pace.data.util.AlarmScheduler.schedulePaceAlarm(
-                        requireContext(),
-                        scheduleTimeMillis,
-                        minutes
-                    )
-                    Log.d("PaceAlarm", "출발 알람 예약 명령 전송: $minutes 분 전")
-                }
-            } else {
-                Log.w("PaceAlarm", "예약할 '출발 알림' 데이터가 없습니다.")
-            }
-        } catch (e: Exception) {
-            Log.e("PaceAlarm", "알람 예약 로직 실행 중 오류 발생: ${e.message}")
-        }
-    }
-
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
@@ -997,7 +940,7 @@ class RouteScheduleFragment : Fragment() {
 
                     // 색상 파싱 (서버에서 #RRGGBB 형태로 온다고 가정, 실패 시 기본값 검정)
                     val lineColorCode = try {
-                        Color.parseColor(data.transitDetail.lineColor ?: "#000000")
+                        (data.transitDetail.lineColor ?: "#000000").toColorInt()
                     } catch (e: Exception) {
                         Color.BLACK
                     }
@@ -1062,7 +1005,7 @@ class RouteScheduleFragment : Fragment() {
         selectedColor = colorStr
         selectedColorHex = colorStr
 
-        val color = Color.parseColor(colorStr)
+        val color = colorStr.toColorInt()
         showColorDot(color)
         // 수동 색상 선택 시 캘린더 색상 우선순위 해제
         currentSelectedCalendarColor = null
@@ -1589,7 +1532,7 @@ class RouteScheduleFragment : Fragment() {
     }
 
     private fun getSaveColorInt(): Int {
-        return currentSelectedCalendarColor ?: Color.parseColor(selectedColorHex)
+        return currentSelectedCalendarColor ?: selectedColorHex.toColorInt()
     }
 
     private fun colorIntToHex(color: Int): String {
