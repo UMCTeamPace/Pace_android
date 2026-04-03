@@ -343,10 +343,8 @@ class ScheduleViewModel @Inject constructor(
                     )
 
                     if (response.isSuccess) {
-                        repository.refreshSchedules()
-                        repository.getScheduleById(schedule.serverId ?: schedule.id)?.let { updated ->
-                            syncRouteScheduleRuntime(updated)
-                        }
+                        val targetScheduleId = schedule.serverId ?: schedule.id
+                        replaceRouteScheduleRuntime(targetScheduleId)
                         _updateScheduleEvent.value = true
                         Log.d("ScheduleViewModel", "경로 일정 서버 수정 성공")
                     } else {
@@ -427,7 +425,7 @@ class ScheduleViewModel @Inject constructor(
                 // Handle result
                 if (response.isSuccess) {
                     withContext(Dispatchers.IO) {
-                        repository.refreshSchedules()
+                        replaceRouteScheduleRuntime(scheduleId)
                     }
                     _updateScheduleEvent.value = true
                     Log.d("ScheduleViewModel", "경로 일정 서버 수정 성공: $scheduleId")
@@ -738,13 +736,7 @@ class ScheduleViewModel @Inject constructor(
 
                 if (response.isSuccess) {
                     val arrival = routeRequest.arrivalTime
-                    repository.getScheduleById(scheduleId)?.let { existing ->
-                        cancelRouteScheduleRuntime(existing)
-                    }
-                    repository.refreshSchedules()
-                    repository.getScheduleById(scheduleId)?.let { updated ->
-                        syncRouteScheduleRuntime(updated, arrival)
-                    }
+                    replaceRouteScheduleRuntime(scheduleId, arrival)
                     withContext(Dispatchers.Main) {
                         _updateScheduleEvent.value = true
                     }
@@ -775,9 +767,18 @@ class ScheduleViewModel @Inject constructor(
     }
 
     private fun syncRouteScheduleRuntime(schedule: Schedule, arrivalTimeOverride: String? = null) {
-        cancelRouteScheduleRuntime(schedule)
         scheduleRouteAlarms(schedule)
         scheduleFinalize(schedule, arrivalTimeOverride)
+    }
+
+    private suspend fun replaceRouteScheduleRuntime(scheduleId: Long, arrivalTimeOverride: String? = null) {
+        repository.getScheduleById(scheduleId)?.let { existing ->
+            cancelRouteScheduleRuntime(existing)
+        }
+        repository.refreshSchedules()
+        repository.getScheduleById(scheduleId)?.let { updated ->
+            syncRouteScheduleRuntime(updated, arrivalTimeOverride)
+        }
     }
 
     private fun cancelRouteScheduleRuntime(schedule: Schedule) {
