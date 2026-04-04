@@ -146,6 +146,7 @@ class MainActivity : AppCompatActivity() {
         binding.mainLogoIv.visibility = View.VISIBLE
         binding.mainSettingsIv.visibility = View.VISIBLE
         binding.scheduleTitleTv.visibility = View.GONE
+        binding.scheduleActionContainer.visibility = View.GONE
         binding.scheduleEditIv.visibility = View.GONE
         binding.scheduleAddIv.visibility = View.GONE
         binding.scheduleSearchIv.visibility = View.GONE
@@ -255,6 +256,7 @@ class MainActivity : AppCompatActivity() {
                 binding.mainLogoIv.visibility = View.VISIBLE
                 binding.mainSettingsIv.visibility = View.VISIBLE
                 binding.scheduleTitleTv.visibility = View.GONE
+                binding.scheduleActionContainer.visibility = View.GONE
                 binding.scheduleEditIv.visibility = View.GONE
                 binding.scheduleSearchIv.visibility = View.GONE
                 binding.scheduleAddIv.visibility = View.GONE
@@ -270,6 +272,7 @@ class MainActivity : AppCompatActivity() {
                 ).commit()
                 binding.mainLogoIv.visibility = android.view.View.GONE
                 binding.mainSettingsIv.visibility = android.view.View.GONE
+                binding.scheduleActionContainer.visibility = View.VISIBLE
                 binding.scheduleEditIv.visibility = android.view.View.GONE
                 binding.scheduleTitleTv.visibility = android.view.View.VISIBLE
                 binding.scheduleSearchIv.visibility = android.view.View.VISIBLE
@@ -287,6 +290,7 @@ class MainActivity : AppCompatActivity() {
                 binding.mainLogoIv.visibility = android.view.View.GONE
                 binding.mainSettingsIv.visibility = android.view.View.GONE
                 binding.scheduleTitleTv.visibility = android.view.View.GONE
+                binding.scheduleActionContainer.visibility = View.GONE
                 binding.scheduleEditIv.visibility = android.view.View.GONE
                 binding.scheduleSearchIv.visibility = android.view.View.GONE
                 binding.scheduleAddIv.visibility = View.GONE

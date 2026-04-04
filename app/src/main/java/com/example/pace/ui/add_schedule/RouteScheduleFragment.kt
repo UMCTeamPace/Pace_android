@@ -58,6 +58,25 @@ import java.util.Locale
 
 @AndroidEntryPoint
 class RouteScheduleFragment : Fragment() {
+    private data class FormSnapshot(
+        val title: String,
+        val memo: String,
+        val startDate: LocalDate?,
+        val endDate: LocalDate?,
+        val startTime: String,
+        val endTime: String,
+        val selectedColorHex: String,
+        val selectedAlarms: List<Int>,
+        val selectedStartAlarms: List<Int>,
+        val selectedCalendarId: Long?,
+        val lastStartName: String?,
+        val lastStartLat: Double,
+        val lastStartLng: Double,
+        val lastDestName: String?,
+        val lastDestLat: Double,
+        val lastDestLng: Double,
+        val lastRouteJson: String?
+    )
 
     private enum class ActiveInput {
         START_DATE,
@@ -110,6 +129,15 @@ class RouteScheduleFragment : Fragment() {
     private var currentSelectedCalendarId: Long? = null
     private var currentSelectedCalendarName: String? = null
     private var currentSelectedCalendarColor: Int? = null
+    private var initialFormSnapshot: FormSnapshot? = null
+    private var isKeyboardVisible = false
+    private var isTouchingInputArea = false
+    private var suppressKeyboardDismissUntil = 0L
+    private val showBottomButtonsRunnable = Runnable {
+        if (_binding != null && !isKeyboardVisible) {
+            binding.layoutBottomButtons.visibility = View.VISIBLE
+        }
+    }
 
     // 런처/콜백
     private val routeSearchLauncher = registerForActivityResult(
@@ -143,13 +171,7 @@ class RouteScheduleFragment : Fragment() {
 
     private val backPressedCallback = object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
-            val dialog = AddCancelDialog(requireContext()) {
-                if (parentFragmentManager.backStackEntryCount > 0) {
-                    parentFragmentManager.popBackStack()
-                } else {
-                }
-            }
-            dialog.show()
+            handleExitAttempt()
         }
     }
 
@@ -269,12 +291,19 @@ class RouteScheduleFragment : Fragment() {
         activeInput = null
         updateTimeVisibility()
 
+        resetInitialFormSnapshot()
+
+        binding.root.post {
+            if (initialFormSnapshot == null) {
+                resetInitialFormSnapshot()
+            }
+        }
+
 
 
         //일정 알람 화면으로 갔다가 올 때 데이터 받는 부분
         parentFragmentManager.setFragmentResultListener("ROUTE_ALARM_KEY", viewLifecycleOwner) { _, bundle ->
             // 경로 일정 로직 수행
-            val resultText = bundle.getString("selectedAlarm")
             val resultMinutes = bundle.getIntArray("selectedAlarmMinutes")
 
             if (resultMinutes != null) {
@@ -282,8 +311,7 @@ class RouteScheduleFragment : Fragment() {
                 currentSelectedAlarms = resultMinutes
 
                 // UI 업데이트 (ID: tvAlarmStatus 확인)
-                binding.tvAlarmStatus.text = resultText
-                binding.tvAlarmStatus.setTextColor(Color.BLACK)
+                updateAlarmText(resultMinutes)
             }
         }
 
@@ -295,8 +323,7 @@ class RouteScheduleFragment : Fragment() {
 
             if (resultMinutes != null) {
                 currentSelectedStartAlarms = resultMinutes
-                binding.tvStartalarmStatus.text = resultText
-                binding.tvStartalarmStatus.setTextColor(Color.BLACK)
+                updateDepartureAlarmText(resultMinutes)
             }
         }
 
@@ -321,6 +348,7 @@ class RouteScheduleFragment : Fragment() {
         }
 
         binding.btnCalendar.setOnClickListener {
+            dismissKeyboard()
             // 여기도 SelectCalendarFragment로 통일!
             val fragment = SelectCalendarFragment()
             val bundle = Bundle().apply {
@@ -349,11 +377,10 @@ class RouteScheduleFragment : Fragment() {
         // 1. 결과 관찰 (성공 시 화면 닫기)
         binding.etScheduleName.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {
-                binding.calendarContainer.visibility = View.GONE
-                binding.timePickerContainer.visibility = View.GONE
                 binding.layoutColorSelector.visibility = View.GONE
             }
         }
+        binding.etScheduleName.onFocusChangeListener = null
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -617,19 +644,14 @@ class RouteScheduleFragment : Fragment() {
         }
 
         binding.btnCancel.setOnClickListener {
-            val dialog = AddCancelDialog(requireContext()){
-                if (parentFragmentManager.backStackEntryCount > 0) {
-                    parentFragmentManager.popBackStack()
-                } else {
-                    requireActivity().finish()
-                }
-            }
-            dialog.show()
+            handleExitAttempt()
         }
+        installInputProtection()
 
         setupKeyboardVisibilityListener()
 
         binding.btnRemindalarm.setOnClickListener {
+            dismissKeyboard()
             val alarmFragment = AlarmScheduleFragment()
             val bundle = Bundle().apply {
                 // 💡 키 이름을 "selectedAlarmMinutes"로 통일!
@@ -646,6 +668,7 @@ class RouteScheduleFragment : Fragment() {
 
 // 출발 알림 버튼 클릭 시
         binding.btnStartalarm.setOnClickListener {
+            dismissKeyboard()
             val startFragment = AlarmStartFragment() // 또는 사용하는 알람 프래그먼트
             val bundle = Bundle().apply {
                 // 현재 이미 선택된 알람 리스트가 있다면 넘겨줌
@@ -677,12 +700,14 @@ class RouteScheduleFragment : Fragment() {
 
 
         binding.btnStartDate.setOnClickListener {
+            dismissKeyboard()
             activeInput = ActiveInput.START_DATE
             updateDateDisplay()
             updateTimeVisibility()
             showCalendar()
         }
         binding.tvStartTime.setOnClickListener {
+            dismissKeyboard()
             isEditingStartTime = true
             activeInput = ActiveInput.START_TIME
             updateDateDisplay()
@@ -692,12 +717,14 @@ class RouteScheduleFragment : Fragment() {
 
 
         binding.btnEndDate.setOnClickListener {
+            dismissKeyboard()
             activeInput = ActiveInput.END_DATE
             updateDateDisplay()
             updateTimeVisibility()
             showCalendar()
         }
         binding.tvEndTime.setOnClickListener {
+            dismissKeyboard()
             isEditingStartTime = false
             activeInput = ActiveInput.END_TIME
             updateDateDisplay()
@@ -707,26 +734,15 @@ class RouteScheduleFragment : Fragment() {
 
 
         binding.viewColorDot.setOnClickListener {
+            dismissKeyboard()
+            animateColorSelectorChange()
             if (binding.layoutColorSelector.visibility == View.GONE) {
                 binding.layoutColorSelector.visibility = View.VISIBLE
-
-                // 💡 중요: 캘린더 뷰 자체가 아니라, '감싸고 있는 컨테이너'를 GONE 시킵니다.
-                // XML에서 calendarPicker를 감싸는 레이아웃 ID를 확인하세요. (예: calendarPickerContainer)
-                binding.calendarContainer.visibility = View.GONE
-                binding.timePickerContainer.visibility = View.GONE
             } else {
                 binding.layoutColorSelector.visibility = View.GONE
-
-                // 💡 색상창을 닫을 때 다시 보여주기
-                binding.calendarContainer.visibility = View.VISIBLE
-
-                // 다시 나타날 때 높이를 재계산하도록 강제 호출
-                binding.calendarPicker.post {
-                    binding.calendarPicker.requestLayout()
-                }
             }
         }
-
+        binding.etScheduleName.onFocusChangeListener = null
 
         val colorList = listOf(
             ColorItem(R.color.schedule_5, "#DC354B"),
@@ -773,6 +789,7 @@ class RouteScheduleFragment : Fragment() {
 
         // 일정 추가 -> 루트 프래그먼트로 데이터 전달
         binding.btnRoute.setOnClickListener {
+            dismissKeyboard()
             Log.d("DEBUG_TAG", "btnRoute 클릭")
             val dateToPass = startDate?.toString() ?: LocalDate.now().toString()
             val rawTime = binding.tvStartTime.text.toString() // 예: "10:00"
@@ -1017,6 +1034,55 @@ class RouteScheduleFragment : Fragment() {
         Log.d("COLOR_CHECK", "선택된 색상: $selectedColorHex")
     }
 
+    private fun handleExitAttempt() {
+        if (!hasUnsavedChanges()) {
+            exitScreen()
+            return
+        }
+
+        AddCancelDialog(requireContext()) {
+            exitScreen()
+        }.show()
+    }
+
+    private fun exitScreen() {
+        if (parentFragmentManager.backStackEntryCount > 0) {
+            parentFragmentManager.popBackStack()
+        } else {
+            requireActivity().finish()
+        }
+    }
+
+    private fun hasUnsavedChanges(): Boolean {
+        return currentFormSnapshot() != initialFormSnapshot
+    }
+
+    private fun resetInitialFormSnapshot() {
+        initialFormSnapshot = currentFormSnapshot()
+    }
+
+    private fun currentFormSnapshot(): FormSnapshot {
+        return FormSnapshot(
+            title = binding.etScheduleName.text?.toString().orEmpty().trim(),
+            memo = binding.etMemo.text?.toString().orEmpty().trim(),
+            startDate = startDate,
+            endDate = endDate,
+            startTime = binding.tvStartTime.text?.toString().orEmpty(),
+            endTime = binding.tvEndTime.text?.toString().orEmpty(),
+            selectedColorHex = selectedColorHex,
+            selectedAlarms = currentSelectedAlarms?.sorted()?.toList() ?: emptyList(),
+            selectedStartAlarms = currentSelectedStartAlarms?.sorted()?.toList() ?: emptyList(),
+            selectedCalendarId = currentSelectedCalendarId,
+            lastStartName = lastStartName,
+            lastStartLat = lastStartLat,
+            lastStartLng = lastStartLng,
+            lastDestName = lastDestName,
+            lastDestLat = lastDestLat,
+            lastDestLng = lastDestLng,
+            lastRouteJson = lastRouteJson
+        )
+    }
+
     private fun initTimePickers() {
 
         binding.pickerHour.apply {
@@ -1183,13 +1249,83 @@ class RouteScheduleFragment : Fragment() {
 
             val screenHeight = rootView.rootView.height
             val keypadHeight = screenHeight - rect.bottom
+            val keyboardVisibleNow = keypadHeight > screenHeight * 0.15
 
-            if (keypadHeight > screenHeight * 0.15) {
-                binding.layoutBottomButtons.visibility = View.GONE
-            } else {
-                binding.layoutBottomButtons.visibility = View.VISIBLE
+            if (keyboardVisibleNow != isKeyboardVisible) {
+                isKeyboardVisible = keyboardVisibleNow
+                rootView.removeCallbacks(showBottomButtonsRunnable)
+                if (keyboardVisibleNow) {
+                    binding.layoutBottomButtons.visibility = View.GONE
+                } else {
+                    rootView.postDelayed(showBottomButtonsRunnable, 120)
+                }
             }
         }
+
+        binding.nestedScrollView.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    isTouchingInputArea = isTouchInsideInput(event)
+                    if (isTouchingInputArea) {
+                        suppressKeyboardDismissUntil = android.os.SystemClock.uptimeMillis() + 500L
+                    }
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    if (!isTouchingInputArea && !shouldSuppressKeyboardDismiss()) {
+                        dismissKeyboard()
+                    }
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    binding.nestedScrollView.post {
+                        isTouchingInputArea = false
+                    }
+                }
+            }
+            false
+        }
+
+        binding.nestedScrollView.setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
+            if (scrollY != oldScrollY && !isTouchingInputArea && !shouldSuppressKeyboardDismiss()) {
+                dismissKeyboard()
+            }
+        }
+    }
+
+    private fun installInputProtection() {
+        val markInputInteraction = View.OnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                isTouchingInputArea = true
+                suppressKeyboardDismissUntil = android.os.SystemClock.uptimeMillis() + 500L
+            }
+            false
+        }
+
+        binding.etScheduleName.setOnTouchListener(markInputInteraction)
+        binding.etMemo.setOnTouchListener(markInputInteraction)
+    }
+
+    private fun shouldSuppressKeyboardDismiss(): Boolean {
+        return android.os.SystemClock.uptimeMillis() < suppressKeyboardDismissUntil
+    }
+
+    private fun dismissKeyboard() {
+        val focusedView = requireActivity().currentFocus ?: return
+        val imm =
+            requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+        imm.hideSoftInputFromWindow(focusedView.windowToken, 0)
+        focusedView.clearFocus()
+        binding.etScheduleName.clearFocus()
+        binding.etMemo.clearFocus()
+    }
+
+    private fun isTouchInsideInput(event: MotionEvent): Boolean {
+        return isTouchInsideView(binding.etScheduleName, event) || isTouchInsideView(binding.etMemo, event)
+    }
+
+    private fun isTouchInsideView(view: View, event: MotionEvent): Boolean {
+        val rect = android.graphics.Rect()
+        view.getGlobalVisibleRect(rect)
+        return rect.contains(event.rawX.toInt(), event.rawY.toInt())
     }
 
     private fun isTimeAfter(t1: String, t2: String): Boolean {
@@ -1356,6 +1492,8 @@ class RouteScheduleFragment : Fragment() {
                 binding.tvCalendarStatus.text = calendarName
                 applyCalendarColor(resolvedCalendarId)
             }
+
+            binding.root.post { resetInitialFormSnapshot() }
         }
     }
     private fun animateLayoutChange() {
@@ -1364,6 +1502,15 @@ class RouteScheduleFragment : Fragment() {
             binding.root as ViewGroup,
             android.transition.AutoTransition().apply {
                 duration = 200 // 애니메이션 속도 (0.2초)
+            }
+        )
+    }
+
+    private fun animateColorSelectorChange() {
+        android.transition.TransitionManager.beginDelayedTransition(
+            binding.layoutColorHeaderCard,
+            android.transition.AutoTransition().apply {
+                duration = 180
             }
         )
     }
@@ -1627,6 +1774,7 @@ class RouteScheduleFragment : Fragment() {
                         // (5) UI 상태 확정
                         binding.btnConfirm.text = "수정 완료"
                         binding.calendarPicker.notifyCalendarChanged()
+                        binding.root.post { resetInitialFormSnapshot() }
                     }
                 }
             }
