@@ -28,9 +28,6 @@ class TransitViewModel @Inject constructor(
     private val subwayService: SubwayService,
     private val busService: BusService,
 ) : ViewModel() {
-    // 실시간 지하철
-    private val _subwayResult = MutableStateFlow<List<SubwayTransitResult>>(emptyList())
-    val subwayResult = _subwayResult.asStateFlow()
 
     // 지하철 시간표
     private val _firstUpSubway = MutableStateFlow<List<StationTimetableItem?>>(emptyList())
@@ -45,9 +42,6 @@ class TransitViewModel @Inject constructor(
     private val _endStations = MutableStateFlow<List<String>>(emptyList())
     val endStations = _endStations.asStateFlow()
 
-    // 실시간 버스 정보
-    private val _busResult = MutableStateFlow<BusItemList?>(null)
-    val busResult = _busResult.asStateFlow()
 
     // 실시간 지하철 도착 정보
     suspend fun fetchRealTimeSubwayArrivals(lineName: String, startStationName: String, endStationName: String): List<SubwayTransitResult>? {

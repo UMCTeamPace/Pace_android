@@ -80,19 +80,6 @@ class RouteAdapter(
                     }
                     briefBinding.itemRouteDetailBriefTv.text = "${data.duration / 60}분"
                     briefBinding.itemRouteDetailBriefTv.setTextColor(ContextCompat.getColor(context, R.color.gray_600))
-
-                    // 마지막 단계(하차) 처리
-                    // 리스트의 마지막 인덱스인지 확인
-                    if (index == item.routeDetails.size - 1) {
-                        val vehicleBinding = ItemRouteVehicleBinding.inflate(LayoutInflater.from(context), binding.routeVehicleLl, false)
-                        vehicleBinding.itemRouteVehicleIv.setImageResource(R.drawable.ic_route_item_arrival_icon)
-                        vehicleBinding.itemRouteVehicleLineTv.text = "도착"
-                        vehicleBinding.itemRouteVehicleLineTv.setTextColor(ContextCompat.getColor(context, R.color.black))
-                        vehicleBinding.itemRouteVehicleView.visibility = View.GONE
-                        vehicleBinding.itemRouteVehicleTv.text = destination
-
-                        binding.routeVehicleLl.addView(vehicleBinding.root)
-                    }
                 }
                 // 3-2. 대중교통 (버스, 지하철)
                 else {
@@ -132,9 +119,22 @@ class RouteAdapter(
 
                     // [하단 리스트] 상세 정보 설정
                     vehicleBinding.itemRouteVehicleIv.setImageDrawable(layoutDrawable)
-                    vehicleBinding.itemRouteVehicleLineTv.text = data.transitDetail.lineName // shortName -> lineName (데이터 모델 확인 필요)
+                    vehicleBinding.itemRouteVehicleLineTv.text = data.transitDetail.shortName
                     vehicleBinding.itemRouteVehicleLineTv.setTextColor(lineColorCode)
                     vehicleBinding.itemRouteVehicleTv.text = "${data.transitDetail.departureStop} 승차"
+
+                    binding.routeVehicleLl.addView(vehicleBinding.root)
+                }
+
+                // 마지막 단계(하차) 처리
+                // 리스트의 마지막 인덱스인지 확인
+                if (index == item.routeDetails.size - 1) {
+                    val vehicleBinding = ItemRouteVehicleBinding.inflate(LayoutInflater.from(context), binding.routeVehicleLl, false)
+                    vehicleBinding.itemRouteVehicleIv.setImageResource(R.drawable.ic_route_item_arrival_icon)
+                    vehicleBinding.itemRouteVehicleLineTv.text = "도착"
+                    vehicleBinding.itemRouteVehicleLineTv.setTextColor(ContextCompat.getColor(context, R.color.black))
+                    vehicleBinding.itemRouteVehicleView.visibility = View.GONE
+                    vehicleBinding.itemRouteVehicleTv.text = destination
 
                     binding.routeVehicleLl.addView(vehicleBinding.root)
                 }
@@ -150,96 +150,5 @@ class RouteAdapter(
             binding.routeDetailSelectBtn.setOnClickListener { onSelectClick(item) }
         }
 
-
-            // 기본 정보 세팅
-//            binding.routeTotalTv.text = "총 ${item.totalTime / 60}분 소요"
-//
-//            // 시간 자르기 (2026-02-03T09:00:00 -> 09:00)
-//            val startTime = item.departureTime.split("T").last().take(5)
-//            val endTime = item.arrivalTime.split("T").last().take(5)
-//            binding.routeDepartureTimeTv.text = startTime
-//            binding.routeArrivalTimeTv.text = endTime
-
-//            var index = 0
-//            // 동적으로 데이터 가져오기
-//            item.routeDetailInfoResDTOList.forEach { data ->
-//                val briefBinding = ItemRouteDetailBriefBinding.inflate(LayoutInflater.from(context), binding.routeBriefLl, false)
-//                val vehicleBinding = ItemRouteVehicleBinding.inflate(LayoutInflater.from(context), binding.routeVehicleLl, false)
-//
-//                when(data.transitDetail){
-//                    // 걷기
-//                    null -> {
-//                        if(data.sequence == 1){
-//                            briefBinding.itemRouteDetailBriefIv.setImageResource(R.drawable.ic_people)
-//                        }else{
-//                            briefBinding.itemRouteDetailBriefIv.visibility = View.GONE
-//                            briefBinding.itemRouteDetailBriefTv.updatePadding(0)
-//                        }
-//                        briefBinding.itemRouteDetailBriefTv.text = "${data.duration / 60}분"
-//                        briefBinding.itemRouteDetailBriefTv.setTextColor(context.resources.getColor(R.color.gray_600))
-//
-//                        if(index == item.routeDetailInfoResDTOList.size - 1){
-//                            vehicleBinding.itemRouteVehicleIv.setImageResource(R.drawable.ic_route_item_arrival_icon)
-//                            vehicleBinding.itemRouteVehicleLineTv.text = "하차"
-//                            vehicleBinding.itemRouteVehicleLineTv.setTextColor(context.resources.getColor(R.color.black))
-//                            vehicleBinding.itemRouteVehicleView.visibility = View.GONE
-//
-//                            binding.routeVehicleLl.addView(vehicleBinding.root)
-//                        }
-//                    }
-//                    // 대중교통
-//                    else -> {
-//                        // 아이콘 변경
-//                        val layoutDrawable = ContextCompat.getDrawable(context, R.drawable.ic_route_detail)?.mutate() as LayerDrawable
-//                        val iconColor = layoutDrawable.findDrawableByLayerId(R.id.ic_route_detail_color).mutate() as GradientDrawable
-//                        val bgColor = briefBinding.itemRouteDetailBriefTv.background.mutate() as GradientDrawable
-//                        val lineColor = Color.parseColor(data.transitDetail.lineColor)
-//
-//                        when(data.transitDetail.transitType){
-//                            "BUS" -> {
-//                                val busDrawable = ContextCompat.getDrawable(context, R.drawable.ic_bus)
-//                                layoutDrawable.setDrawableByLayerId(R.id.ic_route_detail_vehicle, busDrawable)
-//                            }
-//                            "SUBWAY" -> {
-//                                val subwayDrawable = ContextCompat.getDrawable(context, R.drawable.ic_subway)
-//                                layoutDrawable.setDrawableByLayerId(R.id.ic_route_detail_vehicle, subwayDrawable)
-//                            }
-//                        }
-//                        iconColor.setColor(lineColor)
-//                        bgColor.setColor(lineColor)
-//
-//                        // 일직선 정보
-//                        briefBinding.itemRouteDetailBriefIv.setImageDrawable(layoutDrawable)
-//                        briefBinding.itemRouteDetailBriefTv.text = "${data.duration / 60}분"
-//
-//                        // 상세 정보
-//                        vehicleBinding.itemRouteVehicleIv.setImageDrawable(layoutDrawable)
-//                        vehicleBinding.itemRouteVehicleLineTv.text = data.transitDetail.shortName
-//                        vehicleBinding.itemRouteVehicleLineTv.setTextColor(lineColor)
-//                        vehicleBinding.itemRouteVehicleTv.text = data.transitDetail.departureStop
-//
-//                        if(vehicleBinding.root.parent != null){
-//                            (vehicleBinding.root.parent as ViewGroup).removeView(vehicleBinding.root)
-//                        }
-//                        binding.routeVehicleLl.addView(vehicleBinding.root)
-//                    }
-//                }
-//
-//                if(briefBinding.root.parent != null){
-//                    (briefBinding.root.parent as ViewGroup).removeView(briefBinding.root)
-//                }
-//                val weight = WeightCalculator.forRouteDetailBrief(data.duration)
-//                val params = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, weight)
-//                binding.routeBriefLl.addView(briefBinding.root, params)
-//
-//                index++
-//                Log.d("check/condition", (index == item.routeDetailInfoResDTOList.size -1).toString() )
-//            }
-
-
-//            binding.root.setOnClickListener { onItemClick(item) }
-//            binding.routeDetailSelectBtn.setOnClickListener {
-//                onSelectClick(item)
-//            }
         }
     }
