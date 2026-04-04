@@ -74,11 +74,12 @@ class RouteAdapter(
                 if (data.transitDetail == null) {
                     if (data.sequence == 1) { // 첫 번째 순서면 사람 아이콘
                         briefBinding.itemRouteDetailBriefIv.setImageResource(R.drawable.ic_people)
+                        briefBinding.itemRouteDetailBriefTv.setPadding((17 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
                     } else {
                         briefBinding.itemRouteDetailBriefIv.visibility = View.GONE
                         briefBinding.itemRouteDetailBriefTv.updatePadding(0)
                     }
-                    briefBinding.itemRouteDetailBriefTv.text = "${data.duration / 60}분"
+                    briefBinding.itemRouteDetailBriefTv.text = if(data.duration / 60 == 0) "1분" else "${data.duration / 60}분"
                     briefBinding.itemRouteDetailBriefTv.setTextColor(ContextCompat.getColor(context, R.color.gray_600))
                 }
                 // 3-2. 대중교통 (버스, 지하철)
@@ -115,7 +116,7 @@ class RouteAdapter(
 
                     // [상단 바] 정보 설정
                     briefBinding.itemRouteDetailBriefIv.setImageDrawable(layoutDrawable)
-                    briefBinding.itemRouteDetailBriefTv.text = "${data.duration / 60}분"
+                    briefBinding.itemRouteDetailBriefTv.text = if(data.duration / 60 == 0) "1분" else "${data.duration / 60}분"
 
                     // [하단 리스트] 상세 정보 설정
                     vehicleBinding.itemRouteVehicleIv.setImageDrawable(layoutDrawable)

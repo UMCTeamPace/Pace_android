@@ -5,6 +5,7 @@ import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.ImageView
@@ -39,6 +40,7 @@ data class RealtimeParam(
 
 object RouteDetailHelper {
     fun setupData(context: Context, bottomSheetView: View, item: RouteResponse, destination: String, startName: String, fragmentManager: FragmentManager): List<RealtimeParam> {
+        Log.d("RouteResponse:item.totalTime", item.totalTime.toString())
         val realtimeParams = mutableListOf<RealtimeParam>()
         val binding = BottomSheetRouteDetailBinding.bind(bottomSheetView)
 
@@ -72,6 +74,7 @@ object RouteDetailHelper {
 
         // 데이터 동적 바인딩
         item.routeDetails.forEach { data ->
+            Log.d("RouteResponse:data.duration", data.duration.toString())
             val briefBinding = ItemRouteDetailBriefBinding.inflate(LayoutInflater.from(context))
             val expandedVehicleBinding = ItemRouteDetailVehicleBinding.inflate(LayoutInflater.from(context), binding.routeDetailExpandedLl, false)
             val expandedWalkBinding = ItemRouteDetailWalkBinding.inflate(LayoutInflater.from(context), binding.routeDetailExpandedLl, false)
@@ -82,11 +85,13 @@ object RouteDetailHelper {
                     // 일직선 정보
                     if(data.sequence == 1){
                         briefBinding.itemRouteDetailBriefIv.setImageResource(R.drawable.ic_people)
+                        briefBinding.itemRouteDetailBriefTv.setPadding((17 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
+
                     }else{
                         briefBinding.itemRouteDetailBriefIv.visibility = View.GONE
                         briefBinding.itemRouteDetailBriefTv.updatePadding(0)
                     }
-                    briefBinding.itemRouteDetailBriefTv.text = "${data.duration / 60}분"
+                    briefBinding.itemRouteDetailBriefTv.text = if(data.duration / 60 == 0) "1분" else "${data.duration / 60}분"
                     briefBinding.itemRouteDetailBriefTv.setTextColor(context.resources.getColor(R.color.gray_600))
 
                     val walkTitle = if (data.sequence == 1) {
@@ -96,7 +101,7 @@ object RouteDetailHelper {
                     }
                     // 상세 정보
                     expandedWalkBinding.itemRouteDetailWalkTv.text = walkTitle
-                    expandedWalkBinding.itemRouteDetailWalkTimeTv.text = "${data.duration / 60}분 도보"
+                    expandedWalkBinding.itemRouteDetailWalkTimeTv.text = if(data.duration / 60 == 0) "1분" else "${data.duration / 60}분"
                     expandedWalkBinding.itemRouteDetailWalkDistanceTv.text = "${data.distance}M 이동"
                     if(data.sequence == 1){
                         expandedWalkBinding.itemRouteDetailWalkStartTv.visibility = View.VISIBLE
@@ -144,7 +149,7 @@ object RouteDetailHelper {
 
                     // 일직선 정보
                     briefBinding.itemRouteDetailBriefIv.setImageDrawable(layoutDrawable)
-                    briefBinding.itemRouteDetailBriefTv.text = "${data.duration / 60}분"
+                    briefBinding.itemRouteDetailBriefTv.text = if(data.duration / 60 == 0) "1분" else "${data.duration / 60}분"
 
                     // 상세 정보
                     expandedVehicleBinding.itemRouteDetailVehicleIv.setImageDrawable(layoutDrawable)
@@ -173,18 +178,26 @@ object RouteDetailHelper {
                     }
 
                     expandedVehicleBinding.itemRouteDetailVehicleStationsTv.text = "${data.transitDetail.stopCount}개 정류장 이동"
-                    expandedVehicleBinding.itemRouteDetailVehicleStationsTimeTv.text = "${data.duration / 60}분"
-                    expandedVehicleBinding.itemRouteDetailVehicleStationsLl.setOnClickListener {
-                        if(moreStation){
-                            expandedVehicleBinding.itemRouteDetailVehicleArrowDownIv.setImageResource(R.drawable.ic_arrow_down)
-                            expandedVehicleBinding.itemRouteDetailVehicleRv.visibility = View.GONE
-                            expandedVehicleBinding.itemRouteDetailVehicleStationsLl.setPadding(0, 0, 0, (17 * context.resources.displayMetrics.density).toInt())
-                            moreStation = false
-                        }else{
-                            expandedVehicleBinding.itemRouteDetailVehicleArrowDownIv.setImageResource(R.drawable.ic_arrow_up)
-                            expandedVehicleBinding.itemRouteDetailVehicleRv.visibility = View.VISIBLE
-                            expandedVehicleBinding.itemRouteDetailVehicleStationsLl.setPadding(0)
-                            moreStation = true
+                    expandedVehicleBinding.itemRouteDetailVehicleStationsTimeTv.text = if(data.duration / 60 == 0) "1분" else "${data.duration / 60}분"
+
+                    // 중간 정류장 데이터 X -> 꺽쇠 안 보이게
+                    if(data.transitDetail.stationPath.isNullOrEmpty()){
+                        expandedVehicleBinding.itemRouteDetailVehicleArrowDownIv.visibility = View.GONE
+                        expandedVehicleBinding.itemRouteDetailVehicleRv.visibility = View.GONE
+                        expandedVehicleBinding.itemRouteDetailVehicleStationsLl.setPadding(0, 0, 0, (17 * context.resources.displayMetrics.density).toInt())
+                    }else{
+                        expandedVehicleBinding.itemRouteDetailVehicleStationsLl.setOnClickListener {
+                            if(moreStation){
+                                expandedVehicleBinding.itemRouteDetailVehicleArrowDownIv.setImageResource(R.drawable.ic_arrow_down)
+                                expandedVehicleBinding.itemRouteDetailVehicleRv.visibility = View.GONE
+                                expandedVehicleBinding.itemRouteDetailVehicleStationsLl.setPadding(0, 0, 0, (17 * context.resources.displayMetrics.density).toInt())
+                                moreStation = false
+                            }else{
+                                expandedVehicleBinding.itemRouteDetailVehicleArrowDownIv.setImageResource(R.drawable.ic_arrow_up)
+                                expandedVehicleBinding.itemRouteDetailVehicleRv.visibility = View.VISIBLE
+                                expandedVehicleBinding.itemRouteDetailVehicleStationsLl.setPadding(0)
+                                moreStation = true
+                            }
                         }
                     }
                     binding.routeDetailExpandedLl.addView(expandedVehicleBinding.root)
