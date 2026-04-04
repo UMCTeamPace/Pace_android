@@ -51,9 +51,31 @@ class PermissionFragment : Fragment() {
         if (allPermissionsGranted()) {
             moveToNextStep() // 모든 필수 권한 허용 시 다음 화면(뷰페이저)으로
         } else {
-            showFirstRationaleDialog() // 미허용 시 재요청 모달
+            // 결과가 돌아왔을 때, 상태에 따라 어떤 팝업을 띄울지 결정
+            checkPermissionsAndShowDialog()
         }
     }
+
+    // 2. 권한 상태에 따른 팝업 분기 처리 함수 추가
+    private fun checkPermissionsAndShowDialog() {
+        val context = requireContext()
+
+        // 필수 권한 중 하나라도 '다시 묻지 않음(2번 거절)' 상태인지 확인
+        // shouldShowRequestPermissionRationale이 false이면 "설정으로 이동"을 띄워야 함
+        val showRationaleLocation = shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION)
+        val showRationaleCalendar = shouldShowRequestPermissionRationale(Manifest.permission.READ_CALENDAR)
+
+        // 이미 권한이 거부되었는데(allPermissionsGranted = false),
+        // Rationale(재요청 설명)도 띄울 수 없다면 -> 사용자가 "거부 및 다시 묻지 않음"을 선택한 상태임
+        if (!showRationaleLocation || !showRationaleCalendar) {
+            // 정상 플로우: 2번 거절 상태이므로 설정창 이동 팝업 표시
+            showSecondSettingDialog()
+        } else {
+            // 아직 시스템 팝업을 띄울 기회가 남은 경우: 재요청 팝업 표시
+            showFirstRationaleDialog()
+        }
+    }
+
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
