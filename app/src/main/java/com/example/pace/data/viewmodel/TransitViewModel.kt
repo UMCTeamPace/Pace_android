@@ -59,9 +59,11 @@ class TransitViewModel @Inject constructor(
 
         Log.d("TransitApi", "지하철 요청 파라미터 -> 노선: $lineName, 출발: $cleanStartStation, 도착: $cleanEndStation")
 
+
         return try {
             val response = subwayService.getRealTimeSubwayArrivals(cleanStartStation, cleanEndStation, lineName)
             if (response.isSuccessful) {
+                Log.d("TRANSIT_SUCCESS", response.body().toString())
                 response.body()?.returnToList(Gson())
             } else {
                 Log.e("TRANSIT_ERROR", "${response.message()}: ${response.errorBody()}")

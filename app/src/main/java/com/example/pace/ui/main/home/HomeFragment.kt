@@ -56,7 +56,7 @@ class HomeFragment: Fragment() {
         setupCalendar()
         setupObservers()
 
-        binding.homeAddScheduleIv.setOnClickListener {
+        binding.homeAddScheduleLl.setOnClickListener {
             startActivity(Intent(context, AddScheduleActivity::class.java))
         }
 

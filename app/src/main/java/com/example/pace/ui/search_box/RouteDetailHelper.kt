@@ -259,7 +259,7 @@ object RouteDetailHelper {
                     layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
                 }
                 val leftStationText = TextView(context).apply {
-                    text = "${result.beforeSubwayCount.absoluteValue}정거장 전"
+                    text = "${result.beforeSubwayCount.absoluteValue}정류장"
                     typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
                     setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
                     textSize = 11f
@@ -268,7 +268,7 @@ object RouteDetailHelper {
                     }
                 }
                 val directionText = TextView(context).apply {
-                    text = result.updnLine
+                    text = if(result.updnLine == "내선" || result.updnLine == "외선") result.updnLine + "순환행" else result.updnLine
                     typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
                     setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
                     textSize = 11f
