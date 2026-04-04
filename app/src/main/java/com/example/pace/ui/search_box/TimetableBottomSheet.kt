@@ -175,12 +175,12 @@ class TimetableBottomSheet(
             if(it != null){
                 val childLayout = LinearLayout(context).apply{
                     orientation = LinearLayout.HORIZONTAL
-                    setBackgroundColor(ContextCompat.getColor(context, R.color.white))
+                    background = ContextCompat.getDrawable(context, R.drawable.bg_subway_timetable_white)
                     layoutParams = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.MATCH_PARENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT,
                     ).apply {
-                        setPadding((12 * context.resources.displayMetrics.density).toInt(), 0, (12 * context.resources.displayMetrics.density).toInt(), 0)
+                        setPadding((12 * context.resources.displayMetrics.density).toInt(), (10 * context.resources.displayMetrics.density).toInt(), (12 * context.resources.displayMetrics.density).toInt(), (10 * context.resources.displayMetrics.density).toInt())
                         setMargins(0, (10 * context.resources.displayMetrics.density).toInt(), 0, (12 * context.resources.displayMetrics.density).toInt())
                     }
                 }

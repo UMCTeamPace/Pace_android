@@ -8,8 +8,10 @@ data class MemberSettingsResponse(
     val earlyArrivalTime: Int,
     @SerializedName("isReminderActive")
     val isReminderActive: Boolean,
-    @SerializedName("calendarType")
-    val calendarType: String?,
+    @SerializedName(value = "calendarId", alternate = ["calendarType"])
+    val calendarId: String?,
+    @SerializedName("syncedCalendarIds")
+    val syncedCalendarIds: List<Long>? = null,
     @SerializedName("alarms")
     val alarms: List<MemberSettingAlarmResponse> = emptyList()
 )
@@ -22,7 +24,8 @@ data class MemberSettingAlarmResponse(
 )
 
 fun MemberSettingsResponse.toEntity(existing: UserSettingsEntity? = null): UserSettingsEntity {
-    val calendarId = calendarType?.toLongOrNull() ?: existing?.calendarId ?: -1L
+    val resolvedCalendarId = calendarId?.toLongOrNull() ?: existing?.calendarId ?: -1L
+    val resolvedSyncedCalendarIds = syncedCalendarIds ?: existing?.syncedCalendarIds ?: if (resolvedCalendarId != -1L) listOf(resolvedCalendarId) else emptyList()
     val departureAlarms = alarms.firstOrNull { it.type == "DEPARTURE" }?.minutes ?: emptyList()
     val scheduleAlarms = alarms.firstOrNull { it.type == "SCHEDULE" }?.minutes ?: emptyList()
 
@@ -30,8 +33,8 @@ fun MemberSettingsResponse.toEntity(existing: UserSettingsEntity? = null): UserS
         id = existing?.id ?: 1L,
         isReminderActive = isReminderActive,
         earlyArrivalTime = earlyArrivalTime,
-        calendarId = calendarId,
-        syncedCalendarIds = existing?.syncedCalendarIds ?: if (calendarId != -1L) listOf(calendarId) else emptyList(),
+        calendarId = resolvedCalendarId,
+        syncedCalendarIds = resolvedSyncedCalendarIds,
         departureAlarms = departureAlarms,
         scheduleAlarms = scheduleAlarms,
         isSynced = true,

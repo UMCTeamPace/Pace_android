@@ -1049,6 +1049,44 @@ class ScheduleRepositoryImpl @Inject constructor(
         )
     }
 
+    override suspend fun getLocalRouteSchedules(
+        startDate: String,
+        endDate: String
+    ): List<RouteOnlyScheduleData> = withContext(Dispatchers.IO) {
+        scheduleDao.getServerRouteSchedulesInRange(startDate, endDate)
+            .mapNotNull { it.toLocalRouteOnlyScheduleData() }
+    }
+
+    private fun Schedule.toLocalRouteOnlyScheduleData(): RouteOnlyScheduleData? {
+        val routeInfo = routeJson
+            ?.takeIf { it.isNotBlank() }
+            ?.let { json ->
+                runCatching { Gson().fromJson(json, RouteInfo::class.java) }.getOrNull()
+            }
+            ?: return null
+
+        val colorHex = eventColor?.let { color ->
+            String.format(Locale.US, "#%06X", 0xFFFFFF and color)
+        }
+
+        return RouteOnlyScheduleData(
+            scheduleId = id,
+            scheduleInfo = ScheduleInfo(
+                title = title ?: "",
+                isAllDay = isAllDay,
+                startDate = startDate,
+                endDate = endDate,
+                startTime = startTime,
+                endTime = endTime,
+                memo = memo,
+                isPathIncluded = true,
+                color = colorHex,
+                calendarId = calendarId.toString()
+            ),
+            route = routeInfo
+        )
+    }
+
 
     // Delete a normal schedule from Calendar Provider and Room
     override suspend fun deleteNormalSchedule(id: Long): RawDefaultResponse<String> {

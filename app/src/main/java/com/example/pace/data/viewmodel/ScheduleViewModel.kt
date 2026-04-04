@@ -22,6 +22,7 @@ import com.example.pace.data.model.response.RouteInfo
 import com.example.pace.data.model.response.ScheduleDetailResponse
 import com.example.pace.data.repeat.RepeatRuleHelper
 import com.example.pace.data.repository.repository.ScheduleRepository
+import com.example.pace.data.util.AlarmScheduler
 import com.example.pace.data.repository.repository.SettingsRepository
 import com.example.pace.data.worker.ScheduleFinalizeWorker
 import com.google.gson.Gson
@@ -342,6 +343,8 @@ class ScheduleViewModel @Inject constructor(
                     )
 
                     if (response.isSuccess) {
+                        val targetScheduleId = schedule.serverId ?: schedule.id
+                        replaceRouteScheduleRuntime(targetScheduleId)
                         _updateScheduleEvent.value = true
                         Log.d("ScheduleViewModel", "경로 일정 서버 수정 성공")
                     } else {
@@ -358,7 +361,9 @@ class ScheduleViewModel @Inject constructor(
                 }
 
                 // Reload after update so calendar UI reflects changes immediately
-                refreshSchedules()
+                if (schedule.type != "ROUTE") {
+                    refreshSchedules()
+                }
 
             } catch (e: Exception) {
                 Log.e("ScheduleViewModel", "일정 수정 실패: ${e.message}")
@@ -420,7 +425,7 @@ class ScheduleViewModel @Inject constructor(
                 // Handle result
                 if (response.isSuccess) {
                     withContext(Dispatchers.IO) {
-                        repository.refreshSchedules()
+                        replaceRouteScheduleRuntime(scheduleId)
                     }
                     _updateScheduleEvent.value = true
                     Log.d("ScheduleViewModel", "경로 일정 서버 수정 성공: $scheduleId")
@@ -466,15 +471,16 @@ class ScheduleViewModel @Inject constructor(
                 )
 
                 if (response.isSuccess) {
-                    // Register finalize worker for route schedules
                     val serverId = response.result?.scheduleId
                     val arrival = request.route?.arrivalTime
-                    if (serverId != null && arrival != null) {
-                        scheduleFinalizeWorker(serverId, request.startDate, arrival)
-                    }
 
                     withContext(Dispatchers.IO) {
                         repository.refreshSchedules()
+                        if (request.route != null && serverId != null) {
+                            repository.getScheduleById(serverId)?.let { schedule ->
+                                syncRouteScheduleRuntime(schedule, arrival)
+                            }
+                        }
                     }
                     _createScheduleEvent.value = true
                 } else {
@@ -643,7 +649,6 @@ class ScheduleViewModel @Inject constructor(
         viewModelScope.launch {
             if (withRoute) {
                 // Cancel pending route finalize work
-                WorkManager.getInstance(context).cancelUniqueWork("finalize_$id")
                 Log.d("WorkManagerTest", "삭제로 인한 경로 일정 작업 취소: finalize_$id")
                 deleteRouteSchedule(id)
             } else {
@@ -666,8 +671,12 @@ class ScheduleViewModel @Inject constructor(
     // Delete route schedule through server API and local DB
     private suspend fun deleteRouteSchedule(id: Long) {
         Log.d("DeleteLog", "경로 일정 삭제 시도: ID = $id")
+        val existingSchedule = repository.getScheduleById(id)
         val response = repository.deleteRouteSchedule(id)
         if (response.isSuccess) {
+            existingSchedule?.let { schedule ->
+                cancelRouteScheduleRuntime(schedule)
+            }
             Log.d("DeleteLog", "경로 일정 삭제 성공")
         } else {
             Log.e("DeleteLog", "서버 삭제 실패: ${response.message}")
@@ -727,12 +736,9 @@ class ScheduleViewModel @Inject constructor(
 
                 if (response.isSuccess) {
                     val arrival = routeRequest.arrivalTime
-                    if (arrival != null) {
-                        scheduleFinalizeWorker(scheduleId, generalRequest.startDate, arrival)
-                    }
+                    replaceRouteScheduleRuntime(scheduleId, arrival)
                     withContext(Dispatchers.Main) {
                         _updateScheduleEvent.value = true
-                        refreshSchedules()
                     }
                     Log.d("UpdateLog", "일정 및 경로 수정 통합 성공: $scheduleId")
                 } else {
@@ -757,6 +763,67 @@ class ScheduleViewModel @Inject constructor(
             if (success) {
                 refreshSchedules()
             }
+        }
+    }
+
+    private fun syncRouteScheduleRuntime(schedule: Schedule, arrivalTimeOverride: String? = null) {
+        scheduleRouteAlarms(schedule)
+        scheduleFinalize(schedule, arrivalTimeOverride)
+    }
+
+    private suspend fun replaceRouteScheduleRuntime(scheduleId: Long, arrivalTimeOverride: String? = null) {
+        repository.getScheduleById(scheduleId)?.let { existing ->
+            cancelRouteScheduleRuntime(existing)
+        }
+        repository.refreshSchedules()
+        repository.getScheduleById(scheduleId)?.let { updated ->
+            syncRouteScheduleRuntime(updated, arrivalTimeOverride)
+        }
+    }
+
+    private fun cancelRouteScheduleRuntime(schedule: Schedule) {
+        AlarmScheduler.cancelPaceAlarms(
+            context = context,
+            scheduleId = schedule.id,
+            eventReminders = schedule.reminders,
+            departureReminders = schedule.departureReminders
+        )
+        WorkManager.getInstance(context).cancelUniqueWork("finalize_${schedule.id}")
+    }
+
+    private fun scheduleRouteAlarms(schedule: Schedule) {
+        val scheduleTimeMillis = runCatching {
+            val dateTimeText = "${schedule.startDate} ${schedule.startTime}"
+            SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).parse(dateTimeText)?.time
+        }.getOrNull() ?: return
+
+        schedule.reminders.forEach { minutes ->
+            AlarmScheduler.schedulePaceAlarm(
+                context = context,
+                scheduleId = schedule.id,
+                alarmType = "EVENT",
+                scheduleTimeMillis = scheduleTimeMillis,
+                leadMinutes = minutes
+            )
+        }
+
+        schedule.departureReminders.forEach { minutes ->
+            AlarmScheduler.schedulePaceAlarm(
+                context = context,
+                scheduleId = schedule.id,
+                alarmType = "DEPARTURE",
+                scheduleTimeMillis = scheduleTimeMillis,
+                leadMinutes = minutes
+            )
+        }
+    }
+
+    private fun scheduleFinalize(schedule: Schedule, arrivalTimeOverride: String? = null) {
+        val arrivalTime = arrivalTimeOverride ?: schedule.routeJson?.let {
+            runCatching { Gson().fromJson(it, RouteInfo::class.java).arrivalTime }.getOrNull()
+        }
+        if (!arrivalTime.isNullOrBlank()) {
+            scheduleFinalizeWorker(schedule.id, schedule.startDate, arrivalTime)
         }
     }
 

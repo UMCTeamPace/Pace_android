@@ -34,6 +34,7 @@
     android:layout_marginTop="30dp"
     android:gravity="center"
     tools:text="일정부터 출발까지 \n하루의 흐름을, 나의 페이스로"
+    android:textColor="@color/secondary_900"
     android:lineSpacingExtra="4dp"
     android:alpha="1"
     app:layout_constraintEnd_toEndOf="parent"

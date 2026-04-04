@@ -1,17 +1,15 @@
 package com.example.pace.ui.search_box
 
 import android.content.Context
-import android.content.pm.ActivityInfo
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
-import android.view.WindowManager
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.text.buildSpannedString
@@ -20,24 +18,16 @@ import androidx.core.view.setPadding
 import androidx.core.view.updatePadding
 import androidx.fragment.app.FragmentManager
 import com.example.pace.R
-import com.example.pace.data.model.RouteMappingData
 import com.example.pace.data.model.response.BusItemList
 import com.example.pace.data.model.response.RouteResponse
 import com.example.pace.data.model.response.SubwayTransitResult
-import com.example.pace.data.viewmodel.TransitViewModel
 import com.example.pace.databinding.BottomSheetRouteDetailBinding
 import com.example.pace.databinding.ItemRouteDetailArrivalBinding
 import com.example.pace.databinding.ItemRouteDetailBriefBinding
 import com.example.pace.databinding.ItemRouteDetailVehicleBinding
 import com.example.pace.databinding.ItemRouteDetailWalkBinding
 import com.example.pace.ui.RouteCalculator
-import com.google.android.material.bottomsheet.BottomSheetBehavior
-import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
-import kotlin.math.exp
+import kotlin.math.absoluteValue
 
 data class RealtimeParam(
     val type: String, // "SUBWAY" or "BUS"
@@ -48,9 +38,6 @@ data class RealtimeParam(
 )
 
 object RouteDetailHelper {
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    var subwayResult = emptyList<SubwayTransitResult>()
-    var busResult: BusItemList? = null
     fun setupData(context: Context, bottomSheetView: View, item: RouteResponse, destination: String, startName: String, fragmentManager: FragmentManager): List<RealtimeParam> {
         val realtimeParams = mutableListOf<RealtimeParam>()
         val binding = BottomSheetRouteDetailBinding.bind(bottomSheetView)
@@ -207,7 +194,9 @@ object RouteDetailHelper {
                     }
                     expandedVehicleBinding.itemRouteDetailVehicleTv.text = "${departureStopName} 승차"
                     expandedVehicleBinding.itemRouteDetailVehicleTimeTv.text = RouteCalculator.convertUtcToKst(data.transitDetail.departureTime)
+                    expandedVehicleBinding.itemRouteDetailVehicleTimeTv.setTextColor(Color.parseColor(data.transitDetail.lineColor))
                     expandedVehicleBinding.itemRouteDetailVehicleLineTv.text = data.transitDetail.shortName
+                    expandedVehicleBinding.itemRouteDetailVehicleLineTv.backgroundTintList = ColorStateList.valueOf(Color.parseColor(data.transitDetail.lineColor))
 
                     if(data.transitDetail.stationPath.isNullOrEmpty()){
                         expandedVehicleBinding.itemRouteDetailVehicleDirectionTv.text = data.transitDetail.headsign + "행" ?: "방면 정보 없음"
@@ -264,10 +253,79 @@ object RouteDetailHelper {
             targetLayout.visibility = View.VISIBLE // 뷰 강제 노출
             targetLayout.removeAllViews()
 
-            // 1. 데이터가 비어있을 때 (운행 종료 등)
+            // 1. 데이터가 비어 있을 때 (운행 종료 등)
             if (resultList.isNullOrEmpty()) {
                 val emptyText = TextView(context).apply {
                     text = "현재 도착 예정인 열차가 없습니다."
+                    setTextColor(Color.parseColor("#757575")) // 회색
+                    textSize = 12f
+
+                    val dp10 = (10 * context.resources.displayMetrics.density).toInt()
+                    //setPadding(dp10, dp10, dp10, dp10)
+
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                }
+                targetLayout.addView(emptyText)
+                return@post
+            }
+
+            // 2. 데이터가 있을 때 정상적으로 그리기
+            resultList.forEachIndexed { index, result ->
+                val childLayout = LinearLayout(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                        if(index > 0){
+                            setMargins(0, (12 * context.resources.displayMetrics.density).toInt(), 0, 0)
+                        }
+                    }
+                }
+                val timeText = TextView(context).apply {
+                    text = if(result.barvlDt == "0" && result.arvlMsg2[0] != '[') result.arvlMsg2
+                    else if (result.barvlDt == "0") result.arvlMsg2.split("(").last().dropLast(1)
+                    else (result.barvlDt.toInt() / 60).toString() + "분"
+                    typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
+                    setTextColor(ContextCompat.getColor(context, R.color.semantic_error))
+                    textSize = 11f
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                }
+                val leftStationText = TextView(context).apply {
+                    text = "${result.beforeSubwayCount.absoluteValue}정류장"
+                    typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
+                    setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
+                    textSize = 11f
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                        setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
+                    }
+                }
+                val directionText = TextView(context).apply {
+                    text = if(result.updnLine == "내선" || result.updnLine == "외선") result.updnLine + "순환행" else result.updnLine
+                    typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
+                    setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
+                    textSize = 11f
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                        setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
+                    }
+                }
+                childLayout.addView(timeText)
+                childLayout.addView(leftStationText)
+                childLayout.addView(directionText)
+                targetLayout.addView(childLayout)
+            }
+        }
+    }
+
+    fun updateBusUI(context: Context, targetLayout: LinearLayout, resultList: BusItemList?) {
+        // UI 그리기 충돌을 막기 위해 post 블록 사용
+        targetLayout.post {
+            targetLayout.visibility = View.VISIBLE // 뷰 강제 노출
+            targetLayout.removeAllViews()
+
+            // 1. 데이터가 비어있을 때 (운행 종료 등)
+            if (resultList == null) {
+                val emptyText = TextView(context).apply {
+                    text = "현재 도착 예정인 버스가 없습니다."
                     setTextColor(Color.parseColor("#757575")) // 회색
                     textSize = 12f
 
@@ -284,31 +342,188 @@ object RouteDetailHelper {
             }
 
             // 2. 데이터가 있을 때 정상적으로 그리기
-            resultList.forEach {
-                val childLayout = LinearLayout(context).apply {
-                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                        setPadding((10 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
-                    }
-                }
-                val timeText = TextView(context).apply {
-                    text = if(it.barvlDt == "0") it.arvlMsg2 else (it.barvlDt.toInt() / 60).toString() + "분"
-                    typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
-                    setTextColor(ContextCompat.getColor(context, R.color.semantic_error))
-                    textSize = 11f
-                }
-                val leftStationText = TextView(context).apply {
-                    text = "${it.beforeSubwayCount}정거장 전"
-                    typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
-                    setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
-                    textSize = 11f
-                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                        setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
-                    }
-                }
-                childLayout.addView(timeText)
-                childLayout.addView(leftStationText)
-                targetLayout.addView(childLayout)
+            // 첫 번째 데이터
+            val childLayout1 = LinearLayout(context).apply {
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             }
+            val timeText1 = TextView(context).apply {
+                text = resultList.arrmsg1?.split("[")?.first()
+                typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
+                setTextColor(ContextCompat.getColor(context, R.color.semantic_error))
+                textSize = 11f
+            }
+            val leftStationText1 = TextView(context).apply {
+                text = resultList.arrmsg1?.split("[")?.last()?.dropLast(1)
+                typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
+                setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
+                textSize = 11f
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
+                }
+            }
+            val congestionText1 = when(resultList.rerdie_Div1){
+                "2" -> {
+                    TextView(context).apply {
+                        text = resultList.reride_Num1
+                        typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
+                        setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
+                        textSize = 10f
+                        background = ContextCompat.getDrawable(context, R.drawable.bg_subway_realtime_seats)
+                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                            setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
+                            setPadding((3 * context.resources.displayMetrics.density).toInt(), (1 * context.resources.displayMetrics.density).toInt(), (2 * context.resources.displayMetrics.density).toInt(), (1 * context.resources.displayMetrics.density).toInt())
+                        }
+                    }
+                }
+                "4" -> {
+                    when(resultList.reride_Num1){
+                        "3" -> {
+                            ImageView(context).apply {
+                                setImageDrawable(ContextCompat.getDrawable(context, R.drawable.low_congestion))
+                                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                                    setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
+                                }
+                            }
+                        }
+                        "4" -> {
+                            ImageView(context).apply {
+                                setImageDrawable(ContextCompat.getDrawable(context, R.drawable.middle_congestion))
+                                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                                    setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
+                                }
+                            }
+                        }
+                        "5" -> {
+                            ImageView(context).apply {
+                                setImageDrawable(ContextCompat.getDrawable(context, R.drawable.high_congestion))
+                                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                                    setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
+                                }
+                            }
+                        }
+                        else -> {
+                            TextView(context).apply {
+                                text = "데이터 없음"
+                                typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
+                                setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
+                                textSize = 11f
+                                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                                    setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
+                                }
+                            }
+                        }
+                    }
+
+                }
+                else -> {
+                    TextView(context).apply {
+                        text = "데이터 없음"
+                        typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
+                        setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
+                        textSize = 11f
+                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                            setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
+                        }
+                    }
+                }
+            }
+            // 두 번째 데이터
+            val childLayout2 = LinearLayout(context).apply {
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(0, (12 * context.resources.displayMetrics.density).toInt(), 0, 0)
+                }
+            }
+            val timeText2 = TextView(context).apply {
+                text = resultList.arrmsg2?.split("[")?.first()
+                typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
+                setTextColor(ContextCompat.getColor(context, R.color.semantic_error))
+                textSize = 11f
+            }
+            val leftStationText2 = TextView(context).apply {
+                text = resultList.arrmsg2?.split("[")?.last()?.dropLast(1)
+                typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
+                setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
+                textSize = 11f
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
+                }
+            }
+            val congestionText2 = when(resultList.rerdie_Div2){
+                "2" -> {
+                    TextView(context).apply {
+                        text = resultList.reride_Num2
+                        typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
+                        setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
+                        textSize = 10f
+                        background = ContextCompat.getDrawable(context, R.drawable.bg_subway_realtime_seats)
+                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                            setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
+                            setPadding((3 * context.resources.displayMetrics.density).toInt(), (1 * context.resources.displayMetrics.density).toInt(), (2 * context.resources.displayMetrics.density).toInt(), (1 * context.resources.displayMetrics.density).toInt())
+                        }
+                    }
+                }
+                "4" -> {
+                    when(resultList.reride_Num2){
+                        "3" -> {
+                            ImageView(context).apply {
+                                setImageDrawable(ContextCompat.getDrawable(context, R.drawable.low_congestion))
+                                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                                    setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
+                                }
+                            }
+                        }
+                        "4" -> {
+                            ImageView(context).apply {
+                                setImageDrawable(ContextCompat.getDrawable(context, R.drawable.middle_congestion))
+                                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                                    setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
+                                }
+                            }
+                        }
+                        "5" -> {
+                            ImageView(context).apply {
+                                setImageDrawable(ContextCompat.getDrawable(context, R.drawable.high_congestion))
+                                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                                    setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
+                                }
+                            }
+                        }
+                        else -> {
+                            TextView(context).apply {
+                                text = "데이터 없음"
+                                typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
+                                setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
+                                textSize = 11f
+                                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                                    setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
+                                }
+                            }
+                        }
+                    }
+
+                }
+                else -> {
+                    TextView(context).apply {
+                        text = "데이터 없음"
+                        typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
+                        setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
+                        textSize = 11f
+                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                            setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
+                        }
+                    }
+                }
+            }
+
+            childLayout1.addView(timeText1)
+            childLayout1.addView(leftStationText1)
+            childLayout1.addView(congestionText1)
+            targetLayout.addView(childLayout1)
+
+            childLayout2.addView(timeText2)
+            childLayout2.addView(leftStationText2)
+            childLayout2.addView(congestionText2)
+            targetLayout.addView(childLayout2)
         }
     }
 }

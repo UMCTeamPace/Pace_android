@@ -20,7 +20,7 @@
             android:layout_gravity="center"
             android:text="새로운 일정 추가"
             android:textAppearance="@style/TextAppearance.App.HeadlineSm"
-            android:textStyle="bold" />
+            android:fontFamily="@font/pretendard_semibold" />
     </androidx.appcompat.widget.Toolbar>
 
     <com.google.android.material.tabs.TabLayout

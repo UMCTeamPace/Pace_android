@@ -33,6 +33,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.example.pace.BuildConfig
 import com.example.pace.PaceApplication
 import com.example.pace.R
+import com.example.pace.data.datasource.AuthDataStore
 import com.example.pace.data.db.SearchDatabase
 import com.example.pace.data.model.MarkScheduleProvider
 import com.example.pace.data.model.MyPlace
@@ -91,9 +92,13 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class RouteFragment : Fragment() {
+    @Inject
+    lateinit var authDataStore: AuthDataStore
+
     private var _binding: FragmentRouteBinding? = null
     private val binding get() = _binding!!
 
@@ -175,7 +180,6 @@ class RouteFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         searchViewModel.deleteExpiredData()
-
         initPlacesClient()
         initBottomSheet()
         initDetailBottomSheet()
@@ -593,7 +597,13 @@ class RouteFragment : Fragment() {
         Log.d("RouteApi", "Full Request: $request")
         Log.d("RouteApi", "=====================================================")
 
-        val token = BuildConfig.BEARER_TOKEN
+        val accessToken = authDataStore.getAccessToken().orEmpty()
+        val token = if (accessToken.isNotEmpty() && !accessToken.startsWith("Bearer ")) {
+            "Bearer $accessToken"
+        } else {
+            accessToken
+        }
+        if (token.isEmpty()) return
 
         routeViewModel.searchRoutes(token, request)
     }
@@ -3026,7 +3036,7 @@ class RouteFragment : Fragment() {
                         }
                         "BUS" -> {
                             val result = transitViewModel.fetchRealTimeBusArrivals(param.lineName, param.startStation, param.endStation)
-                            // TODO: 버스용 UI 업데이트 함수도 Helper에 만들어서 연결 (updateBusUI)
+                            RouteDetailHelper.updateBusUI(requireContext(), param.targetLayout, result)
                         }
                     }
                 }

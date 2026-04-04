@@ -291,6 +291,7 @@ class CalendarPageFragment: Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.scheduleMap.collectLatest { groupedMap ->
                 events = groupedMap
+                allSchedules = groupedMap.values.flatten()
                 rowAssignmentCache.clear()
 
                 if (groupedMap.isNotEmpty()) {
@@ -305,14 +306,6 @@ class CalendarPageFragment: Fragment() {
                     dailyPageAdapter.updateEvents(events, viewModel.routeDetails.value)
                 }
 
-                binding.calendarView.notifyCalendarChanged()
-                binding.weekCalendarView.notifyCalendarChanged()
-            }
-        }
-        viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.allSchedules.collectLatest { schedules ->
-                allSchedules = schedules
-                rowAssignmentCache.clear()
                 binding.calendarView.notifyCalendarChanged()
                 binding.weekCalendarView.notifyCalendarChanged()
             }

@@ -1,6 +1,8 @@
 package com.example.pace.ui.onboarding
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Bundle
@@ -8,6 +10,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.core.content.ContextCompat.getSystemService
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -171,14 +174,24 @@ class OnboardingFragment : Fragment() {
                         !result.tempToken.isNullOrBlank() -> {
                             Log.d("LOGIN_FLOW", "임시 토큰 발급 완료: 온보딩으로 이동합니다.")
                             app.authDataStore.setOnboardingComplete(false)
-                            startActivity(Intent(requireContext(), PermissionActivity::class.java))
+                            val nextIntent = if (hasRequiredPermissions()) {
+                                Intent(requireContext(), UserSetupActivity::class.java)
+                            } else {
+                                Intent(requireContext(), PermissionActivity::class.java)
+                            }
+                            startActivity(nextIntent)
                             activity?.finish()
                         }
                         !result.accessToken.isNullOrBlank() && !result.refreshToken.isNullOrBlank() -> {
                             Log.d("LOGIN_FLOW", "정식 토큰 발급 완료: 메인으로 이동합니다.")
                             fetchAndStoreMemberSettings(result.accessToken)
                             app.authDataStore.setOnboardingComplete(true)
-                            startActivity(Intent(requireContext(), MainActivity::class.java))
+                            val nextIntent = if (hasRequiredPermissions()) {
+                                Intent(requireContext(), MainActivity::class.java)
+                            } else {
+                                Intent(requireContext(), PermissionActivity::class.java)
+                            }
+                            startActivity(nextIntent)
                             activity?.finish()
                         }
                         else -> {
@@ -191,6 +204,24 @@ class OnboardingFragment : Fragment() {
                 }
             }
         }
+    }
+
+    private fun hasRequiredPermissions(): Boolean {
+        val context = requireContext()
+        val locationGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        val readCalendarGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.READ_CALENDAR
+        ) == PackageManager.PERMISSION_GRANTED
+        val writeCalendarGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.WRITE_CALENDAR
+        ) == PackageManager.PERMISSION_GRANTED
+
+        return locationGranted && readCalendarGranted && writeCalendarGranted
     }
 
     private suspend fun fetchAndStoreMemberSettings(accessToken: String) {
