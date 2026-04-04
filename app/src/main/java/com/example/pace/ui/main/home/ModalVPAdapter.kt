@@ -1,6 +1,7 @@
 package com.example.pace.ui.main.home
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
@@ -23,6 +24,7 @@ import com.example.pace.databinding.ItemRouteDetailBriefBinding
 import com.example.pace.databinding.ItemRouteVehicleBinding
 import com.example.pace.ui.RouteCalculator
 import com.example.pace.data.viewmodel.ScheduleViewModel
+import com.example.pace.ui.add_schedule.AddScheduleActivity
 import dagger.hilt.android.qualifiers.ActivityContext
 
 class ModalVPAdapter(
@@ -44,6 +46,24 @@ class ModalVPAdapter(
         position: Int
     ) {
         holder.bind(scheduleList[position])
+        if(scheduleList[position].type == "ROUTE"){
+            holder.binding.modalRouteBriefLl.setOnClickListener {
+                // todo: 경로뷰로 이동
+            }
+        }
+        holder.binding.root.setOnClickListener {
+            val intent = Intent(context, AddScheduleActivity::class.java).apply {
+                putExtra("isEdit", true)
+                putExtra("SCHEDULE_ID", scheduleList[position].id)
+                putExtra("OCCURRENCE_DATE", scheduleList[position].startDate)
+                putExtra("SCHEDULE_TYPE", scheduleList[position].type) // ⭐ 타입 명시 (ROUTE 또는 GENERAL)
+
+                if (scheduleList[position].type == "ROUTE") {
+                    putExtra("OPEN_ROUTE_TAB", true)
+                }
+            }
+            context.startActivity(intent)
+        }
     }
 
     override fun getItemCount(): Int = scheduleList.size
