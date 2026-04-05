@@ -125,6 +125,7 @@
                 android:textColor="@color/black"
                 android:textSize="12sp" />
 
+
         </FrameLayout>
 
     </LinearLayout>
@@ -147,6 +148,7 @@
             android:id="@+id/btn_route_select"
             android:layout_width="match_parent"
             android:layout_height="40dp"
+
             android:text="경로 선택"
             android:textAppearance="@style/TextAppearance.App.CaptionLg.Semibold"
             style="@style/TextColor.White"
