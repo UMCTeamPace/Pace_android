@@ -31,19 +31,22 @@
     <color name="gray_500">#999999</color>
     <color name="gray_400">#D9D9D9</color>
     <color name="gray_300">#DEDEDE</color>
-    <color name="gray_200">#EDEDED</color>
-    <color name="gray_100">#F2F2F2</color>
+    <color name="gray_200">#F2F2F2</color>
+    <color name="gray_100">#FDFDFD</color>
 
     <color name="semantic_success">#4F81FF</color>
+    <color name="semantic_error_delete">#FF4F4F</color>
     <color name="semantic_warning">#FF4F4F</color>
     <color name="semantic_error">#FF4F4F</color>
     <color name="semantic_info">#98BD0B</color>
     <color name="semantic_info2">#F2F9E1</color>
 
     <color name="text_primary">#191914</color>
+    <color name="text_sub">#222222</color>
     <color name="text_primary_transparency">#65191914</color>
     <color name="text_primary2">#222222</color>
     <color name="text_secondary">#666666</color>
+    <color name="text_tertiary">#999999</color>
     <color name="text_secondary2">#999999</color>
     <color name="text_disabled">#D9D9D9</color>
 
@@ -77,6 +80,7 @@
     <color name="route_line_8">#F14C82</color>
     <color name="route_line_9">#AA9872</color>
 
+    <color name="route_incheon_subway_line_1">#3681B7</color>
     <color name="route_incheon_1">#3681B7</color>
     <color name="route_gyeongchun">#0C8E72</color>
     <color name="route_suin_bundang">#FFBB00</color>

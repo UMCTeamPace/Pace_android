@@ -5,7 +5,7 @@
         <item name="android:textSize">24sp</item>
         <item name="android:fontFamily">@font/pretendard_semibold</item>
         <item name="lineHeight">30sp</item>
-        <item name="android:letterSpacing">-0.01</item>
+        <item name="android:letterSpacing">-0.001</item>
         <item name="android:textColor">@color/black</item>
     </style>
 
@@ -13,7 +13,7 @@
         <item name="android:textSize">20sp</item>
         <item name="android:fontFamily">@font/pretendard_semibold</item>
         <item name="lineHeight">26sp</item>
-        <item name="android:letterSpacing">-0.01</item>
+        <item name="android:letterSpacing">-0.001</item>
         <item name="android:textColor">@color/black</item>
     </style>
 
@@ -21,7 +21,7 @@
         <item name="android:textSize">18sp</item>
         <item name="android:fontFamily">@font/pretendard_semibold</item>
         <item name="lineHeight">24sp</item>
-        <item name="android:letterSpacing">-0.01</item>
+        <item name="android:letterSpacing">-0.001</item>
         <item name="android:textColor">@color/black</item>
     </style>
 
@@ -29,7 +29,7 @@
         <item name="android:textSize">16sp</item>
         <item name="android:fontFamily">@font/pretendard_semibold</item>
         <item name="lineHeight">24sp</item>
-        <item name="android:letterSpacing">-0.01</item>
+        <item name="android:letterSpacing">-0.001</item>
         <item name="android:textColor">@color/black</item>
     </style>
 
@@ -37,7 +37,15 @@
         <item name="android:textSize">16sp</item>
         <item name="android:fontFamily">@font/pretendard_medium</item>
         <item name="lineHeight">24sp</item>
-        <item name="android:letterSpacing">-0.01</item>
+        <item name="android:letterSpacing">-0.001</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+    <style name="TextAppearance.App.BodyMd.Regular" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">16sp</item>
+        <item name="android:fontFamily">@font/pretendard_regular</item>
+        <item name="lineHeight">24sp</item>
+        <item name="android:letterSpacing">-0.001</item>
         <item name="android:textColor">@color/black</item>
     </style>
 
@@ -45,7 +53,7 @@
         <item name="android:textSize">14sp</item>
         <item name="android:fontFamily">@font/pretendard_regular</item>
         <item name="lineHeight">20sp</item>
-        <item name="android:letterSpacing">-0.03</item>
+        <item name="android:letterSpacing">-0.003</item>
         <item name="android:textColor">@color/black</item>
     </style>
 
@@ -53,7 +61,7 @@
         <item name="android:textSize">14sp</item>
         <item name="android:fontFamily">@font/pretendard_medium</item>
         <item name="lineHeight">20sp</item>
-        <item name="android:letterSpacing">-0.03</item>
+        <item name="android:letterSpacing">-0.003</item>
         <item name="android:textColor">@color/black</item>
     </style>
 
@@ -61,7 +69,7 @@
         <item name="android:textSize">14sp</item>
         <item name="android:fontFamily">@font/pretendard_semibold</item>
         <item name="lineHeight">20sp</item>
-        <item name="android:letterSpacing">-0.03</item>
+        <item name="android:letterSpacing">-0.003</item>
         <item name="android:textColor">@color/black</item>
     </style>
 
@@ -69,7 +77,7 @@
         <item name="android:textSize">12sp</item>
         <item name="android:fontFamily">@font/pretendard_regular</item>
         <item name="lineHeight">16sp</item>
-        <item name="android:letterSpacing">-0.05</item>
+        <item name="android:letterSpacing">-0.005</item>
         <item name="android:textColor">@color/black</item>
     </style>
 
@@ -77,7 +85,7 @@
         <item name="android:textSize">12sp</item>
         <item name="android:fontFamily">@font/pretendard_medium</item>
         <item name="lineHeight">16sp</item>
-        <item name="android:letterSpacing">-0.05</item>
+        <item name="android:letterSpacing">-0.005</item>
         <item name="android:textColor">@color/black</item>
     </style>
 
@@ -85,7 +93,7 @@
         <item name="android:textSize">12sp</item>
         <item name="android:fontFamily">@font/pretendard_semibold</item>
         <item name="lineHeight">16sp</item>
-        <item name="android:letterSpacing">-0.05</item>
+        <item name="android:letterSpacing">-0.005</item>
         <item name="android:textColor">@color/black</item>
     </style>
 
@@ -93,7 +101,7 @@
         <item name="android:textSize">10sp</item>
         <item name="android:fontFamily">@font/pretendard_regular</item>
         <item name="lineHeight">14sp</item>
-        <item name="android:letterSpacing">-0.05</item>
+        <item name="android:letterSpacing">-0.005</item>
         <item name="android:textColor">@color/black</item>
     </style>
 
@@ -101,7 +109,7 @@
         <item name="android:textSize">10sp</item>
         <item name="android:fontFamily">@font/pretendard_medium</item>
         <item name="lineHeight">14sp</item>
-        <item name="android:letterSpacing">-0.05</item>
+        <item name="android:letterSpacing">-0.005</item>
         <item name="android:textColor">@color/black</item>
     </style>
 
@@ -109,7 +117,7 @@
         <item name="android:textSize">10sp</item>
         <item name="android:fontFamily">@font/pretendard_semibold</item>
         <item name="lineHeight">14sp</item>
-        <item name="android:letterSpacing">-0.05</item>
+        <item name="android:letterSpacing">-0.005</item>
         <item name="android:textColor">@color/black</item>
     </style>
 
@@ -117,7 +125,39 @@
         <item name="android:textSize">8sp</item>
         <item name="android:fontFamily">@font/pretendard_medium</item>
         <item name="lineHeight">10sp</item>
-        <item name="android:letterSpacing">-0.05</item>
+        <item name="android:letterSpacing">-0.005</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+    <style name="TextAppearance.App.ModalLg.Medium" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">@font/pretendard_medium</item>
+        <item name="lineHeight">24sp</item>
+        <item name="android:letterSpacing">-0.005</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+    <style name="TextAppearance.App.ModalLg.Regular" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">@font/pretendard_regular</item>
+        <item name="lineHeight">24sp</item>
+        <item name="android:letterSpacing">-0.005</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+    <style name="TextAppearance.App.ModalMd.Medium" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">8sp</item>
+        <item name="android:fontFamily">@font/pretendard_medium</item>
+        <item name="lineHeight">10sp</item>
+        <item name="android:letterSpacing">-0.005</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+    <style name="TextAppearance.App.ModalSm.Regular" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">8sp</item>
+        <item name="android:fontFamily">@font/pretendard_regular</item>
+        <item name="lineHeight">10sp</item>
+        <item name="android:letterSpacing">-0.005</item>
         <item name="android:textColor">@color/black</item>
     </style>
 
@@ -131,85 +171,100 @@
         <item name="android:textSize">24sp</item>
         <item name="android:fontFamily">@font/roboto_semibold</item>
         <item name="lineHeight">30sp</item>
-        <item name="android:letterSpacing">-0.01</item>
+        <item name="android:letterSpacing">-0.001</item>
     </style>
 
     <style name="TextAppearance.App.Num.HeadlineMd" parent="TextAppearance.App.Roboto">
         <item name="android:textSize">20sp</item>
         <item name="android:fontFamily">@font/roboto_semibold</item>
         <item name="lineHeight">26sp</item>
-        <item name="android:letterSpacing">-0.01</item>
+        <item name="android:letterSpacing">-0.001</item>
     </style>
 
-    <style name="TextAppearance.App.Num.HeadlineSm" parent="TextAppearance.App.Roboto">
+    <style name="TextAppearance.App.Num.HeadlineSm.Semibold" parent="TextAppearance.App.Roboto">
         <item name="android:textSize">18sp</item>
         <item name="android:fontFamily">@font/roboto_semibold</item>
         <item name="lineHeight">24sp</item>
-        <item name="android:letterSpacing">-0.01</item>
+        <item name="android:letterSpacing">-0.001</item>
+    </style>
+
+    <style name="TextAppearance.App.Num.HeadlineSm" parent="TextAppearance.App.Num.HeadlineSm.Semibold" />
+
+    <style name="TextAppearance.App.Num.HeadlineSm.Regular" parent="TextAppearance.App.Roboto">
+        <item name="android:textSize">18sp</item>
+        <item name="android:fontFamily">@font/roboto_regular</item>
+        <item name="lineHeight">24sp</item>
+        <item name="android:letterSpacing">-0.001</item>
     </style>
 
     <style name="TextAppearance.App.Num.BodyMd.Medium" parent="TextAppearance.App.Roboto">
         <item name="android:textSize">16sp</item>
         <item name="android:fontFamily">@font/roboto_medium</item>
         <item name="lineHeight">24sp</item>
-        <item name="android:letterSpacing">-0.01</item>
+        <item name="android:letterSpacing">-0.001</item>
     </style>
 
     <style name="TextAppearance.App.Num.BodyMd.Semibold" parent="TextAppearance.App.Roboto">
         <item name="android:textSize">16sp</item>
         <item name="android:fontFamily">@font/roboto_semibold</item>
         <item name="lineHeight">24sp</item>
-        <item name="android:letterSpacing">-0.01</item>
+        <item name="android:letterSpacing">-0.001</item>
     </style>
 
     <style name="TextAppearance.App.Num.BodyMd.Regular" parent="TextAppearance.App.Roboto">
         <item name="android:textSize">16sp</item>
         <item name="android:fontFamily">@font/roboto_regular</item>
         <item name="lineHeight">24sp</item>
-        <item name="android:letterSpacing">-0.01</item>
+        <item name="android:letterSpacing">-0.001</item>
     </style>
 
     <style name="TextAppearance.App.Num.BodySm.Regular" parent="TextAppearance.App.Roboto">
         <item name="android:textSize">14sp</item>
         <item name="android:fontFamily">@font/roboto_regular</item>
         <item name="lineHeight">20sp</item>
-        <item name="android:letterSpacing">-0.03</item>
+        <item name="android:letterSpacing">-0.003</item>
     </style>
 
     <style name="TextAppearance.App.Num.BodySm.Medium" parent="TextAppearance.App.Roboto">
         <item name="android:textSize">14sp</item>
         <item name="android:fontFamily">@font/roboto_medium</item>
         <item name="lineHeight">20sp</item>
-        <item name="android:letterSpacing">-0.03</item>
+        <item name="android:letterSpacing">-0.003</item>
     </style>
 
     <style name="TextAppearance.App.Num.CaptionLg.Semibold" parent="TextAppearance.App.Roboto">
         <item name="android:textSize">12sp</item>
         <item name="android:fontFamily">@font/roboto_semibold</item>
-        <item name="lineHeight">24sp</item>
-        <item name="android:letterSpacing">-0.01</item>
+        <item name="lineHeight">16sp</item>
+        <item name="android:letterSpacing">-0.005</item>
     </style>
 
     <style name="TextAppearance.App.Num.CaptionLg.Regular" parent="TextAppearance.App.Roboto">
         <item name="android:textSize">12sp</item>
         <item name="android:fontFamily">@font/roboto_regular</item>
         <item name="lineHeight">16sp</item>
-        <item name="android:letterSpacing">-0.05</item>
+        <item name="android:letterSpacing">-0.005</item>
     </style>
 
-    <style name="TextAppearance.App.Num.CaptionLg.Medium" parent="TextAppearance.App.Roboto">
-        <item name="android:textSize">12sp</item>
-        <item name="android:fontFamily">@font/roboto_medium</item>
-        <item name="lineHeight">16sp</item>
-        <item name="android:letterSpacing">-0.05</item>
+    <style name="TextAppearance.App.Num.CaptionMd.Bold" parent="TextAppearance.App.Roboto">
+        <item name="android:textSize">11sp</item>
+        <item name="android:fontFamily">@font/roboto_semibold</item>
+        <item name="lineHeight">14sp</item>
+        <item name="android:letterSpacing">-0.001</item>
     </style>
 
-    <style name="TextAppearance.App.Num.CaptionMd.Medium" parent="TextAppearance.AppCompat">
+    <style name="TextAppearance.App.Num.CaptionMd.Medium" parent="TextAppearance.App.Roboto">
         <item name="android:textSize">11sp</item>
         <item name="android:fontFamily">@font/roboto_medium</item>
         <item name="lineHeight">14sp</item>
-        <item name="android:letterSpacing">-0.05</item>
-        <item name="android:textColor">@color/black</item>
+        <item name="android:letterSpacing">-0.001</item>
+    </style>
+
+    <style name="TextAppearance.App.Num.CaptionSm.Semibold" parent="TextAppearance.App.Roboto">
+        <item name="android:textSize">10sp</item>
+        <item name="android:fontFamily">@font/roboto_semibold</item>
+        <item name="lineHeight">14sp</item>
+        <item name="android:letterSpacing">-0.005</item>
     </style>
 
     <style name="TextAppearance.App.Num.CaptionMd.Regular" parent="TextAppearance.AppCompat">
@@ -224,7 +279,7 @@
         <item name="android:textSize">10sp</item>
         <item name="android:fontFamily">@font/roboto_regular</item>
         <item name="lineHeight">14sp</item>
-        <item name="android:letterSpacing">-0.05</item>
+        <item name="android:letterSpacing">-0.005</item>
         <item name="android:textColor">@color/black</item>
     </style>
 
@@ -232,7 +287,7 @@
         <item name="android:textSize">10sp</item>
         <item name="android:fontFamily">@font/roboto_medium</item>
         <item name="lineHeight">14sp</item>
-        <item name="android:letterSpacing">-0.05</item>
+        <item name="android:letterSpacing">-0.005</item>
         <item name="android:textColor">@color/black</item>
     </style>
 
