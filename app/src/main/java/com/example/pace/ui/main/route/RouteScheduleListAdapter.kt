@@ -38,7 +38,6 @@ class RouteScheduleListAdapter(
                 HeaderViewHolder(binding)
             }
             TYPE_CONTENT -> {
-                // 🔥 기존 item_schedule.xml 재사용
                 val binding = ItemScheduleBinding.inflate(inflater, parent, false)
                 ContentViewHolder(binding)
             }
