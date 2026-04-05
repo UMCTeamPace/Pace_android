@@ -778,6 +778,8 @@ class RouteScheduleFragment : Fragment() {
             val rawTime = binding.tvStartTime.text.toString() // 예: "10:00"
             val timeToPass = if (rawTime.length == 5) "$rawTime:00" else rawTime
 
+            val rawEndTime = binding.tvEndTime.text.toString()
+            val endTimeToPass = if (rawEndTime.length == 5) "$rawEndTime:00" else rawEndTime
 
             val scheduleName = binding.etScheduleName.text.toString()
             val startTime = binding.tvStartTime.text.toString()
@@ -791,6 +793,7 @@ class RouteScheduleFragment : Fragment() {
                 putExtra("SCHEDULE_COLOR", colorIntToHex(getSaveColorInt()))
                 putExtra("SCHEDULE_DATE", dateToPass) // 받는 쪽에서 "SCHEDULE_DATE"로 꺼냄
                 putExtra("SCHEDULE_TIME", timeToPass) // 받는 쪽에서 "SCHEDULE_TIME"으로 꺼냄
+                putExtra("SCHEDULE_END_TIME", endTimeToPass)
                 putExtra("EARLY_ARRIVE_TIME", earlyArriveTime)
 
                 // ⭐ 출발지 정보 전달

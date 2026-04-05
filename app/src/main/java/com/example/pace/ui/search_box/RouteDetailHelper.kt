@@ -140,7 +140,6 @@ object RouteDetailHelper {
                             isRealtimeAvailable = true
                         }
 
-                        // ★ 대체 앱이 시간을 어떻게 계산했는지 확인하는 첩자 로그!
                         Log.d("TimeCheck", "현재시간: $nowKst | 출발: $depTimeKst | 허용구간: $startTime ~ $endTime | 표시여부: $isRealtimeAvailable")
                     } catch (e: Exception) {
                         e.printStackTrace()

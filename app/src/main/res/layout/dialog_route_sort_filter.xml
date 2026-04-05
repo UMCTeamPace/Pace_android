@@ -22,7 +22,8 @@
         android:id="@+id/rg_sort_options_sort_filter"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:layout_marginBottom="24dp">
 
         <RadioButton
             android:id="@+id/rb_best_route"
@@ -124,7 +125,8 @@
             android:background="@drawable/btn_cancel_bg"
             android:backgroundTint="@null"
             android:text="취소"
-            android:textColor="@color/text_secondary"/>
+            android:textColor="@color/text_secondary"
+            android:fontFamily="@font/pretendard_medium"/>
 
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btn_save_sort_filter"
@@ -134,7 +136,8 @@
             android:layout_weight="1"
             android:background="@drawable/btn_confirm_bg"
             android:text="저장"
-            android:textColor="@android:color/white" />
+            android:textColor="@android:color/white"
+            android:fontFamily="@font/pretendard_medium"/>
     </LinearLayout>
 
 </LinearLayout>

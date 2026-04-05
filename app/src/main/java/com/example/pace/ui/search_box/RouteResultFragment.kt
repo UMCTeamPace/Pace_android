@@ -1,6 +1,5 @@
 package com.example.pace.ui.search_box
 
-import android.content.Context.MODE_PRIVATE
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -8,11 +7,11 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.pace.R
-import com.example.pace.data.model.RouteResponseSample
-import com.example.pace.data.model.request.Destination
 import com.example.pace.data.model.response.RouteResponse
 import com.example.pace.databinding.FragmentRouteResultBinding
 import com.example.pace.ui.main.route.RouteFragment
+import android.graphics.Rect
+import androidx.recyclerview.widget.RecyclerView
 
 class RouteResultFragment(
     private var destination: String
@@ -54,6 +53,10 @@ class RouteResultFragment(
         )
         binding.searchLocationRv.adapter = adapter
         binding.searchLocationRv.layoutManager = LinearLayoutManager(requireContext())
+
+        if (binding.searchLocationRv.itemDecorationCount == 0) {
+            binding.searchLocationRv.addItemDecoration(GapItemDecoration(8))
+        }
     }
 
     private fun setupChipListener() {
@@ -88,5 +91,23 @@ class RouteResultFragment(
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+}
+
+class GapItemDecoration(private val gapHeightDp: Int) : RecyclerView.ItemDecoration() {
+    override fun getItemOffsets(
+        outRect: Rect,
+        view: View,
+        parent: RecyclerView,
+        state: RecyclerView.State
+    ) {
+        val position = parent.getChildAdapterPosition(view)
+        val itemCount = state.itemCount
+
+        val px = (gapHeightDp * view.resources.displayMetrics.density).toInt()
+
+        if (position != itemCount - 1) {
+            outRect.bottom = px
+        }
     }
 }

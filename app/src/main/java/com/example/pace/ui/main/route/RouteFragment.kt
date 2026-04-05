@@ -160,6 +160,7 @@ class RouteFragment : Fragment() {
     private var scheduleColor: String = ""
     private var scheduleName: String = ""
     private var scheduleTime: String = "00:00"
+    private var scheduleEndTime: String = "00:00"
     private var scheduleDate: String = "2026-11-11"
     private var requestSearchTime: String = ""
     private var responseArrivelTime: String = ""
@@ -660,7 +661,9 @@ class RouteFragment : Fragment() {
         var tmpDate = intent.getStringExtra("SCHEDULE_DATE") ?: "2032-12-02"
         scheduleDate = tmpDate
         var tmpTime = intent.getStringExtra("SCHEDULE_TIME") ?: "00:00:00"
+        var tmpEndTime = intent.getStringExtra("SCHEDULE_END_TIME") ?: "00:00:00"
         scheduleTime = tmpTime?.substring(0, 5) ?: ""
+        scheduleEndTime = tmpEndTime.substring(0, 5)
         val combinedTimeStr = "$tmpDate $tmpTime"
 
         val inputSdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
@@ -936,6 +939,9 @@ class RouteFragment : Fragment() {
         }
 
         binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.setOnClickListener {
+            if (currentEntryMode == EntryMode.SCHEDULE_ROUTE) {
+                return@setOnClickListener
+            }
             if (!isNetworkAvailable()) {
                 NetworkErrorDialog(requireContext()) {
                     binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.performClick()
@@ -950,8 +956,6 @@ class RouteFragment : Fragment() {
                     if (list.isNotEmpty()) {
                         showGroupedRouteBottomSheet(list) // 아래 만든 함수 호출
                         routeViewModel.routeScheduleList.removeObserver(this)
-                    } else {
-                        android.widget.Toast.makeText(requireContext(), "저장된 경로 일정이 없습니다.", android.widget.Toast.LENGTH_SHORT).show()
                     }
                 }
             })
@@ -1097,8 +1101,8 @@ class RouteFragment : Fragment() {
                 e.printStackTrace()
                 binding.layoutRouteDetailOverlay.viewColorDotRouteDetail.backgroundTintList = ColorStateList.valueOf(Color.RED)
             }
-            binding.layoutRouteDetailOverlay.tvScheduleRouteDetailName.text = scheduleName
-            binding.layoutRouteDetailOverlay.tvScheduleRouteDetailTime.text = scheduleTime
+            binding.layoutRouteDetailOverlay.tvScheduleRouteDetailName.text = " $scheduleName "
+            binding.layoutRouteDetailOverlay.tvScheduleRouteDetailTime.text = "$scheduleTime - $scheduleEndTime"
 
             val bottomSheetView = binding.layoutRouteDetailOverlay.root.findViewById<View>(R.id.sheet_route_detail)
             val detailBehavior = BottomSheetBehavior.from(bottomSheetView) // 지역 변수 명확히 사용
@@ -2046,6 +2050,7 @@ class RouteFragment : Fragment() {
                 binding.layoutRouteDetailOverlay.layoutRealtimeRefresh.visibility = View.GONE
 
                 mainBinding?.mainBnv?.visibility = View.VISIBLE
+                mainBinding?.mainBackIv?.visibility = View.GONE
 
                 if (hasSchedule) {
                     showDefaultScheduleOverlay(cachedScheduleData)
@@ -2204,6 +2209,7 @@ class RouteFragment : Fragment() {
         if (binding.layoutRouteInputHeader.root.visibility == View.VISIBLE) {
             exitSearchMode()
             mainBinding?.mainBnv?.visibility = View.VISIBLE
+            mainBinding?.mainBackIv?.visibility = View.GONE
             if (hasSchedule) {
                 // 일정이 있으면 해당 일정 오버레이 표시
                 showDefaultScheduleOverlay(cachedScheduleData)
@@ -2308,6 +2314,7 @@ class RouteFragment : Fragment() {
             }
 
             exitSearchMode()
+            mainBinding?.mainBackIv?.visibility = View.GONE
             if (hasSchedule) {
                 showDefaultScheduleOverlay(cachedScheduleData)
                 mainBinding?.mainBnv?.visibility = View.VISIBLE
@@ -2538,6 +2545,22 @@ class RouteFragment : Fragment() {
 
         val bottomSheetDialog = BottomSheetDialog(requireContext())
         bottomSheetDialog.setContentView(view)
+
+        val tvStartTime = view.findViewById<android.widget.TextView>(R.id.tv_schedule_time_info)
+
+        if (scheduleTime.isNotEmpty()) {
+            val timeParts = scheduleTime.split(":")
+            val hour = timeParts.getOrNull(0) ?: "00"
+            val minute = timeParts.getOrNull(1) ?: "00"
+
+            val displayTime = if (minute == "00") {
+                "${hour}시"
+            } else {
+                "${hour}시 ${minute}분"
+            }
+
+            tvStartTime?.text = "일정 시작 시간 : $displayTime"
+        }
 
         val npMinute = view.findViewById<NumberPicker>(R.id.np_minute)
         val btnCancel = view.findViewById<Button>(R.id.btn_cancel_schedule_route_filter)
