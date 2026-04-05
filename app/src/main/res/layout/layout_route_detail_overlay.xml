@@ -88,35 +88,71 @@
             android:background="@drawable/bg_bottom_sheet_rounded"
             app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior" />
 
-<!--        <ImageButton-->
-<!--            android:id="@+id/btn_go_my_location"-->
-<!--            android:layout_width="wrap_content"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:layout_marginEnd="16dp"-->
-<!--            android:layout_marginBottom="16dp"-->
-<!--            android:paddingBottom="40dp"-->
-<!--            android:background="@color/transparent"-->
-<!--            android:src="@drawable/ic_my_location"-->
-<!--            app:layout_anchor="@id/sheet_route_detail"-->
-<!--            app:layout_anchorGravity="top|end" />-->
-
-
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
-    <androidx.appcompat.widget.AppCompatButton
-        android:id="@+id/btn_route_select"
-        android:layout_width="match_parent"
-        android:layout_height="32dp"
-        android:text="경로 선택"
-        android:elevation="20dp"
-        android:textAppearance="@style/TextAppearance.App.CaptionLg.Semibold"
-        style="@style/TextColor.White"
-        android:background="@drawable/btn_route_green"
-        android:stateListAnimator="@null"
-        android:layout_marginTop="12dp"
-        android:layout_marginStart="20dp"
+    <LinearLayout
+        android:id="@+id/layout_realtime_refresh"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_marginEnd="20dp"
         android:layout_marginBottom="12dp"
-        app:layout_constraintBottom_toBottomOf="parent"/>
+        android:elevation="20dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/layout_route_select_container"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <FrameLayout
+            android:id="@+id/btn_realtime_refresh"
+            android:layout_width="65dp"
+            android:layout_height="65dp"
+            android:background="@drawable/bg_circle_white">
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="10dp"
+                android:src="@drawable/ic_refresh" />
+
+            <TextView
+                android:id="@+id/tv_refresh_countdown"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:fontFamily="@font/pretendard_semibold"
+                android:text="15"
+                android:textColor="@color/black"
+                android:textSize="12sp" />
+
+        </FrameLayout>
+
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/layout_route_select_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@android:color/white"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp"
+        android:elevation="20dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_route_select"
+            android:layout_width="match_parent"
+            android:layout_height="32dp"
+            android:text="경로 선택"
+            android:textAppearance="@style/TextAppearance.App.CaptionLg.Semibold"
+            style="@style/TextColor.White"
+            android:background="@drawable/btn_route_green"
+            android:stateListAnimator="@null" />
+
+    </FrameLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
