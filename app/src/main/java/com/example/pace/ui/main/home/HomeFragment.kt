@@ -59,6 +59,9 @@ class HomeFragment: Fragment() {
         binding.homeAddScheduleLl.setOnClickListener {
             startActivity(Intent(context, AddScheduleActivity::class.java))
         }
+        binding.homeAddScheduleIv.setOnClickListener {
+            startActivity(Intent(context, AddScheduleActivity::class.java))
+        }
 
         return binding.root
     }
