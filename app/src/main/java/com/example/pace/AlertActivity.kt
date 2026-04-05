@@ -43,20 +43,18 @@ class AlertActivity : AppCompatActivity() {
         // 1. ViewModel 초기화 (AndroidViewModel 형식이므로 context 자동 처리)
         viewModel = ViewModelProvider(this).get(AlertViewModel::class.java)
 
-        val minutes = intent.getIntExtra("MINUTES_LEFT", 0)
+        // AlertActivity.onCreate 내부
+        val minutesLeft = intent.getIntExtra("MINUTES_LEFT", 0)
 
         // 2. 관찰자(Observers) 설정
         setupObservers()
 
-        viewModel.initAlarmData(minutes)
-
-        // AlertActivity.onCreate 내부
-        val minutesLeft = intent.getIntExtra("MINUTES_LEFT", 0)
+        viewModel.initAlarmData(minutesLeft)
 
         viewModel.loadAlertData("Seoul,KR", BuildConfig.YOUR_OPENWEATHER_API_KEY, minutesLeft)
         Log.d("PaceAlarm", "액티비티에서 최종 확인한 시간: $minutesLeft")
 
-        viewModel.initAlarmData(minutesLeft)
+
 
         // 4. 버튼 이벤트 설정 (온라인/오프라인 공통)
         binding.btnClose.setOnClickListener { finish() }

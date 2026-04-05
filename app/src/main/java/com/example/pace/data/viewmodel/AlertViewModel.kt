@@ -51,8 +51,8 @@ class AlertViewModel(application: Application) : AndroidViewModel(application) {
         val prepStep = getPreparationStep(minutesLeft)
 
         if (!NetworkManager.isOnline(context)) {
-            _alertTheme.value = getOfflineAlertTheme(prepStep, minutesLeft)
             isOffline.value = true
+            _alertTheme.value = getOfflineAlertTheme(prepStep, minutesLeft)
             return
         }
 
@@ -88,14 +88,15 @@ class AlertViewModel(application: Application) : AndroidViewModel(application) {
                     } else {
                         _alertTheme.value = getOfflineAlertTheme(prepStep, minutesLeft)
                         android.util.Log.e("Pace_API", "실패 코드: ${response.code()}, 메시지: ${response.message()}")
-                        isOffline.value = true
+
                     }
                 }
 
                 override fun onFailure(call: Call<WeatherResponse>, t: Throwable) {
                     isLoading.value = false
-                    _alertTheme.value = getOfflineAlertTheme(prepStep, minutesLeft)
                     isOffline.value = true
+                    _alertTheme.value = getOfflineAlertTheme(prepStep, minutesLeft)
+
                 }
             })
     }
