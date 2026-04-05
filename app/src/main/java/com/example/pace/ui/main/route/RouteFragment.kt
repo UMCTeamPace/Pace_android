@@ -3015,11 +3015,102 @@ class RouteFragment : Fragment() {
                 return@setOnClickListener
             }
 
-            val targetLocation = LatLng(location.latitude, location.longitude)
-            val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
-            val supportMapFrag = mapFrag?.childFragmentManager?.findFragmentById(R.id.google_map_container) as? SupportMapFragment
-            supportMapFrag?.getMapAsync { googleMap ->
-                googleMap.animateCamera(com.google.android.gms.maps.CameraUpdateFactory.newLatLngZoom(targetLocation, 15f))
+            moveMapToCurrentLocation(location, animate = true)
+        }
+    }
+
+    fun resetToCurrentLocationState() {
+        if (_binding == null || !isAdded) return
+
+        hideKeyboard()
+        mainBinding?.searchEt?.clearFocus()
+        mainBinding?.searchEt?.setText("")
+
+        searchJob?.cancel()
+        realtimePollingJob?.cancel()
+        currentRealtimeParams = null
+        sessionToken = null
+
+        currentEntryMode = EntryMode.MAIN
+        currentTransitType = null
+        isStart = true
+        isDetailFromRecommend = false
+        isSelectingStart = true
+        isBookmarkSearchMode = false
+        wasRouteHeaderVisibleBeforeBookmark = false
+        bookmarkTarget = BookmarkTarget.NONE
+        selectedGroupId = null
+        selectedStartPlace = null
+        selectedEndPlace = null
+        selectedOnMapPlace = null
+        startLatLng = null
+        endLatLng = null
+        currentMapCenter = null
+        currentMapAddress = ""
+        currentMapCategory = ""
+        lastQuery = ""
+        isPoiMode = false
+        currentSortOption = RouteSortOption.BEST
+        requestSearchTime = ""
+        responseArrivelTime = ""
+        earlyArriveTime = -1
+        cachedScheduleData = null
+
+        binding.layoutRouteInputHeader.tvRouteStart.text = ""
+        binding.layoutRouteInputHeader.tvRouteEnd.text = ""
+        binding.layoutRouteInputHeader.tvSortFilter.text = currentSortOption.uiText
+        binding.layoutRouteInputHeader.root.visibility = View.GONE
+        binding.layoutRouteInputHeader.layoutFilterOptions.visibility = View.GONE
+        binding.layoutBookmarkHeader.root.visibility = View.GONE
+        binding.layoutMapSelectOverlay.root.visibility = View.GONE
+        binding.layoutRouteDetailOverlay.root.visibility = View.GONE
+        binding.layoutRouteDetailOverlay.bottomSheetRouteDetail.visibility = View.GONE
+        binding.routeSearchFcv.visibility = View.GONE
+        binding.routeMapFcv.visibility = View.VISIBLE
+
+        mainBinding?.mainToolbar?.visibility = View.VISIBLE
+        mainBinding?.mainBackIv?.visibility = View.GONE
+        mainBinding?.mainSearchLl?.visibility = View.VISIBLE
+        mainBinding?.mainBnv?.visibility = View.VISIBLE
+
+        val transaction = childFragmentManager.beginTransaction()
+        if (historyFragment.isAdded) transaction.hide(historyFragment)
+        if (recommendFragment.isAdded) transaction.hide(recommendFragment)
+        childFragmentManager.findFragmentByTag("ROUTE_RESULT")?.let { transaction.hide(it) }
+        transaction.commitAllowingStateLoss()
+        childFragmentManager.popBackStackImmediate("DETAIL", FragmentManager.POP_BACK_STACK_INCLUSIVE)
+
+        val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+        mapFrag?.clearTemporaryMarker()
+        mapFrag?.clearMarkers()
+        mapFrag?.clearRoute()
+        mapFrag?.setMapPadding(0)
+        mapFrag?.updateButtonTranslation(0f)
+
+        if (::bottomSheetBehavior.isInitialized) {
+            bottomSheetBehavior.isHideable = true
+            bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+        }
+
+        mainActivity?.myLocation?.let {
+            currentMyLocation = LatLng(it.latitude, it.longitude)
+            moveMapToCurrentLocation(it, animate = false)
+        }
+    }
+
+    private fun moveMapToCurrentLocation(location: android.location.Location, animate: Boolean) {
+        val targetLocation = LatLng(location.latitude, location.longitude)
+        val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+        val supportMapFrag =
+            mapFrag?.childFragmentManager?.findFragmentById(R.id.google_map_container) as? SupportMapFragment
+
+        supportMapFrag?.getMapAsync { googleMap ->
+            val cameraUpdate =
+                com.google.android.gms.maps.CameraUpdateFactory.newLatLngZoom(targetLocation, 15f)
+            if (animate) {
+                googleMap.animateCamera(cameraUpdate)
+            } else {
+                googleMap.moveCamera(cameraUpdate)
             }
         }
     }

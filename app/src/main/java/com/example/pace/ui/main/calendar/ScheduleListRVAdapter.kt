@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.daimajia.swipe.SwipeLayout
@@ -17,6 +18,8 @@ import com.example.pace.databinding.ItemDateHeaderBinding
 import com.example.pace.databinding.ItemScheduleBinding
 import com.example.pace.ui.RouteCalculator
 import com.google.gson.Gson
+import java.time.LocalDate
+import java.time.LocalTime
 
 class ScheduleListRVAdapter(
     private val context: Context,
@@ -32,6 +35,9 @@ class ScheduleListRVAdapter(
     private var isEditMode = false
     private var selectedKeys = setOf<String>()
     private var routeInfoMap: Map<Long, RouteInfo> = emptyMap()
+    private val primaryTextColor by lazy { ContextCompat.getColor(context, R.color.black) }
+    private val secondaryTextColor by lazy { ContextCompat.getColor(context, R.color.text_secondary) }
+    private val disabledTextColor by lazy { ContextCompat.getColor(context, R.color.text_disabled) }
 
     companion object {
         private const val TYPE_HEADER = 0
@@ -60,6 +66,18 @@ class ScheduleListRVAdapter(
     fun updateSelectedKeys(keys: Set<String>) {
         selectedKeys = keys
         notifyDataSetChanged()
+    }
+
+    fun updateRouteMap(newRouteMap: Map<Long, RouteInfo>) {
+        if (routeInfoMap == newRouteMap) return
+        routeInfoMap = newRouteMap
+
+        items.forEachIndexed { index, item ->
+            val scheduleItem = item as? ScheduleListItem.ScheduleItem ?: return@forEachIndexed
+            if (scheduleItem.schedule.type == "ROUTE") {
+                notifyItemChanged(index)
+            }
+        }
     }
 
     fun getSelectedSchedules(keys: Set<String>): List<Schedule> {
@@ -161,7 +179,7 @@ class ScheduleListRVAdapter(
             val colorResId = schedule.eventColor.takeIf { it != null && it != 0 }
                 ?: schedule.calendarColor.takeIf { it != null && it != 0 }
                 ?: Color.parseColor("#A2BD3B")
-            binding.scheduleCategoryIv.imageTintList = ColorStateList.valueOf(colorResId)
+            applyTodayScheduleColors(schedule, colorResId)
 
             if (isEditMode) {
                 binding.scheduleCheckbox.visibility = View.VISIBLE
@@ -231,6 +249,43 @@ class ScheduleListRVAdapter(
             binding.root.addDrag(SwipeLayout.DragEdge.Right, binding.scheduleRightBottomWrapper)
 
             mItemManger.bindView(itemView, bindingAdapterPosition)
+        }
+
+        private fun applyTodayScheduleColors(schedule: Schedule, scheduleColor: Int) {
+            val today = LocalDate.now()
+            val scheduleDate = runCatching { LocalDate.parse(schedule.startDate.take(10)) }.getOrNull()
+            val isToday = scheduleDate == today
+            val isPastTimedSchedule = isToday &&
+                !schedule.isAllDay &&
+                runCatching { LocalTime.parse(schedule.endTime) }.getOrNull()?.isBefore(LocalTime.now()) == true
+
+            val titleColor = when {
+                isToday && schedule.isAllDay -> primaryTextColor
+                isPastTimedSchedule -> disabledTextColor
+                else -> primaryTextColor
+            }
+            val secondaryColor = if (isPastTimedSchedule) disabledTextColor else secondaryTextColor
+            val accentColor = if (isPastTimedSchedule) disabledTextColor else secondaryTextColor
+            val categoryColor = if (isPastTimedSchedule) {
+                (scheduleColor and 0x00FFFFFF) or (0x80 shl 24)
+            } else {
+                scheduleColor
+            }
+
+            binding.scheduleTitleTv.setTextColor(titleColor)
+            binding.scheduleTimeTv.setTextColor(secondaryColor)
+            binding.scheduleRepeatTv.setTextColor(secondaryColor)
+            binding.scheduleNormalLocationTv.setTextColor(secondaryColor)
+            binding.scheduleRouteNameTv.setTextColor(titleColor)
+            binding.scheduleRouteRangeTv.setTextColor(secondaryColor)
+            binding.scheduleRouteDurationTv.setTextColor(secondaryColor)
+
+            binding.scheduleCategoryIv.imageTintList = ColorStateList.valueOf(categoryColor)
+            binding.scheduleRepeatIv.imageTintList = ColorStateList.valueOf(accentColor)
+            binding.scheduleNormalLocationIv.imageTintList = ColorStateList.valueOf(accentColor)
+            binding.scheduleRouteLocationIv.imageTintList = ColorStateList.valueOf(accentColor)
+            binding.schedulePinnedIv.imageTintList =
+                if (isPastTimedSchedule) ColorStateList.valueOf(disabledTextColor) else null
         }
 
         private fun buildRouteName(

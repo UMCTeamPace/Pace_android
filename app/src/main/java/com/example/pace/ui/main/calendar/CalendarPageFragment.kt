@@ -81,6 +81,9 @@ class CalendarPageFragment: Fragment() {
     private var headerHeight = 0
     private var weekViewHeight = 0
     private var containerHeight = 0
+    private var isInitialLayoutReady = false
+    private var isInitialDataReady = false
+    private var hasShownInitialContent = false
 
 
     override fun onCreateView(
@@ -102,6 +105,8 @@ class CalendarPageFragment: Fragment() {
         val firstDayOfWeek = DayOfWeek.SUNDAY
         selectedMonth = currentMonth
         selectedDate = today
+        updateTitle()
+        updateSelectedDateText(today)
         viewModel.setSelectedDate(today) // 초기값 세팅
 
         setupCalendarLayout()
@@ -308,6 +313,8 @@ class CalendarPageFragment: Fragment() {
 
                 binding.calendarView.notifyCalendarChanged()
                 binding.weekCalendarView.notifyCalendarChanged()
+                isInitialDataReady = true
+                showInitialContentIfNeeded()
             }
         }
 
@@ -321,6 +328,33 @@ class CalendarPageFragment: Fragment() {
             }
         }
 
+    }
+
+    private fun showInitialContentIfNeeded() {
+        if (hasShownInitialContent || _binding == null) return
+        if (!isInitialLayoutReady || !isInitialDataReady) return
+        hasShownInitialContent = true
+
+        val targetMonth = selectedDate?.let { YearMonth.from(it) } ?: selectedMonth
+        val targetHeight = containerHeight - headerHeight
+
+        binding.calendarView.animate().cancel()
+        binding.weekCalendarView.animate().cancel()
+        binding.calendarView.scrollToMonth(targetMonth)
+        if (targetHeight > 0 && binding.calendarView.layoutParams.height != targetHeight) {
+            binding.calendarView.layoutParams.height = targetHeight
+            binding.calendarView.requestLayout()
+        }
+        binding.calendarView.alpha = 1f
+        binding.calendarView.visibility = View.VISIBLE
+        binding.weekCalendarView.alpha = 0f
+        binding.weekCalendarView.visibility = View.GONE
+
+        bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+
+        binding.calendarContainer.visibility = View.VISIBLE
+        binding.bottomSheet.visibility = View.VISIBLE
+        binding.btnReturnToToday.visibility = if (selectedDate == today) View.GONE else View.VISIBLE
     }
 
     private fun setupCalendarLayout() {
@@ -345,6 +379,8 @@ class CalendarPageFragment: Fragment() {
                 if (availableHeight > 0 && binding.calendarView.layoutParams.height != availableHeight) {
                     binding.calendarView.layoutParams.height = availableHeight
                 }
+                isInitialLayoutReady = availableHeight > 0
+                showInitialContentIfNeeded()
             }
         })
     }
@@ -537,7 +573,7 @@ class CalendarPageFragment: Fragment() {
          * 3. 하루 일정 화면도 같은 날짜로 맞춘다.
          * 4. 같은 날짜를 다시 누르면 아래쪽 목록을 열거나 닫는다.
          */
-        if (selectedDate == date && scrollToPager && !fromScroll) {
+        if (selectedDate == date && scrollToPager && !fromScroll && hasShownInitialContent) {
             // 바텀시트 토글 로직 그대로 유지
             bottomSheetBehavior.state = if (bottomSheetBehavior.state == BottomSheetBehavior.STATE_HIDDEN) {
                 BottomSheetBehavior.STATE_EXPANDED
@@ -577,10 +613,22 @@ class CalendarPageFragment: Fragment() {
                 binding.root.postDelayed({ isProgrammaticScroll = false }, 100)
             }
 
-            if (!fromScroll && bottomSheetBehavior.state == BottomSheetBehavior.STATE_HIDDEN) {
+            if (hasShownInitialContent && !fromScroll && bottomSheetBehavior.state == BottomSheetBehavior.STATE_HIDDEN) {
                 bottomSheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
             }
         }
+    }
+
+    fun resetToTodayState() {
+        if (_binding == null) return
+
+        val targetMonth = YearMonth.from(today)
+        selectedMonth = targetMonth
+        updateTitle()
+        selectDate(today, scrollToPager = true, fromScroll = true)
+        binding.calendarView.scrollToMonth(targetMonth)
+        binding.weekCalendarView.scrollToWeek(today)
+        bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
     }
 
     private fun isDateInRecurrence(targetDate: LocalDate, startDate: LocalDate, rRule: String): Boolean {
@@ -700,6 +748,9 @@ class CalendarPageFragment: Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        isInitialLayoutReady = false
+        isInitialDataReady = false
+        hasShownInitialContent = false
         _binding = null
     }
 

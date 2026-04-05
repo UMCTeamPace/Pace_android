@@ -41,6 +41,8 @@ class HomeFragment: Fragment() {
     private lateinit var spf: SharedPreferences
     private lateinit var selectedDate: LocalDate
     private var scheduleMap: Map<LocalDate, List<Schedule>> = emptyMap()
+    private lateinit var horizontalCalendarAdapter: HorizontalCalendarRVAdapter
+    private var calendarCenterPosition = 0
 
 
     override fun onCreateView(
@@ -145,9 +147,10 @@ class HomeFragment: Fragment() {
         val date: LocalDate = selectedDate
         val layoutManager = binding.homeHorizontalCalendarRv.layoutManager as LinearLayoutManager
         val datePos = calendarSize / 2
+        calendarCenterPosition = datePos
         var calendarText = date.year.toString() + "년 " + date.monthValue.toString() + "월"
 
-        val horizontalCalendarAdapter = HorizontalCalendarRVAdapter(date)
+        horizontalCalendarAdapter = HorizontalCalendarRVAdapter(date)
         binding.homeHorizontalCalendarRv.adapter = horizontalCalendarAdapter
 
         val snapHelper = LinearSnapHelper()
@@ -287,6 +290,30 @@ class HomeFragment: Fragment() {
         modalCaseDialog?.dismiss()
         modalCaseDialog = null
         super.onStop()
+    }
+
+    fun resetToToday() {
+        if (!isAdded) return
+
+        selectedDate = LocalDate.now()
+        spf.edit().putString("SELECTED_DATE", selectedDate.toString()).apply()
+        viewModel.setSelectedDate(selectedDate)
+
+        if (::horizontalCalendarAdapter.isInitialized) {
+            val layoutManager = binding.homeHorizontalCalendarRv.layoutManager as? LinearLayoutManager
+            binding.homeHorizontalCalendarTv.text =
+                selectedDate.year.toString() + "년" + selectedDate.monthValue.toString() + "월"
+            horizontalCalendarAdapter.changeSelectedDate(calendarCenterPosition)
+            binding.homeHorizontalCalendarRv.post {
+                val recyclerLayoutManager = layoutManager ?: return@post
+                val screenWidth = binding.homeHorizontalCalendarRv.width
+                val itemWidth = screenWidth / 7
+                val offset = (screenWidth / 2) - (itemWidth / 2)
+                recyclerLayoutManager.scrollToPositionWithOffset(calendarCenterPosition, offset)
+            }
+        }
+
+        filterAndDisplaySchedules()
     }
 
     override fun onDestroyView() {
