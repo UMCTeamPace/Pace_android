@@ -12,6 +12,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.data.model.Schedule
 import com.example.pace.data.viewmodel.ScheduleViewModel
 import com.example.pace.databinding.FragmentScheduleListBinding
@@ -203,7 +204,7 @@ class ScheduleListFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    viewModel.scheduleMap.collect { groupedMap ->
+                    viewModel.scheduleMap.collectLatest { groupedMap ->
                         groupedMap.values.flatten()
                             .filter { it.type == "ROUTE" }
                             .forEach { viewModel.fetchRouteDetail(it.id) }
@@ -213,8 +214,8 @@ class ScheduleListFragment : Fragment() {
                 }
 
                 launch {
-                    viewModel.routeDetails.collect {
-                        processAndDisplaySchedules(viewModel.scheduleMap.value)
+                    viewModel.routeDetails.collectLatest {
+                        scheduleListAdapter.updateRouteMap(it)
                     }
                 }
 
@@ -263,10 +264,8 @@ class ScheduleListFragment : Fragment() {
             }
         }
 
-        withContext(Dispatchers.Main) {
-            scheduleListAdapter.updateData(items, viewModel.routeDetails.value)
-            scrollToTodayPositionIfNeeded(todayPosition)
-        }
+        scheduleListAdapter.updateData(items, viewModel.routeDetails.value)
+        scrollToTodayPositionIfNeeded(todayPosition)
     }
 
     private fun scrollToTodayPositionIfNeeded(todayPosition: Int?) {
@@ -279,6 +278,14 @@ class ScheduleListFragment : Fragment() {
             if (!isAdded || _binding == null || hasScrolledToToday) return@post
             layoutManager.scrollToPositionWithOffset(targetPosition, 0)
             hasScrolledToToday = true
+        }
+    }
+
+    fun resetToToday() {
+        if (_binding == null) return
+        hasScrolledToToday = false
+        viewLifecycleOwner.lifecycleScope.launch {
+            processAndDisplaySchedules(viewModel.scheduleMap.value)
         }
     }
 

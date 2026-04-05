@@ -4,11 +4,11 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- 기존 ConstraintLayout 내용을 통째로 감싸는 레이아웃 -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/calendar_container"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:visibility="invisible">
 
         <LinearLayout
             android:id="@+id/header_container"
@@ -17,88 +17,88 @@
             android:orientation="vertical"
             app:layout_constraintTop_toTopOf="parent">
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:orientation="horizontal"
-            android:padding="5dp">
-
-            <androidx.constraintlayout.widget.ConstraintLayout
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:gravity="center"
+                android:orientation="horizontal"
                 android:padding="5dp">
 
-                <TextView
-                    android:id="@+id/calendar_number_picker_tv"
-                    android:layout_width="wrap_content"
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="2026년 2월"
-                    android:textColor="@color/text_primary"
-                    android:textSize="18sp"
-                    android:clickable="true"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintHorizontal_bias="0.5"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
+                    android:padding="5dp">
 
-                <ImageView
-                    android:id="@+id/calendar_number_picker_btn_iv"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="5dp"
-                    android:clickable="true"
-                    android:src="@drawable/ic_calendar_picker"
-                    android:visibility="visible"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toEndOf="@id/calendar_number_picker_tv"
-                    app:layout_constraintTop_toTopOf="parent" />
+                    <TextView
+                        android:id="@+id/calendar_number_picker_tv"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:clickable="true"
+                        android:text=""
+                        android:textColor="@color/text_primary"
+                        android:textSize="18sp"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintHorizontal_bias="0.5"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent" />
 
-            </androidx.constraintlayout.widget.ConstraintLayout>
+                    <ImageView
+                        android:id="@+id/calendar_number_picker_btn_iv"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="5dp"
+                        android:clickable="true"
+                        android:src="@drawable/ic_calendar_picker"
+                        android:visibility="visible"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/calendar_number_picker_tv"
+                        app:layout_constraintTop_toTopOf="parent" />
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
+            </LinearLayout>
+
+            <include
+                android:id="@+id/legendLayout"
+                layout="@layout/layout_calendar_day_legend" />
+
         </LinearLayout>
 
-        <include
-            android:id="@+id/legendLayout"
-            layout="@layout/layout_calendar_day_legend" />
+        <com.kizitonwose.calendar.view.CalendarView
+            android:id="@+id/calendarView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="20dp"
+            android:layout_marginEnd="20dp"
+            app:cv_daySize="rectangle"
+            app:cv_dayViewResource="@layout/item_calendar_day"
+            app:layout_constraintTop_toBottomOf="@id/header_container" />
 
-    </LinearLayout>
-
-    <com.kizitonwose.calendar.view.CalendarView
-        android:id="@+id/calendarView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="20dp"
-        android:layout_marginEnd="20dp"
-        app:cv_dayViewResource="@layout/item_calendar_day"
-        app:cv_daySize="rectangle"
-        app:layout_constraintTop_toBottomOf="@id/header_container"/>
-
-    <com.kizitonwose.calendar.view.WeekCalendarView
-        android:id="@+id/weekCalendarView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="20dp"
-        android:layout_marginEnd="20dp"
-        app:cv_dayViewResource="@layout/item_calendar_day"
-        app:cv_daySize="rectangle"
-        app:layout_constraintTop_toBottomOf="@id/header_container"
-        android:visibility="invisible"/>
+        <com.kizitonwose.calendar.view.WeekCalendarView
+            android:id="@+id/weekCalendarView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="20dp"
+            android:layout_marginEnd="20dp"
+            android:visibility="invisible"
+            app:cv_daySize="rectangle"
+            app:cv_dayViewResource="@layout/item_calendar_day"
+            app:layout_constraintTop_toBottomOf="@id/header_container" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <FrameLayout
         android:id="@+id/bottom_sheet"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior"
-        app:layout_constraintBottom_toBottomOf="parent"
+        android:visibility="invisible"
         app:behavior_hideable="true"
-        app:behavior_peekHeight="0dp">
+        app:behavior_peekHeight="0dp"
+        app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior"
+        app:layout_constraintBottom_toBottomOf="parent">
 
         <include
             android:id="@+id/schedule_list_container"
             layout="@layout/bottom_sheet_schedule" />
-
     </FrameLayout>
 
     <LinearLayout
@@ -107,16 +107,16 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|center_horizontal"
         android:layout_marginBottom="30dp"
+        android:alpha="0"
         android:background="@drawable/bg_return_to_today"
+        android:clickable="true"
         android:elevation="8dp"
+        android:focusable="true"
         android:gravity="center"
         android:orientation="horizontal"
         android:paddingHorizontal="16dp"
         android:paddingVertical="10dp"
-        android:clickable="true"
-        android:focusable="true"
-        android:visibility="gone"
-        android:alpha="0">
+        android:visibility="gone">
 
         <TextView
         android:layout_width="wrap_content"

@@ -79,7 +79,9 @@ class CalendarFragment: Fragment() {
 
 
         val calendarFragmentAdapter = CalendarFragmentAdapter(this)
+        binding.calendarVp.visibility = View.INVISIBLE
         binding.calendarVp.adapter = calendarFragmentAdapter
+        binding.calendarVp.offscreenPageLimit = 1
         binding.calendarVp.isUserInputEnabled = false
         binding.calendarVp.setCurrentItem(1, false)
         // 처음 진입 시 캘린더 탭이 기본이라 수정 버튼은 숨김
@@ -102,6 +104,11 @@ class CalendarFragment: Fragment() {
                 }
             }
         })
+
+        binding.calendarVp.post {
+            if (_binding == null) return@post
+            binding.calendarVp.visibility = View.VISIBLE
+        }
     }
 
     fun setTabVisibility(isVisible: Boolean) {
@@ -111,6 +118,33 @@ class CalendarFragment: Fragment() {
         // [수정] 원래 스와이프를 막기로 했다면, 여기서 다시 true로 만들면 안 됩니다.
         // 편집 모드든 아니든 뷰페이저는 터치로 넘기지 못하게 false로 박아버립니다.
         binding.calendarVp.isUserInputEnabled = false
+    }
+
+    fun showCalendarTab() {
+        if (_binding == null) return
+        binding.root.visibility = View.INVISIBLE
+        binding.calendarVp.setCurrentItem(1, false)
+        binding.calendarTabLayout.post {
+            if (_binding == null) return@post
+            binding.calendarTabLayout.selectTab(binding.calendarTabLayout.getTabAt(1), false)
+            binding.calendarTabLayout.setScrollPosition(1, 0f, true)
+            binding.root.visibility = View.VISIBLE
+        }
+    }
+
+    fun resetToTodayState() {
+        if (_binding == null) return
+
+        val today = java.time.LocalDate.now()
+        viewModel.setSelectedDate(today)
+        showCalendarTab()
+
+        childFragmentManager.fragments.forEach { fragment ->
+            when (fragment) {
+                is ScheduleListFragment -> fragment.resetToToday()
+                is CalendarPageFragment -> fragment.resetToTodayState()
+            }
+        }
     }
 
     override fun onDestroyView() {

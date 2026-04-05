@@ -19,6 +19,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.fragment.app.Fragment
 import com.example.pace.R
 import com.example.pace.databinding.ActivityMainBinding
 import com.example.pace.ui.main.calendar.CalendarFragment
@@ -102,6 +103,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var spf: SharedPreferences
     private var currentBottomMenuItem = R.id.home
 
+    companion object {
+        private const val TAG_HOME = "main_home"
+        private const val TAG_CALENDAR = "main_calendar"
+        private const val TAG_ROUTE = "main_route"
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -138,7 +145,9 @@ class MainActivity : AppCompatActivity() {
 
         // 2. 초기 화면 설정 (Home)
         if (savedInstanceState == null) {
-            supportFragmentManager.beginTransaction().replace(R.id.main_fcv, HomeFragment()).commit()
+            supportFragmentManager.beginTransaction()
+                .add(R.id.main_fcv, HomeFragment(), TAG_HOME)
+                .commit()
             currentBottomMenuItem = R.id.home
         }
 
@@ -158,9 +167,7 @@ class MainActivity : AppCompatActivity() {
         binding.mainBnv.setOnItemSelectedListener { item ->
             changeFragment(item)
         }
-        binding.mainBnv.setOnItemReselectedListener { item ->
-            refreshFragment(item)
-        }
+        binding.mainBnv.setOnItemReselectedListener { }
 
         // 4. 설정 버튼 이동
         binding.mainSettingsIv.setOnClickListener {
@@ -247,12 +254,16 @@ class MainActivity : AppCompatActivity() {
     private fun changeFragment(item: MenuItem): Boolean {
         binding.searchEt.clearFocus()
 
+        if (item.itemId == currentBottomMenuItem) {
+            return true
+        }
+
         when (item.itemId) {
             R.id.home -> {
-                supportFragmentManager.beginTransaction().replace(
-                        R.id.main_fcv,
-                        HomeFragment()
-                    ).commit()
+                switchFragment(TAG_HOME) { HomeFragment() }
+                supportFragmentManager.executePendingTransactions()
+                (supportFragmentManager.findFragmentByTag(TAG_HOME) as? HomeFragment)?.resetToToday()
+                currentBottomMenuItem = R.id.home
                 binding.mainLogoIv.visibility = View.VISIBLE
                 binding.mainSettingsIv.visibility = View.VISIBLE
                 binding.scheduleTitleTv.visibility = View.GONE
@@ -266,10 +277,10 @@ class MainActivity : AppCompatActivity() {
             }
 
             R.id.calendar -> {
-                supportFragmentManager.beginTransaction().replace(
-                    R.id.main_fcv,
-                    CalendarFragment()
-                ).commit()
+                switchFragment(TAG_CALENDAR) { CalendarFragment() }
+                supportFragmentManager.executePendingTransactions()
+                (supportFragmentManager.findFragmentByTag(TAG_CALENDAR) as? CalendarFragment)?.resetToTodayState()
+                currentBottomMenuItem = R.id.calendar
                 binding.mainLogoIv.visibility = android.view.View.GONE
                 binding.mainSettingsIv.visibility = android.view.View.GONE
                 binding.scheduleActionContainer.visibility = View.VISIBLE
@@ -283,10 +294,10 @@ class MainActivity : AppCompatActivity() {
             }
 
             R.id.route -> {
-                supportFragmentManager.beginTransaction().replace(
-                    R.id.main_fcv,
-                    RouteFragment()
-                ).commit()
+                switchFragment(TAG_ROUTE) { RouteFragment() }
+                supportFragmentManager.executePendingTransactions()
+                (supportFragmentManager.findFragmentByTag(TAG_ROUTE) as? RouteFragment)?.resetToCurrentLocationState()
+                currentBottomMenuItem = R.id.route
                 binding.mainLogoIv.visibility = android.view.View.GONE
                 binding.mainSettingsIv.visibility = android.view.View.GONE
                 binding.scheduleTitleTv.visibility = android.view.View.GONE
@@ -302,33 +313,28 @@ class MainActivity : AppCompatActivity() {
         }
     }
     // 같은 프래그먼트 선택 시 새로고침
-    private fun refreshFragment(item: MenuItem): Boolean{
-        binding.searchEt.clearFocus()
-
-        when (item.itemId) {
-            R.id.home -> {
-                supportFragmentManager.beginTransaction().replace(R.id.main_fcv, HomeFragment()).commit()
-                spf.edit().remove("SELECTED_DATE").apply()
-                return true
-            }
-
-            R.id.calendar -> {
-                supportFragmentManager.beginTransaction().replace(
-                    R.id.main_fcv,
-                    CalendarFragment()
-                ).commit()
-                return true
-            }
-
-            R.id.route -> {
-                supportFragmentManager.beginTransaction().replace(
-                    R.id.main_fcv,
-                    RouteFragment()
-                ).commit()
-                return true
-            }
-            else -> return false
+    private fun switchFragment(tag: String, createFragment: () -> Fragment) {
+        val fragmentManager = supportFragmentManager
+        val targetFragment = fragmentManager.findFragmentByTag(tag) ?: createFragment()
+        val currentFragment = fragmentManager.fragments.firstOrNull { fragment ->
+            fragment.id == R.id.main_fcv && fragment.isAdded && !fragment.isHidden
         }
+
+        if (currentFragment === targetFragment) return
+
+        if (targetFragment is CalendarFragment && targetFragment.isAdded) {
+            targetFragment.showCalendarTab()
+        }
+
+        fragmentManager.beginTransaction().apply {
+            currentFragment?.let { hide(it) }
+
+            if (targetFragment.isAdded) {
+                show(targetFragment)
+            } else {
+                add(R.id.main_fcv, targetFragment, tag)
+            }
+        }.commit()
     }
 
     private fun createNotificationChannel() {
