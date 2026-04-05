@@ -46,6 +46,23 @@ import kotlin.compareTo
 
 @AndroidEntryPoint
 class GeneralScheduleFragment : Fragment() {
+    private data class FormSnapshot(
+        val title: String,
+        val memo: String,
+        val isAllDay: Boolean,
+        val startDate: LocalDate?,
+        val endDate: LocalDate?,
+        val startTime: String,
+        val endTime: String,
+        val selectedColorHex: String,
+        val selectedPlaceId: String?,
+        val selectedPlaceName: String?,
+        val selectedLat: Double,
+        val selectedLng: Double,
+        val selectedAlarms: List<Int>,
+        val selectedCalendarId: Long?,
+        val repeatInfoJson: String?
+    )
 
     private enum class ActiveInput {
         START_DATE,
@@ -88,6 +105,15 @@ class GeneralScheduleFragment : Fragment() {
     private var isEditMode: Boolean = false
     private var scheduleIdForEdit: Long = -1L
     private var occurrenceDateForEdit: LocalDate? = null
+    private var initialFormSnapshot: FormSnapshot? = null
+    private var isKeyboardVisible = false
+    private var isTouchingInputArea = false
+    private var suppressKeyboardDismissUntil = 0L
+    private val showBottomButtonsRunnable = Runnable {
+        if (_binding != null && !isKeyboardVisible) {
+            binding.layoutBottomButtons.visibility = View.VISIBLE
+        }
+    }
 
     private val routeSearchLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
@@ -111,14 +137,7 @@ class GeneralScheduleFragment : Fragment() {
 
     val backPressedCallback = object: OnBackPressedCallback(true){
         override fun handleOnBackPressed() {
-            val dialog = AddCancelDialog(requireContext()){
-                if (parentFragmentManager.backStackEntryCount > 0) {
-                    parentFragmentManager.popBackStack()
-                } else {
-                    requireActivity().finish()
-                }
-            }
-            dialog.show()
+            handleExitAttempt()
         }
     }
 
@@ -190,6 +209,16 @@ class GeneralScheduleFragment : Fragment() {
             updateDateDisplay() // 위에서 만든 함수를 쓰면 텍스트뷰까지 한 번에 업데이트됩니다.
         }
 
+
+        if (!isEditMode) {
+            resetInitialFormSnapshot()
+        }
+
+        binding.root.post {
+            if (initialFormSnapshot == null) {
+                resetInitialFormSnapshot()
+            }
+        }
 
         val selectedDate = arguments?.getString("selected_date")
         val mode = arguments?.getString("mode")
@@ -330,20 +359,14 @@ class GeneralScheduleFragment : Fragment() {
 
 // 3. 취소 버튼 (기존과 동일)
         binding.btnCancel.setOnClickListener {
-            val dialog = AddCancelDialog(requireContext()){
-                if (parentFragmentManager.backStackEntryCount > 0) {
-                    parentFragmentManager.popBackStack()
-                } else {
-                    requireActivity().finish()
-                }
-            }
-            dialog.show()
+            handleExitAttempt()
         }
 
         setupKeyboardVisibilityListener()
 
         // 반복 버튼 눌렀을 때 선택된 시작 날짜 보내주기
         binding.btnRepeat.setOnClickListener {
+            dismissKeyboard()
             val dateToSend = startDate?.toString() ?: LocalDate.now().toString()
 
             val repeatFragment = ScheduleRepeatFragment().apply {
@@ -375,12 +398,14 @@ class GeneralScheduleFragment : Fragment() {
         binding.btnStartDate.setOnClickListener(dateClickAction)
         binding.btnEndDate.setOnClickListener(dateClickAction)
         binding.btnStartDate.setOnClickListener {
+            dismissKeyboard()
             activeInput = ActiveInput.START_DATE
             updateDateDisplay()
             updateTimeVisibility()
             showCalendar()
         }
         binding.btnEndDate.setOnClickListener {
+            dismissKeyboard()
             activeInput = ActiveInput.END_DATE
             updateDateDisplay()
             updateTimeVisibility()
@@ -390,6 +415,7 @@ class GeneralScheduleFragment : Fragment() {
         // 시간 텍스트 클릭 시 (하루종일이 아닐 때만 반응)
         // 시간 텍스트 클릭 시
         binding.tvStartTime.setOnClickListener {
+            dismissKeyboard()
             if (isAllDay) return@setOnClickListener
             isEditingStartTime = true
             activeInput = ActiveInput.START_TIME
@@ -400,6 +426,7 @@ class GeneralScheduleFragment : Fragment() {
         }
 
         binding.tvEndTime.setOnClickListener {
+            dismissKeyboard()
             if (isAllDay) return@setOnClickListener
             isEditingStartTime = false
             activeInput = ActiveInput.END_TIME
@@ -411,18 +438,16 @@ class GeneralScheduleFragment : Fragment() {
 
 
         binding.viewColorDot.setOnClickListener {
+            dismissKeyboard()
+            animateColorSelectorChange()
             if (binding.layoutColorSelector.visibility == View.GONE) {
-                animateLayoutChange()
                 binding.layoutColorSelector.visibility = View.VISIBLE
-
-                // 캘린더를 아예 닫고 싶지 않다면 아래 줄을 주석 처리하세요.
-                // 만약 닫아야 한다면, 나중에 다시 열 때 확실히 VISIBLE로 만들어야 합니다.
-                binding.calendarContainer.visibility = View.GONE
-                binding.timePickerContainer.visibility = View.GONE
             } else {
                 binding.layoutColorSelector.visibility = View.GONE
             }
         }
+        binding.etScheduleName.onFocusChangeListener = null
+        installInputProtection()
 
         val colorList = listOf(
             ColorItem(R.color.schedule_5, "#DC354B"),
@@ -466,6 +491,7 @@ class GeneralScheduleFragment : Fragment() {
         }
 
         binding.addscheMyPhoneIv.setOnClickListener {
+            dismissKeyboard()
             animateLayoutChange()
             isAllDay = !isAllDay
 
@@ -491,6 +517,7 @@ class GeneralScheduleFragment : Fragment() {
         }
 
         binding.btnRoute.setOnClickListener {
+            dismissKeyboard()
             val intent = android.content.Intent(
                 requireContext(),
                 com.example.pace.ui.main.MainActivity::class.java
@@ -515,6 +542,7 @@ class GeneralScheduleFragment : Fragment() {
         }
 
         binding.btnRemindalarm.setOnClickListener {
+            dismissKeyboard()
             val fragment = AlarmScheduleFragment()
             val bundle = Bundle().apply {
                 // 온보딩 값이 아닌, 현재 화면에서 들고 있는 변수를 넘김
@@ -605,7 +633,9 @@ class GeneralScheduleFragment : Fragment() {
                 binding.layoutColorSelector.visibility = View.GONE
             }
         }
+        binding.etScheduleName.onFocusChangeListener = null
         binding.btnCalendar.setOnClickListener {
+            dismissKeyboard()
             // SelectCalendarFragment로 통일
             val fragment = SelectCalendarFragment()
             val bundle = Bundle().apply {
@@ -623,15 +653,14 @@ class GeneralScheduleFragment : Fragment() {
 
         parentFragmentManager.setFragmentResultListener("GENERAL_ALARM_KEY", viewLifecycleOwner) { _, bundle ->
             // 일반 일정 로직 수행
-            val resultText = bundle.getString("selectedAlarm")
             val resultMinutes = bundle.getIntArray("selectedAlarmMinutes")
 
             if (resultMinutes != null) {
                 // 1) 프래그먼트 내부 임시 변수만 업데이트 (DB는 건드리지 않음)
                 currentSelectedAlarms = resultMinutes
 
-                // 2) UI 텍스트만 즉시 업데이트
-                binding.tvRemindStatus.text = resultText
+                // 2) 정렬 규칙을 포함한 공통 UI 갱신 경로 사용
+                updateAlarmText(resultMinutes)
                 binding.tvRemindStatus.setTextColor(Color.BLACK)
 
             }
@@ -688,6 +717,53 @@ class GeneralScheduleFragment : Fragment() {
         // 로그로 값이 바뀌는지 확인해보세요
         Log.d("COLOR_CHECK", "선택된 색상: $selectedColorHex")
     }
+    private fun handleExitAttempt() {
+        if (!hasUnsavedChanges()) {
+            exitScreen()
+            return
+        }
+
+        AddCancelDialog(requireContext()) {
+            exitScreen()
+        }.show()
+    }
+
+    private fun exitScreen() {
+        if (parentFragmentManager.backStackEntryCount > 0) {
+            parentFragmentManager.popBackStack()
+        } else {
+            requireActivity().finish()
+        }
+    }
+
+    private fun hasUnsavedChanges(): Boolean {
+        return currentFormSnapshot() != initialFormSnapshot
+    }
+
+    private fun resetInitialFormSnapshot() {
+        initialFormSnapshot = currentFormSnapshot()
+    }
+
+    private fun currentFormSnapshot(): FormSnapshot {
+        return FormSnapshot(
+            title = binding.etScheduleName.text?.toString().orEmpty().trim(),
+            memo = binding.etMemo.text?.toString().orEmpty().trim(),
+            isAllDay = isAllDay,
+            startDate = startDate,
+            endDate = endDate,
+            startTime = binding.tvStartTime.text?.toString().orEmpty(),
+            endTime = binding.tvEndTime.text?.toString().orEmpty(),
+            selectedColorHex = selectedColorHex,
+            selectedPlaceId = selectedPlaceId,
+            selectedPlaceName = selectedPlaceName,
+            selectedLat = selectedLat,
+            selectedLng = selectedLng,
+            selectedAlarms = currentSelectedAlarms?.sorted()?.toList() ?: emptyList(),
+            selectedCalendarId = currentSelectedCalendarId,
+            repeatInfoJson = currentRepeatInfo?.let { Gson().toJson(it) }
+        )
+    }
+
     private fun initTimePickers() {
 
         binding.pickerHour.apply {
@@ -835,13 +911,63 @@ class GeneralScheduleFragment : Fragment() {
 
             val screenHeight = rootView.rootView.height
             val keypadHeight = screenHeight - rect.bottom
+            val keyboardVisibleNow = keypadHeight > screenHeight * 0.15
 
-            if (keypadHeight > screenHeight * 0.15) {
-                binding.layoutBottomButtons.visibility = View.GONE
-            } else {
-                binding.layoutBottomButtons.visibility = View.VISIBLE
+            if (keyboardVisibleNow != isKeyboardVisible) {
+                isKeyboardVisible = keyboardVisibleNow
+                rootView.removeCallbacks(showBottomButtonsRunnable)
+                if (keyboardVisibleNow) {
+                    binding.layoutBottomButtons.visibility = View.GONE
+                } else {
+                    rootView.postDelayed(showBottomButtonsRunnable, 120)
+                }
             }
         }
+
+        binding.nestedScrollView.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    isTouchingInputArea = isTouchInsideInput(event)
+                    if (isTouchingInputArea) {
+                        suppressKeyboardDismissUntil = android.os.SystemClock.uptimeMillis() + 500L
+                    }
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    if (!isTouchingInputArea && !shouldSuppressKeyboardDismiss()) {
+                        dismissKeyboard()
+                    }
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    binding.nestedScrollView.post {
+                        isTouchingInputArea = false
+                    }
+                }
+            }
+            false
+        }
+
+        binding.nestedScrollView.setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
+            if (scrollY != oldScrollY && !isTouchingInputArea && !shouldSuppressKeyboardDismiss()) {
+                dismissKeyboard()
+            }
+        }
+    }
+
+    private fun installInputProtection() {
+        val markInputInteraction = View.OnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                isTouchingInputArea = true
+                suppressKeyboardDismissUntil = android.os.SystemClock.uptimeMillis() + 500L
+            }
+            false
+        }
+
+        binding.etScheduleName.setOnTouchListener(markInputInteraction)
+        binding.etMemo.setOnTouchListener(markInputInteraction)
+    }
+
+    private fun shouldSuppressKeyboardDismiss(): Boolean {
+        return android.os.SystemClock.uptimeMillis() < suppressKeyboardDismissUntil
     }
 
     private fun isTimeAfter(t1: String, t2: String): Boolean {
@@ -1043,6 +1169,15 @@ class GeneralScheduleFragment : Fragment() {
         )
     }
 
+    private fun animateColorSelectorChange() {
+        android.transition.TransitionManager.beginDelayedTransition(
+            binding.layoutScheduleName,
+            android.transition.AutoTransition().apply {
+                duration = 180
+            }
+        )
+    }
+
     private fun observeCreateEvent() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.createScheduleEvent.collect { isSuccess ->
@@ -1085,13 +1220,15 @@ class GeneralScheduleFragment : Fragment() {
                 binding.tvCalendarStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.black))
                 applyCalendarColor(resolvedCalendarId)
             }
+
+            binding.root.post { resetInitialFormSnapshot() }
         }
     }
     private fun updateAlarmText(alarms: IntArray) {
         if (alarms.isEmpty()) {
             binding.tvRemindStatus.text = "일정 알림 안함"
         } else {
-            val texts = alarms.map { minutesToText(it) } // minutesToText 함수를 여기도 복사하거나 유틸로 분리
+            val texts = alarms.sorted().map { minutesToText(it) } // minutesToText 함수를 여기도 복사하거나 유틸로 분리
             binding.tvRemindStatus.text = texts.joinToString(", ")
         }
     }
@@ -1160,6 +1297,7 @@ class GeneralScheduleFragment : Fragment() {
             endDate = today
             binding.tvStartDate.text = today.format(dateFormatter)
             binding.tvEndDate.text = today.format(dateFormatter)
+            binding.root.post { resetInitialFormSnapshot() }
         }
     }
 
@@ -1210,8 +1348,8 @@ class GeneralScheduleFragment : Fragment() {
                 )
 
                 // 시간 텍스트 직접 할당
-                binding.tvStartTime.text = if (isAllDay) "오전 00:00" else s.startTime
-                binding.tvEndTime.text = if (isAllDay) "오후 11:59" else s.endTime
+                binding.tvStartTime.text = if (isAllDay) "00:00" else s.startTime
+                binding.tvEndTime.text = if (isAllDay) "11:59" else s.endTime
                 binding.tvStartTime.setTextColor(Color.BLACK)
                 binding.tvEndTime.setTextColor(Color.BLACK)
                 updateTimeVisibility()
@@ -1293,9 +1431,32 @@ class GeneralScheduleFragment : Fragment() {
                 if (s.eventColor == null || s.eventColor == 0) {
                     applyCalendarColor(s.calendarId)
                 }
+
+                binding.root.post { resetInitialFormSnapshot() }
             }
         }
     }
+
+    private fun dismissKeyboard() {
+        val focusedView = requireActivity().currentFocus ?: return
+        val imm =
+            requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+        imm.hideSoftInputFromWindow(focusedView.windowToken, 0)
+        focusedView.clearFocus()
+        binding.etScheduleName.clearFocus()
+        binding.etMemo.clearFocus()
+    }
+
+    private fun isTouchInsideInput(event: MotionEvent): Boolean {
+        return isTouchInsideView(binding.etScheduleName, event) || isTouchInsideView(binding.etMemo, event)
+    }
+
+    private fun isTouchInsideView(view: View, event: MotionEvent): Boolean {
+        val rect = android.graphics.Rect()
+        view.getGlobalVisibleRect(rect)
+        return rect.contains(event.rawX.toInt(), event.rawY.toInt())
+    }
+
 
     // --- 별도의 메서드로 정의할 업데이트 관찰 로직 ---
     private fun observeUpdateEvent() {

@@ -35,6 +35,7 @@ class ScheduleListFragment : Fragment() {
 
     private lateinit var scheduleListAdapter: ScheduleListRVAdapter
     private val viewModel: ScheduleViewModel by activityViewModels()
+    private var hasScrolledToToday = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -233,15 +234,18 @@ class ScheduleListFragment : Fragment() {
     private suspend fun processAndDisplaySchedules(groupedMap: Map<LocalDate, List<Schedule>>) {
         val items = mutableListOf<ScheduleListItem>()
         val today = LocalDate.now()
+        var todayPosition: Int? = null
 
         if (groupedMap.isNotEmpty()) {
             withContext(Dispatchers.Default) {
                 val sortedDates = groupedMap.keys
-                    .filter { !it.isBefore(today) }
                     .sorted()
 
                 for (date in sortedDates) {
                     val scheduleList = groupedMap[date] ?: continue
+                    if (todayPosition == null && !date.isBefore(today)) {
+                        todayPosition = items.size
+                    }
                     items.add(ScheduleListItem.DateHeader(formatDateToHeader(date)))
 
                     val sortedList = scheduleList.sortedWith(
@@ -261,6 +265,20 @@ class ScheduleListFragment : Fragment() {
 
         withContext(Dispatchers.Main) {
             scheduleListAdapter.updateData(items, viewModel.routeDetails.value)
+            scrollToTodayPositionIfNeeded(todayPosition)
+        }
+    }
+
+    private fun scrollToTodayPositionIfNeeded(todayPosition: Int?) {
+        if (hasScrolledToToday) return
+
+        val layoutManager = binding.scheduleListRv.layoutManager as? LinearLayoutManager ?: return
+        val targetPosition = todayPosition ?: return
+
+        binding.scheduleListRv.post {
+            if (!isAdded || _binding == null || hasScrolledToToday) return@post
+            layoutManager.scrollToPositionWithOffset(targetPosition, 0)
+            hasScrolledToToday = true
         }
     }
 
@@ -304,6 +322,7 @@ class ScheduleListFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        hasScrolledToToday = false
         _binding = null
     }
 }
