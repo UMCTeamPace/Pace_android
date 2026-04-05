@@ -2046,6 +2046,7 @@ class RouteFragment : Fragment() {
                 binding.layoutRouteDetailOverlay.layoutRealtimeRefresh.visibility = View.GONE
 
                 mainBinding?.mainBnv?.visibility = View.VISIBLE
+                mainBinding?.mainBackIv?.visibility = View.GONE
 
                 if (hasSchedule) {
                     showDefaultScheduleOverlay(cachedScheduleData)
@@ -2204,6 +2205,7 @@ class RouteFragment : Fragment() {
         if (binding.layoutRouteInputHeader.root.visibility == View.VISIBLE) {
             exitSearchMode()
             mainBinding?.mainBnv?.visibility = View.VISIBLE
+            mainBinding?.mainBackIv?.visibility = View.GONE
             if (hasSchedule) {
                 // 일정이 있으면 해당 일정 오버레이 표시
                 showDefaultScheduleOverlay(cachedScheduleData)
@@ -2308,6 +2310,7 @@ class RouteFragment : Fragment() {
             }
 
             exitSearchMode()
+            mainBinding?.mainBackIv?.visibility = View.GONE
             if (hasSchedule) {
                 showDefaultScheduleOverlay(cachedScheduleData)
                 mainBinding?.mainBnv?.visibility = View.VISIBLE
@@ -2538,6 +2541,22 @@ class RouteFragment : Fragment() {
 
         val bottomSheetDialog = BottomSheetDialog(requireContext())
         bottomSheetDialog.setContentView(view)
+
+        val tvStartTime = view.findViewById<android.widget.TextView>(R.id.tv_schedule_time_info)
+
+        if (scheduleTime.isNotEmpty()) {
+            val timeParts = scheduleTime.split(":")
+            val hour = timeParts.getOrNull(0) ?: "00"
+            val minute = timeParts.getOrNull(1) ?: "00"
+
+            val displayTime = if (minute == "00") {
+                "${hour}시"
+            } else {
+                "${hour}시 ${minute}분"
+            }
+
+            tvStartTime?.text = "일정 시작 시간 : $displayTime"
+        }
 
         val npMinute = view.findViewById<NumberPicker>(R.id.np_minute)
         val btnCancel = view.findViewById<Button>(R.id.btn_cancel_schedule_route_filter)

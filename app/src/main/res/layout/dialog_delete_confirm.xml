@@ -31,7 +31,8 @@
             android:background="@drawable/btn_cancel_bg"
             android:backgroundTint="@null"
             android:text="취소"
-            android:textColor="@color/text_secondary"/>
+            android:textColor="@color/text_secondary"
+            android:fontFamily="@font/pretendard_medium"/>
 
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btn_delete_confirm"
@@ -41,7 +42,8 @@
             android:layout_weight="1"
             android:background="@drawable/btn_delete_schedule_red"
             android:text="삭제"
-            android:textColor="@android:color/white" />
+            android:textColor="@android:color/white"
+            android:fontFamily="@font/pretendard_medium"/>
     </LinearLayout>
 
 </LinearLayout>
