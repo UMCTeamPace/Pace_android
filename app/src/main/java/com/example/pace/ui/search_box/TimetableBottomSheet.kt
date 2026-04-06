@@ -27,6 +27,8 @@ import kotlin.getValue
 class TimetableBottomSheet(
     private val station: String,
     private val lineName: String,
+    private val upNext: String?,
+    private val downNext: String?
 ): BottomSheetDialogFragment(){
     companion object {
         const val tag = "SubwayTimetable"
@@ -150,10 +152,8 @@ class TimetableBottomSheet(
             binding.bottomSheetSubwayTimetableLastTimeLl.visibility = View.VISIBLE
         }
 
-        binding.bottomSheetSubwayTimetableUpTv.text = "상행 전역 방면"
-        binding.bottomSheetSubwayTimetableUpSubTv.text = if(lineName == "2호선") "내선순환" else "상행"
-        binding.bottomSheetSubwayTimetableDownTv.text = "하행 전역 방면"
-        binding.bottomSheetSubwayTimetableDownSubTv.text = if(lineName == "2호선") "외선순환" else "하행"
+        binding.bottomSheetSubwayTimetableUpTv.text = if(upNext.isNullOrEmpty() || upNext == "정보 없음") "정보 없음" else "$upNext 방면"
+        binding.bottomSheetSubwayTimetableDownTv.text = if(downNext.isNullOrEmpty() || downNext == "정보 없음") "정보 없음" else "$downNext 방면"
 
         observeFirstAndLast()
     }
@@ -171,8 +171,8 @@ class TimetableBottomSheet(
 
         parentLayout.removeAllViews()
 
-        list.forEach {
-            if(it != null){
+        list.forEach { item ->
+            if(item != null){
                 val childLayout = LinearLayout(context).apply{
                     orientation = LinearLayout.HORIZONTAL
                     background = ContextCompat.getDrawable(context, R.drawable.bg_subway_timetable_white)
@@ -180,15 +180,14 @@ class TimetableBottomSheet(
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT,
                     ).apply {
-                        setPadding((12 * context.resources.displayMetrics.density).toInt(), (10 * context.resources.displayMetrics.density).toInt(), (12 * context.resources.displayMetrics.density).toInt(), (10 * context.resources.displayMetrics.density).toInt())
-                        setMargins(0, (10 * context.resources.displayMetrics.density).toInt(), 0, (12 * context.resources.displayMetrics.density).toInt())
+                        setPadding((24 * context.resources.displayMetrics.density).toInt(), (10 * context.resources.displayMetrics.density).toInt(), (12 * context.resources.displayMetrics.density).toInt(), (10 * context.resources.displayMetrics.density).toInt())
                     }
                 }
                 val timeText = TextView(context).apply {
-                    if(it.depTime == "0"){
-                        text = it.arrTime.substring(0, 2) + ":" + it.arrTime.substring(2, 4)
+                    if(item.depTime == "0"){
+                        text = item.arrTime.substring(0, 2) + ":" + item.arrTime.substring(2, 4)
                     }else{
-                        text = it.depTime.substring(0, 2) + ":" + it.depTime.substring(2, 4)
+                        text = item.depTime.substring(0, 2) + ":" + item.depTime.substring(2, 4)
                     }
                     setTextColor(ContextCompat.getColor(context, R.color.text_primary))
                     typeface = ResourcesCompat.getFont(context, R.font.roboto_medium)
@@ -199,7 +198,7 @@ class TimetableBottomSheet(
                     )
                 }
                 val directionText = TextView(context).apply{
-                    text = it.endSubwayStationName
+                    text = item.endSubwayStationName
                     setTextColor(ContextCompat.getColor(context, R.color.text_secondary))
                     typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
                     textSize = 12f
@@ -214,6 +213,17 @@ class TimetableBottomSheet(
                 childLayout.addView(directionText)
                 parentLayout.addView(childLayout)
             }
+        }
+    }
+    fun updateSubTv(list: List<String>, isUp: Boolean){
+        if(isUp){
+            var upText = if(lineName == "2호선") "내선순환" else "상행"
+            list.forEach { upText += "/$it" }
+            binding.bottomSheetSubwayTimetableUpSubTv.text = upText
+        }else{
+            var downText = if(lineName == "2호선") "외선순환" else "하행"
+            list.forEach { downText += "/$it" }
+            binding.bottomSheetSubwayTimetableDownSubTv.text = downText
         }
     }
     fun observeFirstAndLast(daily: String = "01"){
@@ -245,6 +255,20 @@ class TimetableBottomSheet(
             repeatOnLifecycle(Lifecycle.State.STARTED){
                 viewModel.lastDownSubway.collect {
                     updateTimetableUI(it, isFirst = false, isUp = false)
+                }
+            }
+        }
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.upEndStations.collect {
+                    updateSubTv(it, true)
+                }
+            }
+        }
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.downEndStations.collect {
+                    updateSubTv(it, false)
                 }
             }
         }

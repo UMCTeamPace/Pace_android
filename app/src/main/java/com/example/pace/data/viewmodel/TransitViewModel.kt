@@ -39,8 +39,10 @@ class TransitViewModel @Inject constructor(
     private val _lastDownSubway = MutableStateFlow<List<StationTimetableItem?>>(emptyList())
     val lastDownSubway = _lastDownSubway.asStateFlow()
     // 지하철 종점역들
-    private val _endStations = MutableStateFlow<List<String>>(emptyList())
-    val endStations = _endStations.asStateFlow()
+    private val _upEndStations = MutableStateFlow<List<String>>(emptyList())
+    val upEndStations = _upEndStations.asStateFlow()
+    private val _downEndStations = MutableStateFlow<List<String>>(emptyList())
+    val downEndStations = _downEndStations.asStateFlow()
 
 
     // 실시간 지하철 도착 정보
@@ -207,22 +209,23 @@ class TransitViewModel @Inject constructor(
                             }
                         }
                     )
-
-                    // todo: 종점 역 저장 변수 사용하기
-                    _endStations.value = timetableItems.mapNotNull {
-                        it.endSubwayStationName
-                    }.distinct()
                     // 상하행 여부에 따라 맞게 저장
                     when(upDown){
                         "U" -> {
                             _firstUpSubway.value = sortedFirst
                             _lastUpSubway.value = sortedLast
+                            _upEndStations.value = timetableItems.mapNotNull {
+                                it.endSubwayStationName
+                            }.distinct()
                             Log.d("TRANSIT_SUCCESS: first/up", _firstUpSubway.value.toString())
-                            Log.d("TRANSIT_SUCCESS: last/up", _firstUpSubway.value.toString())
+                            Log.d("TRANSIT_SUCCESS: last/up", _lastUpSubway.value.toString())
                         }
                         "D" -> {
                             _firstDownSubway.value = sortedFirst
                             _lastDownSubway.value = sortedLast
+                            _downEndStations.value = timetableItems.mapNotNull {
+                                it.endSubwayStationName
+                            }.distinct()
                             Log.d("TRANSIT_SUCCESS: first/down", _firstDownSubway.value.toString())
                             Log.d("TRANSIT_SUCCESS: last/down", _lastDownSubway.value.toString())
                         }
