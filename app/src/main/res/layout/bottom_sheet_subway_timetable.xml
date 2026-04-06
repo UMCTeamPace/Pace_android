@@ -182,6 +182,8 @@
                 android:id="@+id/bottom_sheet_subway_timetable_down_sub_tv"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:ellipsize="end"
                 android:text="외선 순환/삼성/성수"
                 android:textColor="@color/text_secondary"
                 style="@style/TextAppearance.App.CaptionLg.Regular"
@@ -209,6 +211,8 @@
                 android:id="@+id/bottom_sheet_subway_timetable_up_sub_tv"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:ellipsize="end"
                 android:text="내선 순환/서울대입구/성..."
                 android:textColor="@color/text_secondary"
                 style="@style/TextAppearance.App.CaptionLg.Regular"
@@ -250,17 +254,13 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp" />
+                    android:orientation="vertical" />
                 <LinearLayout
                     android:id="@+id/bottom_sheet_subway_timetable_first_up_ll"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp" />
+                    android:orientation="vertical" />
             </LinearLayout>
             <TextView
                 android:id="@+id/bottom_sheet_subway_timetable_last_time_tv"
@@ -287,17 +287,13 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp" />
+                    android:orientation="vertical" />
                 <LinearLayout
                     android:id="@+id/bottom_sheet_subway_timetable_last_up_ll"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp" />
+                    android:orientation="vertical" />
             </LinearLayout>
         </androidx.constraintlayout.widget.ConstraintLayout>
     </ScrollView>

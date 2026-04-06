@@ -203,10 +203,19 @@ object RouteDetailHelper {
                     expandedVehicleBinding.itemRouteDetailVehicleLineTv.backgroundTintList = ColorStateList.valueOf(Color.parseColor(data.transitDetail.lineColor))
 
                     if(data.transitDetail.stationPath.isNullOrEmpty()){
-                        expandedVehicleBinding.itemRouteDetailVehicleDirectionTv.text = data.transitDetail.headsign + "행" ?: "방면 정보 없음"
+                        expandedVehicleBinding.itemRouteDetailVehicleDirectionTv.text = when(data.transitType){
+                            "BUS" -> {
+                                (data.transitDetail.headsign + "행")
+                            }
+                            else -> {
+                                "방면 정보 없음"
+                            }
+                        }
+
                     }else{
                         expandedVehicleBinding.itemRouteDetailVehicleDirectionTv.text = data.transitDetail.stationPath[0] + "행 방면"
                     }
+
 
                     expandedVehicleBinding.itemRouteDetailVehicleStationsTv.text = "${data.transitDetail.stopCount}개 정류장 이동"
                     expandedVehicleBinding.itemRouteDetailVehicleStationsTimeTv.text = if(data.duration / 60 == 0) "1분" else "${data.duration / 60}분"
@@ -228,18 +237,18 @@ object RouteDetailHelper {
                                 expandedVehicleBinding.itemRouteDetailVehicleRv.visibility = View.VISIBLE
                                 expandedVehicleBinding.itemRouteDetailVehicleStationsLl.setPadding(0)
                                 moreStation = true
+
+                                // 정류장 리사이클러뷰
+                                val adapter = RouteDetailStationAdapter(context, data.transitDetail.stationPath, lineColor)
+                                expandedVehicleBinding.itemRouteDetailVehicleRv.adapter = adapter
                             }
                         }
                     }
                     binding.routeDetailExpandedLl.addView(expandedVehicleBinding.root)
 
-                    // 정류장 리사이클러뷰
-                    val adapter = RouteDetailStationAdapter(context, data.transitDetail.stationPath!!, lineColor)
-                    expandedVehicleBinding.itemRouteDetailVehicleRv.adapter = adapter
-
                     // 지하철 시간표 바텀시트
                     expandedVehicleBinding.itemRouteDetailVehicleTimetableTv.setOnClickListener {
-                        val bottomSheet = TimetableBottomSheet(departureStopName, lineName)
+                        val bottomSheet = TimetableBottomSheet(departureStopName, lineName, data.transitDetail.upNext, data.transitDetail.downNext)
                         bottomSheet.show(fragmentManager, bottomSheet.tag)
                     }
                 }

@@ -52,5 +52,7 @@ data class TransitDetail(
     @SerializedName("locationLat") val locationLat: Double,
     @SerializedName("locationLng") val locationLng: Double,
     @SerializedName("headsign") val headsign: String?,
-    @SerializedName("stationPath") val stationPath: List<String>?
+    @SerializedName("stationPath") val stationPath: List<String>?,
+    @SerializedName("upNext") val upNext: String?,
+    @SerializedName("downNext") val downNext: String?
 )
