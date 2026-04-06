@@ -7,7 +7,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.pace.R
 import com.example.pace.data.viewmodel.ScheduleViewModel
@@ -25,17 +24,8 @@ class SearchFilterBottomSheet : BottomSheetDialogFragment() {
         (requireActivity() as MainActivity).getSharedViewModel()
     }
 
-    private var selectedView: View? = null
 
     // 18가지 색상 리스트
-    private val colorList = listOf(
-        R.color.schedule_1, R.color.schedule_2, R.color.schedule_3,
-        R.color.schedule_4, R.color.schedule_5, R.color.schedule_6,
-        R.color.schedule_7, R.color.schedule_8, R.color.schedule_9,
-        R.color.schedule_10, R.color.schedule_11, R.color.schedule_12,
-        R.color.schedule_13, R.color.schedule_14, R.color.schedule_15,
-        R.color.schedule_16, R.color.schedule_17, R.color.schedule_18
-    )
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -52,10 +42,6 @@ class SearchFilterBottomSheet : BottomSheetDialogFragment() {
         setupColorPalette() // 18개 색상 동적 생성
         setupSwitch()       // 스위치 설정
 
-        binding.btnApply.setOnClickListener {
-            viewModel.searchWithCurrentQuery()
-            dismiss()
-        }
     }
 
     // SearchFilterBottomSheet.kt 수정 제안

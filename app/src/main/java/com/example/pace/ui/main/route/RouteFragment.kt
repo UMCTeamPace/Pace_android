@@ -170,6 +170,8 @@ class RouteFragment : Fragment() {
     private var realtimePollingJob: Job? = null
     private var currentRealtimeParams: List<RealtimeParam>? = null
     private var sessionToken: AutocompleteSessionToken? = null
+    private var pendingResetToCurrentLocationState = false
+    private var pendingActionModeExtras: Bundle? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -222,21 +224,14 @@ class RouteFragment : Fragment() {
         setupRouteDetailListeners()
         setupBookmarkHeaderListenrs()
 
-        val activityIntent = requireActivity().intent
-        val actionMode = activityIntent?.getStringExtra("ACTION_MODE")
-        if (actionMode == "SCHEDULE") {
-            startScheduleMode()
-//            activityIntent.removeExtra("ACTION_MODE")
-        } else if(actionMode == "SCHEDULE_ROUTE" || actionMode == "ROUTE_RESEARCH") {
-            startScheduleRouteMode()
-//            activityIntent.removeExtra("ACTION_MODE")
-        }
         hasSchedule = false
 
         routeViewModel.fetchRouteOnlySchedule()
 
         observeRouteViewModel()
         observeSettings()
+        applyPendingActionModeIfNeeded()
+        applyPendingResetIfNeeded()
     }
 
     private fun showDefaultScheduleOverlay(data: RouteOnlyScheduleData? = null) {
@@ -649,11 +644,10 @@ class RouteFragment : Fragment() {
         enterSearchMode()
     }
 
-    fun startScheduleRouteMode() {
+    fun startScheduleRouteMode(intent: android.content.Intent = requireActivity().intent) {
         if (_binding == null || !isAdded || view == null) return
 
         currentEntryMode = EntryMode.SCHEDULE_ROUTE
-        val intent = requireActivity().intent
 
         val nameExtra = intent.getStringExtra("SCHEDULE_NAME")
         scheduleName = if(nameExtra.isNullOrBlank()) "일정명" else nameExtra
@@ -3020,7 +3014,11 @@ class RouteFragment : Fragment() {
     }
 
     fun resetToCurrentLocationState() {
-        if (_binding == null || !isAdded) return
+        if (_binding == null || !isAdded || !::bottomSheetBehavior.isInitialized) {
+            pendingResetToCurrentLocationState = true
+            return
+        }
+        pendingResetToCurrentLocationState = false
 
         hideKeyboard()
         mainBinding?.searchEt?.clearFocus()
@@ -3096,6 +3094,53 @@ class RouteFragment : Fragment() {
             currentMyLocation = LatLng(it.latitude, it.longitude)
             moveMapToCurrentLocation(it, animate = false)
         }
+    }
+
+    fun isInScheduleSelectionMode(): Boolean {
+        return currentEntryMode == EntryMode.SCHEDULE ||
+            currentEntryMode == EntryMode.SCHEDULE_ROUTE
+    }
+
+    fun consumeActionModeIntent(intent: android.content.Intent? = requireActivity().intent): Boolean {
+        if (_binding == null || !isAdded || view == null || intent == null) {
+            if (intent != null) {
+                pendingActionModeExtras = Bundle(intent.extras ?: Bundle())
+            }
+            return false
+        }
+
+        val actionMode = intent.getStringExtra("ACTION_MODE")
+
+        return when (actionMode) {
+            "SCHEDULE" -> {
+                startScheduleMode()
+                intent.removeExtra("ACTION_MODE")
+                requireActivity().intent?.removeExtra("ACTION_MODE")
+                true
+            }
+            "SCHEDULE_ROUTE", "ROUTE_RESEARCH" -> {
+                startScheduleRouteMode(intent)
+                intent.removeExtra("ACTION_MODE")
+                requireActivity().intent?.removeExtra("ACTION_MODE")
+                true
+            }
+            else -> false
+        }
+    }
+
+    private fun applyPendingActionModeIfNeeded() {
+        val extras = pendingActionModeExtras ?: return
+        val pendingIntent = android.content.Intent().apply {
+            replaceExtras(Bundle(extras))
+        }
+        if (consumeActionModeIntent(pendingIntent)) {
+            pendingActionModeExtras = null
+        }
+    }
+
+    private fun applyPendingResetIfNeeded() {
+        if (!pendingResetToCurrentLocationState || _binding == null || !::bottomSheetBehavior.isInitialized) return
+        resetToCurrentLocationState()
     }
 
     private fun moveMapToCurrentLocation(location: android.location.Location, animate: Boolean) {

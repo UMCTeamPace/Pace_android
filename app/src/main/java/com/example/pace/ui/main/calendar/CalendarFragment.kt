@@ -21,6 +21,8 @@ import dagger.hilt.android.AndroidEntryPoint // 추가
 class CalendarFragment: Fragment() {
     private var _binding: FragmentCalendarBinding? = null
     private val binding get() = _binding!!
+    private var pendingResetToTodayState = false
+    private var currentTabIndex = 1
 
     private val viewModel: ScheduleViewModel by activityViewModels()
     override fun onCreateView(
@@ -83,9 +85,8 @@ class CalendarFragment: Fragment() {
         binding.calendarVp.adapter = calendarFragmentAdapter
         binding.calendarVp.offscreenPageLimit = 1
         binding.calendarVp.isUserInputEnabled = false
-        binding.calendarVp.setCurrentItem(1, false)
-        // 처음 진입 시 캘린더 탭이 기본이라 수정 버튼은 숨김
-        mainActivity.binding.scheduleEditIv.visibility = View.GONE
+        binding.calendarVp.setCurrentItem(currentTabIndex, false)
+        updateHeaderForTab(currentTabIndex)
 
         val tabTitles = listOf("리스트", "캘린더")
         TabLayoutMediator(binding.calendarTabLayout, binding.calendarVp) { tab, position ->
@@ -97,11 +98,8 @@ class CalendarFragment: Fragment() {
         binding.calendarVp.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
-                val mainActivity = requireActivity() as MainActivity
-                when (position) {
-                    0 -> mainActivity.binding.scheduleEditIv.visibility = View.VISIBLE  // List tab
-                    1 -> mainActivity.binding.scheduleEditIv.visibility = View.GONE     // Calendar tab
-                }
+                currentTabIndex = position
+                updateHeaderForTab(position)
             }
         })
 
@@ -109,6 +107,8 @@ class CalendarFragment: Fragment() {
             if (_binding == null) return@post
             binding.calendarVp.visibility = View.VISIBLE
         }
+
+        applyPendingResetIfNeeded()
     }
 
     fun setTabVisibility(isVisible: Boolean) {
@@ -122,18 +122,24 @@ class CalendarFragment: Fragment() {
 
     fun showCalendarTab() {
         if (_binding == null) return
+        currentTabIndex = 1
         binding.root.visibility = View.INVISIBLE
-        binding.calendarVp.setCurrentItem(1, false)
+        binding.calendarVp.setCurrentItem(currentTabIndex, false)
+        updateHeaderForTab(currentTabIndex)
         binding.calendarTabLayout.post {
             if (_binding == null) return@post
-            binding.calendarTabLayout.selectTab(binding.calendarTabLayout.getTabAt(1), false)
-            binding.calendarTabLayout.setScrollPosition(1, 0f, true)
+            binding.calendarTabLayout.selectTab(binding.calendarTabLayout.getTabAt(currentTabIndex), false)
+            binding.calendarTabLayout.setScrollPosition(currentTabIndex, 0f, true)
             binding.root.visibility = View.VISIBLE
         }
     }
 
     fun resetToTodayState() {
-        if (_binding == null) return
+        if (_binding == null) {
+            pendingResetToTodayState = true
+            return
+        }
+        pendingResetToTodayState = false
 
         val today = java.time.LocalDate.now()
         viewModel.setSelectedDate(today)
@@ -143,6 +149,27 @@ class CalendarFragment: Fragment() {
             when (fragment) {
                 is ScheduleListFragment -> fragment.resetToToday()
                 is CalendarPageFragment -> fragment.resetToTodayState()
+            }
+        }
+    }
+
+    private fun applyPendingResetIfNeeded() {
+        if (!pendingResetToTodayState || _binding == null) return
+        resetToTodayState()
+    }
+
+    private fun updateHeaderForTab(position: Int) {
+        val activity = activity as? MainActivity ?: return
+        when (position) {
+            0 -> {
+                activity.binding.scheduleEditIv.visibility = View.VISIBLE
+                activity.binding.scheduleSearchIv.visibility = View.VISIBLE
+                activity.binding.scheduleAddIv.visibility = View.VISIBLE
+            }
+            else -> {
+                activity.binding.scheduleEditIv.visibility = View.GONE
+                activity.binding.scheduleSearchIv.visibility = View.VISIBLE
+                activity.binding.scheduleAddIv.visibility = View.VISIBLE
             }
         }
     }

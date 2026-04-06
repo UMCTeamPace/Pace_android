@@ -257,6 +257,12 @@ class ScheduleViewModel @Inject constructor(
         searchSchedules(lastQuery)
     }
 
+    private fun refreshSearchResultsIfNeeded() {
+        if (lastQuery.isNotBlank()) {
+            searchSchedules(lastQuery)
+        }
+    }
+
     // Calendar list exposed to UI
     val scheduleMap: StateFlow<Map<LocalDate, List<Schedule>>> = combine(
         repository.allSchedules,
@@ -330,21 +336,25 @@ class ScheduleViewModel @Inject constructor(
                 if (schedule.type == "ROUTE") {
                     // Route schedules are updated through the server API
                     val request = mapScheduleToRequest(schedule)
+                    val targetScheduleId = schedule.serverId ?: schedule.id
+                    val existingSchedule = repository.getScheduleById(targetScheduleId)
 
                     val token = authDataStore.getAccessToken() ?: ""
                     val fullToken = if (token.isNotEmpty() && !token.startsWith("Bearer ")) "Bearer $token" else token
 
                     val response = repository.updateRouteSchedule(
                         accessToken = fullToken,
-                        scheduleId = schedule.serverId ?: schedule.id,
+                        scheduleId = targetScheduleId,
                         request = request,
                         calendarId = schedule.calendarId,
                         selectedColor = schedule.eventColor ?: 0
                     )
 
                     if (response.isSuccess) {
-                        val targetScheduleId = schedule.serverId ?: schedule.id
-                        replaceRouteScheduleRuntime(targetScheduleId)
+                        replaceRouteScheduleRuntime(
+                            previousSchedule = existingSchedule,
+                            scheduleId = targetScheduleId
+                        )
                         _updateScheduleEvent.value = true
                         Log.d("ScheduleViewModel", "경로 일정 서버 수정 성공")
                     } else {
@@ -409,6 +419,10 @@ class ScheduleViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             try {
+                val existingSchedule = withContext(Dispatchers.IO) {
+                    repository.getScheduleById(scheduleId)
+                }
+
                 // Prepare token
                 val token = authDataStore.getAccessToken() ?: ""
                 val fullToken = if (token.isNotEmpty() && !token.startsWith("Bearer ")) "Bearer $token" else token
@@ -425,7 +439,10 @@ class ScheduleViewModel @Inject constructor(
                 // Handle result
                 if (response.isSuccess) {
                     withContext(Dispatchers.IO) {
-                        replaceRouteScheduleRuntime(scheduleId)
+                        replaceRouteScheduleRuntime(
+                            previousSchedule = existingSchedule,
+                            scheduleId = scheduleId
+                        )
                     }
                     _updateScheduleEvent.value = true
                     Log.d("ScheduleViewModel", "경로 일정 서버 수정 성공: $scheduleId")
@@ -667,7 +684,6 @@ class ScheduleViewModel @Inject constructor(
             Log.e("DeleteLog", "일반 일정 삭제 실패: ${response.message}")
         }
     }
-
     // Delete route schedule through server API and local DB
     private suspend fun deleteRouteSchedule(id: Long) {
         Log.d("DeleteLog", "경로 일정 삭제 시도: ID = $id")
@@ -678,6 +694,7 @@ class ScheduleViewModel @Inject constructor(
                 cancelRouteScheduleRuntime(schedule)
             }
             Log.d("DeleteLog", "경로 일정 삭제 성공")
+            refreshSearchResultsIfNeeded()
         } else {
             Log.e("DeleteLog", "서버 삭제 실패: ${response.message}")
         }
@@ -693,6 +710,7 @@ class ScheduleViewModel @Inject constructor(
             // Server schedules keep local-only EXDATE overrides in Room,
             // and a full sync would overwrite them immediately.
             repository.refreshSchedules()
+            refreshSearchResultsIfNeeded()
 
             Log.d("ExDateLog", "작업 완료 후 새로고침 호출")
         }
@@ -721,6 +739,8 @@ class ScheduleViewModel @Inject constructor(
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                val existingSchedule = repository.getScheduleById(scheduleId)
+
                 // Prepare token
                 val token = authDataStore.getAccessToken() ?: ""
                 val fullToken = if (token.startsWith("Bearer ")) token else "Bearer $token"
@@ -736,7 +756,11 @@ class ScheduleViewModel @Inject constructor(
 
                 if (response.isSuccess) {
                     val arrival = routeRequest.arrivalTime
-                    replaceRouteScheduleRuntime(scheduleId, arrival)
+                    replaceRouteScheduleRuntime(
+                        previousSchedule = existingSchedule,
+                        scheduleId = scheduleId,
+                        arrivalTimeOverride = arrival
+                    )
                     withContext(Dispatchers.Main) {
                         _updateScheduleEvent.value = true
                     }
@@ -771,11 +795,14 @@ class ScheduleViewModel @Inject constructor(
         scheduleFinalize(schedule, arrivalTimeOverride)
     }
 
-    private suspend fun replaceRouteScheduleRuntime(scheduleId: Long, arrivalTimeOverride: String? = null) {
-        repository.getScheduleById(scheduleId)?.let { existing ->
+    private suspend fun replaceRouteScheduleRuntime(
+        previousSchedule: Schedule?,
+        scheduleId: Long,
+        arrivalTimeOverride: String? = null
+    ) {
+        previousSchedule?.let { existing ->
             cancelRouteScheduleRuntime(existing)
         }
-        repository.refreshSchedules()
         repository.getScheduleById(scheduleId)?.let { updated ->
             syncRouteScheduleRuntime(updated, arrivalTimeOverride)
         }

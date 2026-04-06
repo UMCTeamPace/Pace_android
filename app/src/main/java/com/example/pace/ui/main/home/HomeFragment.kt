@@ -36,6 +36,8 @@ class HomeFragment: Fragment() {
     private val viewModel: ScheduleViewModel by activityViewModels()
     private lateinit var scheduleAdapter: ScheduleRVAdapter
     private var modalCaseDialog: ModalCaseDialog? = null
+    private var isViewReady = false
+    private var pendingResetToToday = false
 
     // 선택한 날짜 저장 및 불러오기
     private lateinit var spf: SharedPreferences
@@ -61,6 +63,9 @@ class HomeFragment: Fragment() {
         binding.homeAddScheduleLl.setOnClickListener {
             startActivity(Intent(context, AddScheduleActivity::class.java))
         }
+
+        isViewReady = true
+        applyPendingResetIfNeeded()
 
         return binding.root
     }
@@ -293,8 +298,14 @@ class HomeFragment: Fragment() {
     }
 
     fun resetToToday() {
-        if (!isAdded) return
+        if (!isAdded || !isViewReady) {
+            pendingResetToToday = true
+            return
+        }
+        performResetToToday()
+    }
 
+    private fun performResetToToday() {
         selectedDate = LocalDate.now()
         spf.edit().putString("SELECTED_DATE", selectedDate.toString()).apply()
         viewModel.setSelectedDate(selectedDate)
@@ -316,9 +327,16 @@ class HomeFragment: Fragment() {
         filterAndDisplaySchedules()
     }
 
+    private fun applyPendingResetIfNeeded() {
+        if (!pendingResetToToday || !isViewReady) return
+        pendingResetToToday = false
+        performResetToToday()
+    }
+
     override fun onDestroyView() {
         modalCaseDialog?.dismiss()
         modalCaseDialog = null
+        isViewReady = false
         super.onDestroyView()
     }
 

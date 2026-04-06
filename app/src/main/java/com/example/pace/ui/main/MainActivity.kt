@@ -23,6 +23,7 @@ import androidx.fragment.app.Fragment
 import com.example.pace.R
 import com.example.pace.databinding.ActivityMainBinding
 import com.example.pace.ui.main.calendar.CalendarFragment
+import com.example.pace.ui.main.calendar.SearchFragment
 import com.example.pace.ui.main.home.HomeFragment
 import com.example.pace.ui.main.route.RouteFragment
 import com.example.pace.ui.search_box.*
@@ -244,8 +245,10 @@ class MainActivity : AppCompatActivity() {
     private fun handleIntent(intent: Intent?) {
         val actionMode = intent?.getStringExtra("ACTION_MODE")
 
-        if (actionMode == "SCHEDULE" || actionMode == "SCHEDULE_ROUTE") {
-            binding.mainBnv.selectedItemId = R.id.route
+        if (actionMode == "SCHEDULE" || actionMode == "SCHEDULE_ROUTE" || actionMode == "ROUTE_RESEARCH") {
+            showRouteTab(resetIfNeeded = false)
+            (supportFragmentManager.findFragmentByTag(TAG_ROUTE) as? RouteFragment)
+                ?.consumeActionModeIntent(intent)
         }
     }
 
@@ -277,9 +280,12 @@ class MainActivity : AppCompatActivity() {
             }
 
             R.id.calendar -> {
+                val skipCalendarReset = supportFragmentManager.findFragmentById(R.id.main_fcv) is SearchFragment
                 switchFragment(TAG_CALENDAR) { CalendarFragment() }
                 supportFragmentManager.executePendingTransactions()
-                (supportFragmentManager.findFragmentByTag(TAG_CALENDAR) as? CalendarFragment)?.resetToTodayState()
+                if (!skipCalendarReset) {
+                    (supportFragmentManager.findFragmentByTag(TAG_CALENDAR) as? CalendarFragment)?.resetToTodayState()
+                }
                 currentBottomMenuItem = R.id.calendar
                 binding.mainLogoIv.visibility = android.view.View.GONE
                 binding.mainSettingsIv.visibility = android.view.View.GONE
@@ -294,23 +300,31 @@ class MainActivity : AppCompatActivity() {
             }
 
             R.id.route -> {
-                switchFragment(TAG_ROUTE) { RouteFragment() }
-                supportFragmentManager.executePendingTransactions()
-                (supportFragmentManager.findFragmentByTag(TAG_ROUTE) as? RouteFragment)?.resetToCurrentLocationState()
-                currentBottomMenuItem = R.id.route
-                binding.mainLogoIv.visibility = android.view.View.GONE
-                binding.mainSettingsIv.visibility = android.view.View.GONE
-                binding.scheduleTitleTv.visibility = android.view.View.GONE
-                binding.scheduleActionContainer.visibility = View.GONE
-                binding.scheduleEditIv.visibility = android.view.View.GONE
-                binding.scheduleSearchIv.visibility = android.view.View.GONE
-                binding.scheduleAddIv.visibility = View.GONE
-                binding.mainBackIv.visibility = android.view.View.GONE
-                binding.mainSearchLl.visibility = android.view.View.VISIBLE
+                showRouteTab(resetIfNeeded = true)
                 return true
             }
             else -> return false
         }
+    }
+
+    private fun showRouteTab(resetIfNeeded: Boolean) {
+        switchFragment(TAG_ROUTE) { RouteFragment() }
+        supportFragmentManager.executePendingTransactions()
+        val routeFragment = supportFragmentManager.findFragmentByTag(TAG_ROUTE) as? RouteFragment
+        if (resetIfNeeded && routeFragment?.isInScheduleSelectionMode() != true) {
+            routeFragment?.resetToCurrentLocationState()
+        }
+        currentBottomMenuItem = R.id.route
+        binding.mainBnv.menu.findItem(R.id.route)?.isChecked = true
+        binding.mainLogoIv.visibility = android.view.View.GONE
+        binding.mainSettingsIv.visibility = android.view.View.GONE
+        binding.scheduleTitleTv.visibility = android.view.View.GONE
+        binding.scheduleActionContainer.visibility = View.GONE
+        binding.scheduleEditIv.visibility = android.view.View.GONE
+        binding.scheduleSearchIv.visibility = android.view.View.GONE
+        binding.scheduleAddIv.visibility = android.view.View.GONE
+        binding.mainBackIv.visibility = android.view.View.GONE
+        binding.mainSearchLl.visibility = android.view.View.VISIBLE
     }
     // 같은 프래그먼트 선택 시 새로고침
     private fun switchFragment(tag: String, createFragment: () -> Fragment) {

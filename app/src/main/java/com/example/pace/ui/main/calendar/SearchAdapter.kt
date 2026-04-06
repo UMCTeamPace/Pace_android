@@ -10,13 +10,14 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
+import com.daimajia.swipe.SwipeLayout
+import com.daimajia.swipe.adapters.RecyclerSwipeAdapter
 import com.example.pace.R
 import com.example.pace.data.model.Schedule
 import com.example.pace.data.model.response.RouteInfo
 import com.example.pace.databinding.ItemDateHeaderBinding
 import com.example.pace.databinding.ItemScheduleBinding
 import com.example.pace.ui.RouteCalculator
-import com.example.pace.ui.main.home.ScheduleTouchHelper
 import com.google.gson.Gson
 
 class SearchAdapter(
@@ -27,12 +28,10 @@ class SearchAdapter(
     private val onEditClick: (Schedule) -> Unit,
     private val onEditSelect: (Long) -> Unit,
     private var routeInfoMap: Map<Long, RouteInfo> = emptyMap()
-) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+) : RecyclerSwipeAdapter<RecyclerView.ViewHolder>() {
 
     private val gson = Gson()
-
     private var items = listOf<ScheduleListItem>()
-    lateinit var scheduleTouchHelper: ScheduleTouchHelper
     private var selectedIds = setOf<Long>()
 
     companion object {
@@ -131,15 +130,17 @@ class SearchAdapter(
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        holder.itemView.findViewById<View>(R.id.schedule_view_top)?.translationX = 0f
-
         when (val item = items[position]) {
             is ScheduleListItem.DateHeader -> (holder as DateHeaderViewHolder).bind(item.date)
-            is ScheduleListItem.ScheduleItem -> (holder as SearchItemViewHolder).bind(item.schedule, query, holder)
+            is ScheduleListItem.ScheduleItem -> (holder as SearchItemViewHolder).bind(item.schedule, query)
         }
     }
 
     override fun getItemCount(): Int = items.size
+
+    override fun getSwipeLayoutResourceId(position: Int): Int {
+        return if (getItemViewType(position) == TYPE_SCHEDULE_ITEM) R.id.item_schedule else 0
+    }
 
     inner class DateHeaderViewHolder(private val binding: ItemDateHeaderBinding) :
         RecyclerView.ViewHolder(binding.root) {
@@ -151,7 +152,7 @@ class SearchAdapter(
     inner class SearchItemViewHolder(private val binding: ItemScheduleBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(schedule: Schedule, query: String, holder: RecyclerView.ViewHolder) {
+        fun bind(schedule: Schedule, query: String) {
             val title = schedule.title ?: "제목 없음"
             if (query.isBlank()) {
                 binding.scheduleTitleTv.text = title
@@ -206,19 +207,24 @@ class SearchAdapter(
             binding.schedulePinnedIv.visibility = if (schedule.isPinned) View.VISIBLE else View.GONE
             binding.scheduleCheckbox.visibility = View.INVISIBLE
 
+            binding.root.showMode = SwipeLayout.ShowMode.LayDown
+            binding.root.addDrag(SwipeLayout.DragEdge.Left, binding.scheduleLeftBottomWrapper)
+            binding.root.addDrag(SwipeLayout.DragEdge.Right, binding.scheduleRightBottomWrapper)
+            mItemManger.bindView(itemView, bindingAdapterPosition)
+
             binding.schedulePinIv.setOnClickListener {
                 onPinClick(schedule)
-                scheduleTouchHelper.closeSwipedMenu(holder)
+                mItemManger.closeItem(bindingAdapterPosition)
             }
 
             binding.scheduleEditIv.setOnClickListener {
                 onEditClick(schedule)
-                scheduleTouchHelper.closeSwipedMenu(holder)
+                mItemManger.closeItem(bindingAdapterPosition)
             }
 
             binding.scheduleDeleteIv.setOnClickListener {
                 onDeleteClick(schedule)
-                scheduleTouchHelper.closeSwipedMenu(holder)
+                mItemManger.closeItem(bindingAdapterPosition)
             }
         }
 
@@ -254,7 +260,7 @@ class SearchAdapter(
                 localRouteInfo?.arrivalTime?.let(::formatRouteTime)
             )
 
-            return serverRange ?: localRange ?: "계산 중..."
+            return serverRange ?: localRange ?: "계산 중.."
         }
 
         private fun buildRouteDuration(
