@@ -280,6 +280,12 @@ class ScheduleViewModel @Inject constructor(
         }
     }
 
+    private fun refreshSearchResultsIfNeeded() {
+        if (lastQuery.isNotBlank()) {
+            searchSchedules(lastQuery)
+        }
+    }
+
     // Calendar list exposed to UI
     val scheduleMap: StateFlow<Map<LocalDate, List<Schedule>>> = combine(
         repository.allSchedules,

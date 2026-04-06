@@ -223,15 +223,6 @@ class RouteFragment : Fragment() {
         setupRouteDetailListeners()
         setupBookmarkHeaderListenrs()
 
-        val activityIntent = requireActivity().intent
-        val actionMode = activityIntent?.getStringExtra("ACTION_MODE")
-        if (actionMode == "SCHEDULE") {
-            startScheduleMode()
-//            activityIntent.removeExtra("ACTION_MODE")
-        } else if(actionMode == "SCHEDULE_ROUTE" || actionMode == "ROUTE_RESEARCH") {
-            startScheduleRouteMode()
-//            activityIntent.removeExtra("ACTION_MODE")
-        }
         hasSchedule = false
 
         routeViewModel.fetchRouteOnlySchedule()
@@ -651,11 +642,10 @@ class RouteFragment : Fragment() {
         enterSearchMode()
     }
 
-    fun startScheduleRouteMode() {
+    fun startScheduleRouteMode(intent: android.content.Intent = requireActivity().intent) {
         if (_binding == null || !isAdded || view == null) return
 
         currentEntryMode = EntryMode.SCHEDULE_ROUTE
-        val intent = requireActivity().intent
 
         val nameExtra = intent.getStringExtra("SCHEDULE_NAME")
         scheduleName = if(nameExtra.isNullOrBlank()) "일정명" else nameExtra
