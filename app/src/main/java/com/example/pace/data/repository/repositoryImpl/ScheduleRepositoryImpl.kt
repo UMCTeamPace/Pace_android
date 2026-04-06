@@ -63,7 +63,6 @@ class ScheduleRepositoryImpl @Inject constructor(
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
         private const val SWAGGER_LOG_TAG = "SwaggerScheduleRequest"
         private const val LOG_CHUNK_SIZE = 3000
-        private const val REPEAT_EXPAND_TAG = "RepeatExpand"
     }
 
     // Expose schedules after recurrence expansion
@@ -234,7 +233,6 @@ class ScheduleRepositoryImpl @Inject constructor(
                     }
 
                     scheduleDao.insertAll(mergedSchedules)
-                    Log.d("SYNC_LOG", "1. 기기 일정 병합 후 로컬 DB 업데이트 완료")
                 }
 
                 if (systemIds.isNotEmpty()) {
@@ -242,7 +240,7 @@ class ScheduleRepositoryImpl @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            Log.e("SYNC_LOG", "새로고침 중 예외 발생: ${e.message}")
+            Log.e("ScheduleRepository", "새로고침 중 예외 발생: ${e.message}")
         }
     }
 
@@ -794,12 +792,6 @@ class ScheduleRepositoryImpl @Inject constructor(
                             }
                             val occurrenceEndLocalDate = occurrenceLocalDate.plusDays(spanDays)
                             val formattedDate = occurrenceLocalDate.format(dateFormatter)
-                            if (schedule.isAllDay) {
-                                Log.d(
-                                    REPEAT_EXPAND_TAG,
-                                    "반복 확장: id=${schedule.id}, title=${schedule.title}, original=${schedule.startDate}~${schedule.endDate}, occurrence=${formattedDate}~${occurrenceEndLocalDate.format(dateFormatter)}, rawInstant=${occurrenceDate.toInstant()}"
-                                )
-                            }
 
                             val systemDeletedDates = cancellationMap[schedule.id] ?: emptyList()
                             if (systemDeletedDates.contains(formattedDate)) {
@@ -955,6 +947,69 @@ class ScheduleRepositoryImpl @Inject constructor(
             serverId = this.scheduleId,
             repeatRule = null,
             exDate = null
+        )
+    }
+
+    private suspend fun syncServerScheduleDetail(accessToken: String, scheduleId: Long) {
+        val detailResponse = api.getScheduleDetail(accessToken, scheduleId)
+        if (!detailResponse.isSuccess || detailResponse.result == null) {
+            Log.w("UpdateFlow", "Route schedule detail sync skipped: ${detailResponse.message}")
+            return
+        }
+
+        val existing = scheduleDao.getScheduleById(scheduleId)
+        scheduleDao.insertSingle(detailResponse.result.toScheduleEntity(existing))
+    }
+
+    private fun ScheduleDetailResponse.toScheduleEntity(existing: Schedule?): Schedule {
+        val colorHex = scheduleInfo.color ?: "#DC354B"
+        val colorInt = try {
+            android.graphics.Color.parseColor(colorHex)
+        } catch (e: Exception) {
+            android.graphics.Color.parseColor("#DC354B")
+        }
+        val serverCalendarId = scheduleInfo.calendarId?.toLongOrNull()
+            ?: existing?.calendarId
+            ?: 1L
+        val eventRemindersList = reminders
+            .filter { it.reminderType == "EVENT" }
+            .map { it.minutesBefore }
+        val departureRemindersList = reminders
+            .filter { it.reminderType == "DEPARTURE" }
+            .map { it.minutesBefore }
+        val gson = Gson()
+        val placeJsonString = place?.let { gson.toJson(it) }
+        val routeJsonString = route?.let { gson.toJson(it) }
+        val isRouteType = (scheduleInfo.isPathIncluded == true) || (route != null)
+
+        return Schedule(
+            id = scheduleId,
+            title = scheduleInfo.title,
+            startDate = scheduleInfo.startDate,
+            endDate = scheduleInfo.endDate,
+            startTime = scheduleInfo.startTime?.take(5) ?: "00:00",
+            endTime = scheduleInfo.endTime?.take(5) ?: "23:59",
+            isAllDay = scheduleInfo.isAllDay,
+            memo = scheduleInfo.memo,
+            location = route?.destName ?: place?.targetName,
+            calendarId = serverCalendarId,
+            calendarDisplayName = existing?.calendarDisplayName ?: "기본 일정",
+            calendarAccountName = existing?.calendarAccountName ?: "Pace",
+            reminders = eventRemindersList,
+            departureReminders = departureRemindersList,
+            withRoute = isRouteType,
+            isCompleted = existing?.isCompleted ?: false,
+            isPinned = existing?.isPinned ?: false,
+            isSwiped = existing?.isSwiped ?: false,
+            type = if (isRouteType) "ROUTE" else "NORMAL",
+            eventColor = colorInt,
+            calendarColor = colorInt,
+            serverId = scheduleId,
+            sourceType = "SERVER",
+            placeJson = placeJsonString,
+            routeJson = routeJsonString,
+            repeatRule = existing?.repeatRule,
+            exDate = existing?.exDate
         )
     }
 
@@ -1208,6 +1263,7 @@ class ScheduleRepositoryImpl @Inject constructor(
             )
 
             if (putRes.isSuccess) {
+                syncServerScheduleDetail(accessToken, scheduleId)
                 Log.d("UpdateFlow", "3단계 - 경로 정보 갱신 완료")
                 putRes
             } else {
@@ -1307,7 +1363,7 @@ class ScheduleRepositoryImpl @Inject constructor(
         withContext(Dispatchers.IO) {
             WorkManager.getInstance(context).cancelUniqueWork("finalize_$scheduleId")
             scheduleDao.deleteScheduleById(scheduleId)
-            Log.d("SYNC_LOG", "404 응답으로 경로 일정 로컬 정리: $scheduleId")
+            Log.d("ScheduleRepository", "404 응답으로 경로 일정 로컬 정리: $scheduleId")
         }
     }
 
@@ -1334,7 +1390,7 @@ class ScheduleRepositoryImpl @Inject constructor(
         }
 
         scheduleDao.deleteSchedulesByIds(staleRouteIds)
-        Log.d("SYNC_LOG", "서버에서 삭제된 경로 일정 정리 완료: ${staleRouteIds.joinToString()}")
+        Log.d("ScheduleRepository", "서버에서 삭제된 경로 일정 정리 완료: ${staleRouteIds.joinToString()}")
     }
 
 }

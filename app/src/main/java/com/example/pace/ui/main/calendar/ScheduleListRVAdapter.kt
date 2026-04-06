@@ -185,7 +185,7 @@ class ScheduleListRVAdapter(
                 binding.scheduleCheckbox.visibility = View.VISIBLE
                 binding.scheduleCheckbox.isChecked = selectedKeys.contains(selectionKey(schedule))
                 binding.scheduleCheckbox.isClickable = false
-                binding.schedulePinnedIv.visibility = View.GONE
+                binding.schedulePinnedIv.visibility = if (schedule.isPinned) View.VISIBLE else View.GONE
             } else {
                 binding.scheduleCheckbox.visibility = View.GONE
                 binding.schedulePinnedIv.visibility = if (schedule.isPinned) View.VISIBLE else View.GONE

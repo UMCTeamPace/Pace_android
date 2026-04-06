@@ -20,9 +20,6 @@ import javax.inject.Inject
 class NormalScheduleRemoteDataSource @Inject constructor(
     @ApplicationContext private val applicationContext: Context
 ) {
-    companion object {
-        private const val REPEAT_DEBUG_TAG = "RepeatDebug"
-    }
 
     suspend fun insertToCalendarProvider(
         request: CreateScheduleRequest,
@@ -40,16 +37,6 @@ class NormalScheduleRemoteDataSource @Inject constructor(
         )
 
         val generatedRrule = buildRRule(request.repeatInfo)
-        if (generatedRrule != null) {
-            Log.d(
-                REPEAT_DEBUG_TAG,
-                "반복 일정 생성 요청: title=${request.title}, isAllDay=${request.isAllDay}, startDate=${request.startDate}, endDate=${request.endDate}, startTime=${request.startTime}, endTime=${request.endTime}, repeatInfo=${request.repeatInfo}"
-            )
-            Log.d(
-                REPEAT_DEBUG_TAG,
-                "반복 일정 계산값: dtStart=${timing.startMillis}, dtEnd=${timing.endMillis}, duration=${timing.durationForRecurring}, timezone=${timing.timeZoneId}, rrule=$generatedRrule"
-            )
-        }
 
         val values = ContentValues().apply {
             put(CalendarContract.Events.TITLE, request.title)
@@ -216,12 +203,6 @@ class NormalScheduleRemoteDataSource @Inject constructor(
                     val calendarColor = it.getInt(calColorIdx)
 
                     val reminders = fetchReminders(id)
-                    if (!rrule.isNullOrEmpty()) {
-                        Log.d(
-                            REPEAT_DEBUG_TAG,
-                            "반복 일정 조회값: id=$id, title=$title, dtStart=$dtStart, rawDtEnd=$dtEnd, duration=$durationStr, isAllDay=$isAllDay, startDate=$startDate, endDate=$endDate, startTime=$startTime, endTime=$endTime, rrule=$rrule"
-                        )
-                    }
 
                     scheduleList.add(
                         Schedule(

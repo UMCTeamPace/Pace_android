@@ -18,6 +18,7 @@ import com.example.pace.data.viewmodel.ScheduleViewModel
 import com.example.pace.databinding.FragmentScheduleListBinding
 import com.example.pace.ui.add_schedule.AddScheduleActivity
 import com.example.pace.ui.main.MainActivity
+import com.example.pace.ui.main.calendar.SearchFragment
 import com.example.pace.ui.main.home.DeleteRepeatScheduleDialog
 import com.example.pace.ui.main.home.DeleteScheduleDialog
 import dagger.hilt.android.AndroidEntryPoint
@@ -37,6 +38,7 @@ class ScheduleListFragment : Fragment() {
     private lateinit var scheduleListAdapter: ScheduleListRVAdapter
     private val viewModel: ScheduleViewModel by activityViewModels()
     private var hasScrolledToToday = false
+    private var pendingResetToToday = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -54,6 +56,7 @@ class ScheduleListFragment : Fragment() {
         setupObservers()
         observeEditMode()
         setupEditBarButtons()
+        applyPendingResetIfNeeded()
     }
 
     private fun setupOnBackPressed() {
@@ -79,6 +82,9 @@ class ScheduleListFragment : Fragment() {
             viewModel.isEditMode.collectLatest { isEditMode ->
                 val mainActivity = requireActivity() as MainActivity
                 val parent = parentFragment as? CalendarFragment
+                val currentMainFragment = requireActivity()
+                    .supportFragmentManager
+                    .findFragmentById(com.example.pace.R.id.main_fcv)
 
                 binding.layoutEditHeader.visibility = if (isEditMode) View.VISIBLE else View.GONE
 
@@ -90,7 +96,9 @@ class ScheduleListFragment : Fragment() {
                 } else {
                     binding.layoutEditBar.visibility = View.GONE
                     mainActivity.binding.mainBnv.visibility = View.VISIBLE
-                    mainActivity.binding.mainToolbar.visibility = View.VISIBLE
+                    if (currentMainFragment !is SearchFragment) {
+                        mainActivity.binding.mainToolbar.visibility = View.VISIBLE
+                    }
                     parent?.setTabVisibility(true)
                 }
 
@@ -282,11 +290,20 @@ class ScheduleListFragment : Fragment() {
     }
 
     fun resetToToday() {
-        if (_binding == null) return
+        if (_binding == null) {
+            pendingResetToToday = true
+            return
+        }
+        pendingResetToToday = false
         hasScrolledToToday = false
         viewLifecycleOwner.lifecycleScope.launch {
             processAndDisplaySchedules(viewModel.scheduleMap.value)
         }
+    }
+
+    private fun applyPendingResetIfNeeded() {
+        if (!pendingResetToToday || _binding == null) return
+        resetToToday()
     }
 
     private fun formatDateToHeader(date: LocalDate): String {

@@ -170,6 +170,7 @@ class RouteFragment : Fragment() {
     private var realtimePollingJob: Job? = null
     private var currentRealtimeParams: List<RealtimeParam>? = null
     private var sessionToken: AutocompleteSessionToken? = null
+    private var pendingResetToCurrentLocationState = false
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -237,6 +238,7 @@ class RouteFragment : Fragment() {
 
         observeRouteViewModel()
         observeSettings()
+        applyPendingResetIfNeeded()
     }
 
     private fun showDefaultScheduleOverlay(data: RouteOnlyScheduleData? = null) {
@@ -3020,7 +3022,11 @@ class RouteFragment : Fragment() {
     }
 
     fun resetToCurrentLocationState() {
-        if (_binding == null || !isAdded) return
+        if (_binding == null || !isAdded || !::bottomSheetBehavior.isInitialized) {
+            pendingResetToCurrentLocationState = true
+            return
+        }
+        pendingResetToCurrentLocationState = false
 
         hideKeyboard()
         mainBinding?.searchEt?.clearFocus()
@@ -3096,6 +3102,11 @@ class RouteFragment : Fragment() {
             currentMyLocation = LatLng(it.latitude, it.longitude)
             moveMapToCurrentLocation(it, animate = false)
         }
+    }
+
+    private fun applyPendingResetIfNeeded() {
+        if (!pendingResetToCurrentLocationState || _binding == null || !::bottomSheetBehavior.isInitialized) return
+        resetToCurrentLocationState()
     }
 
     private fun moveMapToCurrentLocation(location: android.location.Location, animate: Boolean) {

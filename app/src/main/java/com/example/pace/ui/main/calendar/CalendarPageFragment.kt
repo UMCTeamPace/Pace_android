@@ -84,6 +84,7 @@ class CalendarPageFragment: Fragment() {
     private var isInitialLayoutReady = false
     private var isInitialDataReady = false
     private var hasShownInitialContent = false
+    private var pendingResetToTodayState = false
 
 
     override fun onCreateView(
@@ -255,6 +256,7 @@ class CalendarPageFragment: Fragment() {
         // 초기 날짜 텍스트 설정
         updateSelectedDateText(today)
         binding.btnReturnToToday.visibility = if (selectedDate == today) View.GONE else View.VISIBLE
+        applyPendingResetIfNeeded()
     }
 
     // 상단 텍스트 업데이트
@@ -620,7 +622,11 @@ class CalendarPageFragment: Fragment() {
     }
 
     fun resetToTodayState() {
-        if (_binding == null) return
+        if (_binding == null || !::bottomSheetBehavior.isInitialized) {
+            pendingResetToTodayState = true
+            return
+        }
+        pendingResetToTodayState = false
 
         val targetMonth = YearMonth.from(today)
         selectedMonth = targetMonth
@@ -629,6 +635,11 @@ class CalendarPageFragment: Fragment() {
         binding.calendarView.scrollToMonth(targetMonth)
         binding.weekCalendarView.scrollToWeek(today)
         bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+    }
+
+    private fun applyPendingResetIfNeeded() {
+        if (!pendingResetToTodayState || _binding == null || !::bottomSheetBehavior.isInitialized) return
+        resetToTodayState()
     }
 
     private fun isDateInRecurrence(targetDate: LocalDate, startDate: LocalDate, rRule: String): Boolean {

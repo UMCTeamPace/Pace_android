@@ -1,21 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:padding="8dp">
+    android:layout_width="24dp"
+    android:layout_height="44dp"
+    android:layout_marginEnd="20dp">
 
-    <View
-        android:id="@+id/view_color_circle"
-        android:layout_width="36dp"
-        android:layout_height="36dp"
-        android:background="@drawable/circle_schedulecolor"
-        android:backgroundTint="@color/text_primary"/>
+    <FrameLayout
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_gravity="bottom|center_horizontal">
 
-    <ImageView
-        android:id="@+id/iv_check"
-        android:layout_width="20dp"
-        android:layout_height="20dp"
-        android:layout_gravity="center"
-        android:src="@drawable/ic_check_white"
-        android:visibility="gone" />
+        <View
+            android:id="@+id/view_color_circle"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:background="@drawable/circle_schedulecolor"
+            android:backgroundTint="@color/text_primary" />
+
+        <ImageView
+            android:id="@+id/iv_check"
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_check_white"
+            android:visibility="gone" />
+    </FrameLayout>
+
 </FrameLayout>
