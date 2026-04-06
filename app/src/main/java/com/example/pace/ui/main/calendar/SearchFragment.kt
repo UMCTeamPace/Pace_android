@@ -61,6 +61,7 @@ class SearchFragment : Fragment() {
         showKeyboard()
 
         (requireActivity() as MainActivity).binding.mainToolbar.visibility = View.GONE
+        (requireActivity() as MainActivity).binding.mainBnv.visibility = View.GONE
     }
 
     private fun setupRecyclerView() {
@@ -112,16 +113,13 @@ class SearchFragment : Fragment() {
                         val query = binding.etSearch.text.toString().trim()
                         searchAdapter.updateQuery(query)
 
-                        if (results.isEmpty()) {
-                            if (query.isEmpty()) showInitialState() else showEmptyState()
+                        if (query.isEmpty()) {
+                            showInitialState()
+                        } else if (results.isEmpty()) {
+                            showEmptyState()
                         } else {
                             val uiItems = transformToSearchItems(results)
-                            binding.searchResultContainer.visibility = View.VISIBLE
-                            if (recyclerView?.parent == null) {
-                                binding.searchResultContainer.addView(recyclerView)
-                            }
-
-                            searchAdapter.submitList(uiItems)
+                            showSearchResults(uiItems)
 
                             results.filter { it.type == "ROUTE" }.forEach {
                                 viewModel.fetchRouteDetail(it.id)
@@ -171,12 +169,14 @@ class SearchFragment : Fragment() {
 
     private fun showInitialState() {
         binding.searchResultContainer.removeAllViews()
+        binding.searchResultContainer.visibility = View.GONE
         searchAdapter.submitList(emptyList())
         searchAdapter.updateQuery("")
     }
 
     private fun showEmptyState() {
         binding.searchResultContainer.removeAllViews()
+        binding.searchResultContainer.visibility = View.VISIBLE
         val emptyBinding = LayoutSearchEmptyBinding.inflate(layoutInflater, binding.searchResultContainer, true)
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -188,6 +188,13 @@ class SearchFragment : Fragment() {
         emptyBinding.btnExpandSearch.setOnClickListener {
             viewModel.expandSearchRange()
         }
+    }
+
+    private fun showSearchResults(items: List<ScheduleListItem>) {
+        binding.searchResultContainer.removeAllViews()
+        binding.searchResultContainer.visibility = View.VISIBLE
+        recyclerView?.let { binding.searchResultContainer.addView(it) }
+        searchAdapter.submitList(items)
     }
 
     private fun showKeyboard() {
@@ -269,6 +276,7 @@ class SearchFragment : Fragment() {
         hideKeyboard()
         super.onDestroyView()
         (requireActivity() as MainActivity).binding.mainToolbar.visibility = View.VISIBLE
+        (requireActivity() as MainActivity).binding.mainBnv.visibility = View.VISIBLE
         _binding = null
     }
 }

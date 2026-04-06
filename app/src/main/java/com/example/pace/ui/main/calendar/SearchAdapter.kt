@@ -9,6 +9,8 @@ import android.text.style.ForegroundColorSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.daimajia.swipe.SwipeLayout
 import com.daimajia.swipe.adapters.RecyclerSwipeAdapter
@@ -31,7 +33,7 @@ class SearchAdapter(
 ) : RecyclerSwipeAdapter<RecyclerView.ViewHolder>() {
 
     private val gson = Gson()
-    private var items = listOf<ScheduleListItem>()
+    private var items = mutableListOf<ScheduleListItem>()
     private var selectedIds = setOf<Long>()
 
     companion object {
@@ -85,8 +87,7 @@ class SearchAdapter(
             )
         }
 
-        items = finalItems
-        notifyDataSetChanged()
+        updateData(finalItems, routeInfoMap)
     }
 
     fun updateSelectedIds(ids: Set<Long>) {
@@ -95,18 +96,38 @@ class SearchAdapter(
     }
 
     fun submitList(newItems: List<ScheduleListItem>) {
-        items = newItems
-        notifyDataSetChanged()
+        updateData(newItems, routeInfoMap)
     }
 
     fun updateRouteInfo(newRouteMap: Map<Long, RouteInfo>) {
+        if (routeInfoMap == newRouteMap) return
         routeInfoMap = newRouteMap
-        notifyDataSetChanged()
+
+        items.forEachIndexed { index, item ->
+            val scheduleItem = item as? ScheduleListItem.ScheduleItem ?: return@forEachIndexed
+            if (scheduleItem.schedule.type == "ROUTE") {
+                notifyItemChanged(index)
+            }
+        }
     }
 
     fun updateQuery(newQuery: String) {
         query = newQuery
         notifyDataSetChanged()
+    }
+
+    private fun updateData(newItems: List<ScheduleListItem>, newRouteMap: Map<Long, RouteInfo>) {
+        val diffResult = DiffUtil.calculateDiff(
+            SearchListDiffCallback(
+                oldItems = items,
+                newItems = newItems,
+                oldRouteMap = routeInfoMap,
+                newRouteMap = newRouteMap
+            )
+        )
+        routeInfoMap = newRouteMap
+        items = newItems.toMutableList()
+        diffResult.dispatchUpdatesTo(this)
     }
 
     override fun getItemViewType(position: Int): Int = when (items[position]) {
@@ -142,6 +163,47 @@ class SearchAdapter(
         return if (getItemViewType(position) == TYPE_SCHEDULE_ITEM) R.id.item_schedule else 0
     }
 
+    private class SearchListDiffCallback(
+        private val oldItems: List<ScheduleListItem>,
+        private val newItems: List<ScheduleListItem>,
+        private val oldRouteMap: Map<Long, RouteInfo>,
+        private val newRouteMap: Map<Long, RouteInfo>
+    ) : DiffUtil.Callback() {
+
+        override fun getOldListSize(): Int = oldItems.size
+
+        override fun getNewListSize(): Int = newItems.size
+
+        override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+            val oldItem = oldItems[oldItemPosition]
+            val newItem = newItems[newItemPosition]
+
+            return when {
+                oldItem is ScheduleListItem.DateHeader && newItem is ScheduleListItem.DateHeader ->
+                    oldItem.date == newItem.date
+
+                oldItem is ScheduleListItem.ScheduleItem && newItem is ScheduleListItem.ScheduleItem ->
+                    oldItem.schedule.id == newItem.schedule.id &&
+                        oldItem.schedule.startDate == newItem.schedule.startDate
+
+                else -> false
+            }
+        }
+
+        override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+            val oldItem = oldItems[oldItemPosition]
+            val newItem = newItems[newItemPosition]
+
+            if (oldItem != newItem) return false
+
+            return if (oldItem is ScheduleListItem.ScheduleItem && newItem is ScheduleListItem.ScheduleItem) {
+                oldRouteMap[oldItem.schedule.id] == newRouteMap[newItem.schedule.id]
+            } else {
+                true
+            }
+        }
+    }
+
     inner class DateHeaderViewHolder(private val binding: ItemDateHeaderBinding) :
         RecyclerView.ViewHolder(binding.root) {
         fun bind(date: String) {
@@ -161,7 +223,7 @@ class SearchAdapter(
                 if (start >= 0) {
                     val spannable = SpannableString(title)
                     spannable.setSpan(
-                        ForegroundColorSpan(Color.parseColor("#8BC34A")),
+                        ForegroundColorSpan(ContextCompat.getColor(context, R.color.semantic_info)),
                         start,
                         start + query.length,
                         Spannable.SPAN_EXCLUSIVE_EXCLUSIVE

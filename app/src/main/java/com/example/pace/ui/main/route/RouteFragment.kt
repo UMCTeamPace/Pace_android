@@ -171,7 +171,6 @@ class RouteFragment : Fragment() {
     private var currentRealtimeParams: List<RealtimeParam>? = null
     private var sessionToken: AutocompleteSessionToken? = null
     private var pendingResetToCurrentLocationState = false
-    private var pendingActionModeExtras: Bundle? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -230,7 +229,6 @@ class RouteFragment : Fragment() {
 
         observeRouteViewModel()
         observeSettings()
-        applyPendingActionModeIfNeeded()
         applyPendingResetIfNeeded()
     }
 
@@ -3093,48 +3091,6 @@ class RouteFragment : Fragment() {
         mainActivity?.myLocation?.let {
             currentMyLocation = LatLng(it.latitude, it.longitude)
             moveMapToCurrentLocation(it, animate = false)
-        }
-    }
-
-    fun isInScheduleSelectionMode(): Boolean {
-        return currentEntryMode == EntryMode.SCHEDULE ||
-            currentEntryMode == EntryMode.SCHEDULE_ROUTE
-    }
-
-    fun consumeActionModeIntent(intent: android.content.Intent? = requireActivity().intent): Boolean {
-        if (_binding == null || !isAdded || view == null || intent == null) {
-            if (intent != null) {
-                pendingActionModeExtras = Bundle(intent.extras ?: Bundle())
-            }
-            return false
-        }
-
-        val actionMode = intent.getStringExtra("ACTION_MODE")
-
-        return when (actionMode) {
-            "SCHEDULE" -> {
-                startScheduleMode()
-                intent.removeExtra("ACTION_MODE")
-                requireActivity().intent?.removeExtra("ACTION_MODE")
-                true
-            }
-            "SCHEDULE_ROUTE", "ROUTE_RESEARCH" -> {
-                startScheduleRouteMode(intent)
-                intent.removeExtra("ACTION_MODE")
-                requireActivity().intent?.removeExtra("ACTION_MODE")
-                true
-            }
-            else -> false
-        }
-    }
-
-    private fun applyPendingActionModeIfNeeded() {
-        val extras = pendingActionModeExtras ?: return
-        val pendingIntent = android.content.Intent().apply {
-            replaceExtras(Bundle(extras))
-        }
-        if (consumeActionModeIntent(pendingIntent)) {
-            pendingActionModeExtras = null
         }
     }
 

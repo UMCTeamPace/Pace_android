@@ -191,7 +191,11 @@ class ScheduleViewModel @Inject constructor(
 
 
     fun searchWithCurrentQuery() {
-        searchSchedules(lastQuery)
+        if (lastQuery.isBlank()) {
+            clearSearch()
+        } else {
+            searchSchedules(lastQuery)
+        }
     }
 
     // Update displayed search range text
@@ -204,7 +208,9 @@ class ScheduleViewModel @Inject constructor(
         searchStartDate = searchStartDate.minusMonths(6)
         searchEndDate = searchEndDate.plusMonths(6)
         updateRangeText()
-        searchSchedules(lastQuery) // Re-run search with expanded range
+        if (lastQuery.isNotBlank()) {
+            searchSchedules(lastQuery)
+        }
     }
 
     fun setSelectedDate(date: LocalDate) {
@@ -223,12 +229,19 @@ class ScheduleViewModel @Inject constructor(
 
         Log.d("SearchFlow", "색상 필터 변경: ${_filterColors.value}")
 
-        searchSchedules(lastQuery)
+        if (lastQuery.isNotBlank()) {
+            searchSchedules(lastQuery)
+        }
     }
 
     fun searchSchedules(query: String) {
-        lastQuery = query
-        val dbQuery = if (query.isBlank()) "%" else "%$query%"
+        val trimmedQuery = query.trim()
+        lastQuery = trimmedQuery
+
+        if (trimmedQuery.isBlank()) {
+            _searchResults.value = emptyList()
+            return
+        }
 
         viewModelScope.launch(Dispatchers.IO) {
             // Load currently synced calendar settings from Room
@@ -236,7 +249,7 @@ class ScheduleViewModel @Inject constructor(
             val selectedIds = currentSettings?.syncedCalendarIds ?: emptyList()
 
             val results = repository.searchSchedules(
-                query = dbQuery,
+                query = trimmedQuery,
                 colors = _filterColors.value,
                 includeRoute = _filterIncludeRoute.value,
                 startDate = searchStartDate.format(dateFormatter),
@@ -249,12 +262,22 @@ class ScheduleViewModel @Inject constructor(
 
     fun setFilterColor(color: String?) {
         _filterColor.value = color
-        searchSchedules(lastQuery)
+        if (lastQuery.isNotBlank()) {
+            searchSchedules(lastQuery)
+        }
     }
 
     fun setIncludeRouteFilter(include: Boolean) {
         _filterIncludeRoute.value = include
-        searchSchedules(lastQuery)
+        if (lastQuery.isNotBlank()) {
+            searchSchedules(lastQuery)
+        }
+    }
+
+    private fun refreshSearchResultsIfNeeded() {
+        if (lastQuery.isNotBlank()) {
+            searchSchedules(lastQuery)
+        }
     }
 
     private fun refreshSearchResultsIfNeeded() {
