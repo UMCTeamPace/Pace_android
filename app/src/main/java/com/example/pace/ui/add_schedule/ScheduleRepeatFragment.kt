@@ -42,7 +42,7 @@ class ScheduleRepeatFragment : Fragment() {
     // 날짜 포맷터 추가
     private val monthFormatter = DateTimeFormatter.ofPattern("yyyy년 M월")
     // 기존 dateFormatter를 요일이 포함된 형식으로 수정
-    private val dateFormatter = DateTimeFormatter.ofPattern("yyyy년 M월 d일 (E)", Locale.KOREAN)
+    private val dateFormatter = DateTimeFormatter.ofPattern("yyyy.MM.dd (E)", Locale.KOREAN)
 
     private lateinit var baseDate: LocalDate
     private var existingInfo: RepeatInfo? = null
@@ -113,7 +113,7 @@ class ScheduleRepeatFragment : Fragment() {
     }
 
     private fun setupMainListeners() {
-        binding.repeatToolbar.setNavigationOnClickListener { sendResultAndBack() }
+        binding.ivRepeatBack.setOnClickListener { sendResultAndBack() }
         configureNumberInput(binding.etEndCount)
 
         binding.rgRepeatOptions.setOnCheckedChangeListener { _, checkedId ->
@@ -253,6 +253,7 @@ class ScheduleRepeatFragment : Fragment() {
                 val rbFixed = v.findViewById<RadioButton>(R.id.rb_monthly_day_fixed)
 
                 val dayOfMonth = Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
+                rbFixed?.isChecked = true
                 rbFixed?.text = "${dayOfMonth}일 마다 반복"
                 rbOrdinal?.text = "${getOrdinalDayOfWeekText()} 마다 반복"
 
@@ -269,6 +270,7 @@ class ScheduleRepeatFragment : Fragment() {
             R.id.rb_year -> {
                 val rgYearly = v.findViewById<RadioGroup>(R.id.rg_yearly_detail)
                 val gridMonths = v.findViewById<GridLayout>(R.id.grid_yearly_months)
+                v.findViewById<RadioButton>(R.id.rb_yearly_day_fixed)?.isChecked = true
                 gridMonths?.let { setupMonthGrid(it) }
                 rgYearly?.setOnCheckedChangeListener { _, checkedId ->
                     gridMonths?.visibility = if (checkedId == R.id.rb_yearly_specific_date) View.VISIBLE else View.GONE
@@ -375,13 +377,14 @@ class ScheduleRepeatFragment : Fragment() {
 
         // 2. 종료 날짜 텍스트 및 캘린더 컨테이너 제어
         if (binding.rbEndDate.isChecked) {
-            // [종료 날짜 선택됨] 선택된 날짜를 "0000년 00월 00일 (목)까지" 형식으로 표시
             val formattedDate = selectedEndDate?.format(dateFormatter) ?: ""
-            binding.rbEndDate.text = "${formattedDate} 까지"
+            binding.rbEndDate.text = "종료 날짜"
+            binding.tvEndDateValue.text = "$formattedDate 까지"
+            binding.tvEndDateValue.visibility = View.VISIBLE
             binding.calendarContainer.visibility = View.VISIBLE
         } else {
-            // [다른 옵션 선택됨] 다시 "종료 날짜"로 텍스트 복구
             binding.rbEndDate.text = "종료 날짜"
+            binding.tvEndDateValue.visibility = View.GONE
             binding.calendarContainer.visibility = View.GONE
         }
     }
@@ -394,6 +397,7 @@ class ScheduleRepeatFragment : Fragment() {
 
         binding.calendarPicker.setup(startMonth, endMonth, firstDayOfWeek)
         binding.calendarPicker.scrollToMonth(currentMonth)
+        binding.tvCurrentMonth.text = monthFormatter.format(currentMonth)
 
         class DayViewContainer(view: View) : ViewContainer(view) {
             val textView = ItemCalendarDayAddscheduleBinding.bind(view).calendarDayText

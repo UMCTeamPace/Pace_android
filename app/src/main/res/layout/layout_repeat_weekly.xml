@@ -10,6 +10,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
         android:text="반복 주기"
         android:textColor="@color/text_secondary"
         android:textSize="14sp"
@@ -32,36 +33,59 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
-                android:paddingHorizontal="16dp">
+                android:paddingHorizontal="24dp">
 
-                <EditText
-                    android:id="@+id/et_week_interval"
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="24dp"
-                    android:inputType="number"
-                    android:text="1"
-                    android:minWidth="30dp"
-                    android:textAlignment="center"
-                    android:selectAllOnFocus="false"
-                    android:background="@null"
-                    android:textCursorDrawable="@null"
-                    android:textColor="@color/black"
-                    android:textColorHighlight="@android:color/transparent"/>
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                <TextView
-                    android:id="@+id/tv_week_interval_unit"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:text="주마다"
-                    android:textColor="@color/black" />
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <EditText
+                            android:id="@+id/et_week_interval"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:background="@null"
+                            android:gravity="center"
+                            android:hint="1"
+                            android:inputType="number"
+                            android:minWidth="0dp"
+                            android:padding="0dp"
+                            android:selectAllOnFocus="false"
+                            android:text="1"
+                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                            android:textColor="@color/black"
+                            android:textColorHighlight="@android:color/transparent"
+                            android:textCursorDrawable="@null" />
+
+                        <View
+                            android:layout_width="20dp"
+                            android:layout_height="1dp"
+                            android:layout_marginTop="0dp"
+                            android:background="@color/black" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tv_week_interval_unit"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="주마다"
+                        android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                        android:textColor="@color/black" />
+                </LinearLayout>
             </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/layout_day_of_week"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginHorizontal="13dp"
                 android:orientation="horizontal"
                 android:gravity="center"
                 android:layout_marginTop="16dp"
@@ -69,86 +93,94 @@
 
                 <CheckBox
                     android:id="@+id/cb_sun"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="0dp"
+                    android:layout_height="30dp"
+                    android:layout_weight="1"
                     android:button="@null"
-                    android:background="@drawable/btn_day_button"
+                    android:background="@drawable/bg_repeat_weekday"
+                    android:paddingHorizontal="6dp"
                     style="@style/TextAppearance.App.CaptionMd.Medium"
                     android:text="일"
                     android:gravity="center"
-                    android:textColor="@color/semantic_warning" />
+                    android:textColor="@color/selector_repeat_weekday_weekend_sun" />
 
                 <CheckBox
                     android:id="@+id/cb_mon"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:layout_marginStart="8dp"
+                    android:layout_width="0dp"
+                    android:layout_height="30dp"
+                    android:layout_weight="1"
                     android:button="@null"
-                    android:background="@drawable/btn_day_button"
+                    android:background="@drawable/bg_repeat_weekday"
+                    android:paddingHorizontal="6dp"
                     style="@style/TextAppearance.App.CaptionMd.Medium"
                     android:text="월"
                     android:gravity="center"
-                    android:textColor="@color/selector_day_text" />
+                    android:textColor="@color/selector_repeat_weekday_text" />
 
                 <CheckBox
                     android:id="@+id/cb_tue"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:layout_marginStart="8dp"
+                    android:layout_width="0dp"
+                    android:layout_height="30dp"
+                    android:layout_weight="1"
                     android:button="@null"
-                    android:background="@drawable/btn_day_button"
+                    android:background="@drawable/bg_repeat_weekday"
+                    android:paddingHorizontal="6dp"
                     style="@style/TextAppearance.App.CaptionMd.Medium"
                     android:text="화"
                     android:gravity="center"
-                    android:textColor="@color/selector_day_text" />
+                    android:textColor="@color/selector_repeat_weekday_text" />
 
                 <CheckBox
                     android:id="@+id/cb_wed"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:layout_marginStart="8dp"
+                    android:layout_width="0dp"
+                    android:layout_height="30dp"
+                    android:layout_weight="1"
                     android:button="@null"
-                    android:background="@drawable/btn_day_button"
+                    android:background="@drawable/bg_repeat_weekday"
+                    android:paddingHorizontal="6dp"
                     style="@style/TextAppearance.App.CaptionMd.Medium"
                     android:text="수"
                     android:gravity="center"
-                    android:textColor="@color/selector_day_text" />
+                    android:textColor="@color/selector_repeat_weekday_text" />
 
                 <CheckBox
                     android:id="@+id/cb_thu"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:layout_marginStart="8dp"
+                    android:layout_width="0dp"
+                    android:layout_height="30dp"
+                    android:layout_weight="1"
                     android:button="@null"
-                    android:background="@drawable/btn_day_button"
+                    android:background="@drawable/bg_repeat_weekday"
+                    android:paddingHorizontal="6dp"
                     style="@style/TextAppearance.App.CaptionMd.Medium"
                     android:text="목"
                     android:gravity="center"
-                    android:textColor="@color/selector_day_text" />
+                    android:textColor="@color/selector_repeat_weekday_text" />
 
                 <CheckBox
                     android:id="@+id/cb_fri"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:layout_marginStart="8dp"
+                    android:layout_width="0dp"
+                    android:layout_height="30dp"
+                    android:layout_weight="1"
                     android:button="@null"
-                    android:background="@drawable/btn_day_button"
+                    android:background="@drawable/bg_repeat_weekday"
+                    android:paddingHorizontal="6dp"
                     style="@style/TextAppearance.App.CaptionMd.Medium"
                     android:text="금"
                     android:gravity="center"
-                    android:textColor="@color/selector_day_text" />
+                    android:textColor="@color/selector_repeat_weekday_text" />
 
                 <CheckBox
                     android:id="@+id/cb_sat"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:layout_marginStart="8dp"
+                    android:layout_width="0dp"
+                    android:layout_height="30dp"
+                    android:layout_weight="1"
                     android:button="@null"
-                    android:background="@drawable/btn_day_button"
+                    android:background="@drawable/bg_repeat_weekday"
+                    android:paddingHorizontal="6dp"
                     style="@style/TextAppearance.App.CaptionMd.Medium"
                     android:text="토"
                     android:gravity="center"
-                    android:textColor="@color/semantic_success" />
+                    android:textColor="@color/selector_repeat_weekday_weekend_sat" />
             </LinearLayout>
         </LinearLayout>
     </androidx.cardview.widget.CardView>
