@@ -43,14 +43,11 @@
                     android:text="1"
                     android:minWidth="30dp"
                     android:textAlignment="center"
-                    android:selectAllOnFocus="true"
-
+                    android:selectAllOnFocus="false"
                     android:background="@null"
                     android:textCursorDrawable="@null"
-                    android:textColorHighlight="@android:color/transparent"
-                    android:textSelectHandle="@android:color/transparent"
-                    android:textSelectHandleLeft="@android:color/transparent"
-                    android:textSelectHandleRight="@android:color/transparent"/>
+                    android:textColor="@color/black"
+                    android:textColorHighlight="@android:color/transparent"/>
 
                 <TextView
                     android:id="@+id/tv_week_interval_unit"
