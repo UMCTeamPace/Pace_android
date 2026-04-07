@@ -164,7 +164,6 @@ class RouteFragment : Fragment() {
     private var scheduleDate: String = "2026-11-11"
     private var requestSearchTime: String = ""
     private var responseArrivelTime: String = ""
-    private var cachedScheduleData: RouteOnlyScheduleData? = null
     private lateinit var bottomSheetBehavior: BottomSheetBehavior<View>
     private var searchJob: Job? = null
     private var realtimePollingJob: Job? = null
@@ -378,7 +377,9 @@ class RouteFragment : Fragment() {
 
         routeViewModel.routeOnlySchedule.observe(viewLifecycleOwner) { data ->
             if (currentEntryMode != EntryMode.MAIN) return@observe
-            cachedScheduleData = data
+            showMainEntryOverlay(data)
+            return@observe
+            // Single source of truth is routeViewModel.routeOnlySchedule.
             if (data != null) {
                 // 1. 데이터가 있으면: hasSchedule 켜고, 오버레이 표시
                 hasSchedule = true
@@ -644,8 +645,8 @@ class RouteFragment : Fragment() {
         enterSearchMode()
     }
 
-    fun startScheduleRouteMode(intent: android.content.Intent = requireActivity().intent) {
-        if (_binding == null || !isAdded || view == null) return
+    fun startScheduleRouteMode(intent: android.content.Intent? = activity?.intent) {
+        if (_binding == null || !isAdded || view == null || intent == null) return
 
         currentEntryMode = EntryMode.SCHEDULE_ROUTE
 
@@ -2047,7 +2048,7 @@ class RouteFragment : Fragment() {
                 mainBinding?.mainBackIv?.visibility = View.GONE
 
                 if (hasSchedule) {
-                    showDefaultScheduleOverlay(cachedScheduleData)
+                    showMainEntryOverlay(routeViewModel.routeOnlySchedule.value)
                 } else {
                     binding.layoutRouteDetailOverlay.root.visibility = View.VISIBLE
                     binding.layoutRouteDetailOverlay.root.bringToFront()
@@ -2206,7 +2207,7 @@ class RouteFragment : Fragment() {
             mainBinding?.mainBackIv?.visibility = View.GONE
             if (hasSchedule) {
                 // 일정이 있으면 해당 일정 오버레이 표시
-                showDefaultScheduleOverlay(cachedScheduleData)
+                showMainEntryOverlay(routeViewModel.routeOnlySchedule.value)
             } else {
                 binding.layoutRouteDetailOverlay.root.visibility = View.VISIBLE
                 binding.layoutRouteDetailOverlay.root.bringToFront()
@@ -2310,7 +2311,7 @@ class RouteFragment : Fragment() {
             exitSearchMode()
             mainBinding?.mainBackIv?.visibility = View.GONE
             if (hasSchedule) {
-                showDefaultScheduleOverlay(cachedScheduleData)
+                showMainEntryOverlay(routeViewModel.routeOnlySchedule.value)
                 mainBinding?.mainBnv?.visibility = View.VISIBLE
             }
             else {
@@ -3052,7 +3053,6 @@ class RouteFragment : Fragment() {
         requestSearchTime = ""
         responseArrivelTime = ""
         earlyArriveTime = -1
-        cachedScheduleData = null
 
         binding.layoutRouteInputHeader.tvRouteStart.text = ""
         binding.layoutRouteInputHeader.tvRouteEnd.text = ""
@@ -3094,6 +3094,44 @@ class RouteFragment : Fragment() {
             currentMyLocation = LatLng(it.latitude, it.longitude)
             moveMapToCurrentLocation(it, animate = false)
         }
+
+        val defaultScheduleData = routeViewModel.routeOnlySchedule.value
+        if (hasSchedule && defaultScheduleData != null) {
+            showDefaultScheduleOverlay(defaultScheduleData)
+        } else {
+            binding.layoutRouteDetailOverlay.root.visibility = View.VISIBLE
+            binding.layoutRouteDetailOverlay.root.bringToFront()
+            binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.VISIBLE
+            binding.layoutRouteDetailOverlay.tvScheduleRouteDetailName.visibility = View.VISIBLE
+            binding.layoutRouteDetailOverlay.tvScheduleRouteDetailName.text = "경로 일정 목록"
+            binding.layoutRouteDetailOverlay.tvScheduleRouteDetailTime.visibility = View.GONE
+            binding.layoutRouteDetailOverlay.viewColorDotRouteDetail.visibility = View.GONE
+            binding.layoutRouteDetailOverlay.btnRouteDetailBackDetail.visibility = View.GONE
+            binding.layoutRouteDetailOverlay.layoutRouteSelectContainer.visibility = View.GONE
+            binding.layoutRouteDetailOverlay.bottomSheetRouteDetail.visibility = View.GONE
+        }
+    }
+
+    private fun showMainEntryOverlay(data: RouteOnlyScheduleData?) {
+        if (_binding == null || !isAdded || currentEntryMode != EntryMode.MAIN) return
+
+        if (data != null) {
+            hasSchedule = true
+            showDefaultScheduleOverlay(data)
+            return
+        }
+
+        hasSchedule = false
+        binding.layoutRouteDetailOverlay.root.visibility = View.VISIBLE
+        binding.layoutRouteDetailOverlay.root.bringToFront()
+        binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.VISIBLE
+        binding.layoutRouteDetailOverlay.tvScheduleRouteDetailName.visibility = View.VISIBLE
+        binding.layoutRouteDetailOverlay.tvScheduleRouteDetailName.text = "경로 일정 목록"
+        binding.layoutRouteDetailOverlay.tvScheduleRouteDetailTime.visibility = View.GONE
+        binding.layoutRouteDetailOverlay.viewColorDotRouteDetail.visibility = View.GONE
+        binding.layoutRouteDetailOverlay.btnRouteDetailBackDetail.visibility = View.GONE
+        binding.layoutRouteDetailOverlay.layoutRouteSelectContainer.visibility = View.GONE
+        binding.layoutRouteDetailOverlay.bottomSheetRouteDetail.visibility = View.GONE
     }
 
     fun isInScheduleSelectionMode(): Boolean {
@@ -3101,7 +3139,7 @@ class RouteFragment : Fragment() {
             currentEntryMode == EntryMode.SCHEDULE_ROUTE
     }
 
-    fun consumeActionModeIntent(intent: android.content.Intent? = requireActivity().intent): Boolean {
+    fun consumeActionModeIntent(intent: android.content.Intent? = activity?.intent): Boolean {
         if (_binding == null || !isAdded || view == null || intent == null) {
             if (intent != null) {
                 pendingActionModeExtras = Bundle(intent.extras ?: Bundle())
@@ -3115,13 +3153,13 @@ class RouteFragment : Fragment() {
             "SCHEDULE" -> {
                 startScheduleMode()
                 intent.removeExtra("ACTION_MODE")
-                requireActivity().intent?.removeExtra("ACTION_MODE")
+                activity?.intent?.removeExtra("ACTION_MODE")
                 true
             }
             "SCHEDULE_ROUTE", "ROUTE_RESEARCH" -> {
                 startScheduleRouteMode(intent)
                 intent.removeExtra("ACTION_MODE")
-                requireActivity().intent?.removeExtra("ACTION_MODE")
+                activity?.intent?.removeExtra("ACTION_MODE")
                 true
             }
             else -> false

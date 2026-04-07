@@ -12,6 +12,8 @@ import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import android.widget.*
 import androidx.activity.OnBackPressedCallback
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.os.bundleOf
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -79,6 +81,7 @@ class ScheduleRepeatFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        setupFocusClearInteractions()
         setupMainListeners()
         setupCalendar()
         setupLegend()
@@ -95,10 +98,27 @@ class ScheduleRepeatFragment : Fragment() {
         })
     }
 
+    private fun setupFocusClearInteractions() {
+        binding.root.setOnClickListener {
+            hideKeyboard()
+        }
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
+            val imeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
+            if (!imeVisible) {
+                clearCurrentInputFocus()
+            }
+            insets
+        }
+    }
+
     private fun setupMainListeners() {
         binding.repeatToolbar.setNavigationOnClickListener { sendResultAndBack() }
+        configureNumberInput(binding.etEndCount)
 
         binding.rgRepeatOptions.setOnCheckedChangeListener { _, checkedId ->
+            hideKeyboard()
+            binding.rgRepeatOptions.requestFocus()
             handleLayoutSwitch(checkedId)
             updateFullDescription()
         }
@@ -204,13 +224,19 @@ class ScheduleRepeatFragment : Fragment() {
         val v = detailView ?: return
         when (checkedId) {
             R.id.rb_daily -> {
-                v.findViewById<EditText>(R.id.et_daily_interval)?.addTextChangedListener(descriptionWatcher)
+                v.findViewById<EditText>(R.id.et_daily_interval)?.apply {
+                    configureNumberInput(this)
+                    addTextChangedListener(descriptionWatcher)
+                }
             }
             R.id.rb_week -> {
                 // 주간 전용 반복주기 보여지게하기
                 v.findViewById<View>(R.id.layout_day_of_week)?.visibility = View.VISIBLE
 
-                v.findViewById<EditText>(R.id.et_week_interval)?.addTextChangedListener(descriptionWatcher)
+                v.findViewById<EditText>(R.id.et_week_interval)?.apply {
+                    configureNumberInput(this)
+                    addTextChangedListener(descriptionWatcher)
+                }
                 val dayIds = listOf(R.id.cb_sun, R.id.cb_mon, R.id.cb_tue, R.id.cb_wed, R.id.cb_thu, R.id.cb_fri, R.id.cb_sat)
                 dayIds.forEach { id ->
                     v.findViewById<CheckBox>(id)?.setOnCheckedChangeListener { _, _ -> updateFullDescription() }
@@ -235,7 +261,10 @@ class ScheduleRepeatFragment : Fragment() {
                     gridDates?.visibility = if (checkedId == R.id.rb_monthly_specific_date) View.VISIBLE else View.GONE
                     updateFullDescription()
                 }
-                v.findViewById<EditText>(R.id.et_month_interval)?.addTextChangedListener(descriptionWatcher)
+                v.findViewById<EditText>(R.id.et_month_interval)?.apply {
+                    configureNumberInput(this)
+                    addTextChangedListener(descriptionWatcher)
+                }
             }
             R.id.rb_year -> {
                 val rgYearly = v.findViewById<RadioGroup>(R.id.rg_yearly_detail)
@@ -245,7 +274,10 @@ class ScheduleRepeatFragment : Fragment() {
                     gridMonths?.visibility = if (checkedId == R.id.rb_yearly_specific_date) View.VISIBLE else View.GONE
                     updateFullDescription()
                 }
-                v.findViewById<EditText>(R.id.et_year_interval)?.addTextChangedListener(descriptionWatcher)
+                v.findViewById<EditText>(R.id.et_year_interval)?.apply {
+                    configureNumberInput(this)
+                    addTextChangedListener(descriptionWatcher)
+                }
             }
         }
     }
@@ -610,7 +642,31 @@ class ScheduleRepeatFragment : Fragment() {
     }
     private fun dpToPx(dp: Int): Int = (dp * resources.displayMetrics.density).toInt()
 
+    private fun configureNumberInput(editText: EditText) {
+        editText.setSelectAllOnFocus(false)
+        editText.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                editText.post {
+                    editText.setSelection(editText.text?.length ?: 0)
+                }
+            }
+        }
+        editText.setOnClickListener {
+            editText.post {
+                editText.setSelection(editText.text?.length ?: 0)
+            }
+        }
+    }
+
+    private fun clearCurrentInputFocus() {
+        binding.root.findFocus()?.clearFocus()
+        detailView?.findFocus()?.clearFocus()
+        binding.etEndCount.clearFocus()
+        binding.repeatToolbar.requestFocus()
+    }
+
     private fun hideKeyboard() {
+        clearCurrentInputFocus()
         val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.hideSoftInputFromWindow(view?.windowToken, 0)
     }

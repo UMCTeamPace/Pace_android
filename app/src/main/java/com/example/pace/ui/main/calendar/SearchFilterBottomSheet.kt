@@ -7,6 +7,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.LinearLayout
 import androidx.lifecycle.lifecycleScope
 import com.example.pace.R
 import com.example.pace.data.viewmodel.ScheduleViewModel
@@ -22,6 +23,10 @@ class SearchFilterBottomSheet : BottomSheetDialogFragment() {
 
     private val viewModel: ScheduleViewModel by lazy {
         (requireActivity() as MainActivity).getSharedViewModel()
+    }
+
+    private val itemSpacingPx: Int by lazy {
+        (20 * resources.displayMetrics.density).toInt()
     }
 
 
@@ -52,10 +57,16 @@ class SearchFilterBottomSheet : BottomSheetDialogFragment() {
             viewModel.usedColors.collect { colors ->
                 binding.layoutColorContainer.removeAllViews()
 
-                colors.forEach { colorStr ->
+                colors.forEachIndexed { index, colorStr ->
                     val itemView = layoutInflater.inflate(R.layout.item_filter_color, binding.layoutColorContainer, false)
                     val colorCircle = itemView.findViewById<View>(R.id.view_color_circle)
                     val checkIcon = itemView.findViewById<ImageView>(R.id.iv_check)
+                    itemView.layoutParams = LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    ).apply {
+                        marginEnd = if (index == colors.lastIndex) 0 else itemSpacingPx
+                    }
 
                     // 색상 파싱 및 적용
                     val colorInt = try {
