@@ -4,15 +4,16 @@
     android:id="@+id/layout_repeat_interval_daily"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginTop="24dp"
+    android:layout_marginTop="12dp"
     android:orientation="vertical">
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
         android:text="반복 주기"
         android:textColor="@color/text_secondary"
-        android:textSize="14sp"
+        android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
         android:layout_marginBottom="8dp"/>
 
     <androidx.cardview.widget.CardView
@@ -32,30 +33,52 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
-                android:paddingHorizontal="16dp">
+                android:paddingHorizontal="24dp">
 
-                <EditText
-                    android:id="@+id/et_daily_interval"
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="24dp"
-                    android:inputType="number"
-                    android:text="1"
-                    android:minWidth="30dp"
-                    android:textAlignment="center"
-                    android:selectAllOnFocus="false"
-                    android:background="@null"
-                    android:textCursorDrawable="@null"
-                    android:textColor="@color/black"
-                    android:textColorHighlight="@android:color/transparent"/>
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                <TextView
-                    android:id="@+id/tv_daily_interval_unit"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:text="일마다"
-                    android:textColor="@color/black" />
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <EditText
+                            android:id="@+id/et_daily_interval"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:background="@null"
+                            android:gravity="center"
+                            android:hint="1"
+                            android:inputType="number"
+                            android:minWidth="0dp"
+                            android:padding="0dp"
+                            android:selectAllOnFocus="false"
+                            android:text="1"
+                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                            android:textColor="@color/black"
+                            android:textColorHighlight="@android:color/transparent"
+                            android:textCursorDrawable="@null" />
+
+                        <View
+                            android:layout_width="20dp"
+                            android:layout_height="1dp"
+                            android:layout_marginTop="0dp"
+                            android:background="@color/black" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tv_daily_interval_unit"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="일마다"
+                        android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                        android:textColor="@color/black" />
+                </LinearLayout>
             </LinearLayout>
 
         </LinearLayout>

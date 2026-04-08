@@ -2,11 +2,14 @@ package com.example.pace.ui.add_schedule
 
 import android.content.Context
 import android.graphics.Color
+import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
+import android.view.TouchDelegate
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
@@ -42,7 +45,7 @@ class ScheduleRepeatFragment : Fragment() {
     // 날짜 포맷터 추가
     private val monthFormatter = DateTimeFormatter.ofPattern("yyyy년 M월")
     // 기존 dateFormatter를 요일이 포함된 형식으로 수정
-    private val dateFormatter = DateTimeFormatter.ofPattern("yyyy년 M월 d일 (E)", Locale.KOREAN)
+    private val dateFormatter = DateTimeFormatter.ofPattern("yyyy.MM.dd (E)", Locale.KOREAN)
 
     private lateinit var baseDate: LocalDate
     private var existingInfo: RepeatInfo? = null
@@ -83,6 +86,7 @@ class ScheduleRepeatFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         setupFocusClearInteractions()
         setupMainListeners()
+        expandRepeatOptionTouchArea()
         setupCalendar()
         setupLegend()
         if (existingInfo != null) {
@@ -113,7 +117,7 @@ class ScheduleRepeatFragment : Fragment() {
     }
 
     private fun setupMainListeners() {
-        binding.repeatToolbar.setNavigationOnClickListener { sendResultAndBack() }
+        binding.ivRepeatBack.setOnClickListener { sendResultAndBack() }
         configureNumberInput(binding.etEndCount)
 
         binding.rgRepeatOptions.setOnCheckedChangeListener { _, checkedId ->
@@ -190,6 +194,67 @@ class ScheduleRepeatFragment : Fragment() {
         }
     }
 
+    private fun expandRepeatOptionTouchArea() {
+        val targets = listOf(
+            binding.rbNone,
+            binding.rbDaily,
+            binding.rbWeek,
+            binding.rbMonth,
+            binding.rbYear
+        )
+        expandTouchAreas(targets, extraTop = dpToPx(12), extraBottom = dpToPx(12))
+    }
+
+    private fun expandTouchAreas(targets: List<View>, extraTop: Int = 0, extraBottom: Int = 0) {
+        val parent = targets.firstOrNull()?.parent as? View ?: return
+        parent.post {
+            val delegates = targets.map { target ->
+                val rect = Rect()
+                target.getHitRect(rect)
+                rect.top -= extraTop
+                rect.bottom += extraBottom
+                TouchDelegate(rect, target)
+            }
+            parent.touchDelegate = MultiTouchDelegate(
+                anchorView = targets.first(),
+                delegates = delegates
+            )
+        }
+    }
+
+    private fun dpToPx(dp: Int): Int {
+        return (dp * resources.displayMetrics.density).toInt()
+    }
+
+    private fun setFadeVisibility(view: View, visible: Boolean, duration: Long = 150L) {
+        view.animate().cancel()
+        if (visible) {
+            if (view.visibility == View.VISIBLE && view.alpha == 1f) return
+            view.alpha = 0f
+            view.visibility = View.VISIBLE
+            view.animate().alpha(1f).setDuration(duration).start()
+        } else {
+            if (view.visibility != View.VISIBLE) return
+            view.animate()
+                .alpha(0f)
+                .setDuration(duration)
+                .withEndAction {
+                    view.visibility = View.GONE
+                    view.alpha = 1f
+                }
+                .start()
+        }
+    }
+
+    private class MultiTouchDelegate(
+        anchorView: View,
+        private val delegates: List<TouchDelegate>
+    ) : TouchDelegate(Rect(), anchorView) {
+        override fun onTouchEvent(event: MotionEvent): Boolean {
+            return delegates.any { it.onTouchEvent(event) }
+        }
+    }
+
     private fun handleLayoutSwitch(checkedId: Int) {
         val container = binding.layoutDynamicDetailContainer
         container.removeAllViews()
@@ -253,6 +318,7 @@ class ScheduleRepeatFragment : Fragment() {
                 val rbFixed = v.findViewById<RadioButton>(R.id.rb_monthly_day_fixed)
 
                 val dayOfMonth = Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
+                rbFixed?.isChecked = true
                 rbFixed?.text = "${dayOfMonth}일 마다 반복"
                 rbOrdinal?.text = "${getOrdinalDayOfWeekText()} 마다 반복"
 
@@ -269,6 +335,7 @@ class ScheduleRepeatFragment : Fragment() {
             R.id.rb_year -> {
                 val rgYearly = v.findViewById<RadioGroup>(R.id.rg_yearly_detail)
                 val gridMonths = v.findViewById<GridLayout>(R.id.grid_yearly_months)
+                v.findViewById<RadioButton>(R.id.rb_yearly_day_fixed)?.isChecked = true
                 gridMonths?.let { setupMonthGrid(it) }
                 rgYearly?.setOnCheckedChangeListener { _, checkedId ->
                     gridMonths?.visibility = if (checkedId == R.id.rb_yearly_specific_date) View.VISIBLE else View.GONE
@@ -357,7 +424,7 @@ class ScheduleRepeatFragment : Fragment() {
     private fun handleEndLayoutVisibility() {
 
         val checkedId = binding.rgEndOptions.checkedRadioButtonId
-        binding.layoutCountInput.isVisible = (checkedId == R.id.rb_end_count)
+        setFadeVisibility(binding.layoutCountInput, checkedId == R.id.rb_end_count)
         binding.calendarContainer.isVisible = (checkedId == R.id.rb_end_date)
 
         if (checkedId != R.id.rb_end_count) {
@@ -367,21 +434,22 @@ class ScheduleRepeatFragment : Fragment() {
         // 1. 횟수 지정 레이아웃 제어
         if (binding.rbEndCount.isChecked) {
             binding.rbEndCount.text = ""
-            binding.layoutCountInput.visibility = View.VISIBLE
+            setFadeVisibility(binding.layoutCountInput, true)
         } else {
             binding.rbEndCount.text = "횟수 지정"
-            binding.layoutCountInput.visibility = View.GONE
+            setFadeVisibility(binding.layoutCountInput, false)
         }
 
         // 2. 종료 날짜 텍스트 및 캘린더 컨테이너 제어
         if (binding.rbEndDate.isChecked) {
-            // [종료 날짜 선택됨] 선택된 날짜를 "0000년 00월 00일 (목)까지" 형식으로 표시
             val formattedDate = selectedEndDate?.format(dateFormatter) ?: ""
-            binding.rbEndDate.text = "${formattedDate} 까지"
+            binding.rbEndDate.text = "종료 날짜"
+            binding.tvEndDateValue.text = "$formattedDate 까지"
+            binding.tvEndDateValue.visibility = View.VISIBLE
             binding.calendarContainer.visibility = View.VISIBLE
         } else {
-            // [다른 옵션 선택됨] 다시 "종료 날짜"로 텍스트 복구
             binding.rbEndDate.text = "종료 날짜"
+            binding.tvEndDateValue.visibility = View.GONE
             binding.calendarContainer.visibility = View.GONE
         }
     }
@@ -394,6 +462,7 @@ class ScheduleRepeatFragment : Fragment() {
 
         binding.calendarPicker.setup(startMonth, endMonth, firstDayOfWeek)
         binding.calendarPicker.scrollToMonth(currentMonth)
+        binding.tvCurrentMonth.text = monthFormatter.format(currentMonth)
 
         class DayViewContainer(view: View) : ViewContainer(view) {
             val textView = ItemCalendarDayAddscheduleBinding.bind(view).calendarDayText
@@ -433,7 +502,13 @@ class ScheduleRepeatFragment : Fragment() {
                     } else {
                         // [일반 날짜] 배경 없음 + 검정색 글씨 (또는 기본색)
                         container.textView.background = null
-                        container.textView.setTextColor(resources.getColor(R.color.black, null))
+                        container.textView.setTextColor(
+                            when (data.date.dayOfWeek) {
+                                java.time.DayOfWeek.SUNDAY -> Color.RED
+                                java.time.DayOfWeek.SATURDAY -> Color.BLUE
+                                else -> resources.getColor(R.color.black, null)
+                            }
+                        )
                     }
                 } else {
                     // 이번 달이 아닌 날짜들 숨김
@@ -456,15 +531,20 @@ class ScheduleRepeatFragment : Fragment() {
                 text = i.toString()
                 buttonDrawable = null
                 gravity = android.view.Gravity.CENTER
-                setBackgroundResource(R.drawable.bg_month_circle)
-                setTextColor(androidx.core.content.ContextCompat.getColorStateList(context, R.color.selector_month_text))
-                textSize = 12f
+                setBackgroundResource(
+                    if (i <= 28) R.drawable.bg_month_date_item_with_divider
+                    else R.drawable.bg_month_date_item
+                )
+                applyMonthGridTextStyle(this, false)
                 layoutParams = GridLayout.LayoutParams().apply {
-                    width = dpToPx(38)
-                    height = dpToPx(38)
-                    setMargins(dpToPx(1), dpToPx(4), dpToPx(1), dpToPx(4))
+                    width = dpToPx(42)
+                    height = dpToPx(45)
+                    setMargins(0, 0, 0, 0)
                 }
-                setOnCheckedChangeListener { _, _ -> updateFullDescription() }
+                setOnCheckedChangeListener { buttonView, isChecked ->
+                    applyMonthGridTextStyle(buttonView as CheckBox, isChecked)
+                    updateFullDescription()
+                }
             }
             grid.addView(cb)
         }
@@ -472,24 +552,42 @@ class ScheduleRepeatFragment : Fragment() {
 
     private fun setupMonthGrid(grid: GridLayout) {
         grid.removeAllViews()
+        grid.columnCount = 6
         for (i in 1..12) {
             val cb = CheckBox(requireContext()).apply {
                 text = "${i}월"
                 buttonDrawable = null
                 gravity = android.view.Gravity.CENTER
-                setBackgroundResource(R.drawable.bg_month_circle)
-                setTextColor(androidx.core.content.ContextCompat.getColorStateList(context, R.color.selector_month_text))
-                textSize = 12f
+                setBackgroundResource(R.drawable.bg_month_item)
+                applyMonthGridTextStyle(this, false)
                 layoutParams = GridLayout.LayoutParams().apply {
-                    width = dpToPx(42)
-                    height = dpToPx(42)
-                    setMargins(dpToPx(2), dpToPx(8), dpToPx(2), dpToPx(8))
+                    width = dpToPx(49)
+                    height = dpToPx(49)
+                    setMargins(0, if (i <= 6) 0 else dpToPx(6), 0, if (i <= 6) dpToPx(6) else 0)
                     columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
                 }
-                setOnCheckedChangeListener { _, _ -> updateFullDescription() }
+                setOnCheckedChangeListener { buttonView, isChecked ->
+                    applyMonthGridTextStyle(buttonView as CheckBox, isChecked)
+                    updateFullDescription()
+                }
             }
             grid.addView(cb)
         }
+    }
+
+    private fun applyMonthGridTextStyle(checkBox: CheckBox, isChecked: Boolean) {
+        val textAppearance = if (isChecked) {
+            R.style.TextAppearance_App_Num_CaptionMd_Bold
+        } else {
+            R.style.TextAppearance_App_Num_CaptionMd_Medium
+        }
+        checkBox.setTextAppearance(textAppearance)
+        checkBox.setTextColor(
+            androidx.core.content.ContextCompat.getColorStateList(
+                checkBox.context,
+                R.color.selector_month_text
+            )
+        )
     }
 
     private fun getOrdinalDayOfWeekText(): String {
@@ -515,6 +613,30 @@ class ScheduleRepeatFragment : Fragment() {
         }
 
         // 2. RepeatInfo 객체 생성
+        val weeklyHasSelection = if (typeId == R.id.rb_week) {
+            val dayIds = listOf(R.id.cb_sun, R.id.cb_mon, R.id.cb_tue, R.id.cb_wed, R.id.cb_thu, R.id.cb_fri, R.id.cb_sat)
+            dayIds.any { detailView?.findViewById<CheckBox>(it)?.isChecked == true }
+        } else true
+
+        val monthlyHasSelection = if (
+            typeId == R.id.rb_month &&
+            detailView?.findViewById<RadioButton>(R.id.rb_monthly_specific_date)?.isChecked == true
+        ) {
+            hasCheckedItems(detailView?.findViewById(R.id.grid_monthly_dates))
+        } else true
+
+        val yearlyHasSelection = if (
+            typeId == R.id.rb_year &&
+            detailView?.findViewById<RadioButton>(R.id.rb_yearly_specific_date)?.isChecked == true
+        ) {
+            hasCheckedItems(detailView?.findViewById(R.id.grid_yearly_months))
+        } else true
+
+        if (!weeklyHasSelection || !monthlyHasSelection || !yearlyHasSelection) {
+            sendNoneResultAndBack()
+            return
+        }
+
         val repeatType = when (typeId) {
             R.id.rb_daily -> "DAILY"
             R.id.rb_week -> "WEEKLY"
@@ -640,7 +762,22 @@ class ScheduleRepeatFragment : Fragment() {
 
         parentFragmentManager.popBackStack()
     }
-    private fun dpToPx(dp: Int): Int = (dp * resources.displayMetrics.density).toInt()
+
+    private fun hasCheckedItems(grid: GridLayout?): Boolean {
+        for (i in 0 until (grid?.childCount ?: 0)) {
+            val child = grid?.getChildAt(i) as? CheckBox
+            if (child?.isChecked == true) return true
+        }
+        return false
+    }
+
+    private fun sendNoneResultAndBack() {
+        parentFragmentManager.setFragmentResult("repeatKey", bundleOf(
+            "selectedRepeat" to "반복 안함",
+            "repeatInfo" to null
+        ))
+        parentFragmentManager.popBackStack()
+    }
 
     private fun configureNumberInput(editText: EditText) {
         editText.setSelectAllOnFocus(false)
