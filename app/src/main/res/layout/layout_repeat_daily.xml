@@ -4,7 +4,7 @@
     android:id="@+id/layout_repeat_interval_daily"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginTop="24dp"
+    android:layout_marginTop="12dp"
     android:orientation="vertical">
 
     <TextView
@@ -13,7 +13,7 @@
         android:layout_marginStart="8dp"
         android:text="반복 주기"
         android:textColor="@color/text_secondary"
-        android:textSize="14sp"
+        android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
         android:layout_marginBottom="8dp"/>
 
     <androidx.cardview.widget.CardView

@@ -33,6 +33,7 @@
     <color name="gray_300">#DEDEDE</color>
     <color name="gray_200">#F2F2F2</color>
     <color name="gray_100">#FDFDFD</color>
+    <color name="gray_0">#FFFFFF</color>
 
     <color name="semantic_success">#4F81FF</color>
     <color name="semantic_error_delete">#FF4F4F</color>

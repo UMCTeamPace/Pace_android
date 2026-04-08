@@ -9,11 +9,11 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="12dp"
         android:layout_marginBottom="8dp"
         android:text="반복 주기"
         android:textColor="@color/text_secondary"
-        android:textSize="14sp" />
+        android:textAppearance="@style/TextAppearance.App.BodySm.Regular" />
 
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
@@ -83,7 +83,7 @@
     </androidx.cardview.widget.CardView>
 
     <androidx.cardview.widget.CardView
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="12dp"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@drawable/box_schedule"
@@ -94,49 +94,57 @@
             android:id="@+id/rg_monthly_detail"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:padding="8dp">
+            android:paddingVertical="16dp">
 
             <RadioButton
                 android:id="@+id/rb_monthly_day_fixed"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="24dp"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:minHeight="24dp"
+                android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
                 android:text="20일 마다 선택"
                 android:button="@null"
                 android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
-                android:paddingEnd="16dp"
                 android:drawableTint="@color/selector_radio_button"
                 android:background="@null"
                 android:backgroundTint="@android:color/transparent"
                 android:drawableTintMode="src_in" />
 
-            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#F1F3F5" />
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginTop="16dp" android:background="#F1F3F5" />
 
             <RadioButton
                 android:id="@+id/rb_monthly_ordinal_day"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="24dp"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:minHeight="24dp"
+                android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                android:layout_marginTop="16dp"
                 android:text="세번째 금요일 마다 선택"
                 android:button="@null"
                 android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
-                android:paddingEnd="16dp"
                 android:drawableTint="@color/selector_radio_button"
                 android:background="@null"
                 android:backgroundTint="@android:color/transparent"
                 android:drawableTintMode="src_in" />
 
-            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#F1F3F5" />
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginTop="16dp" android:background="#F1F3F5" />
 
             <RadioButton
                 android:id="@+id/rb_monthly_specific_date"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="24dp"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:minHeight="24dp"
+                android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                android:layout_marginTop="16dp"
                 android:text="반복 날짜 선택"
                 android:button="@null"
                 android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
-                android:paddingEnd="16dp"
                 android:drawableTint="@color/selector_radio_button"
                 android:background="@null"
                 android:backgroundTint="@android:color/transparent"
@@ -147,7 +155,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:visibility="gone"
-                android:layout_margin="16dp"
+                android:layout_marginTop="8dp"
+                android:paddingHorizontal="13dp"
                 android:alignmentMode="alignMargins"
                 android:columnCount="7" />
         </RadioGroup>
