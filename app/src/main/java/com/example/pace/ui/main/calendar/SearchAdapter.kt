@@ -20,6 +20,7 @@ import com.example.pace.data.model.response.RouteInfo
 import com.example.pace.databinding.ItemDateHeaderBinding
 import com.example.pace.databinding.ItemScheduleBinding
 import com.example.pace.ui.RouteCalculator
+import com.example.pace.util.SearchTextMatcher
 import com.google.gson.Gson
 
 class SearchAdapter(
@@ -219,13 +220,19 @@ class SearchAdapter(
             if (query.isBlank()) {
                 binding.scheduleTitleTv.text = title
             } else {
-                val start = title.indexOf(query, ignoreCase = true)
-                if (start >= 0) {
+                val matchRange = SearchTextMatcher.findMatchRange(title, query)
+                if (title.contains("ㅓ")) {
+                    android.util.Log.d(
+                        "SearchDebug",
+                        "highlight query='${query}' title='${title}' range=${matchRange?.start}..${matchRange?.endExclusive}"
+                    )
+                }
+                if (matchRange != null) {
                     val spannable = SpannableString(title)
                     spannable.setSpan(
                         ForegroundColorSpan(ContextCompat.getColor(context, R.color.semantic_info)),
-                        start,
-                        start + query.length,
+                        matchRange.start,
+                        matchRange.endExclusive,
                         Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
                     )
                     binding.scheduleTitleTv.text = spannable

@@ -1,11 +1,11 @@
 package com.example.pace.data.repository.repositoryImpl
 
+import android.util.Log
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Color
 import android.provider.CalendarContract
-import android.util.Log
 import biweekly.component.VEvent
 import biweekly.property.DateStart
 import biweekly.property.ExceptionDates
@@ -25,6 +25,7 @@ import com.example.pace.data.model.request.*
 import com.example.pace.data.model.response.*
 import com.example.pace.data.repeat.RepeatRuleHelper
 import com.example.pace.data.repository.repository.ScheduleRepository
+import com.example.pace.util.SearchTextMatcher
 import com.example.pace.data.util.safeApiCall
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -322,9 +323,10 @@ class ScheduleRepositoryImpl @Inject constructor(
         endDate: String,
         selectedIds: List<Long>
     ): List<Schedule> {
-        val raw = scheduleDao.searchSchedulesWithRange("%$query%", startDate, endDate)
+        val raw = scheduleDao.getSchedulesInRange(startDate, endDate)
 
         return expandSchedules(raw).filter { schedule ->
+            val titleMatch = SearchTextMatcher.contains(schedule.title, query)
             val calendarMatch = if (schedule.type == "ROUTE") {
                 true
             } else {
@@ -336,7 +338,7 @@ class ScheduleRepositoryImpl @Inject constructor(
             val colorMatch = colors.isEmpty() || colors.any { it.equals(sColor, true) || it.equals(cColor, true) }
             val routeMatch = includeRoute || schedule.type != "ROUTE"
 
-            calendarMatch && colorMatch && routeMatch
+            titleMatch && calendarMatch && colorMatch && routeMatch
         }
     }
 

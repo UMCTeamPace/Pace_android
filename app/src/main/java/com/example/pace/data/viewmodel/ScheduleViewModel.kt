@@ -38,6 +38,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -57,6 +58,7 @@ class ScheduleViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
+    private var searchJob: Job? = null
 
     private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
     private val rangeFormatter = DateTimeFormatter.ofPattern("yyyy. MM. dd")
@@ -239,11 +241,13 @@ class ScheduleViewModel @Inject constructor(
         lastQuery = trimmedQuery
 
         if (trimmedQuery.isBlank()) {
+            searchJob?.cancel()
             _searchResults.value = emptyList()
             return
         }
 
-        viewModelScope.launch(Dispatchers.IO) {
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch(Dispatchers.IO) {
             // Load currently synced calendar settings from Room
             val currentSettings = settingsRepository.getUserSettings().firstOrNull()
             val selectedIds = currentSettings?.syncedCalendarIds ?: emptyList()
@@ -256,7 +260,9 @@ class ScheduleViewModel @Inject constructor(
                 endDate = searchEndDate.format(dateFormatter),
                 selectedIds = selectedIds
             )
-            _searchResults.value = results
+            if (lastQuery == trimmedQuery) {
+                _searchResults.value = results
+            }
         }
     }
 
