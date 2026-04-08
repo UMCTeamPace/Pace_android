@@ -46,6 +46,16 @@ interface ScheduleDao {
         endDate: String
     ): List<Schedule>
 
+    @Query("""
+        SELECT * FROM schedules
+        WHERE start_date <= :endDate
+        AND end_date >= :startDate
+    """)
+    suspend fun getSchedulesInRange(
+        startDate: String,
+        endDate: String
+    ): List<Schedule>
+
 
         @Query("""
         SELECT event_color AS color FROM schedules WHERE event_color IS NOT NULL

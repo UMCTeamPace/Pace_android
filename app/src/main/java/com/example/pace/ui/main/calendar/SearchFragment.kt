@@ -22,6 +22,7 @@ import com.example.pace.ui.add_schedule.AddScheduleActivity
 import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.main.home.DeleteRepeatScheduleDialog
 import com.example.pace.ui.main.home.DeleteScheduleDialog
+import com.example.pace.util.SearchTextMatcher
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -146,7 +147,6 @@ class SearchFragment : Fragment() {
     private fun setupSearchInput() {
         binding.etSearch.addTextChangedListener { text ->
             val query = text?.toString()?.trim() ?: ""
-
             if (query.isEmpty()) {
                 viewModel.clearSearch()
                 showInitialState()
