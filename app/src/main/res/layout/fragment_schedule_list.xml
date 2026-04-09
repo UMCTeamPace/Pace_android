@@ -31,8 +31,8 @@
         android:id="@+id/schedule_list_rv"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:paddingStart="24dp"
-        android:paddingEnd="24dp"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
         android:splitMotionEvents="false"
         app:layout_constraintBottom_toTopOf="@id/layout_edit_bar"
         app:layout_constraintEnd_toEndOf="parent"
@@ -42,14 +42,14 @@
     <LinearLayout
         android:id="@+id/layout_edit_bar"
         android:layout_width="0dp"
-        android:layout_height="88dp"
+        android:layout_height="64dp"
         android:background="@color/white"
         android:elevation="12dp"
         android:orientation="horizontal"
-        android:paddingStart="24dp"
-        android:paddingTop="16dp"
-        android:paddingEnd="24dp"
-        android:paddingBottom="16dp"
+        android:paddingStart="20dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="12dp"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -60,14 +60,14 @@
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
-            android:background="@drawable/btn_cancel_bg"
+            android:background="@drawable/btn_delete_schedule"
             android:clickable="true"
             android:focusable="true"
             android:gravity="center"
             android:text="취소"
-            android:textColor="@color/black"
-            android:textSize="16sp"
-            android:textStyle="bold" />
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"/>
 
         <TextView
             android:id="@+id/btn_edit_delete"
@@ -81,8 +81,7 @@
             android:gravity="center"
             android:text="삭제"
             android:textColor="@color/white"
-            android:textSize="16sp"
-            android:textStyle="bold" />
+            android:textAppearance="@style/TextAppearance.App.BodySm.Semibold"/>
 
     </LinearLayout>
 

@@ -3,10 +3,12 @@ package com.example.pace.ui.main.calendar
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.fonts.FontStyle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.daimajia.swipe.SwipeLayout
@@ -20,6 +22,8 @@ import com.example.pace.ui.RouteCalculator
 import com.google.gson.Gson
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 class ScheduleListRVAdapter(
     private val context: Context,
@@ -36,7 +40,7 @@ class ScheduleListRVAdapter(
     private var isEditMode = false
     private var selectedKeys = setOf<String>()
     private var routeInfoMap: Map<Long, RouteInfo> = emptyMap()
-    private val primaryTextColor by lazy { ContextCompat.getColor(context, R.color.black) }
+    private val primaryTextColor by lazy { ContextCompat.getColor(context, R.color.text_primary) }
     private val secondaryTextColor by lazy { ContextCompat.getColor(context, R.color.text_secondary) }
     private val disabledTextColor by lazy { ContextCompat.getColor(context, R.color.text_disabled) }
 
@@ -163,6 +167,10 @@ class ScheduleListRVAdapter(
         RecyclerView.ViewHolder(binding.root) {
         fun bind(header: ScheduleListItem.DateHeader) {
             binding.dateHeaderTv.text = header.date
+            if(LocalDate.parse(header.date, DateTimeFormatter.ofPattern("yyyy년 MM월 dd일 (E)", Locale.KOREAN)) == LocalDate.now()){
+                binding.dateHeaderTv.typeface = ResourcesCompat.getFont(context, R.font.pretendard_semibold)
+                binding.dateHeaderTv.setTextColor(R.color.text_primary)
+            }
         }
     }
 

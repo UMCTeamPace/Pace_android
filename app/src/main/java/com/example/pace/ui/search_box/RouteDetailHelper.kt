@@ -251,6 +251,8 @@ object RouteDetailHelper {
                         val bottomSheet = TimetableBottomSheet(departureStopName, lineName, data.transitDetail.upNext, data.transitDetail.downNext)
                         bottomSheet.show(fragmentManager, bottomSheet.tag)
                     }
+                    Log.d("TRANSIT:UpNext", data.transitDetail.upNext.toString())
+                    Log.d("TRANSIT:DownNext", data.transitDetail.downNext.toString())
                 }
             }
             // 일직선 데이터 추가

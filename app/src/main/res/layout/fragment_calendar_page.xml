@@ -37,6 +37,7 @@
                         android:text=""
                         android:textColor="@color/text_primary"
                         android:textSize="18sp"
+                        android:textAppearance="@style/TextAppearance.App.Num.HeadlineSm.Semibold"
                         app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintHorizontal_bias="0.5"
@@ -118,20 +119,21 @@
         android:paddingVertical="10dp"
         android:visibility="gone">
 
-        <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="오늘로 돌아가기"
-        android:textColor="@color/text_primary"
-        android:textSize="14sp"
-        android:textStyle="bold" />
-
         <ImageView
             android:layout_width="14dp"
             android:layout_height="14dp"
-            android:layout_marginStart="6dp"
-            android:src="@drawable/ic_arrow_closed"
+            android:src="@drawable/ic_arrow_opened"
             app:tint="@color/text_primary" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="오늘로 돌아가기"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp" />
+
+
     </LinearLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -10,6 +10,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.daimajia.swipe.SwipeLayout
@@ -22,6 +23,9 @@ import com.example.pace.databinding.ItemScheduleBinding
 import com.example.pace.ui.RouteCalculator
 import com.example.pace.util.SearchTextMatcher
 import com.google.gson.Gson
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 class SearchAdapter(
     private val context: Context,
@@ -209,6 +213,10 @@ class SearchAdapter(
         RecyclerView.ViewHolder(binding.root) {
         fun bind(date: String) {
             binding.dateHeaderTv.text = date
+            if(LocalDate.parse(date, DateTimeFormatter.ofPattern("yyyy년 MM월 dd일(E)", Locale.KOREAN)) == LocalDate.now()){
+                binding.dateHeaderTv.typeface = ResourcesCompat.getFont(context, R.font.pretendard_semibold)
+                binding.dateHeaderTv.setTextColor(R.color.text_primary)
+            }
         }
     }
 
