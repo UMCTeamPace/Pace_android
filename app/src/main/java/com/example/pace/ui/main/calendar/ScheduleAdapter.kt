@@ -23,6 +23,7 @@ class ScheduleAdapter(
     private var items: List<ScheduleListItem>,
     private val onPinClick: (Schedule) -> Unit,
     private val onEditSelect: (Long) -> Unit,
+    private val onItemClick: (Schedule) -> Unit,
     private var routeInfoMap: Map<Long, RouteInfo> = emptyMap()
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
@@ -112,13 +113,16 @@ class ScheduleAdapter(
             } else {
                 binding.scheduleCheckbox.visibility = View.GONE
                 binding.schedulePinnedIv.visibility = if (schedule.isPinned) View.VISIBLE else View.GONE
-                binding.root.setOnClickListener { }
+                binding.root.setOnClickListener { onItemClick(schedule) }
                 binding.schedulePinIv.setOnClickListener {
                     onPinClick(schedule)
                     scheduleTouchHelper.closeSwipedMenu(holder)
                 }
                 binding.scheduleDeleteIv.setOnClickListener {
                     DeleteScheduleDialog(context).show()
+                }
+                binding.scheduleViewTop.setOnClickListener {
+                    onItemClick(schedule)
                 }
             }
 

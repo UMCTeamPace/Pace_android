@@ -48,11 +48,7 @@ class CalendarFragment: Fragment() {
 
         // 1. 액티비티 툴바의 돋보기 버튼 리스너 달기
         mainActivity.binding.scheduleSearchIv.setOnClickListener {
-            // 프래그먼트 전환 로직
-            parentFragmentManager.beginTransaction()
-                .replace(R.id.main_fcv, SearchFragment()) // 액티비티의 컨테이너 ID 사용
-                .addToBackStack(null) // 뒤로가기 버튼 지원
-                .commit()
+            openSearch()
         }
 
         mainActivity.binding.scheduleAddIv.setOnClickListener {
@@ -172,6 +168,29 @@ class CalendarFragment: Fragment() {
                 activity.binding.scheduleAddIv.visibility = View.VISIBLE
             }
         }
+    }
+
+    fun openSearch() {
+        parentFragmentManager.beginTransaction()
+            .hide(this)
+            .add(R.id.main_fcv, SearchFragment())
+            .addToBackStack(null)
+            .commit()
+    }
+
+    fun openScheduleDetail(scheduleId: Long, occurrenceDate: String, scheduleType: String) {
+        parentFragmentManager.beginTransaction()
+            .hide(this)
+            .add(
+                R.id.main_fcv,
+                ScheduleDetailFragment.newInstance(
+                    scheduleId = scheduleId,
+                    occurrenceDate = occurrenceDate,
+                    scheduleType = scheduleType
+                )
+            )
+            .addToBackStack(null)
+            .commit()
     }
 
     override fun onDestroyView() {

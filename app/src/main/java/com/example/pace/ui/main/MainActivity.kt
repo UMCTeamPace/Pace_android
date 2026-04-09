@@ -281,9 +281,17 @@ class MainActivity : AppCompatActivity() {
 
             R.id.calendar -> {
                 val skipCalendarReset = supportFragmentManager.findFragmentById(R.id.main_fcv) is SearchFragment
+                val existingCalendarFragment =
+                    supportFragmentManager.findFragmentByTag(TAG_CALENDAR) as? CalendarFragment
+
+                if (!skipCalendarReset && existingCalendarFragment != null) {
+                    existingCalendarFragment.resetToTodayState()
+                }
+
                 switchFragment(TAG_CALENDAR) { CalendarFragment() }
                 supportFragmentManager.executePendingTransactions()
-                if (!skipCalendarReset) {
+
+                if (!skipCalendarReset && existingCalendarFragment == null) {
                     (supportFragmentManager.findFragmentByTag(TAG_CALENDAR) as? CalendarFragment)?.resetToTodayState()
                 }
                 currentBottomMenuItem = R.id.calendar

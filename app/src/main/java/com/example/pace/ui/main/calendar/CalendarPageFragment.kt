@@ -631,6 +631,7 @@ class CalendarPageFragment: Fragment() {
         val targetMonth = YearMonth.from(today)
         selectedMonth = targetMonth
         updateTitle()
+
         selectDate(today, scrollToPager = true, fromScroll = true)
         binding.calendarView.scrollToMonth(targetMonth)
         binding.weekCalendarView.scrollToWeek(today)
@@ -708,9 +709,12 @@ class CalendarPageFragment: Fragment() {
         dailyPageAdapter = DailyPageAdapter(
             context = requireContext(),
             events = events,
-            onScheduleClick = { schedule ->
+            onPinClick = { schedule ->
                 val updatedSchedule = schedule.copy(isPinned = !schedule.isPinned)
                 viewModel.updateSchedule(updatedSchedule)
+            },
+            onItemClick = { schedule ->
+                openScheduleDetail(schedule)
             },
             // [추가] 편집 모드 선택 시 동작할 콜백 (캘린더 페이지에선 편집을 안 하므로 빈 값)
             onEditSelect = { id ->
@@ -755,6 +759,14 @@ class CalendarPageFragment: Fragment() {
 
     private fun updateTitle() {
         binding.calendarNumberPickerTv.text = "${selectedMonth.year}년 ${selectedMonth.monthValue}월"
+    }
+
+    private fun openScheduleDetail(schedule: Schedule) {
+        (parentFragment as? CalendarFragment)?.openScheduleDetail(
+            scheduleId = schedule.id,
+            occurrenceDate = schedule.startDate,
+            scheduleType = schedule.type
+        )
     }
 
     override fun onDestroyView() {

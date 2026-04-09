@@ -1,0 +1,578 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background">
+
+    <LinearLayout
+        android:id="@+id/appBar"
+        android:layout_width="match_parent"
+        android:layout_height="54dp"
+        android:background="@color/white"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="20dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:id="@+id/btnBack"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:contentDescription="뒤로가기"
+            android:src="@drawable/ic_arrow_opened"
+            app:tint="@color/gray_500" />
+    </LinearLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/detailScrollView"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        app:layout_constraintBottom_toTopOf="@id/bottomButtonContainer"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/appBar">
+
+        <LinearLayout
+            android:id="@+id/contentContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:paddingTop="12dp">
+
+            <LinearLayout
+                android:id="@+id/cardTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_schedule_detail_section"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingVertical="18dp">
+
+                    <FrameLayout
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_marginLeft="24dp">
+
+                        <View
+                            android:id="@+id/viewScheduleColor"
+                            android:layout_width="8dp"
+                            android:layout_height="8dp"
+                            android:layout_gravity="center"
+                            android:background="@drawable/shape_circle_green"
+                            android:backgroundTint="@color/schedule_17" />
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/tvScheduleTitle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:layout_weight="1"
+                        android:textColor="@color/text_primary"
+                        android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                        tools:text="운동" />
+                </LinearLayout>
+            </LinearLayout>
+
+
+            <LinearLayout
+                android:id="@+id/cardDateTime"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_schedule_detail_section"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingVertical="16dp">
+
+                    <RelativeLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingHorizontal="24dp">
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:layout_marginVertical="2dp">
+
+                            <ImageView
+                                android:layout_width="16dp"
+                                android:layout_height="16dp"
+                                android:src="@drawable/ic_time" />
+                            <TextView
+                                android:id="@+id/tvAllDayLabel"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="4dp"
+                                android:text="하루 종일"
+                                android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                                android:textColor="@color/black" />
+                        </LinearLayout>
+
+                        <ImageView
+                            android:id="@+id/addsche_my_phone_iv"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:src="@drawable/ic_toggle_selected"
+                            android:layout_alignParentRight="true" />
+                    </RelativeLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginVertical="16dp"
+                        android:layout_marginHorizontal="24dp"
+                        android:background="@color/gray_200" />
+
+
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingHorizontal="32dp">
+
+                        <LinearLayout
+                            android:id="@+id/layoutStart"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_horizontal"
+                            android:orientation="vertical"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toStartOf="@id/ivArrow"
+                            app:layout_constraintHorizontal_chainStyle="spread_inside"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toTopOf="parent">
+
+                            <TextView
+                                android:id="@+id/tvStartDate"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:gravity="center_horizontal"
+                                android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                                android:textColor="@color/text_primary"
+                                tools:text="2월 20일 (금)" />
+
+                            <TextView
+                                android:id="@+id/tvStartTime"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="12dp"
+                                android:gravity="center_horizontal"
+                                android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                                android:textColor="@color/text_primary"
+                                tools:text="10:00" />
+                        </LinearLayout>
+
+                        <ImageView
+                            android:id="@+id/ivArrow"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_arrow_right"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toStartOf="@id/layoutEnd"
+                            app:layout_constraintStart_toEndOf="@id/layoutStart"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:tint="@color/text_primary" />
+
+                        <LinearLayout
+                            android:id="@+id/layoutEnd"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_horizontal"
+                            android:orientation="vertical"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintStart_toEndOf="@id/ivArrow"
+                            app:layout_constraintTop_toTopOf="parent">
+
+                            <TextView
+                                android:id="@+id/tvEndDate"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:gravity="center_horizontal"
+                                android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                                android:textColor="@color/text_primary"
+                                tools:text="2월 20일 (금)" />
+
+                            <TextView
+                                android:id="@+id/tvEndTime"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="12dp"
+                                android:gravity="center_horizontal"
+                                android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                                android:textColor="@color/text_primary"
+                                tools:text="10:00" />
+                        </LinearLayout>
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginVertical="16dp"
+                        android:layout_marginHorizontal="24dp"
+                        android:background="@color/gray_200" />
+
+
+                    <LinearLayout
+                        android:id="@+id/layoutRepeatInfo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        tools:visibility="visible"
+                        android:paddingVertical="2dp"
+                        android:paddingLeft="24dp">
+
+                        <FrameLayout
+                            android:layout_width="16dp"
+                            android:layout_height="16dp">
+
+                            <ImageView
+                                android:layout_width="10dp"
+                                android:layout_height="11dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_repeat"
+                                app:tint="@color/text_primary" />
+                        </FrameLayout>
+
+                        <TextView
+                            android:id="@+id/tvRepeatRule"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="4dp"
+                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                            android:textColor="@color/text_primary"
+                            tools:text="매주 월, 수, 금" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/cardLocation"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_schedule_detail_section"
+                android:orientation="vertical"
+                android:paddingVertical="16dp">
+
+                <LinearLayout
+                    android:id="@+id/layoutNormalLocation"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:paddingVertical="2dp">
+
+                    <FrameLayout
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_marginStart="24dp">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:layout_gravity="center"
+                            android:src="@drawable/ic_route_unselected"
+                            app:tint="@color/text_primary"/>
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/tv_location_status"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="장소"
+                        android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                        android:textColor="@color/text_primary"/>
+                </LinearLayout>
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/layoutRouteInfo"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="24dp"
+                    android:visibility="gone">
+
+                    <LinearLayout
+                        android:id="@+id/route_time_ll"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        app:layout_constraintTop_toTopOf="parent">
+
+                        <TextView
+                            android:id="@+id/tvRouteRange"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="00:00 - 00:00"
+                            android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
+                            android:textColor="@color/text_secondary" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:layout_marginEnd="8dp"
+                            android:text="|"
+                            android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
+                            android:textColor="@color/text_secondary" />
+
+                        <TextView
+                            android:id="@+id/tvRouteTotalTime"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="1시간 30분"
+                            android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
+                            android:textColor="@color/text_secondary" />
+                    </LinearLayout>
+
+                    <View
+                        android:id="@+id/route_brief_divider"
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="16dp"
+                        android:background="@color/gray_200"
+                        app:layout_constraintTop_toBottomOf="@id/route_time_ll" />
+
+                    <LinearLayout
+                        android:id="@+id/routeBriefContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        app:layout_constraintTop_toBottomOf="@id/route_brief_divider" />
+
+                    <LinearLayout
+                        android:id="@+id/routeVehicleContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:orientation="vertical"
+                        app:layout_constraintTop_toBottomOf="@id/routeBriefContainer" />
+                </androidx.constraintlayout.widget.ConstraintLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/cardReminder"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_schedule_detail_section"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:id="@+id/layoutScheduleReminder"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingVertical="16dp">
+
+                    <FrameLayout
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_marginStart="24dp">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:layout_gravity="center"
+                            android:src="@drawable/ic_alarm_schedule"
+                            app:tint="@color/text_primary" />
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/tvReminder"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                        android:textColor="@color/text_primary"
+                        tools:text="1시간 전" />
+                </LinearLayout>
+
+                <View
+                    android:id="@+id/viewReminderDivider"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginHorizontal="24dp"
+                    android:background="@color/gray_200"
+                    android:visibility="gone" />
+
+                <LinearLayout
+                    android:id="@+id/layoutDepartureReminder"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingVertical="16dp"
+                    android:visibility="gone">
+
+                    <FrameLayout
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_marginStart="24dp">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:layout_gravity="center"
+                            android:src="@drawable/ic_alarm_started"
+                            app:tint="@color/text_primary" />
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/tvDepartureReminder"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                        android:textColor="@color/text_primary"
+                        tools:text="출발 10분 전" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_schedule_detail_section"
+                android:paddingVertical="16dp">
+
+                <LinearLayout
+                    android:id="@+id/btn_remindalarm"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:paddingVertical="2dp">
+
+                    <FrameLayout
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_marginStart="24dp">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:layout_gravity="center"
+                            android:src="@drawable/ic_alarm_schedule"
+                            app:tint="@color/text_primary" />
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/tv_remind_status"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="내 휴대전화"
+                        android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                        android:textColor="@color/text_primary" />
+                </LinearLayout>
+            </LinearLayout>
+
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_schedule_detail_section"
+                android:orientation="horizontal"
+                android:paddingVertical="16dp"
+                android:paddingHorizontal="24dp">
+
+                <FrameLayout
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_marginTop="2dp">
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_memo"
+                        app:tint="@color/text_primary" />
+                </FrameLayout>
+
+                <TextView
+                    android:id="@+id/et_memo"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginEnd="24dp"
+                    android:background="@null"
+                    android:gravity="top"
+                    android:hint="메모"
+                    android:inputType="textMultiLine"
+                    android:minLines="3"
+                    android:padding="0dp"
+                    android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_primary" />
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <LinearLayout
+        android:id="@+id/bottomButtonContainer"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@color/white"
+        android:orientation="horizontal"
+        android:paddingHorizontal="20dp"
+        android:paddingVertical="12dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <TextView
+            android:id="@+id/btnEdit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="10dp"
+            android:paddingHorizontal="64dp"
+            android:layout_weight="1"
+            android:background="@drawable/btn_cancel_bg"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="편집"
+            android:textColor="@color/text_primary"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"/>
+
+        <TextView
+            android:id="@+id/btnDelete"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="10dp"
+            android:paddingHorizontal="64dp"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:background="@drawable/btn_delete_schedule_red"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="삭제"
+            android:textColor="@color/white"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
