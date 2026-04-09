@@ -248,7 +248,7 @@ class MainActivity : AppCompatActivity() {
         if (actionMode == "SCHEDULE" || actionMode == "SCHEDULE_ROUTE" || actionMode == "ROUTE_RESEARCH") {
             showRouteTab(resetIfNeeded = false)
             (supportFragmentManager.findFragmentByTag(TAG_ROUTE) as? RouteFragment)
-                ?.consumeActionModeIntent(intent)
+                //?consumeActionModeIntent(intent)
         }
     }
 

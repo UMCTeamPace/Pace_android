@@ -137,6 +137,15 @@ class CalendarPageFragment: Fragment() {
                     container.eventContainer.removeAllViews()
                     return
                 }
+                // 요일에 따라 색상 작성
+                when(day.date.dayOfWeek.value){
+                    6 -> {
+                        container.textView.setTextColor(ContextCompat.getColor(requireContext(),R.color.semantic_success))
+                    }
+                    7 -> {
+                        container.textView.setTextColor(ContextCompat.getColor(requireContext(),R.color.semantic_error))
+                    }
+                }
                 // 바텀 시트 여부에 따라 다른 UI 적용
                 when(bottomSheetBehavior.state){
                     BottomSheetBehavior.STATE_HIDDEN -> {

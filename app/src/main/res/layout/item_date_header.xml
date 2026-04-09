@@ -3,8 +3,9 @@
     android:id="@+id/date_header_tv"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingTop="12dp"
-    android:paddingBottom="8dp"
-    android:textAppearance="@style/TextAppearance.App.HeadlineSm"
-    style="@style/TextColor.Primary"
+    android:layout_marginTop="12dp"
+    android:layout_marginStart="4dp"
+    android:layout_marginEnd="4dp"
+    android:textAppearance="@style/TextAppearance.App.BodyMd.Medium"
+    android:textColor="@color/text_tertiary"
     android:text="2026년 2월 19일 (목)"/>
