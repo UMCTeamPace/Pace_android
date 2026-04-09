@@ -26,7 +26,8 @@ class ScheduleListRVAdapter(
     private val onPinClick: (Schedule) -> Unit,
     private val onDeleteClick: (Schedule) -> Unit,
     private val onEditClick: (Schedule) -> Unit,
-    private val onSelectionToggle: (Schedule) -> Unit
+    private val onSelectionToggle: (Schedule) -> Unit,
+    private val onItemClick: (Schedule) -> Unit
 ) : RecyclerSwipeAdapter<RecyclerView.ViewHolder>() {
 
     private val gson = Gson()
@@ -236,6 +237,8 @@ class ScheduleListRVAdapter(
             binding.scheduleViewTop.setOnClickListener {
                 if (isEditMode) {
                     onSelectionToggle(schedule)
+                } else {
+                    onItemClick(schedule)
                 }
             }
             binding.scheduleCheckbox.setOnClickListener {

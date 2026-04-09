@@ -15,7 +15,8 @@ import kotlin.collections.sortedWith
 class DailyPageAdapter(
     private val context: Context,
     private var events: Map<LocalDate, List<Schedule>>,
-    private val onScheduleClick: (Schedule) -> Unit,
+    private val onPinClick: (Schedule) -> Unit,
+    private val onItemClick: (Schedule) -> Unit,
     private val onEditSelect: (Long) -> Unit = {}
 ) : RecyclerView.Adapter<DailyPageAdapter.PageViewHolder>() {
 
@@ -46,8 +47,9 @@ class DailyPageAdapter(
             val scheduleAdapter = ScheduleAdapter(
                 context = context,
                 items = sortedItems,
-                onPinClick = onScheduleClick,
+                onPinClick = onPinClick,
                 onEditSelect = onEditSelect,
+                onItemClick = onItemClick,
                 routeInfoMap = routeInfoMap
             )
             scheduleAdapter.setEditMode(false)

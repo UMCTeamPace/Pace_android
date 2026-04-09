@@ -199,6 +199,9 @@ class ScheduleListFragment : Fragment() {
             },
             onSelectionToggle = { schedule ->
                 viewModel.toggleOccurrenceSelection(schedule.id, schedule.startDate)
+            },
+            onItemClick = { schedule ->
+                openScheduleDetail(schedule)
             }
         )
 
@@ -299,6 +302,14 @@ class ScheduleListFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             processAndDisplaySchedules(viewModel.scheduleMap.value)
         }
+    }
+
+    private fun openScheduleDetail(schedule: Schedule) {
+        (parentFragment as? CalendarFragment)?.openScheduleDetail(
+            scheduleId = schedule.id,
+            occurrenceDate = schedule.startDate,
+            scheduleType = schedule.type
+        )
     }
 
     private fun applyPendingResetIfNeeded() {
