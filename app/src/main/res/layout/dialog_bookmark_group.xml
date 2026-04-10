@@ -13,6 +13,8 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="20dp"
         android:fontFamily="@font/pretendard_semibold"
+        android:textAppearance="@style/TextAppearance.App.BodyMd.SemiBold"
+        style="@style/TextColor.Primary"
         android:gravity="center"
         android:text="새 그룹"
         android:textColor="@color/black"
@@ -32,6 +34,7 @@
             android:layout_height="wrap_content"
             android:background="@android:color/transparent"
             android:fontFamily="@font/pretendard_medium"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
             android:hint="새 그룹명을 입력해주세요."
             android:inputType="text"
             android:maxLines="1"
@@ -82,7 +85,7 @@
             android:layout_marginEnd="8dp"
             android:layout_weight="1"
             android:background="@drawable/btn_cancel_bg"
-            android:fontFamily="@font/pretendard_semibold"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
             android:text="취소"
             android:textColor="@color/text_secondary" />
 
@@ -93,7 +96,8 @@
             android:layout_marginStart="8dp"
             android:layout_weight="1"
             android:background="@drawable/btn_confirm_bg"
-            android:fontFamily="@font/pretendard_semibold"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+            style="@style/TextColor.Primary"
             android:text="저장"
             android:textColor="@android:color/white" />
     </LinearLayout>
