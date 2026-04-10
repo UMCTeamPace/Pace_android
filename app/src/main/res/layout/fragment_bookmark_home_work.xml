@@ -52,7 +52,7 @@
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/layout_home_foreground"
             android:layout_width="match_parent"
-            android:layout_height="70dp"
+            android:layout_height="48dp"
             android:background="@color/white"
             android:paddingStart="20dp"
             android:clickable="true"
@@ -75,7 +75,7 @@
                 android:layout_marginEnd="10dp"
                 android:text="집을 등록하세요"
                 android:textColor="@color/gray_500"
-                android:textSize="16sp"
+                android:textSize="14sp"
                 android:ellipsize="end"
                 android:maxLines="1"
                 app:layout_constraintStart_toEndOf="@id/iv_home_icon"
@@ -86,7 +86,7 @@
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="@color/gray_100"
+                android:background="@color/gray_200"
                 app:layout_constraintBottom_toBottomOf="parent"/>
         </androidx.constraintlayout.widget.ConstraintLayout>
     </FrameLayout>
@@ -134,7 +134,7 @@
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/layout_work_foreground"
             android:layout_width="match_parent"
-            android:layout_height="70dp"
+            android:layout_height="48dp"
             android:background="@color/white"
             android:paddingStart="20dp"
             android:clickable="true"
@@ -157,7 +157,7 @@
                 android:layout_marginEnd="10dp"
                 android:text="학교/회사를 등록하세요"
                 android:textColor="@color/gray_500"
-                android:textSize="16sp"
+                android:textSize="14sp"
                 android:ellipsize="end"
                 android:maxLines="1"
                 app:layout_constraintStart_toEndOf="@id/iv_work_icon"
@@ -168,7 +168,7 @@
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="@color/gray_100"
+                android:background="@color/gray_200"
                 app:layout_constraintBottom_toBottomOf="parent"/>
         </androidx.constraintlayout.widget.ConstraintLayout>
     </FrameLayout>

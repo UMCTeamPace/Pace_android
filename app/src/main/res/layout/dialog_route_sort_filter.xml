@@ -46,7 +46,7 @@
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:background="@color/gray_100" />
+            android:background="@color/gray_200" />
 
         <RadioButton
             android:id="@+id/rb_min_time"
@@ -68,7 +68,7 @@
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:background="@color/gray_100" />
+            android:background="@color/gray_200" />
 
         <RadioButton
             android:id="@+id/rb_min_transfer"
@@ -90,7 +90,7 @@
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:background="@color/gray_100" />
+            android:background="@color/gray_200" />
 
         <RadioButton
             android:id="@+id/rb_min_walk"
