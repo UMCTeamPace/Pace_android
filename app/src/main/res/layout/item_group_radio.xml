@@ -45,12 +45,13 @@
             android:fontFamily="@font/pretendard_medium"
             android:text="내 장소"
             android:textColor="@color/black"
-            android:textSize="16sp" />
+            android:textSize="14sp"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"/>
 
         <ImageView
             android:id="@+id/iv_select"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
             android:src="@drawable/selector_checkbox" />
 
     </LinearLayout>
@@ -62,7 +63,8 @@
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:background="@color/gray_100" />
+            android:background="@color/gray_200" />
     </FrameLayout>
+
 
 </LinearLayout>

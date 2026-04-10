@@ -30,16 +30,16 @@
             android:layout_marginStart="12dp"
             android:layout_weight="1"
             android:ellipsize="end"
-            android:fontFamily="@font/pretendard_medium"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
             android:maxLines="1"
             android:text="장소 이름"
-            android:textColor="@color/black"
+            android:textColor="@color/text_primary"
             android:textSize="16sp" />
 
         <ImageView
             android:id="@+id/iv_cb_select"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
             android:src="@drawable/selector_checkbox" />
     </LinearLayout>
 
