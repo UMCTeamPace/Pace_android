@@ -11,7 +11,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="경로를 삭제하시겠습니까?"
-        android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+        android:textAppearance="@style/TextAppearance.App.ModalLg.Regular"
         style="@style/TextColor.Primary"
         android:gravity="center"
         android:layout_marginBottom="24dp"

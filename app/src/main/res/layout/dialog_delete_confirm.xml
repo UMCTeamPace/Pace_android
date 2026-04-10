@@ -14,9 +14,7 @@
         android:gravity="center"
         android:text="총 3곳의 장소를\n그룹에서 삭제하시겠습니까?"
         android:textColor="@color/text_primary"
-        android:textSize="14sp"
-        android:textAppearance="@style/TextAppearance.App.ModalLg.Regular"
-        android:fontFamily="@font/pretendard_semibold" />
+        android:textAppearance="@style/TextAppearance.App.ModalLg.Regular" />
 
     <LinearLayout
         android:layout_width="match_parent"

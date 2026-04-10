@@ -6,6 +6,9 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.activity.OnBackPressedCallback
 import android.graphics.Color
+import android.widget.CheckBox
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.fragment.app.Fragment
 import com.example.pace.R
 import com.example.pace.databinding.FragmentAlarmStartBinding
@@ -15,6 +18,9 @@ class AlarmStartFragment : Fragment() {
     private var _binding: FragmentAlarmStartBinding? = null
     private val binding get() = _binding!!
     private val selectedOptions = mutableSetOf<String>()
+
+    // 레이아웃과 체크박스를 묶은 리스트
+    private lateinit var alarmOptionPairs: List<Pair<LinearLayout, CheckBox>>
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -27,105 +33,101 @@ class AlarmStartFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // 1. 체크박스 리스트 초기화
-        val checkBoxes = listOf(
-            binding.rbStarttime,
-            binding.rbStart5mago, binding.rbStart10mago, binding.rbStart15mago,
-            binding.rbStart20mago, binding.rbStart25mago, binding.rbStart30mago,
-            binding.rbStart35mago, binding.rbStart40mago, binding.rbStart45mago,
-            binding.rbStart50mago, binding.rbStart55mago, binding.rbStart1hago
+        // 1. XML ID에 맞춰 레이아웃-체크박스 페어 리스트 초기화
+        alarmOptionPairs = listOf(
+            binding.layoutStarttime to binding.cbStarttime,
+            binding.layoutStart5mago to binding.cbStart5mago,
+            binding.layoutStart10mago to binding.cbStart10mago,
+            binding.layoutStart15mago to binding.cbStart15mago,
+            binding.layoutStart20mago to binding.cbStart20mago,
+            binding.layoutStart25mago to binding.cbStart25mago,
+            binding.layoutStart30mago to binding.cbStart30mago,
+            binding.layoutStart35mago to binding.cbStart35mago,
+            binding.layoutStart40mago to binding.cbStart40mago,
+            binding.layoutStart45mago to binding.cbStart45mago,
+            binding.layoutStart50mago to binding.cbStart50mago,
+            binding.layoutStart55mago to binding.cbStart55mago,
+            binding.layoutStart1hago to binding.cbStart1hago
         )
 
-        // 2. 부모로부터 받은 초기 데이터 세팅 (리스너 등록 전 수행)
+        // 2. 초기 데이터 수신 및 체크 상태 설정
         val initialAlarms = arguments?.getIntArray("selectedAlarmMinutes")?.toList() ?: emptyList()
-        android.util.Log.d("ALARM_DEBUG", "전달받은 숫자들: $initialAlarms")
-
-        selectedOptions.clear() // 진입 시점에 딱 한 번만 비우기
+        selectedOptions.clear()
 
         if (initialAlarms.isNotEmpty()) {
-            binding.rbNone.isChecked = false
+            binding.cbNone.isChecked = false
             initialAlarms.forEach { minutes ->
-                var isMatched = false
-                checkBoxes.forEach { checkBox ->
-                    val cbMinutes = textToMinutes(checkBox.text.toString())
-                    if (cbMinutes == minutes) {
-                        checkBox.isChecked = true
-                        selectedOptions.add(checkBox.text.toString())
-                        isMatched = true
-                    }
-                }
-                if (!isMatched) {
-                    android.util.Log.e("ALARM_DEBUG", "매칭 실패한 숫자: $minutes")
+                val targetText = minutesToText(minutes)
+
+                alarmOptionPairs.find { (layout, _) ->
+                    val textView = layout.getChildAt(0) as? TextView
+                    textView?.text.toString().trim() == targetText.trim()
+                }?.let { (_, cb) ->
+                    cb.isChecked = true
+                    selectedOptions.add(targetText)
                 }
             }
         } else {
-            binding.rbNone.isChecked = true
+            binding.cbNone.isChecked = true
         }
         updateUIOnly()
-        // 3. 개별 체크박스 리스너 등록
-        checkBoxes.forEach { checkBox ->
-            checkBox.setOnClickListener {
-                val text = checkBox.text.toString()
-                if (checkBox.isChecked) {
-                    if (selectedOptions.size >= 5) {
-                        checkBox.isChecked = false
-                        return@setOnClickListener
-                    }
-                    binding.rbNone.isChecked = false
+
+        // 3. 개별 옵션 레이아웃 클릭 리스너 설정
+        alarmOptionPairs.forEach { (layout, checkBox) ->
+            layout.setOnClickListener {
+                val nextState = !checkBox.isChecked
+                val textView = layout.getChildAt(0) as TextView
+                val text = textView.text.toString()
+
+                if (nextState) {
+                    if (selectedOptions.size >= 5) return@setOnClickListener
+                    binding.cbNone.isChecked = false
                     selectedOptions.add(text)
                 } else {
                     selectedOptions.remove(text)
-                    // 💡 아무것도 선택 안된 경우 '안함'에 체크
-                    if (selectedOptions.isEmpty()) binding.rbNone.isChecked = true
+                    if (selectedOptions.isEmpty()) binding.cbNone.isChecked = true
                 }
+                checkBox.isChecked = nextState
                 sendResultToParent()
                 updateUIOnly()
             }
         }
 
-// 4. "안함" 버튼 리스너
-        binding.rbNone.setOnClickListener {
-            if (binding.rbNone.isChecked) {
-                checkBoxes.forEach { it.isChecked = false }
+        // 4. "안함" 레이아웃 클릭 리스너
+        binding.layoutNone.setOnClickListener {
+            if (!binding.cbNone.isChecked) {
+                binding.cbNone.isChecked = true
+                alarmOptionPairs.forEach { (_, cb) -> cb.isChecked = false }
                 selectedOptions.clear()
-            } else {
-                // '안함'을 다시 눌러서 해제하려고 할 때 방어 로직 (최소 하나는 선택되게 하거나 유지)
-                if (selectedOptions.isEmpty()) binding.rbNone.isChecked = true
+                sendResultToParent()
+                updateUIOnly()
             }
-            sendResultToParent()
         }
 
-        // 5. 나가기/뒤로가기 설정 (나갈 때 최종 상태 확정)
+        // 5. 툴바 및 뒤로가기 설정
         binding.alarmStartToolbar.setNavigationOnClickListener {
-            sendResultToParent()
             parentFragmentManager.popBackStack()
         }
 
-
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                sendResultToParent()
                 parentFragmentManager.popBackStack()
             }
         })
-
-        updateUIOnly()
     }
 
     private fun updateUIOnly() {
         binding.tvAlarmDescription.setTextColor(
             if (selectedOptions.size >= 5) Color.RED else resources.getColor(R.color.text_secondary)
         )
-        // 로그만 찍어보고 전송은 하지 않음
-        android.util.Log.d("ALARM_INIT_CHECK", "현재 선택된 옵션들: $selectedOptions")
     }
 
-    // 2. 부모에게 결과를 전송하는 함수 (클릭 시 & 나갈 때용)
     private fun sendResultToParent() {
         val requestKey = arguments?.getString("requestKey") ?: "startAlarmKey"
-        val resultText = if (binding.rbNone.isChecked || selectedOptions.isEmpty()) {
+        val resultText = if (binding.cbNone.isChecked || selectedOptions.isEmpty()) {
             "출발 알림 안함"
         } else {
+            // 정렬해서 깔끔하게 보여주기
             selectedOptions.map { textToMinutes(it) }.sorted().map { minutesToText(it) }.joinToString(", ")
         }
         val selectedMinutes = selectedOptions.map { textToMinutes(it) }.toIntArray()
@@ -135,23 +137,20 @@ class AlarmStartFragment : Fragment() {
             putIntArray("selectedAlarmMinutes", selectedMinutes)
         }
         parentFragmentManager.setFragmentResult(requestKey, bundle)
-        android.util.Log.d("ALARM_SEND", "최종 전송: $resultText")
     }
 
-
-    // 💡 텍스트 <-> 분 변환 함수 (출발 알림용)
     private fun textToMinutes(text: String): Int {
+        val cleanText = text.trim()
         return when {
-            text.contains("1시간") -> 60
-            else -> {
-                // "출발 5분 전" 또는 "5분 전"에서 숫자만 추출하는 가장 안전한 방법
-                text.replace(Regex("[^0-9]"), "").toIntOrNull() ?: 0
-            }
+            cleanText == "출발시각" -> 0
+            cleanText.contains("1시간") -> 60
+            else -> cleanText.replace(Regex("[^0-9]"), "").toIntOrNull() ?: 0
         }
     }
 
     private fun minutesToText(minutes: Int): String {
         return when (minutes) {
+            0 -> "출발시각"
             60 -> "출발 1시간 전"
             else -> "출발 ${minutes}분 전"
         }

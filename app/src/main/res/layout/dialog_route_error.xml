@@ -21,13 +21,12 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="경로가 설정되지 않았습니다."
-            android:textAppearance="@style/TextAppearance.App.BodyMd.Medium" />
+            android:textAppearance="@style/TextAppearance.App.ModalLg.Regular" />
         <TextView
-            android:layout_marginTop="10dp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="일반 일정으로 진행하시겠습니까?"
-            android:textAppearance="@style/TextAppearance.App.Num.BodyMd.Medium" />
+            android:textAppearance="@style/TextAppearance.App.ModalLg.Regular" />
     </LinearLayout>
 
     <LinearLayout
@@ -48,6 +47,7 @@
             android:background="@drawable/btn_cancel_bg"
             android:backgroundTint="@null"
             android:text="취소"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
             android:textColor="@color/text_secondary"/>
 
         <androidx.appcompat.widget.AppCompatButton
@@ -58,6 +58,7 @@
             android:layout_weight="1"
             android:background="@drawable/btn_confirm_bg"
             android:text="확인"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
             android:textColor="@android:color/white" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

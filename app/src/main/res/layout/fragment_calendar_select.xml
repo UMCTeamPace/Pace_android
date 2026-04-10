@@ -13,6 +13,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="어떤 캘린더에 일정을 담아 드릴까요?"
+        android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
         android:gravity="center"
         android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
         android:textColor="@color/text_primary"
