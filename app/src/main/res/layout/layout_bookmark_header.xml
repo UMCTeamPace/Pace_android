@@ -17,8 +17,8 @@
         android:minHeight="54dp">
         <ImageView
             android:id="@+id/btn_bookmark_back"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
             android:layout_marginTop="10dp"
             android:layout_marginStart="15dp"
             android:layout_marginBottom="10dp"
@@ -34,7 +34,7 @@
             android:layout_marginStart="15dp"
             android:text="저장"
             android:textColor="@color/black"
-            android:fontFamily="@font/pretendard_semibold"
+            android:textAppearance="@color/places_autocomplete_prediction_primary_text_highlight"
             android:textSize="18sp"
             android:textStyle="bold"
             app:layout_constraintBottom_toBottomOf="@id/btn_bookmark_back"
@@ -69,12 +69,14 @@
             <com.google.android.material.tabs.TabItem
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="집/회사" />
+                android:text="집/회사"
+                android:textAppearance="@style/TextAppearance.App.BodySm.Regular"/>
 
             <com.google.android.material.tabs.TabItem
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="장소" />
+                android:text="장소"
+                android:textAppearance="@style/TextAppearance.App.BodySm.Regular"/>
 
         </com.google.android.material.tabs.TabLayout>
     </FrameLayout>
