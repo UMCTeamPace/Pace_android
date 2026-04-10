@@ -1,6 +1,7 @@
 package com.example.pace.ui.add_schedule
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -52,8 +53,15 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.time.Duration
+import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import java.util.Locale
 
 @AndroidEntryPoint
@@ -95,6 +103,8 @@ class RouteScheduleFragment : Fragment() {
     // 수정 모드 관련 변수
     private var isEditMode = false
     private var scheduleId: Long = -1L
+    private var originalIsRouteSchedule: Boolean = false
+    private var currentRouteScheduleCount: Int = 0
 
     // 경로 검색 -> 일정 추가 시 받는 ROUTE_DETAIL
     private var route: RouteResponse? = null
@@ -208,6 +218,7 @@ class RouteScheduleFragment : Fragment() {
         setupLegend()
         setupMonthNavigation()
         observeUserSettings()
+        observeRouteScheduleCount()
 
 
         val incomingId = arguments?.getLong("SCHEDULE_ID", -1L) ?: -1L
@@ -312,6 +323,7 @@ class RouteScheduleFragment : Fragment() {
 
                 // UI 업데이트 (ID: tvAlarmStatus 확인)
                 updateAlarmText(resultMinutes)
+                updateRouteAlarmFieldColor(resultMinutes)
             }
         }
 
@@ -338,7 +350,7 @@ class RouteScheduleFragment : Fragment() {
                 currentSelectedCalendarName = selectedName
 
                 binding.tvCalendarStatus.text = selectedName
-                binding.tvCalendarStatus.setTextColor(Color.BLACK)
+                updateCalendarFieldColor()
 
                 if (calendarColor != -1) {
                     currentSelectedCalendarColor = calendarColor
@@ -362,16 +374,6 @@ class RouteScheduleFragment : Fragment() {
                 .replace(android.R.id.content, fragment)
                 .addToBackStack(null)
                 .commit()
-        }
-        binding.layoutScheduleName.setOnClickListener {
-            binding.etScheduleName.requestFocus()
-
-            val imm =
-                requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-            imm.showSoftInput(
-                binding.etScheduleName,
-                android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT
-            )
         }
 
         // 1. 결과 관찰 (성공 시 화면 닫기)
@@ -410,8 +412,10 @@ class RouteScheduleFragment : Fragment() {
                 // 클릭 시에도 범위 체크를 해서 작동하지 않도록 방어
                 val today = LocalDate.now()
                 val maxDate = today.plusDays(29)
-                if (date in today..maxDate) {
-                    selectDate(date)
+                when {
+                    date < today -> Unit
+                    date > maxDate -> RouteDateLimitDialog(requireContext()).show()
+                    else -> selectDate(date)
                 }
             }
             override fun bind(container: DayViewContainer, day: CalendarDay) {
@@ -426,7 +430,7 @@ class RouteScheduleFragment : Fragment() {
 
 
                 textView.text = date.dayOfMonth.toString()
-                if (day.position != com.kizitonwose.calendar.core.DayPosition.MonthDate || date < today || date > maxDate) {
+                if (day.position != com.kizitonwose.calendar.core.DayPosition.MonthDate || date < today) {
                     textView.setTextColor(Color.LTGRAY)
                     textView.background = null
                     root.background = null
@@ -545,6 +549,14 @@ class RouteScheduleFragment : Fragment() {
                     )
                 } ?: emptyList()
 
+                if (shouldBlockRouteScheduleCount(routeObject)) {
+                    return@setOnClickListener
+                }
+
+                if (shouldBlockRouteSave(routeObject, finalStartDate, startTime)) {
+                    return@setOnClickListener
+                }
+
                 // 4. [수정] 모드 판정 및 호출
                 // 여기서 scheduleId가 정상적으로 (예: 54) 찍히는지 로그를 확인해야 합니다.
                 if (isEditMode && scheduleId != -1L) {
@@ -634,6 +646,7 @@ class RouteScheduleFragment : Fragment() {
                         // 💡 일정 수정 성공 시 알람 예약 실행
                         Toast.makeText(context, "일정이 수정되었습니다.", Toast.LENGTH_SHORT).show()
                         viewModel.resetUpdateEvent() // 이벤트 소모
+                        applyEditActivityResult()
                         activity?.finish()
                     } else if (isSuccess == false) {
                         Toast.makeText(context, "수정에 실패했습니다.", Toast.LENGTH_SHORT).show()
@@ -789,6 +802,8 @@ class RouteScheduleFragment : Fragment() {
 
         // 일정 추가 -> 루트 프래그먼트로 데이터 전달
         binding.btnRoute.setOnClickListener {
+            openRouteSearch()
+            return@setOnClickListener
             dismissKeyboard()
             Log.d("DEBUG_TAG", "btnRoute 클릭")
             val dateToPass = startDate?.toString() ?: LocalDate.now().toString()
@@ -855,6 +870,20 @@ class RouteScheduleFragment : Fragment() {
         _binding = null
     }
 
+    private fun applyEditActivityResult() {
+        viewModel.lastEditResult.value?.let { result ->
+            requireActivity().setResult(
+                Activity.RESULT_OK,
+                Intent().apply {
+                    putExtra("UPDATED_SCHEDULE_ID", result.scheduleId)
+                    putExtra("UPDATED_OCCURRENCE_DATE", result.occurrenceDate)
+                    putExtra("UPDATED_SCHEDULE_TYPE", result.scheduleType)
+                }
+            )
+            viewModel.clearLastEditResult()
+        }
+    }
+
     fun setRouteToNull() {
         this.route = null
     }
@@ -879,9 +908,10 @@ class RouteScheduleFragment : Fragment() {
             this.lastDestLng = lastStep.endLng
 
             // 경로 출발, 도착지 추가
-            binding.routeIv.setColorFilter(R.color.black)
+            binding.routeIv.setColorFilter(ContextCompat.getColor(requireContext(), R.color.text_primary))
             binding.routeTv.text = "$startName -> $endName"
             binding.routeTv.setTextColor(requireContext().getColor(R.color.text_primary))
+            updateRouteFieldColor(true)
             // 일직선 경로 추가
             binding.routeInfoCl.visibility = View.VISIBLE
             binding.timeTv.text = RouteCalculator.convertUtcToKst(route.departureTime) + " - " + RouteCalculator.convertUtcToKst(route.arrivalTime)
@@ -1014,7 +1044,7 @@ class RouteScheduleFragment : Fragment() {
             // 기본 상태
             binding.deleteRouteIv.visibility = View.GONE
             binding.routeTv.text = "경로"
-            binding.routeTv.setTextColor(requireContext().getColor(R.color.gray_500))
+            updateRouteFieldColor(false)
             binding.divider.visibility = View.GONE
             binding.routeInfoCl.visibility = View.GONE
         }
@@ -1299,12 +1329,122 @@ class RouteScheduleFragment : Fragment() {
             if (event.action == MotionEvent.ACTION_DOWN) {
                 isTouchingInputArea = true
                 suppressKeyboardDismissUntil = android.os.SystemClock.uptimeMillis() + 500L
+                moveTitleCursorToEnd()
+                moveMemoCursorToEnd()
             }
             false
         }
 
         binding.etScheduleName.setOnTouchListener(markInputInteraction)
         binding.etMemo.setOnTouchListener(markInputInteraction)
+    }
+
+    private fun moveTitleCursorToEnd() {
+        binding.etScheduleName.post {
+            binding.etScheduleName.text?.length?.let(binding.etScheduleName::setSelection)
+        }
+    }
+
+    private fun moveMemoCursorToEnd() {
+        binding.etMemo.post {
+            binding.etMemo.text?.length?.let(binding.etMemo::setSelection)
+        }
+    }
+
+    private fun updateRouteFieldColor(hasRoute: Boolean) {
+        val colorRes = if (hasRoute) R.color.text_primary else R.color.text_tertiary
+        val color = ContextCompat.getColor(requireContext(), colorRes)
+        binding.routeIv.setColorFilter(color)
+        binding.routeTv.setTextColor(color)
+    }
+
+    private fun updateRouteAlarmFieldColor(alarms: IntArray) {
+        val colorRes = if (alarms.isEmpty()) R.color.text_tertiary else R.color.text_primary
+        binding.tvAlarmStatus.setTextColor(ContextCompat.getColor(requireContext(), colorRes))
+    }
+
+    private fun updateCalendarFieldColor() {
+        val color = ContextCompat.getColor(requireContext(), R.color.text_primary)
+        binding.ivCalendar.setColorFilter(color)
+        binding.tvCalendarStatus.setTextColor(color)
+    }
+
+    private fun observeRouteScheduleCount() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.allSchedules.collect { schedules ->
+                    currentRouteScheduleCount = schedules.count { it.type == "ROUTE" }
+                    if (scheduleId != -1L) {
+                        originalIsRouteSchedule = schedules.firstOrNull { it.id == scheduleId }?.type == "ROUTE"
+                    }
+                }
+            }
+        }
+    }
+
+    private fun shouldBlockRouteScheduleCount(routeObject: RouteResponse?): Boolean {
+        if (routeObject == null) return false
+
+        currentRouteScheduleCount = 30
+        val projectedRouteCount = if (originalIsRouteSchedule) {
+            currentRouteScheduleCount
+        } else {
+            currentRouteScheduleCount + 1
+        }
+        if (projectedRouteCount > 30) {
+            RouteScheduleCountLimitDialog(requireContext()) { openRouteScheduleList() }.show()
+            return true
+        }
+
+        return false
+    }
+
+    private fun shouldBlockRouteSave(routeObject: RouteResponse?, scheduleDate: LocalDate, scheduleTime: String): Boolean {
+        val routeArrival = parseRouteArrivalToKst(routeObject?.arrivalTime) ?: return false
+        val scheduleStart = parseScheduleStartDateTime(scheduleDate, scheduleTime) ?: return false
+
+        if (routeArrival.isAfter(scheduleStart)) {
+            RouteArrivalAfterScheduleDialog(requireContext()) { openRouteSearch() }.show()
+            return true
+        }
+
+        if (Duration.between(routeArrival, scheduleStart).toMinutes() > 60) {
+            RouteArrivalTooEarlyDialog(requireContext()) { openRouteSearch() }.show()
+            return true
+        }
+
+        return false
+    }
+
+    private fun parseScheduleStartDateTime(date: LocalDate, time: String): LocalDateTime? {
+        return runCatching { LocalDateTime.parse("${date}T$time") }.getOrNull()
+    }
+
+    private fun parseRouteArrivalToKst(raw: String?): LocalDateTime? {
+        if (raw.isNullOrBlank()) return null
+
+        return parseInstant(raw)?.atZone(ZoneId.of("Asia/Seoul"))?.toLocalDateTime()
+            ?: parseLocalDateTime(raw)?.atZone(ZoneOffset.UTC)?.withZoneSameInstant(ZoneId.of("Asia/Seoul"))?.toLocalDateTime()
+    }
+
+    private fun parseInstant(raw: String): Instant? {
+        return try {
+            Instant.parse(raw)
+        } catch (_: DateTimeParseException) {
+            try {
+                OffsetDateTime.parse(raw).toInstant()
+            } catch (_: DateTimeParseException) {
+                null
+            }
+        }
+    }
+
+    private fun parseLocalDateTime(raw: String): LocalDateTime? {
+        return try {
+            LocalDateTime.parse(raw)
+        } catch (_: DateTimeParseException) {
+            null
+        }
     }
 
     private fun shouldSuppressKeyboardDismiss(): Boolean {
@@ -1319,6 +1459,57 @@ class RouteScheduleFragment : Fragment() {
         focusedView.clearFocus()
         binding.etScheduleName.clearFocus()
         binding.etMemo.clearFocus()
+    }
+
+    private fun openRouteSearch() {
+        dismissKeyboard()
+        Log.d("DEBUG_TAG", "openRouteSearch")
+        val dateToPass = startDate?.toString() ?: LocalDate.now().toString()
+        val rawTime = binding.tvStartTime.text.toString()
+        val timeToPass = if (rawTime.length == 5) "$rawTime:00" else rawTime
+
+        val rawEndTime = binding.tvEndTime.text.toString()
+        val endTimeToPass = if (rawEndTime.length == 5) "$rawEndTime:00" else rawEndTime
+
+        val scheduleName = binding.etScheduleName.text.toString()
+        val intent = Intent(
+            requireContext(),
+            MainActivity::class.java
+        ).apply {
+            putExtra("ACTION_MODE", "SCHEDULE_ROUTE")
+            putExtra("SCHEDULE_NAME", scheduleName)
+            putExtra("SCHEDULE_COLOR", colorIntToHex(getSaveColorInt()))
+            putExtra("SCHEDULE_DATE", dateToPass)
+            putExtra("SCHEDULE_TIME", timeToPass)
+            putExtra("SCHEDULE_END_TIME", endTimeToPass)
+            putExtra("EARLY_ARRIVE_TIME", earlyArriveTime)
+
+            if (lastStartName != null) {
+                putExtra("START_NAME", lastStartName)
+                putExtra("START_LAT", lastStartLat)
+                putExtra("START_LNG", lastStartLng)
+            }
+
+            if (lastDestName != null) {
+                putExtra("END_NAME", lastDestName)
+                putExtra("END_LAT", lastDestLat)
+                putExtra("END_LNG", lastDestLng)
+            }
+        }
+        routeSearchLauncher.launch(intent)
+    }
+
+    private fun openRouteScheduleList() {
+        requireActivity().supportFragmentManager.beginTransaction()
+            .setCustomAnimations(
+                android.R.anim.slide_in_left,
+                android.R.anim.slide_out_right,
+                android.R.anim.slide_in_left,
+                android.R.anim.slide_out_right
+            )
+            .replace(android.R.id.content, RouteScheduleListFragment())
+            .addToBackStack(null)
+            .commit()
     }
 
     private fun isTouchInsideInput(event: MotionEvent): Boolean {
@@ -1437,8 +1628,7 @@ class RouteScheduleFragment : Fragment() {
         val currentMonth = java.time.YearMonth.now() // 이번 달
 
         // [수정] 종료일을 오늘로부터 29일 뒤가 속한 달로 설정
-        val maxDate = java.time.LocalDate.now().plusDays(29)
-        val endMonth = java.time.YearMonth.from(maxDate)
+        val endMonth = java.time.YearMonth.now().plusYears(1)
 
         // 시작 요일 설정
         val firstDayOfWeek = java.time.DayOfWeek.SUNDAY
@@ -1478,6 +1668,7 @@ class RouteScheduleFragment : Fragment() {
             if (currentSelectedAlarms == null) {
                 currentSelectedAlarms = settings.scheduleAlarms.toIntArray()
                 updateAlarmText(currentSelectedAlarms!!)
+                updateRouteAlarmFieldColor(currentSelectedAlarms!!)
             }
 
             // 2. 출발 알람 (수동 수정이 없을 때만)
@@ -1494,6 +1685,7 @@ class RouteScheduleFragment : Fragment() {
                 val calendarName = viewModel.getCalendarNameById(resolvedCalendarId)
                 binding.tvCalendarStatus.text = calendarName
                 applyCalendarColor(resolvedCalendarId)
+                updateCalendarFieldColor()
             }
 
             binding.root.post { resetInitialFormSnapshot() }
@@ -1636,9 +1828,14 @@ class RouteScheduleFragment : Fragment() {
             binding.tvStartalarmStatus.setTextColor(requireContext().getColor(R.color.gray_500))
             return
         }
-        // minutesToText 함수를 활용해 "10분 전, 30분 전" 형태로 변환
-        val texts = minutesArray.sorted().map { minutesToText(it) }
-        binding.tvStartalarmStatus.text = texts.joinToString(", ")
+        val texts = minutesArray.sorted().map { minutes ->
+            if (minutes == 0) "출발 시각" else minutesToText(minutes)
+        }
+        binding.tvStartalarmStatus.text = if (minutesArray.contains(0)) {
+            texts.joinToString(", ")
+        } else {
+            "출발 ${texts.joinToString(", ")}"
+        }
         binding.tvStartalarmStatus.setTextColor(Color.BLACK) // 선택되면 검정색으로 변경
     }
 
@@ -1694,7 +1891,7 @@ class RouteScheduleFragment : Fragment() {
     private fun setupEditMode(id: Long) {
         // 1. 헤더 변경 (가장 먼저 실행)
         (activity as? AddScheduleActivity)?.let { act ->
-            act.findViewById<TextView>(R.id.tv_toolbar_title)?.text = "일정 수정"
+            act.findViewById<TextView>(R.id.tv_toolbar_title)?.text = "일정 편집"
         }
 
         // 2. ViewModel에서 상세 데이터 요청
@@ -1705,9 +1902,12 @@ class RouteScheduleFragment : Fragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.scheduleDetailInfo.collect { detail ->
                     if (detail != null) {
+                        originalIsRouteSchedule = detail.scheduleInfo.isPathIncluded == true
                         // (1) 기본 정보 (ScheduleInfo) 및 색상/캘린더 복원 💡 핵심 추가
                         binding.etScheduleName.setText(detail.scheduleInfo.title)
+                        moveTitleCursorToEnd()
                         binding.etMemo.setText(detail.scheduleInfo.memo)
+                        moveMemoCursorToEnd()
 
                         // 서버 색상 반영
 
@@ -1717,7 +1917,7 @@ class RouteScheduleFragment : Fragment() {
                             viewModel.getCalendarNameById(id)
                         }
                         binding.tvCalendarStatus.text = calendarName ?: "내 일정"
-                        binding.tvCalendarStatus.setTextColor(Color.BLACK)
+                        updateCalendarFieldColor()
                         val scheduleColorHex = detail.scheduleInfo.color
                         if (!scheduleColorHex.isNullOrBlank()) {
                             changeSelectedColor(scheduleColorHex)
@@ -1772,6 +1972,7 @@ class RouteScheduleFragment : Fragment() {
                             ?.toIntArray()
 
                         updateAlarmText(currentSelectedAlarms ?: intArrayOf())
+                        updateRouteAlarmFieldColor(currentSelectedAlarms ?: intArrayOf())
                         updateDepartureAlarmText(currentSelectedStartAlarms ?: intArrayOf())
 
                         // (5) UI 상태 확정

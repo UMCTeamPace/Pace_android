@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="300dp"
+    android:layout_height="212dp"
+    android:background="@drawable/bg_route_dialog_surface"
+    android:paddingVertical="30dp">
+
+    <TextView
+        android:id="@+id/route_schedule_count_limit_tv"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:gravity="center"
+        android:text="경로 일정 최대 개수를 초과하였습니다\n일정 목록을 확인해주세요."
+        android:textAppearance="@style/TextAppearance.App.ModalLg.Regular"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+
+    <TextView
+        android:id="@+id/route_schedule_count_limit_sub_tv"
+        android:layout_width="match_parent"
+        android:layout_height="32dp"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:text="*경로 일정은 최대 30개까지 저장할 수 있습니다.\n기존 경로 일정을 삭제한 후 다시 시도해 주세요."
+        android:textAppearance="@style/TextAppearance.App.ModalSm.Regular"
+        android:textColor="@color/text_tertiary"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/route_schedule_count_limit_tv" />
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:layout_marginHorizontal="24dp"
+        android:orientation="horizontal"
+        app:layout_constraintTop_toBottomOf="@id/route_schedule_count_limit_sub_tv"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/route_schedule_count_limit_cancel_btn"
+            android:layout_width="120dp"
+            android:layout_height="40dp"
+            android:layout_marginEnd="12dp"
+            android:background="@drawable/bg_route_dialog_cancel_btn"
+            android:text="취소"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+            android:textColor="@color/text_primary" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/route_schedule_count_limit_confirm_btn"
+            android:layout_width="120dp"
+            android:layout_height="40dp"
+            android:background="@drawable/bg_route_dialog_confirm_btn"
+            android:text="목록 확인"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Semibold"
+            android:textColor="@color/white" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

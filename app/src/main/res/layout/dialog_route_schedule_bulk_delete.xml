@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="300dp"
+    android:layout_height="wrap_content"
+    android:background="@drawable/box_delete_schedule"
+    android:paddingTop="30dp"
+    android:paddingBottom="30dp">
+
+    <TextView
+        android:id="@+id/route_schedule_bulk_delete_tv"
+        style="@style/TextColor.Primary"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="일정을 삭제하시겠습니까?"
+        android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/route_schedule_bulk_delete_ll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/route_schedule_bulk_delete_tv">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/route_schedule_bulk_delete_cancel_btn"
+            android:layout_width="120dp"
+            android:layout_height="40dp"
+            android:background="@drawable/btn_delete_schedule"
+            android:stateListAnimator="@null"
+            android:text="취소"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+            style="@style/TextColor.Primary" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/route_schedule_bulk_delete_confirm_btn"
+            android:layout_width="120dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="12dp"
+            android:background="@drawable/btn_delete_schedule_red"
+            android:stateListAnimator="@null"
+            android:text="삭제"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+            style="@style/TextColor.White" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

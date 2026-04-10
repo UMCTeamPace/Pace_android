@@ -27,15 +27,17 @@
                 android:layout_weight="1"
                 android:text="내 휴대전화"
                 android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                android:textColor="@color/black" />
+                android:textColor="@color/text_primary" />
 
-            <RadioButton
-                android:id="@+id/rb_calendar_select"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:clickable="false"
-                android:focusable="false"
-                android:buttonTint="@color/primary_500" />
+            <TextView
+                android:id="@+id/tv_account_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Pace0908@gmail.com"
+                android:textAppearance="@style/TextAppearance.App.CaptionMd.Regular"
+                android:textColor="@color/gray_500"
+                android:textSize="12sp" />
+        </LinearLayout>
 
         </LinearLayout>
         <TextView

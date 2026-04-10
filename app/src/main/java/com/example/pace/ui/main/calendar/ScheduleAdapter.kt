@@ -7,7 +7,9 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
+import com.daimajia.swipe.SwipeLayout
 import com.example.pace.R
 import com.example.pace.data.model.Schedule
 import com.example.pace.data.model.response.RouteInfo
@@ -49,8 +51,16 @@ class ScheduleAdapter(
     }
 
     fun updateData(newItems: List<ScheduleListItem>) {
+        val diffResult = DiffUtil.calculateDiff(
+            ScheduleDiffCallback(
+                oldItems = items,
+                newItems = newItems,
+                oldRouteMap = routeInfoMap,
+                newRouteMap = routeInfoMap
+            )
+        )
         items = newItems
-        notifyDataSetChanged()
+        diffResult.dispatchUpdatesTo(this)
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -66,11 +76,9 @@ class ScheduleAdapter(
             TYPE_DATE_HEADER -> DateHeaderViewHolder(
                 ItemDateHeaderBinding.inflate(inflater, parent, false)
             )
-
             TYPE_SCHEDULE_ITEM -> ScheduleItemViewHolder(
                 ItemScheduleBinding.inflate(inflater, parent, false)
             )
-
             else -> throw IllegalArgumentException("Invalid view type")
         }
     }
@@ -87,8 +95,16 @@ class ScheduleAdapter(
     override fun getItemCount(): Int = items.size
 
     fun updateRouteInfo(newRouteMap: Map<Long, RouteInfo>) {
+        val diffResult = DiffUtil.calculateDiff(
+            ScheduleDiffCallback(
+                oldItems = items,
+                newItems = items,
+                oldRouteMap = routeInfoMap,
+                newRouteMap = newRouteMap
+            )
+        )
         routeInfoMap = newRouteMap
-        notifyDataSetChanged()
+        diffResult.dispatchUpdatesTo(this)
     }
 
     inner class DateHeaderViewHolder(private val binding: ItemDateHeaderBinding) :
@@ -103,6 +119,10 @@ class ScheduleAdapter(
 
         fun bind(item: ScheduleListItem.ScheduleItem, holder: RecyclerView.ViewHolder) {
             val schedule = item.schedule
+            binding.root.showMode = SwipeLayout.ShowMode.LayDown
+            binding.root.setSwipeEnabled(false)
+            binding.scheduleLeftBottomWrapper.visibility = View.GONE
+            binding.scheduleRightBottomWrapper.visibility = View.GONE
 
             if (isEditMode) {
                 binding.scheduleCheckbox.visibility = View.VISIBLE
@@ -116,7 +136,9 @@ class ScheduleAdapter(
                 binding.root.setOnClickListener { onItemClick(schedule) }
                 binding.schedulePinIv.setOnClickListener {
                     onPinClick(schedule)
-                    scheduleTouchHelper.closeSwipedMenu(holder)
+                    if (::scheduleTouchHelper.isInitialized) {
+                        scheduleTouchHelper.closeSwipedMenu(holder)
+                    }
                 }
                 binding.scheduleDeleteIv.setOnClickListener {
                     DeleteScheduleDialog(context).show()
@@ -233,6 +255,45 @@ class ScheduleAdapter(
 
         private fun formatRouteTime(rawTime: String): String? {
             return RouteCalculator.convertUtcToKst(rawTime).ifBlank { null }
+        }
+    }
+
+    private class ScheduleDiffCallback(
+        private val oldItems: List<ScheduleListItem>,
+        private val newItems: List<ScheduleListItem>,
+        private val oldRouteMap: Map<Long, RouteInfo>,
+        private val newRouteMap: Map<Long, RouteInfo>
+    ) : DiffUtil.Callback() {
+
+        override fun getOldListSize(): Int = oldItems.size
+
+        override fun getNewListSize(): Int = newItems.size
+
+        override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+            val oldItem = oldItems[oldItemPosition]
+            val newItem = newItems[newItemPosition]
+
+            return when {
+                oldItem is ScheduleListItem.DateHeader && newItem is ScheduleListItem.DateHeader ->
+                    oldItem.date == newItem.date
+                oldItem is ScheduleListItem.ScheduleItem && newItem is ScheduleListItem.ScheduleItem ->
+                    oldItem.schedule.id == newItem.schedule.id &&
+                        oldItem.schedule.startDate == newItem.schedule.startDate
+                else -> false
+            }
+        }
+
+        override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+            val oldItem = oldItems[oldItemPosition]
+            val newItem = newItems[newItemPosition]
+
+            if (oldItem != newItem) return false
+
+            return if (oldItem is ScheduleListItem.ScheduleItem && newItem is ScheduleListItem.ScheduleItem) {
+                oldRouteMap[oldItem.schedule.id] == newRouteMap[newItem.schedule.id]
+            } else {
+                true
+            }
         }
     }
 }

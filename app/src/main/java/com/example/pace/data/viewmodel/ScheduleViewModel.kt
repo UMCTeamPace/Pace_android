@@ -51,6 +51,12 @@ import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
+data class ScheduleEditResult(
+    val scheduleId: Long,
+    val occurrenceDate: String?,
+    val scheduleType: String
+)
+
 @HiltViewModel
 class ScheduleViewModel @Inject constructor(
     private val repository: ScheduleRepository,
@@ -114,6 +120,8 @@ class ScheduleViewModel @Inject constructor(
 
     private val _updateScheduleEvent = MutableStateFlow<Boolean?>(null)
     val updateScheduleEvent: StateFlow<Boolean?> = _updateScheduleEvent
+    private val _lastEditResult = MutableStateFlow<ScheduleEditResult?>(null)
+    val lastEditResult: StateFlow<ScheduleEditResult?> = _lastEditResult
 
     private val _routeDetails = MutableStateFlow<Map<Long, RouteInfo>>(emptyMap())
 
@@ -393,6 +401,11 @@ class ScheduleViewModel @Inject constructor(
                 } else {
                     // Normal schedules are updated in the provider and local Room DB
                     repository.updateSchedule(schedule)
+                    _lastEditResult.value = ScheduleEditResult(
+                        scheduleId = schedule.id,
+                        occurrenceDate = schedule.startDate,
+                        scheduleType = schedule.type
+                    )
 
                     withContext(Dispatchers.Main) {
                         _updateScheduleEvent.value = true
@@ -473,6 +486,11 @@ class ScheduleViewModel @Inject constructor(
                             scheduleId = scheduleId
                         )
                     }
+                    _lastEditResult.value = ScheduleEditResult(
+                        scheduleId = scheduleId,
+                        occurrenceDate = request.startDate,
+                        scheduleType = "ROUTE"
+                    )
                     _updateScheduleEvent.value = true
                     Log.d("ScheduleViewModel", "경로 일정 서버 수정 성공: $scheduleId")
                 } else {
@@ -756,6 +774,10 @@ class ScheduleViewModel @Inject constructor(
         _updateScheduleEvent.value = null
     }
 
+    fun clearLastEditResult() {
+        _lastEditResult.value = null
+    }
+
     fun parseRepeatRule(rrule: String, endDate: String): RepeatInfo? {
         return repository.parseRRule(rrule, endDate)
     }
@@ -789,6 +811,11 @@ class ScheduleViewModel @Inject constructor(
                         previousSchedule = existingSchedule,
                         scheduleId = scheduleId,
                         arrivalTimeOverride = arrival
+                    )
+                    _lastEditResult.value = ScheduleEditResult(
+                        scheduleId = scheduleId,
+                        occurrenceDate = generalRequest.startDate,
+                        scheduleType = "ROUTE"
                     )
                     withContext(Dispatchers.Main) {
                         _updateScheduleEvent.value = true
@@ -1023,6 +1050,13 @@ class ScheduleViewModel @Inject constructor(
                 )
 
                 repository.refreshSchedules()
+                if (response.isSuccess) {
+                    _lastEditResult.value = ScheduleEditResult(
+                        scheduleId = response.result?.scheduleId ?: updatedSchedule.id,
+                        occurrenceDate = updatedSchedule.startDate,
+                        scheduleType = updatedSchedule.type
+                    )
+                }
                 _updateScheduleEvent.value = response.isSuccess
             } catch (e: Exception) {
                 Log.e("ScheduleViewModel", "반복 일정 단일 수정 실패: ${e.message}")
