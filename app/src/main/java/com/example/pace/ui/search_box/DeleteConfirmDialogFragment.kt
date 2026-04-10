@@ -43,9 +43,22 @@ class DeleteConfirmDialogFragment(
 
     override fun onResume() {
         super.onResume()
-        val params: ViewGroup.LayoutParams? = dialog?.window?.attributes
-        val deviceWidth = resources.displayMetrics.widthPixels
-        params?.width = (deviceWidth * 0.75).toInt()
-        dialog?.window?.attributes = params as WindowManager.LayoutParams
+//        val params: ViewGroup.LayoutParams? = dialog?.window?.attributes
+//        val deviceWidth = resources.displayMetrics.widthPixels
+//        params?.width = (deviceWidth * 0.75).toInt()
+//        dialog?.window?.attributes = params as WindowManager.LayoutParams
+        val window = dialog?.window
+        if (window != null) {
+            val params = window.attributes
+
+            val marginPx = (60 * resources.displayMetrics.density).toInt()
+            params.width = resources.displayMetrics.widthPixels - marginPx
+
+
+            params.height = WindowManager.LayoutParams.WRAP_CONTENT
+            window.attributes = params
+
+            window.setBackgroundDrawableResource(android.R.color.transparent)
+        }
     }
 }

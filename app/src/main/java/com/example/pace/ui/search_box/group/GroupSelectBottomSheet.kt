@@ -61,9 +61,6 @@ class GroupSelectBottomSheet(
         }
 
         groupViewModel.errorMessage.observe(viewLifecycleOwner) { msg ->
-            android.util.Log.d("BottomSheetLog", "=================================")
-            android.util.Log.d("BottomSheetLog", "1. errorMessage 들어옴: [$msg]")
-            android.util.Log.d("BottomSheetLog", "2. 이 순간의 errorCode 값: [${groupViewModel.errorCode.value}]")
             if (msg.isNullOrBlank()) return@observe
 
             val isDuplicateError = (groupViewModel.errorCode.value == "PLACE400_1") || msg.contains("동일한 장소")
@@ -200,7 +197,7 @@ class GroupSelectBottomSheet(
 
             // 바텀시트 높이를 화면의 80%로 고정
             val layoutParams = sheet.layoutParams
-            layoutParams.height = (screenHeight * 0.8).toInt()
+            layoutParams.height = (screenHeight * 0.6).toInt()
             sheet.layoutParams = layoutParams
 
             // 동작 설정

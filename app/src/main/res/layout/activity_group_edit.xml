@@ -20,12 +20,12 @@
             android:layout_height="match_parent"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingStart="16dp">
+            android:paddingStart="20dp">
 
             <ImageView
                 android:id="@+id/iv_select_all"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
                 android:clickable="true"
                 android:focusable="true"
                 android:src="@drawable/selector_checkbox" />
@@ -44,10 +44,10 @@
 
         <ImageView
             android:id="@+id/btn_close"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:layout_width="14dp"
+            android:layout_height="14dp"
             android:layout_gravity="end"
-            android:layout_marginEnd="20dp"
+            android:layout_marginEnd="25dp"
             android:src="@drawable/ic_close_back_button" />
 
     </androidx.appcompat.widget.Toolbar>
@@ -74,7 +74,7 @@
             android:layout_marginEnd="8dp"
             android:layout_weight="1"
             android:background="@drawable/btn_cancel_bg"
-            android:fontFamily="@font/pretendard_semibold"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
             android:text="이동"
             android:textColor="@color/gray_500" />
 
@@ -85,7 +85,7 @@
             android:layout_marginStart="8dp"
             android:layout_weight="1"
             android:background="@color/text_disabled"
-            android:fontFamily="@font/pretendard_semibold"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
             android:text="삭제"
             android:textColor="@android:color/white" />
     </LinearLayout>

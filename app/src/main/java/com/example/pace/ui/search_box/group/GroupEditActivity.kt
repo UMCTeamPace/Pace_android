@@ -1,11 +1,13 @@
 package com.example.pace.ui.search_box.group
 
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.pace.R
 import com.example.pace.data.model.response.SavePlaceResponse
@@ -26,6 +28,13 @@ class GroupEditActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityGroupEditBinding.inflate(layoutInflater)
+        window.apply {
+            statusBarColor = Color.WHITE
+            val decorView = window.decorView
+            val controller = WindowCompat.getInsetsController(this, decorView)
+            controller.isAppearanceLightStatusBars = true
+        }
+
         setContentView(binding.root)
 
         // 1. Intent 데이터 수신
