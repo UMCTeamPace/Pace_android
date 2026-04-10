@@ -6,17 +6,13 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pace.data.datasource.AuthDataStore
-import com.example.pace.data.model.response.RouteResponse
+import com.example.pace.data.model.MarkScheduleProvider
 import com.example.pace.data.model.request.RouteSearchRequest
 import com.example.pace.data.model.response.RouteOnlyScheduleData
+import com.example.pace.data.model.response.RouteResponse
 import com.example.pace.data.repository.repository.RouteRepository
 import com.example.pace.data.repository.repository.ScheduleRepository
-import com.example.pace.data.repository.repositoryImpl.RouteRepositoryImpl
-import dagger.Module
-import dagger.Provides
-import dagger.hilt.InstallIn
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
@@ -38,6 +34,7 @@ class RouteViewModel @Inject constructor(
 
     private val _adapterScheduleData = MutableLiveData<RouteResponse?>()
     val adapterScheduleData: LiveData<RouteResponse?> get() = _adapterScheduleData
+
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> get() = _isLoading
 
@@ -48,42 +45,41 @@ class RouteViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                Log.d("RouteApi", "API 호출 시도...") // 호출 시작 로그
+                Log.d("RouteApi", "API route search start")
 
-                // Repository 호출
                 val response = routeRepository.searchRoutes(accessToken, request)
+                val routes = response.routeApiResDtoList.orEmpty()
 
-                Log.d("RouteApi", "API 호출 성공! 데이터 개수: ${response.routeApiResDtoList?.size ?: 0}")
+                Log.d("RouteApi", "API route search success: count=${routes.size}")
 
-                _routeResult.value = response.routeApiResDtoList ?: emptyList() // 변수명 routeList 확인
-
+                if (routes.isNotEmpty()) {
+                    _errorMessage.value = ""
+                    _routeResult.value = routes
+                } else {
+                    applyMockRoutes("empty route response")
+                }
             } catch (e: retrofit2.HttpException) {
-                // 1. 서버가 에러 코드(4xx, 5xx)를 보낸 경우
                 val errorBody = e.response()?.errorBody()?.string()
-                Log.e("RouteApiError", "서버 에러 발생 (HttpException)")
-                Log.e("RouteApiError", "Code: ${e.code()}")
-                Log.e("RouteApiError", "Message: ${e.message()}")
-                Log.e("RouteApiError", "Error Body: $errorBody") // 서버가 보낸 에러 메시지 원본
-
-                _errorMessage.value = "서버 에러: ${e.code()} - $errorBody"
-
+                Log.e("RouteApiError", "Route search http error: code=${e.code()}, body=$errorBody")
+                applyMockRoutes("http ${e.code()} - $errorBody")
             } catch (e: Exception) {
-                // 2. 그 외 에러 (네트워크 끊김, 데이터 파싱 실패 등)
-                Log.e("RouteApiError", "내부 시스템 에러 발생")
-                Log.e("RouteApiError", "에러 내용: ${e.message}")
-                e.printStackTrace() // 에러 위치를 자세히 보여줌
-
-                _errorMessage.value = "에러 발생: ${e.message}"
+                Log.e("RouteApiError", "Route search exception: ${e.message}", e)
+                applyMockRoutes("exception: ${e.message}")
             } finally {
                 _isLoading.value = false
             }
         }
     }
 
+    private fun applyMockRoutes(reason: String) {
+        Log.w("RouteApiMock", "Using mock route data because $reason")
+        _errorMessage.value = ""
+        _routeResult.value = MarkScheduleProvider.getMockRouteApiResponse().routeApiResDtoList.orEmpty()
+    }
+
     fun fetchRouteOnlySchedule() {
         viewModelScope.launch {
             try {
-                // 오늘 날짜 구하기 (yyyy-MM-dd)
                 val token = authDataStore.getAccessToken() ?: ""
                 val fullToken = if (token.isNotEmpty() && !token.startsWith("Bearer ")) "Bearer $token" else token
                 if (fullToken.isEmpty()) {
@@ -92,9 +88,8 @@ class RouteViewModel @Inject constructor(
                 }
                 val today = LocalDate.now().toString()
 
-                Log.d("RouteViewModel", "스케줄 조회 시작: $today")
+                Log.d("RouteViewModel", "Fetch route-only schedule: $today")
 
-                // 리포지토리 호출 (RawDefaultResponse 반환됨)
                 val response = scheduleRepository.getScheduleListForRoute(
                     accessToken = fullToken,
                     startDate = today,
@@ -102,29 +97,21 @@ class RouteViewModel @Inject constructor(
                 )
 
                 if (response.isSuccess) {
-                    // 통신 성공 (200 OK)
                     val data = response.result
 
                     if (data != null) {
-                        Log.d("RouteViewModel", "경로 스케줄 발견! ID: ${data.scheduleId}")
+                        Log.d("RouteViewModel", "Route-only schedule found: ${data.scheduleId}")
                         _routeOnlySchedule.value = data
                     } else {
-                        Log.d("RouteViewModel", "통신 성공했으나, 경로만 있는 스케줄이 없음")
+                        Log.d("RouteViewModel", "Route-only schedule not found")
                         _routeOnlySchedule.value = null
                     }
                 } else {
-                    Log.e("RouteViewModel", "서버 에러: ${response.code} - ${response.message}")
+                    Log.e("RouteViewModel", "Route-only schedule server error: ${response.code} - ${response.message}")
                     _routeOnlySchedule.value = null
-
-                    // 필요하다면 에러 처리를 따로 할 수도 있음
-                    if (response.code == "AUTH_401") {
-                        // 토큰 만료 처리 등
-                    }
                 }
-
             } catch (e: Exception) {
-                Log.e("RouteViewModel", "예외 발생: ${e.message}")
-                e.printStackTrace()
+                Log.e("RouteViewModel", "Route-only schedule exception: ${e.message}", e)
                 _routeOnlySchedule.value = null
             }
         }
@@ -142,9 +129,8 @@ class RouteViewModel @Inject constructor(
                 }
                 val today = LocalDate.now().toString()
 
-                // 새로 만든 리스트용 함수 호출 (endDate = null)
                 val response = scheduleRepository.getAllRouteSchedules(
-                    accessToken = fullToken, // 뷰모델 직접 참조
+                    accessToken = fullToken,
                     startDate = today,
                     endDate = null
                 )
@@ -161,7 +147,7 @@ class RouteViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
-                Log.e("RouteViewModel", "전체 목록 로드 실패: ${e.message}")
+                Log.e("RouteViewModel", "Fetch all route schedules failed: ${e.message}", e)
             } finally {
                 _isLoading.value = false
             }
@@ -169,9 +155,7 @@ class RouteViewModel @Inject constructor(
     }
 
     fun updateScheduleForAdapter(assembledResponse: RouteResponse) {
-        // 원본(_routeOnlySchedule)을 건드리지 않고, 어댑터용 LiveData만 업데이트
         _adapterScheduleData.value = assembledResponse
-        Log.d("RouteViewModel", "어댑터 전용 데이터 업데이트 완료 (무한루프 방지)")
+        Log.d("RouteViewModel", "Adapter route data updated")
     }
 }
-

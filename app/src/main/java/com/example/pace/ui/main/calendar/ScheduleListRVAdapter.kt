@@ -167,10 +167,23 @@ class ScheduleListRVAdapter(
         RecyclerView.ViewHolder(binding.root) {
         fun bind(header: ScheduleListItem.DateHeader) {
             binding.dateHeaderTv.text = header.date
-            if(LocalDate.parse(header.date, DateTimeFormatter.ofPattern("yyyy년 MM월 dd일 (E)", Locale.KOREAN)) == LocalDate.now()){
-                binding.dateHeaderTv.typeface = ResourcesCompat.getFont(context, R.font.pretendard_semibold)
-                binding.dateHeaderTv.setTextColor(R.color.text_primary)
-            }
+            val isToday =
+                LocalDate.parse(
+                    header.date,
+                    DateTimeFormatter.ofPattern("yyyy년 MM월 dd일 (E)", Locale.KOREAN)
+                ) == LocalDate.now()
+
+            binding.dateHeaderTv.setTextAppearance(
+                if (isToday) R.style.TextAppearance_App_BodyMd_SemiBold
+                else R.style.TextAppearance_App_BodyMd_Medium
+            )
+
+            binding.dateHeaderTv.setTextColor(
+                ContextCompat.getColor(
+                    context,
+                    if (isToday) R.color.text_primary else R.color.text_tertiary
+                )
+            )
         }
     }
 

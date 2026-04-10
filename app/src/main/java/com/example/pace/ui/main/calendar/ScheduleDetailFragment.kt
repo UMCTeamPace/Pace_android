@@ -2,15 +2,22 @@ package com.example.pace.ui.main.calendar
 
 import android.content.Intent
 import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.example.pace.R
 import com.example.pace.data.model.Schedule
 import com.example.pace.data.model.response.ReminderInfo
 import com.example.pace.data.model.response.RouteInfo
@@ -25,13 +32,7 @@ import com.example.pace.ui.main.home.DeleteRepeatScheduleDialog
 import com.example.pace.ui.main.home.DeleteScheduleDialog
 import com.google.gson.Gson
 import dagger.hilt.android.AndroidEntryPoint
-import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
-import android.graphics.drawable.LayerDrawable
-import androidx.core.content.ContextCompat
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
-import android.widget.LinearLayout
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -44,16 +45,31 @@ class ScheduleDetailFragment : Fragment() {
 
     private val viewModel: ScheduleViewModel by activityViewModels()
 
-    private val scheduleId: Long by lazy { requireArguments().getLong(ARG_SCHEDULE_ID) }
-    private val occurrenceDate: String by lazy {
-        requireArguments().getString(ARG_OCCURRENCE_DATE).orEmpty()
-    }
-    private val scheduleType: String by lazy {
-        requireArguments().getString(ARG_SCHEDULE_TYPE).orEmpty()
-    }
+    private var currentScheduleId: Long = -1L
+    private var currentOccurrenceDate: String = ""
+    private var currentScheduleType: String = ""
 
     private var currentSchedule: Schedule? = null
     private val gson = Gson()
+    private val editScheduleLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val data = result.data ?: return@registerForActivityResult
+        val updatedScheduleId = data.getLongExtra("UPDATED_SCHEDULE_ID", -1L)
+        if (updatedScheduleId == -1L) return@registerForActivityResult
+
+        currentScheduleId = updatedScheduleId
+        currentOccurrenceDate = data.getStringExtra("UPDATED_OCCURRENCE_DATE").orEmpty()
+        currentScheduleType = data.getStringExtra("UPDATED_SCHEDULE_TYPE").orEmpty()
+        loadSchedule()
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        currentScheduleId = requireArguments().getLong(ARG_SCHEDULE_ID)
+        currentOccurrenceDate = requireArguments().getString(ARG_OCCURRENCE_DATE).orEmpty()
+        currentScheduleType = requireArguments().getString(ARG_SCHEDULE_TYPE).orEmpty()
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -68,15 +84,14 @@ class ScheduleDetailFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         configureChrome()
         setupClicks()
+        observeScheduleUpdates()
         observeRouteDetail()
         loadSchedule()
     }
 
     override fun onResume() {
         super.onResume()
-        if (_binding != null) {
-            loadSchedule()
-        }
+        if (_binding != null) loadSchedule()
     }
 
     private fun configureChrome() {
@@ -110,13 +125,11 @@ class ScheduleDetailFragment : Fragment() {
             val intent = Intent(requireContext(), AddScheduleActivity::class.java).apply {
                 putExtra("isEdit", true)
                 putExtra("SCHEDULE_ID", schedule.id)
-                putExtra("OCCURRENCE_DATE", occurrenceDate)
+                putExtra("OCCURRENCE_DATE", currentOccurrenceDate)
                 putExtra("SCHEDULE_TYPE", schedule.type)
-                if (schedule.type == "ROUTE") {
-                    putExtra("OPEN_ROUTE_TAB", true)
-                }
+                if (schedule.type == "ROUTE") putExtra("OPEN_ROUTE_TAB", true)
             }
-            startActivity(intent)
+            editScheduleLauncher.launch(intent)
         }
 
         binding.btnDelete.setOnClickListener {
@@ -138,66 +151,139 @@ class ScheduleDetailFragment : Fragment() {
         }
     }
 
+    private fun observeScheduleUpdates() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.allSchedules.collect { schedules ->
+                    val updatedSchedule = schedules.firstOrNull { it.id == currentScheduleId } ?: return@collect
+                    currentSchedule = updatedSchedule
+                    val cachedDetail = if (updatedSchedule.type == "ROUTE" || currentScheduleType == "ROUTE") {
+                        viewModel.scheduleDetailInfoMap.value[updatedSchedule.id]
+                    } else {
+                        null
+                    }
+                    bindSchedule(updatedSchedule, cachedDetail)
+                }
+            }
+        }
+    }
+
     private fun loadSchedule() {
         viewLifecycleOwner.lifecycleScope.launch {
-            val schedule = viewModel.getScheduleById(scheduleId) ?: return@launch
+            val schedule = viewModel.getScheduleById(currentScheduleId) ?: return@launch
             currentSchedule = schedule
-            bindSchedule(schedule)
-            if (schedule.type == "ROUTE" || scheduleType == "ROUTE") {
+            val cachedDetail = if (schedule.type == "ROUTE" || currentScheduleType == "ROUTE") {
+                viewModel.scheduleDetailInfoMap.value[schedule.id]
+            } else {
+                null
+            }
+            bindSchedule(schedule, cachedDetail)
+            if (schedule.type == "ROUTE" || currentScheduleType == "ROUTE") {
                 viewModel.getScheduleDetail(schedule.id)
             }
         }
     }
 
-    private fun bindSchedule(schedule: Schedule) {
+    private fun bindSchedule(
+        schedule: Schedule,
+        routeDetail: com.example.pace.data.model.response.ScheduleDetailResponse? = null
+    ) {
+        val isRouteSchedule = schedule.type == "ROUTE"
         val color = schedule.eventColor
             ?: schedule.calendarColor
-            ?: requireContext().getColor(com.example.pace.R.color.schedule_18)
+            ?: requireContext().getColor(R.color.schedule_18)
         binding.viewScheduleColor.backgroundTintList = ColorStateList.valueOf(color)
         binding.tvScheduleTitle.text = schedule.title ?: "제목 없음"
 
         val displayStartDate = resolveDisplayStartDate(schedule)
         val displayEndDate = resolveDisplayEndDate(schedule, displayStartDate)
+        binding.tvStartDate.text = formatDate(displayStartDate)
+        binding.tvEndDate.text = formatDate(displayEndDate)
 
-        if (schedule.type == "ROUTE") {
+        if (isRouteSchedule) {
             binding.tvAllDayLabel.text = "일정 시간"
             binding.addscheMyPhoneIv.visibility = View.GONE
+            binding.tvStartTime.visibility = View.VISIBLE
+            binding.tvEndTime.visibility = View.VISIBLE
+            binding.layoutRepeatInfo.visibility = View.GONE
+            bindBestEffortRouteReminderTexts(schedule, routeDetail)
         } else {
             binding.tvAllDayLabel.text = "하루 종일"
             binding.addscheMyPhoneIv.visibility = View.VISIBLE
             binding.addscheMyPhoneIv.setImageResource(
-                if (schedule.isAllDay) com.example.pace.R.drawable.ic_toggle_selected
-                else com.example.pace.R.drawable.ic_toggle_unselected
+                if (schedule.isAllDay) R.drawable.ic_toggle_selected
+                else R.drawable.ic_toggle_unselected
             )
+
+            if (schedule.isAllDay) {
+                binding.tvStartTime.visibility = View.GONE
+                binding.tvEndTime.visibility = View.GONE
+            } else {
+                binding.tvStartTime.visibility = View.VISIBLE
+                binding.tvEndTime.visibility = View.VISIBLE
+            }
+
+            binding.layoutRepeatInfo.visibility = View.VISIBLE
+            binding.tvRepeatRule.text = if (schedule.repeatRule.isNullOrEmpty()) {
+                "반복 없음"
+            } else {
+                buildRepeatText(schedule)
+            }
+            bindNormalReminderText(formatReminderText(schedule.reminders))
         }
 
-        binding.tvStartDate.text = formatDate(displayStartDate)
-        binding.tvEndDate.text = formatDate(displayEndDate)
+        binding.tvStartTime.text = schedule.startTime
+        binding.tvEndTime.text = schedule.endTime
 
-        if (schedule.isAllDay) {
-            binding.tvStartTime.visibility = View.GONE
-            binding.tvEndTime.visibility = View.GONE
-        } else {
-            binding.tvStartTime.visibility = View.VISIBLE
-            binding.tvEndTime.visibility = View.VISIBLE
-            binding.tvStartTime.text = schedule.startTime
-            binding.tvEndTime.text = schedule.endTime
+        val storedCalendarName = schedule.calendarDisplayName?.takeIf { it.isNotBlank() }
+        val resolvedCalendarName = runCatching { viewModel.getCalendarNameById(schedule.calendarId) }.getOrNull()
+        binding.tvRemindStatus.text = when {
+            !resolvedCalendarName.isNullOrBlank() && resolvedCalendarName != "기본 일정" -> resolvedCalendarName
+            !storedCalendarName.isNullOrBlank() -> storedCalendarName
+            !resolvedCalendarName.isNullOrBlank() -> resolvedCalendarName
+            else -> "기본 일정"
         }
-
-        binding.layoutRepeatInfo.visibility = View.VISIBLE
-        binding.tvRepeatRule.text = if (schedule.repeatRule.isNullOrEmpty()) {
-            "반복 없음"
-        } else {
-            buildRepeatText(schedule)
-        }
-
-        val calendarName = schedule.calendarDisplayName
-            ?: viewModel.getCalendarNameById(schedule.calendarId)
-        binding.tvRemindStatus.text = calendarName
 
         bindNormalLocation(schedule)
-        bindNormalReminderText(formatReminderText(schedule.reminders))
+        if (isRouteSchedule) {
+            bindBestEffortRouteLocation(schedule, routeDetail)
+        }
         bindMemo(schedule.memo)
+    }
+
+    private fun bindBestEffortRouteReminderTexts(
+        schedule: Schedule,
+        routeDetail: com.example.pace.data.model.response.ScheduleDetailResponse?
+    ) {
+        if (routeDetail != null) {
+            bindRouteReminderTexts(routeDetail.reminders)
+            return
+        }
+
+        binding.tvReminder.text = formatReminderText(schedule.reminders)
+        binding.viewReminderDivider.visibility = View.VISIBLE
+        binding.layoutDepartureReminder.visibility = View.VISIBLE
+        binding.tvDepartureReminder.text = formatDepartureReminderText(schedule.departureReminders)
+    }
+
+    private fun bindBestEffortRouteLocation(
+        schedule: Schedule,
+        routeDetail: com.example.pace.data.model.response.ScheduleDetailResponse?
+    ) {
+        if (routeDetail != null) {
+            bindRouteSpecificInfo(schedule, routeDetail.route, routeDetail.reminders)
+            return
+        }
+
+        val localRoute = schedule.routeJson?.let {
+            runCatching { gson.fromJson(it, RouteInfo::class.java) }.getOrNull()
+        }
+        val routeLabel = localRoute?.let { "${it.originName} -> ${it.destName}" }
+            ?: schedule.location
+            ?: "경로 정보 없음"
+        binding.layoutNormalLocation.visibility = View.VISIBLE
+        binding.tvLocationStatus.text = routeLabel
+        bindRouteInfo(localRoute, schedule.location ?: "도착지")
     }
 
     private fun bindRouteSpecificInfo(
@@ -209,9 +295,10 @@ class ScheduleDetailFragment : Fragment() {
             runCatching { gson.fromJson(it, RouteInfo::class.java) }.getOrNull()
         }
         val route = routeInfo ?: localRoute
-        val routeLabel = route?.let {
-            "${it.originName} -> ${it.destName}"
-        } ?: schedule.location ?: "경로 정보 없음"
+        val routeLabel = route?.let { "${it.originName} -> ${it.destName}" }
+            ?: schedule.location
+            ?: "경로 정보 없음"
+        binding.layoutNormalLocation.visibility = View.VISIBLE
         binding.tvLocationStatus.text = routeLabel
         bindRouteInfo(route, schedule.location ?: "도착지")
         bindRouteReminderTexts(reminders)
@@ -222,13 +309,14 @@ class ScheduleDetailFragment : Fragment() {
             val route = schedule.routeJson?.let {
                 runCatching { gson.fromJson(it, RouteInfo::class.java) }.getOrNull()
             }
+            binding.layoutNormalLocation.visibility = View.VISIBLE
             binding.tvLocationStatus.text = route?.let { "${it.originName} -> ${it.destName}" }
                 ?: (schedule.location ?: "경로 정보 없음")
             bindRouteInfo(route, schedule.location ?: "도착지")
         } else {
             binding.layoutNormalLocation.visibility = View.VISIBLE
             binding.layoutRouteInfo.visibility = View.GONE
-            binding.tvLocationStatus.text = schedule.location ?: "장소 없음"
+            binding.tvLocationStatus.text = schedule.location?.takeIf { it.isNotBlank() } ?: "장소 없음"
         }
     }
 
@@ -239,7 +327,6 @@ class ScheduleDetailFragment : Fragment() {
             return
         }
 
-        binding.layoutNormalLocation.visibility = View.GONE
         binding.layoutRouteInfo.visibility = View.VISIBLE
         binding.tvRouteRange.text =
             "${RouteCalculator.convertUtcToKst(route.departureTime)} - ${RouteCalculator.convertUtcToKst(route.arrivalTime)}"
@@ -253,22 +340,22 @@ class ScheduleDetailFragment : Fragment() {
 
             if (detail.transitDetail == null) {
                 if (detail.sequence == 1) {
-                    briefBinding.itemRouteDetailBriefIv.setImageResource(com.example.pace.R.drawable.ic_people)
+                    briefBinding.itemRouteDetailBriefIv.setImageResource(R.drawable.ic_people)
                 } else {
                     briefBinding.itemRouteDetailBriefIv.visibility = View.GONE
                     briefBinding.itemRouteDetailBriefTv.setPadding(0, 0, 0, 0)
                 }
                 briefBinding.itemRouteDetailBriefTv.text = "${detail.duration / 60}분"
                 briefBinding.itemRouteDetailBriefTv.setTextColor(
-                    ContextCompat.getColor(requireContext(), com.example.pace.R.color.gray_600)
+                    ContextCompat.getColor(requireContext(), R.color.gray_600)
                 )
 
                 if (index == route.routeDetails.lastIndex) {
                     val arrivalBinding = ItemRouteVehicleBinding.inflate(layoutInflater)
-                    arrivalBinding.itemRouteVehicleIv.setImageResource(com.example.pace.R.drawable.ic_route_item_arrival_icon)
+                    arrivalBinding.itemRouteVehicleIv.setImageResource(R.drawable.ic_route_item_arrival_icon)
                     arrivalBinding.itemRouteVehicleLineTv.text = "도착"
                     arrivalBinding.itemRouteVehicleLineTv.setTextColor(
-                        ContextCompat.getColor(requireContext(), com.example.pace.R.color.black)
+                        ContextCompat.getColor(requireContext(), R.color.black)
                     )
                     arrivalBinding.itemRouteVehicleView.visibility = View.GONE
                     arrivalBinding.itemRouteVehicleTv.text = route.destName.ifBlank { fallbackEndName }
@@ -278,9 +365,9 @@ class ScheduleDetailFragment : Fragment() {
                 val vehicleBinding = ItemRouteVehicleBinding.inflate(layoutInflater)
                 val layoutDrawable = ContextCompat.getDrawable(
                     requireContext(),
-                    com.example.pace.R.drawable.ic_route_detail
+                    R.drawable.ic_route_detail
                 )?.mutate() as LayerDrawable
-                val iconShape = layoutDrawable.findDrawableByLayerId(com.example.pace.R.id.ic_route_detail_color)
+                val iconShape = layoutDrawable.findDrawableByLayerId(R.id.ic_route_detail_color)
                     .mutate() as GradientDrawable
                 val briefBg = briefBinding.itemRouteDetailBriefTv.background.mutate() as GradientDrawable
 
@@ -292,13 +379,13 @@ class ScheduleDetailFragment : Fragment() {
 
                 when (detail.transitDetail.transitType) {
                     "BUS" -> {
-                        val busDrawable = ContextCompat.getDrawable(requireContext(), com.example.pace.R.drawable.ic_bus)
-                        layoutDrawable.setDrawableByLayerId(com.example.pace.R.id.ic_route_detail_vehicle, busDrawable)
+                        val busDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.ic_bus)
+                        layoutDrawable.setDrawableByLayerId(R.id.ic_route_detail_vehicle, busDrawable)
                     }
 
                     "SUBWAY" -> {
-                        val subwayDrawable = ContextCompat.getDrawable(requireContext(), com.example.pace.R.drawable.ic_subway)
-                        layoutDrawable.setDrawableByLayerId(com.example.pace.R.id.ic_route_detail_vehicle, subwayDrawable)
+                        val subwayDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.ic_subway)
+                        layoutDrawable.setDrawableByLayerId(R.id.ic_route_detail_vehicle, subwayDrawable)
                     }
                 }
 
@@ -316,11 +403,7 @@ class ScheduleDetailFragment : Fragment() {
             }
 
             val weight = RouteCalculator.calculateWeight(detail.duration)
-            val params = LinearLayout.LayoutParams(
-                0,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                weight
-            )
+            val params = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, weight)
             binding.routeBriefContainer.addView(briefBinding.root, params)
         }
     }
@@ -348,8 +431,7 @@ class ScheduleDetailFragment : Fragment() {
         binding.tvReminder.text = formatRouteReminderText(eventReminders, "일정 알림 안함")
         binding.viewReminderDivider.visibility = View.VISIBLE
         binding.layoutDepartureReminder.visibility = View.VISIBLE
-        binding.tvDepartureReminder.text =
-            formatRouteReminderText(departureReminders, "출발 알림 안함")
+        binding.tvDepartureReminder.text = formatRouteDepartureReminderText(departureReminders)
     }
 
     private fun bindMemo(memo: String?) {
@@ -374,9 +456,25 @@ class ScheduleDetailFragment : Fragment() {
         }
     }
 
+    private fun formatDepartureReminderText(reminders: List<Int>): String {
+        if (reminders.isEmpty()) return "출발 알림 안함"
+        val formatted = reminders.sorted().map { minutes ->
+            when {
+                minutes == 0 -> "출발 시각"
+                minutes < 60 -> "${minutes}분 전"
+                minutes < 1440 -> "${minutes / 60}시간 전"
+                else -> "${minutes / 1440}일 전"
+            }
+        }
+        return if (formatted.any { it == "출발 시각" }) {
+            formatted.joinToString(", ")
+        } else {
+            "출발 ${formatted.joinToString(", ")}"
+        }
+    }
+
     private fun formatRouteReminderText(reminders: List<ReminderInfo>, emptyText: String): String {
         if (reminders.isEmpty()) return emptyText
-
         return reminders.sortedBy { it.minutesBefore }.joinToString(", ") { reminder ->
             when {
                 reminder.reminderType == "DEPARTURE" && reminder.minutesBefore == 0 -> "출발 시각"
@@ -391,10 +489,27 @@ class ScheduleDetailFragment : Fragment() {
         }
     }
 
+    private fun formatRouteDepartureReminderText(reminders: List<ReminderInfo>): String {
+        if (reminders.isEmpty()) return "출발 알림 안함"
+        val formatted = reminders.sortedBy { it.minutesBefore }.map { reminder ->
+            when {
+                reminder.minutesBefore == 0 -> "출발 시각"
+                reminder.minutesBefore < 60 -> "${reminder.minutesBefore}분 전"
+                reminder.minutesBefore < 1440 -> "${reminder.minutesBefore / 60}시간 전"
+                else -> "${reminder.minutesBefore / 1440}일 전"
+            }
+        }
+        return if (formatted.any { it == "출발 시각" }) {
+            formatted.joinToString(", ")
+        } else {
+            "출발 ${formatted.joinToString(", ")}"
+        }
+    }
+
     private fun resolveDisplayStartDate(schedule: Schedule): LocalDate {
         return when {
             schedule.repeatRule.isNullOrEmpty() -> parseDate(schedule.startDate)
-            occurrenceDate.isNotBlank() -> parseDate(occurrenceDate)
+            currentOccurrenceDate.isNotBlank() -> parseDate(currentOccurrenceDate)
             else -> parseDate(schedule.startDate)
         }
     }
@@ -433,10 +548,7 @@ class ScheduleDetailFragment : Fragment() {
                 DeleteRepeatScheduleDialog(requireContext()).apply {
                     setOnOptionSelectedListener { option ->
                         when (option) {
-                            "ONLY_THIS" -> {
-                                viewModel.deleteOnlyThisOccurrence(schedule, parseDate(occurrenceDate))
-                            }
-
+                            "ONLY_THIS" -> viewModel.deleteOnlyThisOccurrence(schedule, parseDate(currentOccurrenceDate))
                             "ALL" -> viewModel.deleteSchedule(schedule.id, withRoute = false)
                         }
                         requireActivity().supportFragmentManager.popBackStack()

@@ -8,6 +8,7 @@ import android.provider.CalendarContract
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.OnBackPressedCallback
 import androidx.core.content.ContextCompat
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
@@ -31,6 +32,14 @@ class SelectCalendarFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        requireActivity().onBackPressedDispatcher.addCallback(
+            viewLifecycleOwner,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    parentFragmentManager.popBackStack()
+                }
+            }
+        )
 
         // 초기 뒤로가기 리스너 (데이터 없이 나갈 경우 대비)
         binding.btnBack.setOnClickListener { parentFragmentManager.popBackStack() }

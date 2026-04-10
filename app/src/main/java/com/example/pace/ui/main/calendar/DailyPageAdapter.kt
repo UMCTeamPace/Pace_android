@@ -22,7 +22,6 @@ class DailyPageAdapter(
 
     private var routeInfoMap: Map<Long, RouteInfo> = emptyMap()
 
-    // 오늘 날짜를 기준으로 아주 먼 과거/미래까지 스와이프 가능하게 설정
     val START_POSITION = Int.MAX_VALUE / 2
 
     fun updateEvents(newEvents: Map<LocalDate, List<Schedule>>, newRouteMap: Map<Long, RouteInfo> = emptyMap()) {
@@ -35,32 +34,34 @@ class DailyPageAdapter(
     fun getPosition(date: LocalDate): Int = START_POSITION + java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(), date).toInt()
 
     inner class PageViewHolder(val binding: ItemSchedulePageBinding) : RecyclerView.ViewHolder(binding.root) {
-        fun bind(date: LocalDate) {
-            val daySchedules = events[date] ?: emptyList()
+        private val scheduleAdapter = ScheduleAdapter(
+            context = context,
+            items = emptyList(),
+            onPinClick = onPinClick,
+            onEditSelect = onEditSelect,
+            onItemClick = onItemClick,
+            routeInfoMap = routeInfoMap
+        )
 
-            // 데이터 정렬 로직 (기존 Fragment에 있던 것)
-            val sortedItems = daySchedules.sortedWith(
-                compareBy({ !it.isPinned }, { !it.isAllDay }, { it.startTime })
-            ).map { ScheduleListItem.ScheduleItem(it) }
-
-            // 내부 리사이클러뷰 설정
-            val scheduleAdapter = ScheduleAdapter(
-                context = context,
-                items = sortedItems,
-                onPinClick = onPinClick,
-                onEditSelect = onEditSelect,
-                onItemClick = onItemClick,
-                routeInfoMap = routeInfoMap
-            )
+        init {
             scheduleAdapter.setEditMode(false)
             scheduleAdapter.updateSelectedIds(emptySet())
-
             binding.rvDailyScheduleItem.apply {
                 layoutManager = LinearLayoutManager(context)
                 adapter = scheduleAdapter
             }
+        }
 
-            // [오류 해결 포인트] 여기서 empty state를 조절합니다.
+        fun bind(date: LocalDate) {
+            val daySchedules = events[date] ?: emptyList()
+
+            val sortedItems = daySchedules.sortedWith(
+                compareBy({ !it.isPinned }, { !it.isAllDay }, { it.startTime })
+            ).map { ScheduleListItem.ScheduleItem(it) }
+
+            scheduleAdapter.updateRouteInfo(routeInfoMap)
+            scheduleAdapter.updateData(sortedItems)
+
             if (sortedItems.isEmpty()) {
                 binding.tvEmptyStateItem.visibility = View.VISIBLE
                 binding.rvDailyScheduleItem.visibility = View.GONE

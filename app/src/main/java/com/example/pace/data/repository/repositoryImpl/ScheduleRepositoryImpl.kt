@@ -249,6 +249,33 @@ class ScheduleRepositoryImpl @Inject constructor(
         list.mapNotNull { it.color }
     }
 
+    private fun resolveCalendarMetadata(
+        calendarId: Long,
+        fallbackDisplayName: String = "기본 일정",
+        fallbackAccountName: String = "Pace"
+    ): Pair<String, String> {
+        var displayName = fallbackDisplayName
+        var accountName = fallbackAccountName
+
+        context.contentResolver.query(
+            CalendarContract.Calendars.CONTENT_URI,
+            arrayOf(
+                CalendarContract.Calendars.CALENDAR_DISPLAY_NAME,
+                CalendarContract.Calendars.ACCOUNT_NAME
+            ),
+            "${CalendarContract.Calendars._ID} = ?",
+            arrayOf(calendarId.toString()),
+            null
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                displayName = cursor.getString(0) ?: displayName
+                accountName = cursor.getString(1) ?: accountName
+            }
+        }
+
+        return displayName to accountName
+    }
+
     // Server API wrappers
     override suspend fun getScheduleList(
         accessToken: String,
@@ -423,7 +450,47 @@ class ScheduleRepositoryImpl @Inject constructor(
                     isSuccess = true,
                     code = "COMMON200",
                     message = "로컬 일정 생성 성공",
-                    result = null
+                    result = CreateScheduleResponse(
+                        scheduleId = systemId,
+                        scheduleInfo = ScheduleInfo(
+                            title = request.title,
+                            isAllDay = request.isAllDay,
+                            startDate = request.startDate,
+                            endDate = request.endDate,
+                            startTime = request.startTime,
+                            endTime = request.endTime,
+                            memo = request.memo,
+                            isPathIncluded = request.isPathIncluded,
+                            color = request.color,
+                            calendarId = targetId.toString()
+                        ),
+                        place = request.place?.let {
+                            PlaceInfo(
+                                targetName = it.targetName,
+                                targetLat = it.targetLat,
+                                targetLng = it.targetLng
+                            )
+                        },
+                        reminders = request.reminders.map {
+                            ReminderInfo(
+                                reminderType = it.reminderType,
+                                minutesBefore = it.minutesBefore
+                            )
+                        },
+                        route = RouteInfo(
+                            originName = "",
+                            originLat = 0.0,
+                            originLng = 0.0,
+                            destName = "",
+                            destLat = 0.0,
+                            destLng = 0.0,
+                            totalTime = 0,
+                            totalDistance = 0,
+                            arrivalTime = null,
+                            departureTime = null,
+                            routeDetails = emptyList()
+                        )
+                    )
                 )
             } else {
                 RawDefaultResponse(
