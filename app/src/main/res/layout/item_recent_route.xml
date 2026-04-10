@@ -44,6 +44,7 @@
                 android:ellipsize="end"
                 android:text="스타벅스 사당점"
                 android:textSize="14sp"
+
                 android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toStartOf="@id/iv_arrow"
@@ -69,6 +70,7 @@
                 android:ellipsize="end"
                 android:text="스타벅스 사당점"
                 android:textSize="14sp"
+
                 android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
                 app:layout_constraintStart_toEndOf="@id/iv_arrow"
                 app:layout_constraintEnd_toEndOf="parent"

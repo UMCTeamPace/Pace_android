@@ -62,6 +62,7 @@
                 android:maxLines="1"
                 android:text="스타벅스 사당점"
                 android:textSize="14sp"
+
                 android:textColor="@color/text_primary"
                 app:layout_constraintBottom_toBottomOf="@id/iv_history_icon"
                 app:layout_constraintEnd_toEndOf="parent"
