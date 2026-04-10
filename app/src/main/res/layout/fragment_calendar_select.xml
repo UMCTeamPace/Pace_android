@@ -13,6 +13,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="어떤 캘린더에 일정을 담아 드릴까요?"
+        android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
         android:gravity="center"
         android:layout_marginTop="40dp"
         app:layout_constraintTop_toTopOf="parent"
@@ -24,6 +25,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="설정에서 기본 캘린더를 변경할 수 있습니다."
+        android:layout_marginTop="4dp"
+        android:textAppearance="@style/TextAppearance.App.ModalSm.Regular"
+        style="@style/TextColor.Secondary"
         android:gravity="center"
         app:layout_constraintTop_toBottomOf="@id/tv_description"/>
 
@@ -65,6 +69,7 @@
         android:layout_marginBottom="24dp"
         android:background="@drawable/btn_main_round"
         android:text="Pace 시작하기"
+        android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
         android:textColor="@color/white"
         android:textSize="16sp"
         android:elevation="0dp"

@@ -49,208 +49,450 @@
                     android:orientation="vertical"
                     android:padding="8dp">
 
-                    <CheckBox
-                        android:id="@+id/rb_none"
+                    <LinearLayout
+                        android:id="@+id/layout_none"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="24dp"
-                        android:text="안함"
-                        android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
-                        android:paddingEnd="16dp"
-                        android:background="@null" />
+                        android:layout_height="56dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="24dp"
+                        android:background="?attr/selectableItemBackground">
+
+                        <TextView
+                            android:id="@+id/tv_none"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="안함"
+                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                            android:textColor="@color/black" />
+
+                        <CheckBox
+                            android:id="@+id/cb_none"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:button="@null"
+                            android:background="@drawable/selector_circle_checkbox"
+                            android:clickable="false"
+                            android:focusable="false" />
+                    </LinearLayout>
 
                     <View android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:background="#F1F3F5" />
 
-                    <CheckBox
-                        android:id="@+id/rb_starttime"
+                    <LinearLayout
+                        android:id="@+id/layout_starttime"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="24dp"
-                        android:text="출발 시각"
-                        android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
-                        android:paddingEnd="16dp"
-                        android:background="@null" />
+                        android:layout_height="56dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="24dp"
+                        android:background="?attr/selectableItemBackground">
+
+                        <TextView
+                            android:id="@+id/tv_starttime"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="출발시각"
+                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                            android:textColor="@color/black" />
+
+                        <CheckBox
+                            android:id="@+id/cb_starttime"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:button="@null"
+                            android:background="@drawable/selector_circle_checkbox"
+                            android:clickable="false"
+                            android:focusable="false" />
+                    </LinearLayout>
 
                     <View android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:background="#F1F3F5" />
 
 
-                    <CheckBox
-                        android:id="@+id/rb_start5mago"
+                    <LinearLayout
+                        android:id="@+id/layout_start5mago"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="24dp"
-                        android:text="출발 5분 전"
-                        android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
-                        android:paddingEnd="16dp"
-                        android:background="@null" />
+                        android:layout_height="56dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="24dp"
+                        android:background="?attr/selectableItemBackground">
+
+                        <TextView
+                            android:id="@+id/tv_start5mago"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="출발 5분 전"
+                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                            android:textColor="@color/black" />
+
+                        <CheckBox
+                            android:id="@+id/cb_start5mago"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:button="@null"
+                            android:background="@drawable/selector_circle_checkbox"
+                            android:clickable="false"
+                            android:focusable="false" />
+                    </LinearLayout>
 
                     <View android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:background="#F1F3F5" />
 
-                    <CheckBox
-                        android:id="@+id/rb_start10mago"
+                    <LinearLayout
+                        android:id="@+id/layout_start10mago"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="24dp"
-                        android:text="출발 10분 전"
-                        android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
-                        android:paddingEnd="16dp"
-                        android:background="@null" />
+                        android:layout_height="56dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="24dp"
+                        android:background="?attr/selectableItemBackground">
+
+                        <TextView
+                            android:id="@+id/tv_start10mago"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="출발 10분 전"
+                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                            android:textColor="@color/black" />
+
+                        <CheckBox
+                            android:id="@+id/cb_start10mago"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:button="@null"
+                            android:background="@drawable/selector_circle_checkbox"
+                            android:clickable="false"
+                            android:focusable="false" />
+                    </LinearLayout>
 
                     <View android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:background="#F1F3F5" />
 
-                    <CheckBox
-                        android:id="@+id/rb_start15mago"
+                    <LinearLayout
+                        android:id="@+id/layout_start15mago"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="24dp"
-                        android:text="출발 15분 전"
-                        android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
-                        android:paddingEnd="16dp"
-                        android:background="@null" />
+                        android:layout_height="56dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="24dp"
+                        android:background="?attr/selectableItemBackground">
+
+                        <TextView
+                            android:id="@+id/tv_start15mago"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="출발 15분 전"
+                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                            android:textColor="@color/black" />
+
+                        <CheckBox
+                            android:id="@+id/cb_start15mago"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:button="@null"
+                            android:background="@drawable/selector_circle_checkbox"
+                            android:clickable="false"
+                            android:focusable="false" />
+                    </LinearLayout>
 
                     <View android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:background="#F1F3F5" />
 
-                    <CheckBox
-                        android:id="@+id/rb_start20mago"
+                    <LinearLayout
+                        android:id="@+id/layout_start20mago"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="24dp"
-                        android:text="출발 20분 전"
-                        android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
-                        android:paddingEnd="16dp"
-                        android:background="@null" />
+                        android:layout_height="56dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="24dp"
+                        android:background="?attr/selectableItemBackground">
+
+                        <TextView
+                            android:id="@+id/tv_start20mago"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="출발 20분 전"
+                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                            android:textColor="@color/black" />
+
+                        <CheckBox
+                            android:id="@+id/cb_start20mago"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:button="@null"
+                            android:background="@drawable/selector_circle_checkbox"
+                            android:clickable="false"
+                            android:focusable="false" />
+                    </LinearLayout>
 
                     <View android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:background="#F1F3F5" />
 
-                    <CheckBox
-                        android:id="@+id/rb_start25mago"
+                    <LinearLayout
+                        android:id="@+id/layout_start25mago"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="24dp"
-                        android:text="출발 25분 전"
-                        android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
-                        android:paddingEnd="16dp"
-                        android:background="@null" />
+                        android:layout_height="56dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="24dp"
+                        android:background="?attr/selectableItemBackground">
+
+                        <TextView
+                            android:id="@+id/tv_start25mago"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="출발 25분 전"
+                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                            android:textColor="@color/black" />
+
+                        <CheckBox
+                            android:id="@+id/cb_start25mago"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:button="@null"
+                            android:background="@drawable/selector_circle_checkbox"
+                            android:clickable="false"
+                            android:focusable="false" />
+                    </LinearLayout>
 
                     <View android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:background="#F1F3F5" />
 
-                    <CheckBox
-                        android:id="@+id/rb_start30mago"
+                    <LinearLayout
+                        android:id="@+id/layout_start30mago"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="24dp"
-                        android:text="출발 30분 전"
-                        android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
-                        android:paddingEnd="16dp"
-                        android:background="@null" />
+                        android:layout_height="56dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="24dp"
+                        android:background="?attr/selectableItemBackground">
+
+                        <TextView
+                            android:id="@+id/tv_start30mago"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="출발 30분 전"
+                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                            android:textColor="@color/black" />
+
+                        <CheckBox
+                            android:id="@+id/cb_start30mago"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:button="@null"
+                            android:background="@drawable/selector_circle_checkbox"
+                            android:clickable="false"
+                            android:focusable="false" />
+                    </LinearLayout>
 
                     <View android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:background="#F1F3F5" />
 
-                    <CheckBox
-                        android:id="@+id/rb_start35mago"
+                    <LinearLayout
+                        android:id="@+id/layout_start35mago"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="24dp"
-                        android:text="출발 35분 전"
-                        android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
-                        android:paddingEnd="16dp"
-                        android:background="@null" />
+                        android:layout_height="56dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="24dp"
+                        android:background="?attr/selectableItemBackground">
 
-                    <CheckBox
-                        android:id="@+id/rb_start40mago"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="24dp"
-                        android:text="출발 40분 전"
-                        android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
-                        android:paddingEnd="16dp"
-                        android:background="@null" />
+                        <TextView
+                            android:id="@+id/tv_start35mago"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="출발 35분 전"
+                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                            android:textColor="@color/black" />
+
+                        <CheckBox
+                            android:id="@+id/cb_start35mago"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:button="@null"
+                            android:background="@drawable/selector_circle_checkbox"
+                            android:clickable="false"
+                            android:focusable="false" />
+                    </LinearLayout>
 
                     <View android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:background="#F1F3F5" />
 
-                    <CheckBox
-                        android:id="@+id/rb_start45mago"
+                    <LinearLayout
+                        android:id="@+id/layout_start40mago"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="24dp"
-                        android:text="출발 45분 전"
-                        android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
-                        android:paddingEnd="16dp"
-                        android:background="@null" />
+                        android:layout_height="56dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="24dp"
+                        android:background="?attr/selectableItemBackground">
+
+                        <TextView
+                            android:id="@+id/tv_start40mago"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="출발 40분 전"
+                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                            android:textColor="@color/black" />
+
+                        <CheckBox
+                            android:id="@+id/cb_start40mago"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:button="@null"
+                            android:background="@drawable/selector_circle_checkbox"
+                            android:clickable="false"
+                            android:focusable="false" />
+                    </LinearLayout>
 
                     <View android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:background="#F1F3F5" />
 
-                    <CheckBox
-                        android:id="@+id/rb_start50mago"
+                    <LinearLayout
+                        android:id="@+id/layout_start45mago"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="24dp"
-                        android:text="출발 50분 전"
-                        android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
-                        android:paddingEnd="16dp"
-                        android:background="@null" />
+                        android:layout_height="56dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="24dp"
+                        android:background="?attr/selectableItemBackground">
+
+                        <TextView
+                            android:id="@+id/tv_start45mago"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="출발 45분 전"
+                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                            android:textColor="@color/black" />
+
+                        <CheckBox
+                            android:id="@+id/cb_start45mago"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:button="@null"
+                            android:background="@drawable/selector_circle_checkbox"
+                            android:clickable="false"
+                            android:focusable="false" />
+                    </LinearLayout>
 
                     <View android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:background="#F1F3F5" />
 
-                    <CheckBox
-                        android:id="@+id/rb_start55mago"
+                    <LinearLayout
+                        android:id="@+id/layout_start50mago"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="24dp"
-                        android:text="출발 55분 전"
-                        android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
-                        android:paddingEnd="16dp"
-                        android:background="@null" />
+                        android:layout_height="56dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="24dp"
+                        android:background="?attr/selectableItemBackground">
+
+                        <TextView
+                            android:id="@+id/tv_start50mago"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="출발 50분 전"
+                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                            android:textColor="@color/black" />
+
+                        <CheckBox
+                            android:id="@+id/cb_start50mago"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:button="@null"
+                            android:background="@drawable/selector_circle_checkbox"
+                            android:clickable="false"
+                            android:focusable="false" />
+                    </LinearLayout>
 
                     <View android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:background="#F1F3F5" />
 
-                    <CheckBox
-                        android:id="@+id/rb_start1hago"
+                    <LinearLayout
+                        android:id="@+id/layout_start55mago"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="24dp"
-                        android:text="출발 1시간 전"
-                        android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
-                        android:paddingEnd="16dp"
-                        android:background="@null" />
+                        android:layout_height="56dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="24dp"
+                        android:background="?attr/selectableItemBackground">
+
+                        <TextView
+                            android:id="@+id/tv_start55mago"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="출발 55분 전"
+                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                            android:textColor="@color/black" />
+
+                        <CheckBox
+                            android:id="@+id/cb_start55mago"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:button="@null"
+                            android:background="@drawable/selector_circle_checkbox"
+                            android:clickable="false"
+                            android:focusable="false" />
+                    </LinearLayout>
+
+                    <View android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="#F1F3F5" />
+
+                    <LinearLayout
+                        android:id="@+id/layout_start1hago"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="24dp"
+                        android:background="?attr/selectableItemBackground">
+
+                        <TextView
+                            android:id="@+id/tv_start1hago"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="출발 1시간 전"
+                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                            android:textColor="@color/black" />
+
+                        <CheckBox
+                            android:id="@+id/cb_start1hago"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:button="@null"
+                            android:background="@drawable/selector_circle_checkbox"
+                            android:clickable="false"
+                            android:focusable="false" />
+                    </LinearLayout>
 
                 </LinearLayout>
             </androidx.cardview.widget.CardView>

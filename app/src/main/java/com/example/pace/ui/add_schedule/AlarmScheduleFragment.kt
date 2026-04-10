@@ -5,6 +5,8 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.CheckBox
+import android.widget.LinearLayout
 import androidx.activity.OnBackPressedCallback
 import androidx.fragment.app.Fragment
 import com.example.pace.R
@@ -17,6 +19,8 @@ class AlarmScheduleFragment : Fragment() {
 
     private val selectedOptions = mutableSetOf<String>()
 
+    private lateinit var alarmOptionPairs: List<Pair<LinearLayout, CheckBox>>
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -28,7 +32,21 @@ class AlarmScheduleFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // 1. XML에서 추가한 ID를 바탕으로 레이아웃-체크박스 페어 구성
+        alarmOptionPairs = listOf(
+            binding.layoutStarttime to binding.cbStarttime,
+            binding.layoutStart5mago to binding.cbStart5mago,
+            binding.layoutStart10mago to binding.cbStart10mago,
+            binding.layoutStart15mago to binding.cbStart15mago,
+            binding.layoutStart30mago to binding.cbStart30mago,
+            binding.layoutStart1hago to binding.cbStart1hago,
+            binding.layoutStart2hago to binding.cbStart2hago,
+            binding.layoutStart1dago to binding.cbStart1dago,
+            binding.layoutStart2dago to binding.cbStart2dago,
+            binding.layoutStart1wago to binding.cbStart1wago
+        )
 
+        // 툴바 뒤로가기 설정
         binding.alarmScheduleToolbar.setNavigationOnClickListener {
             parentFragmentManager.popBackStack()
         }
@@ -39,108 +57,93 @@ class AlarmScheduleFragment : Fragment() {
             }
         })
 
-        // "안함"을 제외한 알림 옵션 리스트
-        val alarmOptions = listOf(
-            binding.rbStarttime, binding.rbStart5mago, binding.rbStart10mago,
-            binding.rbStart15mago, binding.rbStart30mago, binding.rbStart1hago,
-            binding.rbStart2hago, binding.rbStart1dago, binding.rbStart2dago, binding.rbStart1wago
-        )
-
-        // 1. 번들 데이터 수신 (Key: "selectedAlarmMinutes")
-        // RouteScheduleFragment에서 넘겨준 이름과 일치해야 합니다.
+        // 2. 초기 데이터 수신 및 체크 상태 설정
         val initialAlarms = arguments?.getIntArray("selectedAlarmMinutes")?.toList() ?: emptyList()
         if (initialAlarms.isNotEmpty()) {
-            binding.rbNone.isChecked = false
+            binding.cbNone.isChecked = false
             initialAlarms.forEach { minutes ->
                 val targetText = minutesToText(minutes)
 
-                // 💡 trim()을 추가하여 공백 차이를 방지합니다.
-                val foundCheckBox = alarmOptions.find {
-                    it.text.toString().trim() == targetText.trim()
-                }
-
-                if (foundCheckBox != null) {
-                    foundCheckBox.isChecked = true
-                    // 💡 체크박스에 실제로 적힌 텍스트를 담아야 나중에 textToMinutes가 인식합니다.
-                    selectedOptions.add(foundCheckBox.text.toString())
-                } else {
-                    // 여기에 로그를 찍어보세요. targetText가 체크박스 텍스트와 왜 다른지 알 수 있습니다.
-                    android.util.Log.e("ALARM_CHECK", "매칭 실패: $targetText")
+                // 해당 텍스트를 가진 체크박스 찾아서 체크
+                alarmOptionPairs.find { (parent, _) ->
+                    // 레이아웃의 첫 번째 자식인 TextView의 텍스트 확인
+                    val textView = parent.getChildAt(0) as? android.widget.TextView
+                    textView?.text.toString().trim() == targetText.trim()
+                }?.let { (_, cb) ->
+                    cb.isChecked = true
+                    selectedOptions.add(targetText)
                 }
             }
             updateUIAndResult()
-        }else {
-            binding.rbNone.isChecked = true
+        } else {
+            binding.cbNone.isChecked = true
         }
 
-        // 1. 알림 옵션들 클릭 리스너
-        alarmOptions.forEach { checkBox ->
-            checkBox.setOnClickListener {
-                val isChecked = checkBox.isChecked
-                val text = checkBox.text.toString()
+        // 3. 각 알림 옵션 레이아웃 클릭 리스너 설정
+        alarmOptionPairs.forEach { (layout, checkBox) ->
+            layout.setOnClickListener {
+                val nextState = !checkBox.isChecked
+                val textView = layout.getChildAt(0) as android.widget.TextView
+                val text = textView.text.toString()
 
-                if (isChecked) {
-                    // 5개 제한 체크
+                if (nextState) {
+                    // 5개 제한 로직
                     if (selectedOptions.size >= 5) {
-                        checkBox.isChecked = false
                         return@setOnClickListener
                     }
-                    // 알림 옵션을 선택하면 "안함"은 해제
-                    binding.rbNone.isChecked = false
+                    binding.cbNone.isChecked = false // 옵션 선택 시 '안함' 해제
                     selectedOptions.add(text)
                 } else {
                     selectedOptions.remove(text)
                 }
+
+                checkBox.isChecked = nextState
                 updateUIAndResult()
             }
         }
 
-        // 2. "안함" 버튼 클릭 리스너
-        binding.rbNone.setOnClickListener {
-            if (binding.rbNone.isChecked) {
-                // "안함" 체크 시 모든 옵션 해제
-                alarmOptions.forEach { it.isChecked = false }
+        // 4. "안함" 레이아웃 클릭 리스너 설정
+        binding.layoutNone.setOnClickListener {
+            if (!binding.cbNone.isChecked) {
+                binding.cbNone.isChecked = true
+                // 모든 다른 알림 옵션 해제
+                alarmOptionPairs.forEach { (_, cb) -> cb.isChecked = false }
                 selectedOptions.clear()
+                updateUIAndResult()
             }
-            updateUIAndResult()
         }
-
-        binding.alarmScheduleToolbar.setNavigationOnClickListener {
-            parentFragmentManager.popBackStack()
-        }
-
     }
 
     private fun updateUIAndResult() {
-        val requestKey = arguments?.getString("requestKey") ?: "scheduleAlarmKey" // 기본값 유지
-        // 5개 꽉 찼을 때 설명 텍스트 색상 변경
+        val requestKey = arguments?.getString("requestKey") ?: "scheduleAlarmKey"
+
+        // 5개 꽉 찼을 때 안내 문구 강조
         if (selectedOptions.size >= 5) {
             binding.tvAlarmDescription.setTextColor(Color.RED)
         } else {
             binding.tvAlarmDescription.setTextColor(resources.getColor(R.color.text_secondary))
         }
 
-        // 결과 전달
-        val resultText = if (binding.rbNone.isChecked || selectedOptions.isEmpty()) {
+        // 결과 텍스트 생성
+        val resultText = if (binding.cbNone.isChecked || selectedOptions.isEmpty()) {
             "일정 알림 안함"
         } else {
             selectedOptions.joinToString(", ")
         }
 
-        // 💡 선택된 텍스트들을 다시 숫자로 변환
+        // 선택된 텍스트를 숫자로 변환하여 결과 전달
         val selectedMinutes = selectedOptions.map { textToMinutes(it) }.toIntArray()
 
         val bundle = Bundle().apply {
             putString("selectedAlarm", resultText)
-            putIntArray("selectedAlarmMinutes", selectedMinutes) // 💡 숫자 데이터 추가!
+            putIntArray("selectedAlarmMinutes", selectedMinutes)
         }
-        parentFragmentManager.setFragmentResult(requestKey, bundle) // 💡 받은 키로 전달!
+        parentFragmentManager.setFragmentResult(requestKey, bundle)
     }
 
-
     private fun textToMinutes(text: String): Int {
-        return when (text) {
-            "일정 시작 시간", "정시" -> 0 // XML 텍스트가 "일정 시작 시간"이므로 추가
+        return when (text.trim()) {
+            "일정 시작 시간" -> 0
             "5분 전" -> 5
             "10분 전" -> 10
             "15분 전" -> 15
@@ -149,14 +152,14 @@ class AlarmScheduleFragment : Fragment() {
             "2시간 전" -> 120
             "1일 전" -> 1440
             "2일 전" -> 2880
-            "1주일 전" -> 10080
+            "1주 전" -> 10080
             else -> 0
         }
     }
 
     private fun minutesToText(minutes: Int): String {
         return when (minutes) {
-            0 -> "일정 시작 시간" // XML 텍스트와 일치시킴
+            0 -> "일정 시작 시간"
             5 -> "5분 전"
             10 -> "10분 전"
             15 -> "15분 전"
@@ -165,11 +168,10 @@ class AlarmScheduleFragment : Fragment() {
             120 -> "2시간 전"
             1440 -> "1일 전"
             2880 -> "2일 전"
-            10080 -> "1주일 전"
+            10080 -> "1주 전"
             else -> "${minutes}분 전"
         }
     }
-
 
     override fun onDestroyView() {
         super.onDestroyView()
