@@ -14,8 +14,8 @@
         android:orientation="horizontal"
         android:paddingStart="16dp"
         android:paddingEnd="16dp"
-        android:paddingTop="18dp"
-        android:paddingBottom="18dp">
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp">
 
         <ImageView
             android:id="@+id/iv_history_icon"
@@ -34,7 +34,7 @@
             android:maxLines="1"
             android:text="장소 이름"
             android:textColor="@color/text_primary"
-            android:textSize="16sp" />
+            android:textSize="14sp" />
 
         <ImageView
             android:id="@+id/iv_cb_select"
@@ -46,5 +46,6 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="@color/gray_100" />
+        android:layout_marginHorizontal="20dp"
+        android:background="@color/gray_200" />
 </LinearLayout>

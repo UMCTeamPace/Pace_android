@@ -15,11 +15,11 @@
         android:id="@+id/tv_map_instruction"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#99000000"
+        android:background="#65191914"
         android:gravity="center"
         android:padding="8dp"
         android:text="지도를 움직여 위치를 지정하세요."
-        android:fontFamily="@font/pretendard_regular"
+        android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
         android:textColor="@color/white"
         android:textSize="14sp"
         app:layout_constraintTop_toBottomOf="@id/layout_map_select_header" />
@@ -71,8 +71,8 @@
                 android:layout_marginTop="10dp"
                 android:text="주소를 불러오는 중..."
                 android:textColor="@color/black"
-                android:textSize="18sp"
-                android:fontFamily="@font/pretendard_medium" />
+                android:textSize="16sp"
+                android:textAppearance="@style/TextAppearance.App.BodyMd.Medium" />
 
             <TextView
                 android:id="@+id/tv_map_select_info"
@@ -82,14 +82,15 @@
                 android:maxLines="1"
                 android:singleLine="true"
                 android:text="위치 정보 확인 중"
-                android:textColor="@color/gray_600"
-                android:textSize="14sp" />
+                android:textColor="@color/text_tertiary"
+                android:textAppearance="@style/TextAppearance.App.CaptionLg.Medium"
+                android:textSize="12sp" />
 
             <Button
                 android:id="@+id/btn_map_select_confirm"
                 android:layout_width="match_parent"
-                android:layout_height="50dp"
-                android:layout_marginTop="20dp"
+                android:layout_height="40dp"
+                android:layout_marginTop="24dp"
                 app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.SmallComponent"
                 app:cornerRadius="8dp"
                 android:text="확인"

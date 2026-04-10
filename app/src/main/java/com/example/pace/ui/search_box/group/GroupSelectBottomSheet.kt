@@ -155,7 +155,6 @@ class GroupSelectBottomSheet(
                 val regex = "^[a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣ\\s]+$".toRegex()
 
                 if (!regex.matches(inputName)) {
-                    Toast.makeText(context, "특수문자는 사용할 수 없습니다.", Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
 

@@ -43,8 +43,8 @@
                 android:id="@+id/iv_history_icon"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="18dp"
-                android:layout_marginBottom="18dp"
+                android:layout_marginTop="14dp"
+                android:layout_marginBottom="14dp"
 
                 android:src="@drawable/ic_history_place"
                 app:layout_constraintStart_toStartOf="parent"
@@ -61,7 +61,7 @@
                 android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
                 android:maxLines="1"
                 android:text="스타벅스 사당점"
-                android:textSize="16sp"
+                android:textSize="14sp"
                 android:textColor="@color/text_primary"
                 app:layout_constraintBottom_toBottomOf="@id/iv_history_icon"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -76,5 +76,5 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="@color/gray_100" />
+        android:background="@color/gray_200" />
 </LinearLayout>

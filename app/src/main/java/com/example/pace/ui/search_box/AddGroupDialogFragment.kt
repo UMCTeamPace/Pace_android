@@ -91,7 +91,6 @@ class AddGroupDialogFragment(
                 )
                 onGroupAdded(newGroupRequest)
             } else {
-                Toast.makeText(context, "그룹명을 입력해주세요.", Toast.LENGTH_SHORT).show()
             }
         }
 

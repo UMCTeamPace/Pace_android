@@ -8,7 +8,7 @@
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:minHeight="56dp">
+        android:minHeight="48dp">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/view_background"
@@ -43,7 +43,7 @@
                 android:layout_marginEnd="12dp" android:maxLines="1"
                 android:ellipsize="end"
                 android:text="스타벅스 사당점"
-                android:textSize="16sp"
+                android:textSize="14sp"
                 android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toStartOf="@id/iv_arrow"
@@ -68,7 +68,7 @@
                 android:maxLines="1"
                 android:ellipsize="end"
                 android:text="스타벅스 사당점"
-                android:textSize="16sp"
+                android:textSize="14sp"
                 android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
                 app:layout_constraintStart_toEndOf="@id/iv_arrow"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -81,7 +81,7 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="@color/gray_100"
+        android:background="@color/gray_200"
         app:layout_constraintTop_toBottomOf="@id/iv_arrow" />
     
 </LinearLayout>

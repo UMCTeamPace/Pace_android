@@ -78,7 +78,6 @@ class LocationBottomSheetFragment : Fragment() {
 
         groupViewModel.isOperationSuccess.observe(viewLifecycleOwner) { isSuccess ->
             if (isSuccess) {
-                Toast.makeText(requireContext(), "장소 저장 완료!", Toast.LENGTH_SHORT).show()
             }
         }
     }
