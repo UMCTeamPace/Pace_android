@@ -1,5 +1,7 @@
 package com.example.pace.ui.add_schedule
 
+import android.app.Activity
+import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
@@ -232,6 +234,7 @@ class GeneralScheduleFragment : Fragment() {
 
         binding.layoutScheduleName.setOnClickListener {
             binding.etScheduleName.requestFocus()
+            moveTitleCursorToEnd()
 
             val imm =
                 requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
@@ -661,7 +664,7 @@ class GeneralScheduleFragment : Fragment() {
 
                 // 2) 정렬 규칙을 포함한 공통 UI 갱신 경로 사용
                 updateAlarmText(resultMinutes)
-                binding.tvRemindStatus.setTextColor(Color.BLACK)
+                updateReminderFieldColor(resultMinutes)
 
             }
         }
@@ -958,12 +961,31 @@ class GeneralScheduleFragment : Fragment() {
             if (event.action == MotionEvent.ACTION_DOWN) {
                 isTouchingInputArea = true
                 suppressKeyboardDismissUntil = android.os.SystemClock.uptimeMillis() + 500L
+                moveTitleCursorToEnd()
+                moveMemoCursorToEnd()
             }
             false
         }
 
         binding.etScheduleName.setOnTouchListener(markInputInteraction)
         binding.etMemo.setOnTouchListener(markInputInteraction)
+    }
+
+    private fun moveTitleCursorToEnd() {
+        binding.etScheduleName.post {
+            binding.etScheduleName.text?.length?.let(binding.etScheduleName::setSelection)
+        }
+    }
+
+    private fun moveMemoCursorToEnd() {
+        binding.etMemo.post {
+            binding.etMemo.text?.length?.let(binding.etMemo::setSelection)
+        }
+    }
+
+    private fun updateReminderFieldColor(alarms: IntArray) {
+        val colorRes = if (alarms.isEmpty()) R.color.text_tertiary else R.color.text_primary
+        binding.tvRemindStatus.setTextColor(ContextCompat.getColor(requireContext(), colorRes))
     }
 
     private fun shouldSuppressKeyboardDismiss(): Boolean {
@@ -1209,6 +1231,7 @@ class GeneralScheduleFragment : Fragment() {
             if (currentSelectedAlarms == null) {
                 currentSelectedAlarms = settings.scheduleAlarms.toIntArray()
                 updateAlarmText(currentSelectedAlarms!!)
+                updateReminderFieldColor(currentSelectedAlarms!!)
             }
 
             // 캘린더: 사용자가 아직 수정 안 했다면 기본값 표시
@@ -1308,13 +1331,15 @@ class GeneralScheduleFragment : Fragment() {
             // 1. 헤더 변경
             (activity as? AddScheduleActivity)?.let { act ->
                 val titleView = act.findViewById<TextView>(R.id.tv_toolbar_title)
-                titleView?.text = "일정 수정"
+                titleView?.text = "일정 편집"
             }
 
             schedule?.let { s ->
                 // 1. 이름 및 메모
                 binding.etScheduleName.setText(s.title)
+                moveTitleCursorToEnd()
                 binding.etMemo.setText(s.memo)
+                moveMemoCursorToEnd()
                 binding.etScheduleName.setTextColor(Color.BLACK)
                 binding.etMemo.setTextColor(Color.BLACK)
 
@@ -1421,8 +1446,8 @@ class GeneralScheduleFragment : Fragment() {
                 if (s.reminders.isNotEmpty()) {
                     currentSelectedAlarms = s.reminders.toIntArray()
                     updateAlarmText(currentSelectedAlarms!!)
-                    binding.tvRemindStatus.setTextColor(Color.BLACK)
                 }
+                updateReminderFieldColor(currentSelectedAlarms ?: intArrayOf())
 
                 // 7. 캘린더 정보
                 currentSelectedCalendarId = s.calendarId
@@ -1467,6 +1492,7 @@ class GeneralScheduleFragment : Fragment() {
                     true -> {
                         Toast.makeText(context, "일정이 수정되었습니다.", Toast.LENGTH_SHORT).show()
                         viewModel.resetUpdateEvent() // 이벤트 초기화
+                        applyEditActivityResult()
                         requireActivity().finish()   // 액티비티 종료 및 홈으로 복귀
                     }
                     false -> {
@@ -1476,6 +1502,20 @@ class GeneralScheduleFragment : Fragment() {
                     null -> {}
                 }
             }
+        }
+    }
+
+    private fun applyEditActivityResult() {
+        viewModel.lastEditResult.value?.let { result ->
+            requireActivity().setResult(
+                Activity.RESULT_OK,
+                Intent().apply {
+                    putExtra("UPDATED_SCHEDULE_ID", result.scheduleId)
+                    putExtra("UPDATED_OCCURRENCE_DATE", result.occurrenceDate)
+                    putExtra("UPDATED_SCHEDULE_TYPE", result.scheduleType)
+                }
+            )
+            viewModel.clearLastEditResult()
         }
     }
 

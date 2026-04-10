@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="300dp"
+    android:layout_height="196dp"
+    android:background="@drawable/bg_route_dialog_surface"
+    android:paddingVertical="30dp">
+
+    <TextView
+        android:id="@+id/route_date_limit_tv1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="경로 일정은 오늘을 포함해 \n 30일 이내만 추가할 수 있습니다.\n선택한 날짜를 다시 확인해 주세요."
+        android:textAppearance="@style/TextAppearance.App.ModalLg.Regular"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/route_date_limit_confirm_btn"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:layout_marginHorizontal="24dp"
+            android:background="@drawable/bg_route_dialog_confirm_btn"
+            android:text="확인"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Semibold"
+            android:textColor="@color/white"
+            app:layout_constraintBottom_toBottomOf="parent"/>
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>
