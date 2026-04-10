@@ -24,15 +24,16 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="내 휴대전화"
-                android:textColor="@color/black"
-                android:textSize="14sp" />
+                android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                android:textColor="@color/text_primary" />
 
             <TextView
                 android:id="@+id/tv_account_name"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Pace0908@gmail.com"
-                android:textColor="@color/gray_400"
+                android:textAppearance="@style/TextAppearance.App.CaptionMd.Regular"
+                android:textColor="@color/gray_500"
                 android:textSize="12sp" />
         </LinearLayout>
 
