@@ -33,6 +33,7 @@ class LocationDetailFragment : Fragment() {
     private val binding get() = _binding!!
     private val groupViewModel: GroupViewModel by activityViewModels()
     private lateinit var placesClient: PlacesClient
+    private var hasPhotoSection = false
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -90,6 +91,7 @@ class LocationDetailFragment : Fragment() {
         if (placeId.isNotEmpty()) {
             fetchPlacePhotos(placeId)
         } else {
+            hasPhotoSection = false
             binding.svPhotos.visibility = View.GONE
         }
 
@@ -188,9 +190,11 @@ class LocationDetailFragment : Fragment() {
             val metadataList = response.place.photoMetadatas
 
             if (metadataList.isNullOrEmpty()) {
+                hasPhotoSection = false
                 binding.svPhotos.visibility = View.GONE
                 (parentFragment as? RouteFragment)?.setBottomSheetFixed(true)
             }else {
+                hasPhotoSection = true
                 binding.svPhotos.visibility = View.VISIBLE
                 (parentFragment as? RouteFragment)?.setBottomSheetFixed(false)
                 binding.photoContainer.removeAllViews()
@@ -215,9 +219,19 @@ class LocationDetailFragment : Fragment() {
         }.addOnFailureListener {
             if (_binding == null) return@addOnFailureListener
 
+            hasPhotoSection = false
             binding.svPhotos.visibility = View.GONE
             (parentFragment as? RouteFragment)?.setBottomSheetFixed(true)
         }
+    }
+
+    fun updateCollapsedState(isCollapsed: Boolean) {
+        if (_binding == null) return
+        if (!hasPhotoSection) {
+            binding.svPhotos.visibility = View.GONE
+            return
+        }
+        binding.svPhotos.visibility = if (isCollapsed) View.GONE else View.VISIBLE
     }
 
 

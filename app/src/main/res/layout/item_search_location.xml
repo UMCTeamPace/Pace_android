@@ -6,17 +6,16 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="?attr/selectableItemBackground"
-    android:paddingTop="16dp">
+    android:paddingTop="12dp">
 
     <TextView
         android:id="@+id/tv_place_name"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:minHeight="24dp"
         tools:text="스타벅스 사당점"
-        android:textColor="@android:color/black"
-        android:textSize="14sp"
-        android:textStyle="bold"
+        android:paddingVertical="2dp"
+        android:textColor="@color/text_primary"
+        android:textAppearance="@style/TextAppearance.App.BodySm.Medium"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -34,7 +33,7 @@
         android:id="@+id/layout_meta"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="8dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:fontFamily="@font/pretendard_medium"
@@ -48,20 +47,18 @@
             android:layout_height="wrap_content"
             android:text="영업중"
             android:textColor="@color/semantic_info"
-            android:textSize="12sp"
-            android:textStyle="bold"
+            android:textAppearance="@style/TextAppearance.App.CaptionLg.Medium"
             android:fontFamily="@font/pretendard_medium"
-            android:layout_marginEnd="4dp"/>
+            android:layout_marginEnd="12dp"/>
 
         <TextView
             android:id="@+id/tv_meta_info"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="15dp"
             tools:text=" 카페 · 23km · 서울 관악구 남현동"
-            android:textColor="@color/gray_500"
-            android:textSize="12sp"
+            android:textColor="@color/text_tertiary"
+            android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
             android:maxLines="1"
             android:ellipsize="end"/>
     </LinearLayout>
@@ -70,8 +67,8 @@
         android:id="@+id/cv_image_container"
         android:layout_width="0dp"
         android:layout_height="100dp"
-        android:layout_marginTop="12dp"
-        app:cardCornerRadius="12dp"
+        android:layout_marginTop="8dp"
+        app:cardCornerRadius="4dp"
         app:cardElevation="0dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -92,7 +89,7 @@
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:background="@color/gray_200"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="12dp"
         app:layout_constraintTop_toBottomOf="@id/cv_image_container" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
