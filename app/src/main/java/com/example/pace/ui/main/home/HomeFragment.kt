@@ -18,6 +18,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.LinearSmoothScroller
 import androidx.recyclerview.widget.LinearSnapHelper
 import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.SimpleItemAnimator
 import com.example.pace.data.model.Schedule
 import com.example.pace.databinding.FragmentHomeBinding
 import com.example.pace.ui.add_schedule.AddScheduleActivity
@@ -35,9 +36,11 @@ class HomeFragment: Fragment() {
     lateinit var binding: FragmentHomeBinding
     private val viewModel: ScheduleViewModel by activityViewModels()
     private lateinit var scheduleAdapter: ScheduleRVAdapter
+    private var scheduleItemAnimator: RecyclerView.ItemAnimator? = null
     private var modalCaseDialog: ModalCaseDialog? = null
     private var isViewReady = false
     private var pendingResetToToday = false
+    private var lastRenderedScheduleDate: LocalDate? = null
 
     // 선택한 날짜 저장 및 불러오기
     private lateinit var spf: SharedPreferences
@@ -76,11 +79,13 @@ class HomeFragment: Fragment() {
             // 로컬 데이터만 가공하는 함수를 호출하세요.
             Log.d("PinClick", "클릭된 일정: ${schedule.title}, 현재 핀 상태: ${schedule.isPinned}")
 
-            viewModel.togglePinLocally(selectedDate, schedule.id)
+            viewModel.togglePinLocally(selectedDate, schedule.id, schedule.startDate)
             Log.d("PinClick", "클릭된 일정: ${schedule.title}, 나중 핀 상태: ${schedule.isPinned}")
         }
 
         binding.homeScheduleRv.adapter = scheduleAdapter
+        scheduleItemAnimator = binding.homeScheduleRv.itemAnimator
+        (scheduleItemAnimator as? SimpleItemAnimator)?.supportsChangeAnimations = false
         scheduleAdapter.setMyOnClickListener(object: ScheduleRVAdapter.MyOnClickListener{
             override fun showModalCase(scheduleList: List<Schedule>, position: Int) {
                 modalCaseDialog?.dismiss()
@@ -279,7 +284,22 @@ class HomeFragment: Fragment() {
             )
         )
 
+        val shouldSuppressAnimation =
+            lastRenderedScheduleDate != null && lastRenderedScheduleDate != selectedDate
+        if (shouldSuppressAnimation) {
+            binding.homeScheduleRv.itemAnimator = null
+        }
+
         scheduleAdapter.updateData(sortedList, viewModel.routeDetails.value)
+        lastRenderedScheduleDate = selectedDate
+
+        if (shouldSuppressAnimation) {
+            binding.homeScheduleRv.post {
+                if (!isAdded || !isViewReady) return@post
+                binding.homeScheduleRv.itemAnimator = scheduleItemAnimator
+                (binding.homeScheduleRv.itemAnimator as? SimpleItemAnimator)?.supportsChangeAnimations = false
+            }
+        }
 
         // UI 처리
         if(sortedList.isEmpty()){
@@ -307,6 +327,7 @@ class HomeFragment: Fragment() {
 
     private fun performResetToToday() {
         selectedDate = LocalDate.now()
+        lastRenderedScheduleDate = null
         spf.edit().putString("SELECTED_DATE", selectedDate.toString()).apply()
         viewModel.setSelectedDate(selectedDate)
 

@@ -6,7 +6,6 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pace.data.datasource.AuthDataStore
-import com.example.pace.data.model.MarkScheduleProvider
 import com.example.pace.data.model.request.RouteSearchRequest
 import com.example.pace.data.model.response.RouteOnlyScheduleData
 import com.example.pace.data.model.response.RouteResponse
@@ -56,25 +55,25 @@ class RouteViewModel @Inject constructor(
                     _errorMessage.value = ""
                     _routeResult.value = routes
                 } else {
-                    applyMockRoutes("empty route response")
+                    handleRouteSearchFailure("empty route response")
                 }
             } catch (e: retrofit2.HttpException) {
                 val errorBody = e.response()?.errorBody()?.string()
                 Log.e("RouteApiError", "Route search http error: code=${e.code()}, body=$errorBody")
-                applyMockRoutes("http ${e.code()} - $errorBody")
+                handleRouteSearchFailure("http ${e.code()} - $errorBody")
             } catch (e: Exception) {
                 Log.e("RouteApiError", "Route search exception: ${e.message}", e)
-                applyMockRoutes("exception: ${e.message}")
+                handleRouteSearchFailure("exception: ${e.message}")
             } finally {
                 _isLoading.value = false
             }
         }
     }
 
-    private fun applyMockRoutes(reason: String) {
-        Log.w("RouteApiMock", "Using mock route data because $reason")
-        _errorMessage.value = ""
-        _routeResult.value = MarkScheduleProvider.getMockRouteApiResponse().routeApiResDtoList.orEmpty()
+    private fun handleRouteSearchFailure(reason: String) {
+        Log.w("RouteApi", "Route search fallback suppressed: $reason")
+        _errorMessage.value = reason
+        _routeResult.value = emptyList()
     }
 
     fun fetchRouteOnlySchedule() {

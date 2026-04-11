@@ -92,4 +92,7 @@ interface ScheduleDao {
 
     @Query("UPDATE schedules SET is_pinned = :pinnedStatus WHERE id = :scheduleId")
     suspend fun updatePinStatus(scheduleId: Long, pinnedStatus: Boolean)
+
+    @Query("UPDATE schedules SET pinned_dates = :pinnedDates WHERE id = :scheduleId")
+    suspend fun updatePinnedDates(scheduleId: Long, pinnedDates: String?)
 }

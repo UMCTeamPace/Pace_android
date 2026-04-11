@@ -210,6 +210,7 @@ class ScheduleRepositoryImpl @Inject constructor(
                             // Provider values stay primary, but app-only flags and overrides are preserved.
                             remote.copy(
                                 isPinned = local.isPinned,
+                                pinnedDates = local.pinnedDates,
                                 isCompleted = local.isCompleted,
                                 isSwiped = local.isSwiped,
 
@@ -871,11 +872,17 @@ class ScheduleRepositoryImpl @Inject constructor(
                                 continue
                             }
 
+                            val pinnedDates = schedule.pinnedDates
+                                ?.split(",")
+                                ?.map { it.trim() }
+                                ?.filter { it.isNotEmpty() }
+                                .orEmpty()
                             expandedList.add(schedule.copy(
                                 startDate = formattedDate,
                                 endDate = occurrenceEndLocalDate.format(dateFormatter),
                                 startTime = if (schedule.isAllDay) "00:00" else schedule.startTime,
-                                endTime = if (schedule.isAllDay) "23:59" else schedule.endTime
+                                endTime = if (schedule.isAllDay) "23:59" else schedule.endTime,
+                                isPinned = formattedDate in pinnedDates
                             ))
                             count++
                         }
@@ -952,6 +959,7 @@ class ScheduleRepositoryImpl @Inject constructor(
             calendarColor = colorInt,
             isCompleted = false,
             isPinned = false,
+            pinnedDates = null,
             isSwiped = false,
             sourceType = "SERVER",
             repeatRule = null,
@@ -1011,6 +1019,7 @@ class ScheduleRepositoryImpl @Inject constructor(
             type = if (isRouteType) "ROUTE" else "NORMAL",
             isCompleted = false,
             isPinned = false,
+            pinnedDates = null,
             isSwiped = false,
             sourceType = "SERVER",
             serverId = this.scheduleId,
@@ -1069,6 +1078,7 @@ class ScheduleRepositoryImpl @Inject constructor(
             withRoute = isRouteType,
             isCompleted = existing?.isCompleted ?: false,
             isPinned = existing?.isPinned ?: false,
+            pinnedDates = existing?.pinnedDates,
             isSwiped = existing?.isSwiped ?: false,
             type = if (isRouteType) "ROUTE" else "NORMAL",
             eventColor = colorInt,
@@ -1426,6 +1436,10 @@ class ScheduleRepositoryImpl @Inject constructor(
 
     override suspend fun updatePinStatus(id: Long, isPinned: Boolean) {
         scheduleDao.updatePinStatus(id, isPinned)
+    }
+
+    override suspend fun updatePinnedDates(id: Long, pinnedDates: String?) {
+        scheduleDao.updatePinnedDates(id, pinnedDates)
     }
 
     override suspend fun removeLocalRouteSchedule(scheduleId: Long) {

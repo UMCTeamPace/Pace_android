@@ -95,6 +95,9 @@ data class Schedule(
     @ColumnInfo(name = "is_pinned")
     var isPinned: Boolean = false,
 
+    @ColumnInfo(name = "pinned_dates")
+    val pinnedDates: String? = null,
+
     @ColumnInfo(name = "is_swiped", defaultValue = "0")
     var isSwiped: Boolean = false,
 

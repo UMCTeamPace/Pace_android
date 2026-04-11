@@ -72,8 +72,8 @@ class SearchFragment : Fragment() {
                 try {
                     val dateStr = schedule.startDate.substring(0, 10)
                     val date = java.time.LocalDate.parse(dateStr)
-                    viewModel.togglePinLocally(date, schedule.id)
-                    searchAdapter.updateItemPinStatus(schedule.id, !schedule.isPinned)
+                    viewModel.togglePinLocally(date, schedule.id, schedule.startDate)
+                    searchAdapter.updateItemPinStatus(schedule.id, schedule.startDate, !schedule.isPinned)
                 } catch (e: Exception) {
                     android.util.Log.e("SearchPinError", "날짜 파싱 에러: ${e.message}")
                 }

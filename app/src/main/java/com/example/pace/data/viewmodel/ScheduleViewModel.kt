@@ -1097,18 +1097,44 @@ class ScheduleViewModel @Inject constructor(
         repository.updateExDate(scheduleForExDate)
     }
 
-    fun togglePinLocally(date: LocalDate, scheduleId: Long) {
+    fun togglePinLocally(date: LocalDate, scheduleId: Long, occurrenceDate: String = date.format(dateFormatter)) {
         viewModelScope.launch {
             val currentSchedules = scheduleMap.value[date] ?: return@launch
-            val targetSchedule = currentSchedules.find { it.id == scheduleId } ?: return@launch
+            val targetSchedule = currentSchedules.find {
+                it.id == scheduleId && it.startDate == occurrenceDate
+            } ?: return@launch
 
             val newPinStatus = !targetSchedule.isPinned
 
-            repository.updatePinStatus(scheduleId, newPinStatus)
+            if (!targetSchedule.repeatRule.isNullOrEmpty()) {
+                val pinnedDates = targetSchedule.pinnedDates
+                    ?.split(",")
+                    ?.map { it.trim() }
+                    ?.filter { it.isNotEmpty() }
+                    ?.toMutableSet()
+                    ?: mutableSetOf()
+
+                if (newPinStatus) {
+                    pinnedDates.add(occurrenceDate)
+                } else {
+                    pinnedDates.remove(occurrenceDate)
+                }
+
+                repository.updatePinnedDates(
+                    scheduleId,
+                    pinnedDates.takeIf { it.isNotEmpty() }?.sorted()?.joinToString(",")
+                )
+            } else {
+                repository.updatePinStatus(scheduleId, newPinStatus)
+            }
 
             val updatedMap = scheduleMap.value.toMutableMap()
             val updatedList = currentSchedules.map {
-                if (it.id == scheduleId) it.copy(isPinned = newPinStatus) else it
+                if (it.id == scheduleId && it.startDate == occurrenceDate) {
+                    it.copy(isPinned = newPinStatus)
+                } else {
+                    it
+                }
             }
             updatedMap[date] = updatedList
 

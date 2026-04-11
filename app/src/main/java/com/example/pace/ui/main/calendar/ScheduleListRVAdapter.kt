@@ -50,6 +50,7 @@ class ScheduleListRVAdapter(
     }
 
     fun updateData(newItems: List<ScheduleListItem>, newRouteMap: Map<Long, RouteInfo> = emptyMap()) {
+        mItemManger.closeAllItems()
         val diffResult = DiffUtil.calculateDiff(
             ScheduleListDiffCallback(
                 oldItems = items,
@@ -191,6 +192,7 @@ class ScheduleListRVAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(schedule: Schedule) {
+            binding.root.close(false)
             binding.scheduleViewTop.translationX = 0f
             binding.root.setSwipeEnabled(!isEditMode)
 

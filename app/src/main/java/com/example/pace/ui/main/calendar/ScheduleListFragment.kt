@@ -182,7 +182,7 @@ class ScheduleListFragment : Fragment() {
             onPinClick = { schedule ->
                 try {
                     val date = LocalDate.parse(schedule.startDate.substring(0, 10))
-                    viewModel.togglePinLocally(date, schedule.id)
+                    viewModel.togglePinLocally(date, schedule.id, schedule.startDate)
                 } catch (_: Exception) {
                 }
             },

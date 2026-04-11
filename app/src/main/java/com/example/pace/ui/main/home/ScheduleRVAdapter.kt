@@ -1,15 +1,16 @@
 package com.example.pace.ui.main.home
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.daimajia.swipe.SwipeLayout
 import com.daimajia.swipe.adapters.RecyclerSwipeAdapter
+import com.daimajia.swipe.util.Attributes
 import com.example.pace.R
 import com.example.pace.data.model.Schedule
 import com.example.pace.data.model.response.RouteInfo
@@ -18,7 +19,7 @@ import com.example.pace.ui.RouteCalculator
 import com.google.gson.Gson
 
 class ScheduleRVAdapter(
-    private var scheduleList: MutableList<Schedule>,
+    private var scheduleList: List<Schedule>,
     private val context: Context,
     private val onPinClick: (Schedule) -> Unit,
 ) : RecyclerSwipeAdapter<ScheduleRVAdapter.ViewHolder>() {
@@ -39,12 +40,27 @@ class ScheduleRVAdapter(
         mOnClickListener = myOnClickListener
     }
 
-    @SuppressLint("NotifyDataSetChanged")
     fun updateData(newSchedules: List<Schedule>, newRouteMap: Map<Long, RouteInfo> = emptyMap()) {
+        resetSwipeState()
+        val diffResult = DiffUtil.calculateDiff(
+            ScheduleDiffCallback(
+                oldItems = scheduleList,
+                newItems = newSchedules,
+                oldRouteMap = routeInfoMap,
+                newRouteMap = newRouteMap
+            )
+        )
         routeInfoMap = newRouteMap
-        scheduleList.clear()
-        scheduleList.addAll(newSchedules)
-        notifyDataSetChanged()
+        scheduleList = newSchedules.toList()
+        diffResult.dispatchUpdatesTo(this)
+    }
+
+    private fun resetSwipeState() {
+        mItemManger.getOpenLayouts().toList().forEach { layout ->
+            layout.close(false, false)
+            mItemManger.removeShownLayouts(layout)
+        }
+        setMode(Attributes.Mode.Single)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -90,8 +106,34 @@ class ScheduleRVAdapter(
 
     override fun getSwipeLayoutResourceId(position: Int): Int = R.id.item_schedule
 
+    private class ScheduleDiffCallback(
+        private val oldItems: List<Schedule>,
+        private val newItems: List<Schedule>,
+        private val oldRouteMap: Map<Long, RouteInfo>,
+        private val newRouteMap: Map<Long, RouteInfo>
+    ) : DiffUtil.Callback() {
+
+        override fun getOldListSize(): Int = oldItems.size
+
+        override fun getNewListSize(): Int = newItems.size
+
+        override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+            val oldItem = oldItems[oldItemPosition]
+            val newItem = newItems[newItemPosition]
+            return oldItem.id == newItem.id && oldItem.startDate == newItem.startDate
+        }
+
+        override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+            val oldItem = oldItems[oldItemPosition]
+            val newItem = newItems[newItemPosition]
+            if (oldItem != newItem) return false
+            return oldRouteMap[oldItem.id] == newRouteMap[newItem.id]
+        }
+    }
+
     inner class ViewHolder(val binding: ItemScheduleBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(schedule: Schedule) {
+            binding.root.close(false)
             binding.scheduleCheckbox.visibility = View.GONE
             binding.scheduleTitleTv.text = schedule.title ?: "제목 없음"
 
