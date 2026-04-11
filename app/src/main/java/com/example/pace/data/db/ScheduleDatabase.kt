@@ -11,7 +11,7 @@ import com.example.pace.data.model.UserSettingsEntity // 👈 1. Import 추가
 
 @Database(
     entities = [Schedule::class, UserSettingsEntity::class],
-    version = 15,
+    version = 16,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

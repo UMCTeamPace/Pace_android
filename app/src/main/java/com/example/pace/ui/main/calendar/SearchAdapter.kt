@@ -46,9 +46,13 @@ class SearchAdapter(
         private const val TYPE_SCHEDULE_ITEM = 1
     }
 
-    fun updateItemPinStatus(scheduleId: Long, isPinned: Boolean) {
+    fun updateItemPinStatus(scheduleId: Long, occurrenceDate: String, isPinned: Boolean) {
         val updatedItems = items.map { item ->
-            if (item is ScheduleListItem.ScheduleItem && item.schedule.id == scheduleId) {
+            if (
+                item is ScheduleListItem.ScheduleItem &&
+                item.schedule.id == scheduleId &&
+                item.schedule.startDate == occurrenceDate
+            ) {
                 item.copy(schedule = item.schedule.copy(isPinned = isPinned))
             } else {
                 item

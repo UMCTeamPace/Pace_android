@@ -1385,7 +1385,6 @@ class RouteScheduleFragment : Fragment() {
     private fun shouldBlockRouteScheduleCount(routeObject: RouteResponse?): Boolean {
         if (routeObject == null) return false
 
-        currentRouteScheduleCount = 30
         val projectedRouteCount = if (originalIsRouteSchedule) {
             currentRouteScheduleCount
         } else {

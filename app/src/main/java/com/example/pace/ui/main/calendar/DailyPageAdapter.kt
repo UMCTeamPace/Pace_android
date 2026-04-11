@@ -2,7 +2,9 @@ import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.ListUpdateCallback
 import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.data.model.Schedule
 import com.example.pace.data.model.response.RouteInfo
@@ -25,9 +27,46 @@ class DailyPageAdapter(
     val START_POSITION = Int.MAX_VALUE / 2
 
     fun updateEvents(newEvents: Map<LocalDate, List<Schedule>>, newRouteMap: Map<Long, RouteInfo> = emptyMap()) {
+        val oldEvents = events
+        val oldRouteMap = routeInfoMap
+        val affectedDates = (oldEvents.keys + newEvents.keys).distinct().sorted()
+
+        val diffResult = DiffUtil.calculateDiff(
+            DailyPageDiffCallback(
+                dates = affectedDates,
+                oldEvents = oldEvents,
+                newEvents = newEvents,
+                oldRouteMap = oldRouteMap,
+                newRouteMap = newRouteMap
+            )
+        )
+
         this.events = newEvents
         this.routeInfoMap = newRouteMap
-        notifyDataSetChanged()
+        diffResult.dispatchUpdatesTo(object : ListUpdateCallback {
+            override fun onInserted(position: Int, count: Int) {
+                repeat(count) { index ->
+                    notifyItemChanged(getPosition(affectedDates[position + index]))
+                }
+            }
+
+            override fun onRemoved(position: Int, count: Int) {
+                repeat(count) { index ->
+                    notifyItemChanged(getPosition(affectedDates[position + index]))
+                }
+            }
+
+            override fun onMoved(fromPosition: Int, toPosition: Int) {
+                notifyItemChanged(getPosition(affectedDates[fromPosition]))
+                notifyItemChanged(getPosition(affectedDates[toPosition]))
+            }
+
+            override fun onChanged(position: Int, count: Int, payload: Any?) {
+                repeat(count) { index ->
+                    notifyItemChanged(getPosition(affectedDates[position + index]), payload)
+                }
+            }
+        })
     }
 
     fun getDate(position: Int): LocalDate = LocalDate.now().plusDays((position - START_POSITION).toLong())
@@ -81,4 +120,38 @@ class DailyPageAdapter(
     }
 
     override fun getItemCount(): Int = Int.MAX_VALUE
+
+    private class DailyPageDiffCallback(
+        private val dates: List<LocalDate>,
+        private val oldEvents: Map<LocalDate, List<Schedule>>,
+        private val newEvents: Map<LocalDate, List<Schedule>>,
+        private val oldRouteMap: Map<Long, RouteInfo>,
+        private val newRouteMap: Map<Long, RouteInfo>
+    ) : DiffUtil.Callback() {
+
+        override fun getOldListSize(): Int = dates.size
+
+        override fun getNewListSize(): Int = dates.size
+
+        override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+            return dates[oldItemPosition] == dates[newItemPosition]
+        }
+
+        override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+            val date = dates[oldItemPosition]
+            val oldSchedules = oldEvents[date].orEmpty().sortedWith(
+                compareBy({ !it.isPinned }, { !it.isAllDay }, { it.startTime })
+            )
+            val newSchedules = newEvents[date].orEmpty().sortedWith(
+                compareBy({ !it.isPinned }, { !it.isAllDay }, { it.startTime })
+            )
+
+            if (oldSchedules != newSchedules) return false
+
+            val scheduleIds = (oldSchedules + newSchedules).map { it.id }.distinct()
+            return scheduleIds.all { scheduleId ->
+                oldRouteMap[scheduleId] == newRouteMap[scheduleId]
+            }
+        }
+    }
 }
