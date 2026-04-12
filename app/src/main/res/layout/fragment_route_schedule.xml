@@ -326,7 +326,7 @@
                             android:layout_marginStart="4dp"
                             android:text="경로"
                             android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                            android:textColor="@color/text_secondary2"/>
+                            android:textColor="@color/text_tertiary"/>
                     </LinearLayout>
 
                     <ImageView
@@ -455,7 +455,7 @@
                         android:layout_marginStart="4dp"
                         android:text="일정 알림 안함"
                         android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                        android:textColor="@color/text_secondary2" />
+                        android:textColor="@color/text_tertiary" />
                 </LinearLayout>
 
                 <View
@@ -483,7 +483,7 @@
                         android:layout_marginStart="4dp"
                         android:text="출발 알림 안함"
                         android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                        android:textColor="@color/text_secondary2" />
+                        android:textColor="@color/text_tertiary" />
                 </LinearLayout>
             </LinearLayout>
 
@@ -509,7 +509,7 @@
                     android:layout_marginStart="4dp"
                     android:background="@null"
                     android:hint="메모"
-                    android:textColorHint="@color/text_secondary2"
+                    android:textColorHint="@color/text_tertiary"
                     android:textColor="@color/text_primary"
                     android:gravity="top"
                     android:inputType="textMultiLine"
@@ -548,7 +548,7 @@
                         android:layout_marginStart="4dp"
                         android:text="캘린더"
                         android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                        android:textColor="@color/text_secondary2" />
+                        android:textColor="@color/text_tertiary" />
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>
