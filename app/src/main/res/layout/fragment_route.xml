@@ -63,6 +63,25 @@
                 android:visibility="gone" />
         </LinearLayout>
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_search_this_area"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:layout_marginTop="12dp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:paddingHorizontal="16dp"
+            android:text="현 지도에서 검색"
+            android:textAllCaps="false"
+            android:textColor="@color/text_secondary"
+            android:visibility="gone"
+            app:backgroundTint="@color/white"
+            app:cornerRadius="30dp"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+            app:layout_constraintTop_toBottomOf="@id/layout_route_header_container"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
         <include
             android:id="@+id/layout_map_select_overlay"
             layout="@layout/layout_route_map_selection"

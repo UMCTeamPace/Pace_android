@@ -2,6 +2,7 @@ package com.example.pace.ui.search_box
 
 import com.example.pace.R
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -61,11 +62,24 @@ class RecentHistoryAdapter(
                 }
             }
 
-            binding.ivDelete.setOnClickListener {
-                val recyclerView = itemView.parent as? RecyclerView ?: return@setOnClickListener
-
-                touchHelper?.closeAllMenus(recyclerView)
-                onDeleteClick(item)
+            binding.ivDelete.setOnTouchListener { _, event ->
+                val recyclerView = itemView.parent as? RecyclerView
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        recyclerView?.requestDisallowInterceptTouchEvent(true)
+                        true
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        recyclerView?.requestDisallowInterceptTouchEvent(false)
+                        onDeleteClick(item)
+                        true
+                    }
+                    MotionEvent.ACTION_CANCEL -> {
+                        recyclerView?.requestDisallowInterceptTouchEvent(false)
+                        true
+                    }
+                    else -> true
+                }
             }
         }
     }

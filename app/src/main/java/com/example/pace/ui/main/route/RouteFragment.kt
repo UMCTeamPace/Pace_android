@@ -6,6 +6,7 @@ import android.content.Context.MODE_PRIVATE
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.location.Location
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -152,7 +153,11 @@ class RouteFragment : Fragment() {
 
     private var currentRankPreference = SearchByTextRequest.RankPreference.RELEVANCE // 검색 필터
     private var lastQuery: String = ""
+    private var lastSearchCenter: LatLng? = null
+    private var hasSearchResultsOnMap = false
+    private var temporarySearchCenter: LatLng? = null
     private var isPoiMode = false
+    private var isPlaceDetailSheetLocked = false
 
     //백엔드 경로 탐색을 위해 여기다가 placeId를 좌표로 api 검색해서 주기
     private var startLatLng: LatLng? = null
@@ -209,6 +214,9 @@ class RouteFragment : Fragment() {
             }
 
         }
+        mapFragment.onUserCameraIdle = { center ->
+            handleUserMapCameraIdle(center)
+        }
 
         // 맵 프래그먼트 로드 (childFragmentManager 사용)
         childFragmentManager.beginTransaction()
@@ -222,6 +230,12 @@ class RouteFragment : Fragment() {
         setupMyLocationButton()
         setupRouteDetailListeners()
         setupBookmarkHeaderListenrs()
+        binding.btnSearchThisArea.setOnClickListener {
+            val center = currentMapCenter ?: lastSearchCenter ?: return@setOnClickListener
+            if (lastQuery.isBlank()) return@setOnClickListener
+            temporarySearchCenter = center
+            searchFinalResults(lastQuery)
+        }
 
         hasSchedule = false
 
@@ -1203,8 +1217,10 @@ class RouteFragment : Fragment() {
 
     private fun enterSearchMode() {
         exitPoiMode()
+        hideSearchThisAreaButton()
         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
         mapFrag?.clearMap()
+        binding.bottomSheetContainer.visibility = View.GONE
         binding.layoutRouteDetailOverlay.root.visibility = View.GONE
 
         binding.layoutRouteInputHeader.layoutFilterOptions.visibility = View.GONE
@@ -1256,12 +1272,17 @@ class RouteFragment : Fragment() {
 
         showSearchFragment(targetFragment)
 
-        mainBinding?.searchEt?.requestFocus()
+        mainBinding?.searchEt?.apply {
+            requestFocus()
+            setSelection(text?.length ?: 0)
+        }
         showKeyBoard()
     }
 
     private fun exitSearchMode() {
         exitPoiMode()
+        isPlaceDetailSheetLocked = false
+        hideSearchThisAreaButton()
         hideKeyboard()
         mainBinding?.searchEt?.clearFocus()
         mainBinding?.searchEt?.setText("")
@@ -1292,6 +1313,7 @@ class RouteFragment : Fragment() {
 
         mainBinding?.mainSearchLl?.visibility = View.VISIBLE
         binding.routeSearchFcv.visibility = View.GONE
+        binding.bottomSheetContainer.visibility = View.GONE
         mainBinding?.mainBackIv?.visibility = View.VISIBLE
         mainBinding?.mainToolbar?.visibility = View.VISIBLE
 //        if(currentEntryMode == EntryMode.SCHEDULE_ROUTE || currentEntryMode == EntryMode.SCHEDULE){
@@ -1317,6 +1339,7 @@ class RouteFragment : Fragment() {
 
     private fun showSearchFragment(fragment: Fragment) {
         if (_binding == null) return
+        binding.bottomSheetContainer.visibility = View.GONE
         val transaction = childFragmentManager.beginTransaction()
 
         if (fragment == historyFragment) {
@@ -1496,7 +1519,7 @@ class RouteFragment : Fragment() {
                 val place = task.result.place
 
                 val item = SearchItem(
-                    name = place.name ?: "",
+                    name = sanitizeDisplayPlaceName(place.name),
                     placeId = place.id ?: placeId,
                     lat = place.latLng?.latitude ?: 0.0,
                     lng = place.latLng?.longitude ?: 0.0,
@@ -1576,7 +1599,7 @@ class RouteFragment : Fragment() {
 
                 // 4. 받아온 정보로 SearchItem 객체 생성
                 val item = SearchItem(
-                    name = place.name ?: "",
+                    name = sanitizeDisplayPlaceName(place.name),
                     placeId = place.id ?: placeId,
                     lat = place.latLng?.latitude ?: 0.0,
                     lng = place.latLng?.longitude ?: 0.0,
@@ -1593,6 +1616,10 @@ class RouteFragment : Fragment() {
 
                 val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
                 mapFrag?.showTemporaryMarker(item)
+                isPoiMode = true
+                showLocationDetail(item)
+                mainBinding?.mainBackIv?.visibility = View.VISIBLE
+                return@addOnCompleteListener
 
                 val transaction = childFragmentManager.beginTransaction()
 
@@ -2169,6 +2196,7 @@ class RouteFragment : Fragment() {
 
         val detailFrag = childFragmentManager.findFragmentByTag("DETAIL")
         if (detailFrag != null && detailFrag.isVisible) {
+            isPlaceDetailSheetLocked = false
             childFragmentManager.popBackStack()
             bottomSheetBehavior.isDraggable = true
             if (isDetailFromRecommend) {
@@ -2450,9 +2478,8 @@ class RouteFragment : Fragment() {
 
     @Suppress("DEPRECATION")
     fun updateAddressFromMapCenter(latLng: LatLng) {
-        if (binding.layoutMapSelectOverlay.root.visibility != View.VISIBLE) return
-
         currentMapCenter = latLng
+        if (binding.layoutMapSelectOverlay.root.visibility != View.VISIBLE) return
 
         val geocoder = android.location.Geocoder(requireContext(), Locale.KOREAN)
 
@@ -2481,7 +2508,7 @@ class RouteFragment : Fragment() {
 
                             if (place != null) {
                                 val category = convertTypeToKorean(place.types?.map { it.toString().lowercase() } ?: emptyList())
-                                binding.layoutMapSelectOverlay.tvMapSelectName.text = place.name
+                                binding.layoutMapSelectOverlay.tvMapSelectName.text = sanitizeDisplayPlaceName(place.name)
                                 currentMapAddress = place.address
                                 currentMapCategory = category
                                 binding.layoutMapSelectOverlay.tvMapSelectInfo.text = "$category · ${calculateDistance(latLng)} · ${place.address?.replace("대한민국 ", "")}"
@@ -2711,8 +2738,10 @@ class RouteFragment : Fragment() {
     }
 
     @Suppress("DEPRECATION")
-    private fun searchFinalResults(query: String) {
+    private fun searchFinalResults(query: String, overrideCenter: LatLng? = null) {
         this.lastQuery = query
+        hideSearchThisAreaButton()
+        val effectiveSearchCenter = overrideCenter ?: temporarySearchCenter
         val transaction = childFragmentManager.beginTransaction()
         if (historyFragment.isAdded) transaction.hide(historyFragment)
         if (recommendFragment.isAdded) transaction.hide(recommendFragment)
@@ -2723,6 +2752,7 @@ class RouteFragment : Fragment() {
         mainBinding?.mainBackIv?.visibility = View.VISIBLE
 
         fun requestSearch(centerLatLng: LatLng) {
+            lastSearchCenter = centerLatLng
             val placeFields = listOf(
                 Place.Field.ID, Place.Field.NAME, Place.Field.ADDRESS,
                 Place.Field.LAT_LNG, Place.Field.TYPES, Place.Field.OPENING_HOURS,
@@ -2733,7 +2763,7 @@ class RouteFragment : Fragment() {
                 .setMaxResultCount(5)
                 .setRankPreference(currentRankPreference)
 
-            if (currentRankPreference == SearchByTextRequest.RankPreference.DISTANCE) {
+            if (effectiveSearchCenter != null || currentRankPreference == SearchByTextRequest.RankPreference.DISTANCE) {
                 val locationBias = com.google.android.libraries.places.api.model.CircularBounds.newInstance(centerLatLng, 10000.0) // 10km 반경
                 builder.setLocationBias(locationBias)
             }
@@ -2743,7 +2773,7 @@ class RouteFragment : Fragment() {
                     val resultList = response.places.map { place ->
                         SearchItem(
                             placeId = place.id ?: "",
-                            name = place.name ?: "",
+                            name = sanitizeDisplayPlaceName(place.name),
                             address = place.address ?: "",
                             distance = calculateDistance(place.latLng),
                             category = convertTypeToKorean(place.types?.map { it.toString().lowercase() } ?: emptyList()),
@@ -2753,30 +2783,43 @@ class RouteFragment : Fragment() {
                             lng = place.latLng?.longitude ?: 0.0
                         )
                     }
+                    hasSearchResultsOnMap = resultList.isNotEmpty()
                     showBottomSheet(resultList)
 
                     val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
                     setMapPaddingToBottomSheetHeight()
                     binding.routeMapFcv.visibility = View.VISIBLE
-                    mapFrag?.showMultipleMarkers(resultList) { clickedItem ->
+                    mapFrag?.showMultipleMarkers(
+                        resultList,
+                        moveCamera = effectiveSearchCenter == null
+                    ) { clickedItem ->
                         isDetailFromRecommend = false
                         showLocationDetail(clickedItem)
                     }
+                    temporarySearchCenter = null
                 }
                 .addOnFailureListener {
+                    hasSearchResultsOnMap = false
+                    temporarySearchCenter = null
                     it.printStackTrace()
                 }
         }
 
-        val savedLocation = mainActivity?.myLocation
-        if (savedLocation != null) {
-            requestSearch(LatLng(savedLocation.latitude, savedLocation.longitude))
+        if (effectiveSearchCenter != null) {
+            requestSearch(effectiveSearchCenter)
         } else {
-            requestSearch(LatLng(37.5665, 126.9780))
+            val savedLocation = mainActivity?.myLocation
+            if (savedLocation != null) {
+                requestSearch(LatLng(savedLocation.latitude, savedLocation.longitude))
+            } else {
+                requestSearch(LatLng(37.5665, 126.9780))
+            }
         }
     }
 
     private fun showBottomSheet(items: List<SearchItem>) {
+        isPlaceDetailSheetLocked = false
+        binding.bottomSheetContainer.visibility = View.VISIBLE
         var sheetFragment = childFragmentManager.findFragmentByTag(LocationBottomSheetFragment.TAG) as? LocationBottomSheetFragment
         val currentBottomSheetFragment = childFragmentManager.findFragmentById(R.id.bottom_sheet_container)
 
@@ -2816,6 +2859,205 @@ class RouteFragment : Fragment() {
         }
     }
 
+    private fun handleUserMapCameraIdle(center: LatLng) {
+        if (lastQuery.isBlank()) {
+            hideSearchThisAreaButton()
+            return
+        }
+        if (binding.routeSearchFcv.isVisible ||
+            binding.layoutMapSelectOverlay.root.isVisible ||
+            binding.layoutRouteDetailOverlay.root.isVisible) {
+            hideSearchThisAreaButton()
+            return
+        }
+
+        val previousCenter = lastSearchCenter ?: run {
+            hideSearchThisAreaButton()
+            return
+        }
+
+        binding.btnSearchThisArea.isVisible = distanceBetweenMeters(previousCenter, center) >= 300f
+    }
+
+    private fun hideSearchThisAreaButton() {
+        if (_binding == null) return
+        binding.btnSearchThisArea.isVisible = false
+    }
+
+    private fun distanceBetweenMeters(from: LatLng, to: LatLng): Float {
+        val result = FloatArray(1)
+        Location.distanceBetween(
+            from.latitude,
+            from.longitude,
+            to.latitude,
+            to.longitude,
+            result
+        )
+        return result[0]
+    }
+
+    private fun searchNearbyInCurrentMap(query: String, center: LatLng) {
+        hideSearchThisAreaButton()
+        lastQuery = query
+        lastSearchCenter = center
+
+        val placeFields = listOf(
+            Place.Field.ID,
+            Place.Field.NAME,
+            Place.Field.ADDRESS,
+            Place.Field.LAT_LNG,
+            Place.Field.TYPES,
+            Place.Field.OPENING_HOURS,
+            Place.Field.BUSINESS_STATUS,
+            Place.Field.PHOTO_METADATAS
+        )
+
+        val searchNearbyRequest = SearchNearbyRequest.builder(
+            CircularBounds.newInstance(center, 2000.0),
+            placeFields
+        )
+            .setMaxResultCount(20)
+            .build()
+
+        placesClient.searchNearby(searchNearbyRequest)
+            .addOnSuccessListener { response ->
+                val nearbyPlaces = response.places
+                val filteredPlaces = filterPlacesForCurrentMapSearch(query, nearbyPlaces)
+                val resultList = filteredPlaces.map { place ->
+                    SearchItem(
+                        placeId = place.id ?: "",
+                        name = sanitizeDisplayPlaceName(place.name),
+                        address = place.address ?: "",
+                        distance = calculateDistance(place.latLng),
+                        category = convertTypeToKorean(place.types?.map { it.toString().lowercase() } ?: emptyList()),
+                        openStatus = getPlaceStatus(place),
+                        photoMetadata = place.photoMetadatas?.firstOrNull(),
+                        lat = place.latLng?.latitude ?: 0.0,
+                        lng = place.latLng?.longitude ?: 0.0
+                    )
+                }
+
+                hasSearchResultsOnMap = true
+                binding.layoutNoSearchResult.visibility =
+                    if (resultList.isEmpty()) View.VISIBLE else View.GONE
+                if (resultList.isEmpty()) {
+                    binding.layoutNoSearchResult.bringToFront()
+                }
+
+                showBottomSheet(resultList)
+                setMapPaddingToBottomSheetHeight()
+                binding.routeMapFcv.visibility = View.VISIBLE
+
+                val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+                mapFrag?.showMultipleMarkers(resultList, moveCamera = false) { clickedItem ->
+                    isDetailFromRecommend = false
+                    showLocationDetail(clickedItem)
+                }
+            }
+            .addOnFailureListener {
+                hasSearchResultsOnMap = false
+                it.printStackTrace()
+            }
+    }
+
+    private fun filterPlacesForCurrentMapSearch(query: String, places: List<Place>): List<Place> {
+        val normalizedQuery = normalizeSearchKeyword(query)
+        val expectedTypes = mapKeywordToNearbyTypes(normalizedQuery)
+        val scoredPlaces = places.map { place ->
+            place to scoreNearbyPlaceMatch(place, normalizedQuery, expectedTypes)
+        }
+
+        val threshold = if (expectedTypes.isNotEmpty()) 4 else 2
+        val strongMatches = scoredPlaces
+            .filter { it.second >= threshold }
+            .sortedByDescending { it.second }
+            .map { it.first }
+
+        if (strongMatches.isNotEmpty()) {
+            return strongMatches
+        }
+
+        val weakMatches = scoredPlaces
+            .filter { it.second > 0 }
+            .sortedByDescending { it.second }
+            .map { it.first }
+
+        if (weakMatches.isNotEmpty()) {
+            return weakMatches.take(5)
+        }
+
+        return if (expectedTypes.isNotEmpty()) {
+            places.filter { place ->
+                val types = place.types?.map { it.toString().lowercase() } ?: emptyList()
+                types.any(expectedTypes::contains)
+            }.take(5)
+        } else {
+            emptyList()
+        }
+    }
+
+    private fun normalizeSearchKeyword(text: CharSequence?): String {
+        return text?.toString()?.lowercase()?.replace(" ", "") ?: ""
+    }
+
+    private fun sanitizeDisplayPlaceName(rawName: String?): String {
+        if (rawName.isNullOrBlank()) return ""
+        return rawName
+            .split("|")
+            .map { it.trim() }
+            .firstOrNull { it.isNotEmpty() }
+            ?: rawName.trim()
+    }
+
+    private fun scoreNearbyPlaceMatch(
+        place: Place,
+        normalizedQuery: String,
+        expectedTypes: Set<String>
+    ): Int {
+        if (normalizedQuery.isBlank()) return 1
+
+        val types = place.types?.map { it.toString().lowercase() } ?: emptyList()
+        val name = normalizeSearchKeyword(place.name)
+        val address = normalizeSearchKeyword(place.address)
+        val category = normalizeSearchKeyword(convertTypeToKorean(types))
+
+        var score = 0
+        if (expectedTypes.isNotEmpty() && types.any(expectedTypes::contains)) score += 5
+        if (name.contains(normalizedQuery)) score += 4
+        if (category.contains(normalizedQuery)) score += 3
+        if (address.contains(normalizedQuery)) score += 1
+
+        return score
+    }
+
+    private fun mapKeywordToNearbyTypes(query: String): Set<String> {
+        return when {
+            query.contains("맛집") || query.contains("식당") || query.contains("음식") || query.contains("밥") ->
+                setOf("restaurant", "food", "meal_takeaway", "meal_delivery", "cafe", "bakery")
+            query.contains("카페") || query.contains("커피") ->
+                setOf("cafe", "bakery")
+            query.contains("편의점") ->
+                setOf("convenience_store")
+            query.contains("약국") ->
+                setOf("pharmacy")
+            query.contains("병원") ->
+                setOf("hospital")
+            query.contains("호텔") || query.contains("숙소") ->
+                setOf("lodging", "hotel")
+            query.contains("은행") || query.contains("atm") ->
+                setOf("bank", "atm")
+            query.contains("공원") ->
+                setOf("park")
+            query.contains("주유소") ->
+                setOf("gas_station")
+            query.contains("버스") || query.contains("정류장") ->
+                setOf("bus_station", "transit_station")
+            query.contains("지하철") || query == "역" || query.endsWith("역") ->
+                setOf("subway_station", "train_station", "transit_station")
+            else -> emptySet()
+        }
+    }
+
     private fun initDetailBottomSheet() {
         val detailSheet = binding.layoutRouteDetailOverlay.sheetRouteDetail.root
         val detailBehavior = BottomSheetBehavior.from(detailSheet)
@@ -2852,19 +3094,36 @@ class RouteFragment : Fragment() {
                 mainBinding?.mainBnv?.visibility = View.GONE
                 val mapFragment = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
                 val detailFragment = childFragmentManager.findFragmentByTag("DETAIL") as? LocationDetailFragment
+                if (isPlaceDetailSheetLocked && newState != BottomSheetBehavior.STATE_HALF_EXPANDED) {
+                    bottomSheet.post {
+                        if (::bottomSheetBehavior.isInitialized) {
+                            bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
+                        }
+                    }
+                    return
+                }
                 when (newState) {
                     BottomSheetBehavior.STATE_HIDDEN -> {
+                        bottomSheet.visibility = View.GONE
                         mapFragment?.setMapPadding(0)
                         mapFragment?.updateButtonTranslation(0f)
                         detailFragment?.updateCollapsedState(true)
                     }
                     BottomSheetBehavior.STATE_COLLAPSED -> {
-                        mapFragment?.setMapPadding(bottomSheetBehavior.peekHeight)
-                        mapFragment?.updateButtonTranslation(bottomSheetBehavior.peekHeight.toFloat())
+                        bottomSheet.visibility = if (binding.routeSearchFcv.isVisible) View.GONE else View.VISIBLE
+                        val parentHeight = (bottomSheet.parent as View).height
+                        val currentSheetHeight = parentHeight - bottomSheet.top
+                        mapFragment?.setMapPadding(currentSheetHeight)
+                        mapFragment?.updateButtonTranslation(currentSheetHeight.toFloat())
                         detailFragment?.updateCollapsedState(true)
                     }
                     BottomSheetBehavior.STATE_HALF_EXPANDED,
                     BottomSheetBehavior.STATE_EXPANDED -> {
+                        bottomSheet.visibility = if (binding.routeSearchFcv.isVisible) View.GONE else View.VISIBLE
+                        val parentHeight = (bottomSheet.parent as View).height
+                        val currentSheetHeight = parentHeight - bottomSheet.top
+                        mapFragment?.setMapPadding(currentSheetHeight)
+                        mapFragment?.updateButtonTranslation(currentSheetHeight.toFloat())
                         detailFragment?.updateCollapsedState(false)
                     }
                 }
@@ -2874,13 +3133,15 @@ class RouteFragment : Fragment() {
                 val parentHeight = (bottomSheet.parent as View).height
                 val currentSheetHeight = parentHeight - bottomSheet.top
                 val offset = currentSheetHeight.toFloat()
-                mapFragment?.setMapPadding(currentSheetHeight)
                 mapFragment?.updateButtonTranslation(offset)
             }
         })
 
         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
-        mapFrag?.onMapTouched = {
+        mapFrag?.onMapTouched = touch@{
+            if (isPlaceDetailSheetLocked) {
+                return@touch
+            }
             if (bottomSheetBehavior.state != BottomSheetBehavior.STATE_HIDDEN
                 && bottomSheetBehavior.state != BottomSheetBehavior.STATE_COLLAPSED) {
 
@@ -2908,6 +3169,18 @@ class RouteFragment : Fragment() {
 
     fun setBottomSheetFixed(isFixed: Boolean) {
         if (!::bottomSheetBehavior.isInitialized) return
+        if (isPlaceDetailSheetLocked) {
+            bottomSheetBehavior.apply {
+                peekHeight = getLocationDetailPeekHeight()
+                isFitToContents = false
+                halfExpandedRatio = 0.5f
+                expandedOffset = getScreenHeightPercentage(0.5f)
+                isHideable = false
+                isDraggable = false
+                state = BottomSheetBehavior.STATE_HALF_EXPANDED
+            }
+            return
+        }
 
         if (isFixed) {
             bottomSheetBehavior.apply {
@@ -2942,6 +3215,8 @@ class RouteFragment : Fragment() {
 
     private fun showLocationDetail(item: SearchItem) {
         saveRecentPlace(item)
+        isPlaceDetailSheetLocked = true
+        binding.bottomSheetContainer.visibility = View.VISIBLE
         val isSchedule = currentEntryMode == EntryMode.SCHEDULE
 
         val detailFragment = LocationDetailFragment.newInstance(item, isSchedule, isBookmarkSearchMode)
@@ -2950,16 +3225,13 @@ class RouteFragment : Fragment() {
             .replace(R.id.bottom_sheet_container, detailFragment, "DETAIL")
             .addToBackStack("DETAIL")
             .commit()
-        bottomSheetBehavior.apply { isFitToContents = false; state = BottomSheetBehavior.STATE_HALF_EXPANDED }
-
         bottomSheetBehavior.apply {
-            val density = resources.displayMetrics.density
-//            peekHeight = (130 * density).toInt()
             peekHeight = getLocationDetailPeekHeight()
             isFitToContents = false
             halfExpandedRatio = 0.5f
             expandedOffset = getScreenHeightPercentage(0.5f)
             isHideable = false
+            isDraggable = false
             state = BottomSheetBehavior.STATE_HALF_EXPANDED
         }
 
@@ -3303,7 +3575,10 @@ class RouteFragment : Fragment() {
 
     // 유틸리티 함수들
     private fun isSearchMode() = (historyFragment.isAdded && !historyFragment.isHidden) || (recommendFragment.isAdded && !recommendFragment.isHidden)
-    private fun isBottomSheetVisible() = ::bottomSheetBehavior.isInitialized && bottomSheetBehavior.state != BottomSheetBehavior.STATE_HIDDEN
+    private fun isBottomSheetVisible() =
+        ::bottomSheetBehavior.isInitialized &&
+            binding.bottomSheetContainer.visibility == View.VISIBLE &&
+            bottomSheetBehavior.state != BottomSheetBehavior.STATE_HIDDEN
     private fun showKeyBoard() = (requireActivity().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showSoftInput(mainBinding?.searchEt, InputMethodManager.SHOW_IMPLICIT)
     private fun hideKeyboard() = (requireActivity().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(mainBinding?.searchEt?.windowToken, 0)
 

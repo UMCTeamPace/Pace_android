@@ -5,6 +5,8 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:background="@drawable/bg_bottom_sheet_rounded"
+    android:clickable="true"
+    android:focusable="true"
     android:paddingTop="8dp">
 
     <View
@@ -17,6 +19,8 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:clickable="true"
+        android:focusable="true"
         android:paddingLeft="20dp"
         android:paddingRight="20dp"
         android:paddingBottom="20dp">
@@ -33,7 +37,7 @@
                 android:id="@+id/tv_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Place name"
+                android:text="장소 이름"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:fontFamily="@font/pretendard_semibold"
@@ -46,7 +50,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
-                android:text="Open now"
+                android:text="영업 중"
                 android:textSize="12sp"
                 android:fontFamily="@font/pretendard_medium"
                 android:textColor="@color/semantic_info"
@@ -58,7 +62,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="15dp"
-                android:text="Cafe · 23km · Seoul"
+                android:text="카페 · 23km · 서울"
                 android:textColor="@color/gray_500"
                 android:textSize="12sp"
                 android:fontFamily="@font/pretendard_medium"
