@@ -770,7 +770,7 @@ class RouteScheduleFragment : Fragment() {
         )
 
 
-        val colorAdapter = ColorAdapter(colorList) { selectedColor ->
+        val colorAdapter = ColorAdapter(requireContext(), colorList) { selectedColor ->
             changeSelectedColor(selectedColor)
         }
 

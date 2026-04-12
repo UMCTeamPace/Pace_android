@@ -76,7 +76,7 @@ class TimetableBottomSheet(
 
             observeFirstAndLast("01")
         }
-        // todo: "02" 토요일 데이터 제공 X -> 문의
+
         binding.bottomSheetSubwayTimetableSaturdayLl.setOnClickListener {
             binding.bottomSheetSubwayTimetableWeekdayTv.setTextColor(ContextCompat.getColor(context, R.color.gray_500))
             binding.bottomSheetSubwayTimetableWeekdayTv.typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)

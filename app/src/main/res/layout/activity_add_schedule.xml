@@ -34,8 +34,8 @@
         app:tabIndicatorGravity="stretch"
         app:tabIndicatorColor="@null"
         app:tabIndicatorFullWidth="true"
-        app:tabSelectedTextColor="@color/black"
-        app:tabTextColor="@color/gray_600"
+        app:tabSelectedTextColor="@color/text_primary"
+        app:tabTextColor="@color/text_secondary"
         app:tabRippleColor="@android:color/transparent"
         app:tabTextAppearance="@style/TextAppearance.App.BodySm.Medium" />
 

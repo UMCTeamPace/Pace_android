@@ -44,6 +44,7 @@ import com.google.gson.Gson
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
+import java.time.DayOfWeek
 import kotlin.compareTo
 
 @AndroidEntryPoint
@@ -465,7 +466,7 @@ class GeneralScheduleFragment : Fragment() {
         )
 
 
-        val colorAdapter = ColorAdapter(colorList) { selectedColor ->
+        val colorAdapter = ColorAdapter(requireContext(), colorList) { selectedColor ->
             changeSelectedColor(selectedColor)
         }
 
@@ -585,6 +586,18 @@ class GeneralScheduleFragment : Fragment() {
                 val textView = container.textView
                 val root = container.rootLayout
 
+                when(day.date.dayOfWeek){
+                    DayOfWeek.SATURDAY -> {
+                        container.textView.setTextColor(ContextCompat.getColor(requireContext(),R.color.semantic_success))
+                    }
+                    DayOfWeek.SUNDAY -> {
+                        container.textView.setTextColor(ContextCompat.getColor(requireContext(),R.color.semantic_error))
+                    }
+                    else -> {
+                        container.textView.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_primary))
+                    }
+                }
+
                 textView.text = date.dayOfMonth.toString()
                 if (day.position != com.kizitonwose.calendar.core.DayPosition.MonthDate) {
                     textView.setTextColor(Color.LTGRAY)
@@ -592,7 +605,7 @@ class GeneralScheduleFragment : Fragment() {
                     when {
                         // 시작일/종료일 동일 (원형)
                         date == startDate && (endDate == null || endDate == startDate) -> {
-                            textView.setTextColor(Color.WHITE)
+                            textView.setTextColor(resources.getColor(R.color.white))
                             textView.setBackgroundResource(R.drawable.drawable_circle_green)
                             root.background = null
                         }
@@ -612,7 +625,7 @@ class GeneralScheduleFragment : Fragment() {
                         startDate != null && endDate != null && date.isAfter(startDate) && date.isBefore(
                             endDate
                         ) -> {
-                            textView.setTextColor(Color.BLACK)
+                            textView.setTextColor(resources.getColor(R.color.semantic_info))
                             textView.background = null
                             // 여기에 @color/semantic_info가 적용된 drawable 연결
                             root.setBackgroundResource(R.drawable.bg_calendar_range_middle)
@@ -1130,13 +1143,13 @@ class GeneralScheduleFragment : Fragment() {
                 startDate != null && endDate != null && startDate != endDate -> {
                     when (date) {
                         startDate -> {
-                            textView.setBackgroundResource(R.drawable.drawable_circle_green)
+                            textView.setBackgroundResource(R.drawable.bg_calendar_start)
                             textView.backgroundTintList = ColorStateList.valueOf(colorPrimary300)
                             val startBg = androidx.core.content.ContextCompat.getDrawable(requireContext(), R.drawable.bg_calendar_range_start)
                             root.background = android.graphics.drawable.InsetDrawable(startBg, 0, verticalInset, 0, verticalInset)
                         }
                         endDate -> {
-                            textView.setBackgroundResource(R.drawable.drawable_circle_green)
+                            textView.setBackgroundResource(R.drawable.bg_calendar_end)
                             textView.backgroundTintList = ColorStateList.valueOf(colorPrimary300)
                             val endBg = androidx.core.content.ContextCompat.getDrawable(requireContext(), R.drawable.bg_calendar_range_end)
                             root.background = android.graphics.drawable.InsetDrawable(endBg, 0, verticalInset, 0, verticalInset)

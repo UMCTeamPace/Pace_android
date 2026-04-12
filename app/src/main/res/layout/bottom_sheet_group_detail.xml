@@ -47,7 +47,7 @@
             android:layout_height="wrap_content"
             android:fontFamily="@font/pretendard_medium"
             android:text="최신 등록순"
-            android:textColor="@color/text_secondary2"
+            android:textColor="@color/text_tertiary"
             android:textSize="14sp" />
 
         <ImageView

@@ -64,7 +64,7 @@
                 android:layout_height="wrap_content"
                 android:text="내 캘린더"
                 android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                android:textColor="@color/text_secondary2"
+                android:textColor="@color/text_tertiary"
                 android:layout_marginEnd="3dp"/>
             <ImageView
                 android:id="@+id/settings_calendar_default_iv"
@@ -151,7 +151,7 @@
             android:text="10분"
             android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
             android:layout_marginEnd="2dp"
-            android:textColor="@color/text_secondary2"/>
+            android:textColor="@color/text_tertiary"/>
 
         <ImageView
             android:id="@+id/settings_route_minute_iv"
@@ -206,7 +206,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="없음"
-                android:textColor="@color/text_secondary2"
+                android:textColor="@color/text_tertiary"
                 android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
                 android:layout_marginEnd="2dp"
 
@@ -245,7 +245,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="사용자 지정"
-                android:textColor="@color/text_secondary2"
+                android:textColor="@color/text_tertiary"
                 android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
                 android:layout_marginEnd="2dp"
 
