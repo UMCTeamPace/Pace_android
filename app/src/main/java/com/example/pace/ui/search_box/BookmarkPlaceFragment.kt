@@ -110,7 +110,7 @@ class BookmarkPlaceFragment : Fragment(){
                 dialog.show(parentFragmentManager, "AddGroupDialog")
             }
         )
-        val touchHelper = CommonSwipeTouchHelper(
+        val touchHelper = BookmarkGroupSwipeTouchHelper(
             adapter = groupAdapter,
             clampWidthDp = 120
         )

@@ -37,8 +37,10 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     private var googleMap: GoogleMap? = null
     private val currentMarkers = mutableListOf<Marker>()
     private var tempPoiMarker: Marker? = null
+    private var cameraMovedByGesture = false
     var onMapTouched: (() -> Unit)? = null
     var onPoiClick: ((PointOfInterest) -> Unit)? = null
+    var onUserCameraIdle: ((LatLng) -> Unit)? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -83,6 +85,10 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         map.setOnCameraIdleListener {
             val center = map.cameraPosition.target
             (parentFragment as? RouteFragment)?.updateAddressFromMapCenter(center)
+            if (cameraMovedByGesture) {
+                onUserCameraIdle?.invoke(center)
+                cameraMovedByGesture = false
+            }
         }
 
         map.setOnMapClickListener {
@@ -95,6 +101,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
 
         map.setOnCameraMoveStartedListener { reason ->
             if (reason == GoogleMap.OnCameraMoveStartedListener.REASON_GESTURE) {
+                cameraMovedByGesture = true
                 onMapTouched?.invoke()
             }
         }
@@ -248,7 +255,11 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         }
     }
 
-    fun showMultipleMarkers(items: List<SearchItem>, onMarkerClick: (SearchItem) -> Unit){
+    fun showMultipleMarkers(
+        items: List<SearchItem>,
+        moveCamera: Boolean = true,
+        onMarkerClick: (SearchItem) -> Unit
+    ){
         val map = googleMap ?: return
 
         currentMarkers.forEach { it.remove() }
@@ -278,7 +289,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
                 validCount++
             }
 
-            if (validCount > 0) {
+            if (moveCamera && validCount > 0) {
                 val bounds = boundsBuilder.build()
                 val padding = 200
                 try {
@@ -303,7 +314,10 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     fun showTemporaryMarker(item: SearchItem) {
         val map = googleMap ?: return
 
+        map.clear()
+        currentMarkers.clear()
         tempPoiMarker?.remove()
+        tempPoiMarker = null
 
         val position = LatLng(item.lat, item.lng)
         val markerOptions = MarkerOptions()

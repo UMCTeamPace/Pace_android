@@ -1,6 +1,7 @@
 package com.example.pace.ui.search_box
 
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.ViewGroup
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.DiffUtil
@@ -30,7 +31,7 @@ class RecentRouteAdapter(
 
     inner class ViewHolder(private val binding: ItemRecentRouteBinding)
         : RecyclerView.ViewHolder(binding.root), SwipeableViewHolder {
-        override fun setSwiped(isSwiped: Boolean) { }
+        override fun setSwiped(isSwiped: Boolean) {}
         override fun getSwipeView(): ConstraintLayout = binding.viewForeground
 
         fun bind(item: RecentRoute) {
@@ -41,22 +42,31 @@ class RecentRouteAdapter(
 
             binding.viewForeground.setOnClickListener {
                 val recyclerView = itemView.parent as? RecyclerView ?: return@setOnClickListener
-
-                // 1. 만약 스와이프 메뉴가 열려있다면 닫기만 수행
                 if (touchHelper?.isAnyMenuOpened(recyclerView) == true) {
                     touchHelper?.closeAllMenus(recyclerView)
                 } else {
-                    // 2. 닫혀있는 상태라면 아이템 클릭 이벤트 실행
                     onItemClick(item)
                 }
             }
 
-            binding.ivDelete.setOnClickListener {
-                val recyclerView = itemView.parent as? RecyclerView ?: return@setOnClickListener
-
-                // 메뉴를 닫으면서 삭제 실행
-                touchHelper?.closeAllMenus(recyclerView)
-                onDeleteClick(item)
+            binding.ivDelete.setOnTouchListener { _, event ->
+                val recyclerView = itemView.parent as? RecyclerView
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        recyclerView?.requestDisallowInterceptTouchEvent(true)
+                        true
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        recyclerView?.requestDisallowInterceptTouchEvent(false)
+                        onDeleteClick(item)
+                        true
+                    }
+                    MotionEvent.ACTION_CANCEL -> {
+                        recyclerView?.requestDisallowInterceptTouchEvent(false)
+                        true
+                    }
+                    else -> true
+                }
             }
         }
     }
@@ -65,8 +75,9 @@ class RecentRouteAdapter(
         private val DiffCallback = object : DiffUtil.ItemCallback<RecentRoute>() {
             override fun areItemsTheSame(oldItem: RecentRoute, newItem: RecentRoute): Boolean {
                 return oldItem.startPlaceId == newItem.startPlaceId &&
-                        oldItem.endPlaceId == newItem.endPlaceId
+                    oldItem.endPlaceId == newItem.endPlaceId
             }
+
             override fun areContentsTheSame(oldItem: RecentRoute, newItem: RecentRoute) = oldItem == newItem
         }
     }

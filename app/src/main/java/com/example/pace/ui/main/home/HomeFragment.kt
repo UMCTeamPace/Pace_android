@@ -41,6 +41,7 @@ class HomeFragment: Fragment() {
     private var isViewReady = false
     private var pendingResetToToday = false
     private var lastRenderedScheduleDate: LocalDate? = null
+    private var suppressNextScheduleAnimation = false
 
     // 선택한 날짜 저장 및 불러오기
     private lateinit var spf: SharedPreferences
@@ -285,9 +286,11 @@ class HomeFragment: Fragment() {
         )
 
         val shouldSuppressAnimation =
-            lastRenderedScheduleDate != null && lastRenderedScheduleDate != selectedDate
+            suppressNextScheduleAnimation ||
+                (lastRenderedScheduleDate != null && lastRenderedScheduleDate != selectedDate)
         if (shouldSuppressAnimation) {
             binding.homeScheduleRv.itemAnimator = null
+            binding.homeScheduleRv.suppressLayout(true)
         }
 
         scheduleAdapter.updateData(sortedList, viewModel.routeDetails.value)
@@ -296,8 +299,10 @@ class HomeFragment: Fragment() {
         if (shouldSuppressAnimation) {
             binding.homeScheduleRv.post {
                 if (!isAdded || !isViewReady) return@post
+                binding.homeScheduleRv.suppressLayout(false)
                 binding.homeScheduleRv.itemAnimator = scheduleItemAnimator
                 (binding.homeScheduleRv.itemAnimator as? SimpleItemAnimator)?.supportsChangeAnimations = false
+                suppressNextScheduleAnimation = false
             }
         }
 
@@ -326,15 +331,15 @@ class HomeFragment: Fragment() {
     }
 
     private fun performResetToToday() {
+        suppressNextScheduleAnimation = true
         selectedDate = LocalDate.now()
-        lastRenderedScheduleDate = null
         spf.edit().putString("SELECTED_DATE", selectedDate.toString()).apply()
         viewModel.setSelectedDate(selectedDate)
 
         if (::horizontalCalendarAdapter.isInitialized) {
             val layoutManager = binding.homeHorizontalCalendarRv.layoutManager as? LinearLayoutManager
             binding.homeHorizontalCalendarTv.text =
-                selectedDate.year.toString() + "년" + selectedDate.monthValue.toString() + "월"
+                selectedDate.year.toString() + "년 " + selectedDate.monthValue.toString() + "월"
             horizontalCalendarAdapter.changeSelectedDate(calendarCenterPosition)
             binding.homeHorizontalCalendarRv.post {
                 val recyclerLayoutManager = layoutManager ?: return@post
