@@ -29,7 +29,8 @@
                 android:layout_marginHorizontal="20dp"
                 android:background="@drawable/box_schedule"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:paddingVertical="16dp"
+                android:paddingHorizontal="24dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -53,10 +54,11 @@
                         android:layout_marginStart="10dp"
                         android:background="@null"
                         android:hint="일정명"
+                        android:textColorHint="@color/text_tertiary"
                         android:importantForAutofill="no"
                         android:inputType="text"
                         android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                        android:textColor="@color/black" />
+                        android:textColor="@color/text_primary" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -90,7 +92,8 @@
                 android:background="@drawable/box_schedule"
                 android:gravity="center_vertical"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:paddingVertical="16dp"
+                android:paddingHorizontal="24dp">
 
                 <RelativeLayout
                     android:layout_width="match_parent"
@@ -116,7 +119,7 @@
                             android:layout_marginStart="4dp"
                             android:text="일정 시간"
                             android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                            android:textColor="@color/black" />
+                            android:textColor="@color/text_primary" />
                     </LinearLayout>
                 </RelativeLayout>
 
@@ -146,15 +149,17 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="2월 20일 (금)"
-                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular" />
+                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                            android:textColor="@color/text_primary"/>
 
                         <TextView
                             android:id="@+id/tv_start_time"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
+                            android:layout_marginTop="12dp"
                             android:text="10:00"
-                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular" />
+                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                            android:textColor="@color/text_primary"/>
                     </LinearLayout>
 
                     <ImageView
@@ -175,15 +180,17 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="2월 20일 (금)"
-                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular" />
+                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                            android:textColor="@color/text_primary"/>
 
                         <TextView
                             android:id="@+id/tv_end_time"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
+                            android:layout_marginTop="12dp"
                             android:text="11:00"
-                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular" />
+                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                            android:textColor="@color/text_primary"/>
                     </LinearLayout>
                 </LinearLayout>
 
@@ -426,7 +433,8 @@
                 android:layout_marginTop="12dp"
                 android:background="@drawable/box_schedule"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:paddingVertical="16dp"
+                android:paddingHorizontal="24dp">
 
                 <LinearLayout
                     android:id="@+id/btn_remindalarm"
@@ -486,7 +494,8 @@
                 android:layout_marginTop="12dp"
                 android:background="@drawable/box_schedule"
                 android:orientation="horizontal"
-                android:padding="16dp">
+                android:paddingVertical="16dp"
+                android:paddingHorizontal="24dp">
 
                     <ImageView
                         android:layout_width="20dp"
@@ -516,7 +525,8 @@
                 android:layout_marginTop="12dp"
                 android:background="@drawable/box_schedule"
                 android:orientation="horizontal"
-                android:padding="16dp">
+                android:paddingVertical="16dp"
+                android:paddingHorizontal="24dp">
 
                 <LinearLayout
                     android:id="@+id/btn_calendar"

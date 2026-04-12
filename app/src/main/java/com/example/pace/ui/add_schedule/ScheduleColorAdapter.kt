@@ -1,28 +1,43 @@
 package com.example.pace.ui.add_schedule
 
+import android.content.Context
 import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.ColorFilter
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.R
 
-data class ColorItem(val colorResId: Int, val colorHex: String)
+data class ColorItem(val colorResId: Int, val colorHex: String, var isSelected: Boolean = false)
 
 class ColorAdapter(
+    private val context: Context,
     private val colors: List<ColorItem>,
     private val onColorClick: (String) -> Unit
 ) : RecyclerView.Adapter<ColorAdapter.ColorViewHolder>() {
-
+    private var selectedPos = -1
     inner class ColorViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val colorView: View = view.findViewById(R.id.colorView)
+        val colorView: ImageView = view.findViewById(R.id.colorView)
         fun bind(item: ColorItem) {
             // 원형 배경에 색상 입히기
-            colorView.backgroundTintList = ColorStateList.valueOf(
-                ContextCompat.getColor(itemView.context, item.colorResId)
-            )
-            itemView.setOnClickListener { onColorClick(item.colorHex) }
+            if(item.isSelected){
+                val drawable = ContextCompat.getDrawable(context, R.drawable.ic_selected_schedule_color)?.mutate() as LayerDrawable
+                val bg = drawable.findDrawableByLayerId(R.id.schedule_color_bg).mutate() as GradientDrawable
+                val front = drawable.findDrawableByLayerId(R.id.schedule_color_front).mutate() as GradientDrawable
+                bg.setColor(Color.parseColor(item.colorHex))
+                front.setColor(Color.parseColor(item.colorHex))
+                colorView.setImageDrawable(drawable)
+            }else{
+                val drawable = ContextCompat.getDrawable(context, R.drawable.ic_schedule_color)?.mutate()
+                drawable?.setTint(Color.parseColor(item.colorHex))
+                colorView.setImageDrawable(drawable)
+            }
         }
     }
 
@@ -31,6 +46,19 @@ class ColorAdapter(
         return ColorViewHolder(view)
     }
 
-    override fun onBindViewHolder(holder: ColorViewHolder, position: Int) = holder.bind(colors[position])
+    override fun onBindViewHolder(holder: ColorViewHolder, position: Int){
+        holder.bind(colors[position])
+        holder.itemView.setOnClickListener {
+            if(selectedPos != -1){
+                colors[selectedPos].isSelected = false
+                notifyItemChanged(selectedPos)
+            }
+            colors[position].isSelected = true
+            notifyItemChanged(position)
+            selectedPos = holder.absoluteAdapterPosition
+
+            onColorClick(colors[position].colorHex)
+        }
+    }
     override fun getItemCount() = colors.size
 }
