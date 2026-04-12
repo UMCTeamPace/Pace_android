@@ -11,8 +11,8 @@
         android:layout_width="40dp"
         android:layout_height="4dp"
         android:layout_gravity="center_horizontal"
-        android:background="@color/gray_400"
-        android:layout_marginBottom="12dp"/>
+        android:layout_marginBottom="12dp"
+        android:background="@color/gray_400" />
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
@@ -21,104 +21,118 @@
         android:paddingRight="20dp"
         android:paddingBottom="20dp">
 
-        <TextView
-            android:id="@+id/tv_title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="장소 이름"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:fontFamily="@font/pretendard_semibold"
-            android:textColor="@color/black"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent"/>
-
-        <TextView
-            android:id="@+id/tv_open_status"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:text="영업 중"
-            android:textSize="12sp"
-            android:fontFamily="@font/pretendard_medium"
-            android:textColor="@color/semantic_info"
-            app:layout_constraintTop_toBottomOf="@id/tv_title"
-            app:layout_constraintStart_toStartOf="parent"/>
-
-        <TextView
-            android:id="@+id/tv_meta_info"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="15dp"
-            android:text=" 카페 · 23km · 서울 관악구 남현동"
-            android:textColor="@color/gray_500"
-            android:textSize="12sp"
-            android:fontFamily="@font/pretendard_medium"
-            android:maxLines="1"
-            android:ellipsize="end"
-            app:layout_constraintStart_toEndOf="@id/tv_open_status"
-            app:layout_constraintBottom_toBottomOf="@id/tv_open_status"/>
-
-        <HorizontalScrollView
-            android:id="@+id/sv_photos"
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_detail_header"
             android:layout_width="match_parent"
-            android:layout_height="200dp"
-            android:layout_marginTop="16dp"
-            android:scrollbars="none"
-            android:visibility="gone"
-            app:layout_constraintTop_toBottomOf="@id/tv_open_status">
+            android:layout_height="wrap_content"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
 
-            <LinearLayout
-                android:id="@+id/photo_container"
+            <TextView
+                android:id="@+id/tv_title"
                 android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:orientation="horizontal">
+                android:layout_height="wrap_content"
+                android:text="Place name"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:fontFamily="@font/pretendard_semibold"
+                android:textColor="@color/black"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toStartOf="parent" />
 
-            </LinearLayout>
-        </HorizontalScrollView>
+            <TextView
+                android:id="@+id/tv_open_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Open now"
+                android:textSize="12sp"
+                android:fontFamily="@font/pretendard_medium"
+                android:textColor="@color/semantic_info"
+                app:layout_constraintTop_toBottomOf="@id/tv_title"
+                app:layout_constraintStart_toStartOf="parent" />
+
+            <TextView
+                android:id="@+id/tv_meta_info"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="15dp"
+                android:text="Cafe · 23km · Seoul"
+                android:textColor="@color/gray_500"
+                android:textSize="12sp"
+                android:fontFamily="@font/pretendard_medium"
+                android:maxLines="1"
+                android:ellipsize="end"
+                app:layout_constraintStart_toEndOf="@id/tv_open_status"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintBottom_toBottomOf="@id/tv_open_status" />
+
+            <HorizontalScrollView
+                android:id="@+id/sv_photos"
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                android:layout_marginTop="16dp"
+                android:scrollbars="none"
+                android:visibility="gone"
+                app:layout_constraintTop_toBottomOf="@id/tv_open_status"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <LinearLayout
+                    android:id="@+id/photo_container"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:orientation="horizontal" />
+            </HorizontalScrollView>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
         <LinearLayout
+            android:id="@+id/layout_detail_actions"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
             android:layout_marginTop="20dp"
             android:gravity="center_vertical"
-            app:layout_constraintTop_toBottomOf="@id/sv_photos">
+            android:orientation="horizontal"
+            app:layout_constraintTop_toBottomOf="@id/layout_detail_header"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
 
             <ImageView
                 android:id="@+id/ic_star"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:src="@drawable/ic_star"
-                android:layout_marginEnd="10dp"/>
+                android:layout_marginEnd="10dp"
+                android:src="@drawable/ic_star" />
 
             <ImageView
                 android:id="@+id/ic_share"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:src="@drawable/ic_share"
-                android:layout_marginEnd="10dp"/>
+                android:layout_marginEnd="10dp"
+                android:src="@drawable/ic_share" />
 
             <ImageView
                 android:id="@+id/ic_start"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:src="@drawable/ic_start"
-                android:layout_marginEnd="10dp"/>
+                android:layout_marginEnd="10dp"
+                android:src="@drawable/ic_start" />
 
             <ImageView
                 android:id="@+id/ic_arrive"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:src="@drawable/ic_arrive"
-                android:layout_marginEnd="10dp"/>
+                android:layout_marginEnd="10dp"
+                android:src="@drawable/ic_arrive" />
 
             <ImageView
                 android:id="@+id/ic_select_location"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:src="@drawable/ic_select_location"
-                android:layout_marginEnd="10dp"/>
+                android:layout_marginEnd="10dp"
+                android:src="@drawable/ic_select_location" />
         </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>

@@ -421,6 +421,24 @@ class RouteFragment : Fragment() {
 
     private fun setupMainActivityListeners() {
         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+        mainBinding?.mainSearchLl?.setOnClickListener {
+            val searchEditText = mainBinding?.searchEt ?: return@setOnClickListener
+            if (!isNetworkAvailable()) {
+                searchEditText.clearFocus()
+                hideKeyboard()
+                NetworkErrorDialog(requireContext()) {
+                    searchEditText.requestFocus()
+                }.show()
+                return@setOnClickListener
+            }
+
+            if (!searchEditText.hasFocus()) {
+                searchEditText.requestFocus()
+            } else {
+                enterSearchMode()
+            }
+        }
+
         mainBinding?.searchEt?.apply {
             setOnFocusChangeListener { view, hasFocus ->
                 if (hasFocus) {
@@ -2760,9 +2778,10 @@ class RouteFragment : Fragment() {
 
     private fun showBottomSheet(items: List<SearchItem>) {
         var sheetFragment = childFragmentManager.findFragmentByTag(LocationBottomSheetFragment.TAG) as? LocationBottomSheetFragment
+        val currentBottomSheetFragment = childFragmentManager.findFragmentById(R.id.bottom_sheet_container)
 
         // 상세 화면에서 돌아왔을 때
-        if (sheetFragment == null) {
+        if (sheetFragment == null || currentBottomSheetFragment !== sheetFragment || !sheetFragment.isAdded) {
             sheetFragment = LocationBottomSheetFragment().apply {
                 onItemClick = {
                     isDetailFromRecommend = false
@@ -2790,7 +2809,7 @@ class RouteFragment : Fragment() {
 
             val density = resources.displayMetrics.density
 //            peekHeight = (130 * density).toInt()
-            peekHeight = getScreenHeightPercentage(0.5f)
+            peekHeight = getSearchResultPeekHeight()
 
             expandedOffset = 0
             state = BottomSheetBehavior.STATE_HALF_EXPANDED
@@ -2831,12 +2850,31 @@ class RouteFragment : Fragment() {
         bottomSheetBehavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
             override fun onStateChanged(bottomSheet: View, newState: Int) {
                 mainBinding?.mainBnv?.visibility = View.GONE
+                val mapFragment = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+                val detailFragment = childFragmentManager.findFragmentByTag("DETAIL") as? LocationDetailFragment
+                when (newState) {
+                    BottomSheetBehavior.STATE_HIDDEN -> {
+                        mapFragment?.setMapPadding(0)
+                        mapFragment?.updateButtonTranslation(0f)
+                        detailFragment?.updateCollapsedState(true)
+                    }
+                    BottomSheetBehavior.STATE_COLLAPSED -> {
+                        mapFragment?.setMapPadding(bottomSheetBehavior.peekHeight)
+                        mapFragment?.updateButtonTranslation(bottomSheetBehavior.peekHeight.toFloat())
+                        detailFragment?.updateCollapsedState(true)
+                    }
+                    BottomSheetBehavior.STATE_HALF_EXPANDED,
+                    BottomSheetBehavior.STATE_EXPANDED -> {
+                        detailFragment?.updateCollapsedState(false)
+                    }
+                }
             }
             override fun onSlide(bottomSheet: View, slideOffset: Float) {
                 val mapFragment = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
                 val parentHeight = (bottomSheet.parent as View).height
                 val currentSheetHeight = parentHeight - bottomSheet.top
                 val offset = currentSheetHeight.toFloat()
+                mapFragment?.setMapPadding(currentSheetHeight)
                 mapFragment?.updateButtonTranslation(offset)
             }
         })
@@ -2873,17 +2911,33 @@ class RouteFragment : Fragment() {
 
         if (isFixed) {
             bottomSheetBehavior.apply {
+                isHideable = true
                 isDraggable = false
                 state = BottomSheetBehavior.STATE_COLLAPSED
 //                peekHeight = (130 * resources.displayMetrics.density).toInt()
-                peekHeight = getScreenHeightPercentage(0.16f)
+                peekHeight = getLocationDetailPeekHeight()
             }
         } else {
             bottomSheetBehavior.apply {
+                isHideable = true
                 isDraggable = true
                 state = BottomSheetBehavior.STATE_HALF_EXPANDED
             }
         }
+    }
+
+    private fun getBottomSheetHandlePeekHeight(): Int {
+        return (40 * resources.displayMetrics.density).toInt()
+    }
+
+    private fun getSearchResultPeekHeight(): Int {
+        // Handle + filter row + first result title/open-status row.
+        return (156 * resources.displayMetrics.density).toInt()
+    }
+
+    private fun getLocationDetailPeekHeight(): Int {
+        // Keep title/meta/action row usable while collapsing only the photo section.
+        return (176 * resources.displayMetrics.density).toInt()
     }
 
     private fun showLocationDetail(item: SearchItem) {
@@ -2901,7 +2955,7 @@ class RouteFragment : Fragment() {
         bottomSheetBehavior.apply {
             val density = resources.displayMetrics.density
 //            peekHeight = (130 * density).toInt()
-            peekHeight = getScreenHeightPercentage(0.5f)
+            peekHeight = getLocationDetailPeekHeight()
             isFitToContents = false
             halfExpandedRatio = 0.5f
             expandedOffset = getScreenHeightPercentage(0.5f)
@@ -3346,9 +3400,23 @@ class RouteFragment : Fragment() {
         return (activity as? MainActivity)?.myLocation
     }
 
+    private fun stopRealtimePolling() {
+        realtimePollingJob?.cancel()
+        binding.layoutRouteDetailOverlay.layoutRealtimeRefresh.visibility = View.GONE
+    }
+
+    override fun onHiddenChanged(hidden: Boolean) {
+        super.onHiddenChanged(hidden)
+        if (hidden && _binding != null) {
+            stopRealtimePolling()
+        }
+    }
+
     override fun onPause() {
         super.onPause()
-        (activity as? MainActivity)?.binding?.searchEt?.setOnFocusChangeListener(null)
+        if (_binding != null) {
+            stopRealtimePolling()
+        }
     }
 
     override fun onDestroyView() {
@@ -3368,6 +3436,9 @@ class RouteFragment : Fragment() {
         }
 
         searchJob?.cancel()
+        if (_binding != null) {
+            stopRealtimePolling()
+        }
         super.onDestroyView()
         _binding = null
     }
