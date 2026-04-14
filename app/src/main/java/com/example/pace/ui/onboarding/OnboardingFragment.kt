@@ -56,24 +56,26 @@ class OnboardingFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-//        // [테스트용] 앱 실행 시마다 카카오 세션 종료
-//        UserApiClient.instance.logout { error ->
-//            if (error != null) Log.e("Kakao", "로그아웃 실패")
-//            else Log.d("Kakao", "로그아웃 성공 - 이제 온보딩 화면이 유지됩니다.")
-//        }
-
+        // 해시키 확인 및 로그아웃 로직은 그대로 유지...
         val keyHash = Utility.getKeyHash(requireContext())
         Log.d("KeyHash", keyHash)
 
-        // 1. 로고가 위로 솟구치는 애니메이션
-        binding.ivLargeLogo.animate()
-            .translationY(-500f)
-            .alpha(0f)
-            .setDuration(1000)
-            .withEndAction {
-                // 2. 애니메이션 로고 완전히 제거
-                binding.ivLargeLogo.visibility = View.GONE
+        // DP를 PX로 변환하는 값 계산
+        val density = resources.displayMetrics.density
+        val startY = 340 * density // 시작점 (Top 340dp)
+        val endY = 280 * density   // 도착점 (Top 280dp)
 
+        // 1. 초기 위치 강제 설정 (XML에서 어긋나 있을 경우를 대비)
+        binding.ivLargeLogo.y = startY
+        binding.ivLargeLogo.alpha = 1f
+
+        // 2. 애니메이션 실행
+        binding.ivLargeLogo.animate()
+            .y(endY)               // 절대 좌표 280dp 지점으로 이동
+            .alpha(0f)             // 위로 올라가면서 서서히 사라짐
+            .setDuration(1000)     // 1초 동안 진행
+            .setInterpolator(android.view.animation.AccelerateDecelerateInterpolator()) // 부드러운 가감속
+            .withEndAction {
                 setupOnboarding()
             }
             .start()
