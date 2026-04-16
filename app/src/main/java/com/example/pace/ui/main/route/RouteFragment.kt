@@ -3526,6 +3526,12 @@ class RouteFragment : Fragment() {
     private fun saveRecentSearch(query: String){
         searchViewModel.insertSearch(query)
     }
+
+    fun dismissSearchInputFocus() {
+        hideKeyboard()
+        mainBinding?.searchEt?.clearFocus()
+    }
+
     private fun saveRecentPlace(item: SearchItem) {
         val recentPlace = RecentPlace(
             placeId = item.placeId,

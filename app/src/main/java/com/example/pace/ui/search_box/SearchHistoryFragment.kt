@@ -28,6 +28,10 @@ class SearchHistoryFragment : Fragment() {
     }
 
     var onRouteOptionClick: ((isMyLocation: Boolean) -> Unit)? = null
+    private val recentSearchFragment = RecentSearchFragment()
+    private val recentPlaceFragment = RecentPlaceFragment()
+    private val recentRouteFragment = RecentRouteFragment()
+    private val bookmarkPlaceFragment = BookmarkPlaceFragment()
     private var lastRouteHeaderState: Boolean = false
     private var lastIsScheduleMode: Boolean = false
     private var pendingChipsVisible: Boolean = true
@@ -47,6 +51,7 @@ class SearchHistoryFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         setupChipListeners()
+        installFocusDismissTouches(binding.root, parentFragment as? RouteFragment)
         observeMyPlaces()
         applyPendingStates()
     }
@@ -59,10 +64,10 @@ class SearchHistoryFragment : Fragment() {
             lastCheckedChipId = checkedId
 
             when (checkedIds.firstOrNull()) {
-                R.id.chip_recent_search -> replaceChildFragment(RecentSearchFragment())
-                R.id.chip_recent_place -> replaceChildFragment(RecentPlaceFragment())
-                R.id.chip_recent_route -> replaceChildFragment(RecentRouteFragment())
-                R.id.chip_saved -> replaceChildFragment(BookmarkPlaceFragment())
+                R.id.chip_recent_search -> showChildFragment(recentSearchFragment, "RECENT_SEARCH")
+                R.id.chip_recent_place -> showChildFragment(recentPlaceFragment, "RECENT_PLACE")
+                R.id.chip_recent_route -> showChildFragment(recentRouteFragment, "RECENT_ROUTE")
+                R.id.chip_saved -> showChildFragment(bookmarkPlaceFragment, "BOOKMARK_PLACE")
             }
         }
 
@@ -148,10 +153,20 @@ class SearchHistoryFragment : Fragment() {
             updateChipsForScheduleMode(lastRouteHeaderState, lastIsScheduleMode)
         }
     }
-    private fun replaceChildFragment(fragment: Fragment) {
-        childFragmentManager.beginTransaction()
-            .replace(R.id.search_history_fcv, fragment)
-            .commitAllowingStateLoss()
+    private fun showChildFragment(fragment: Fragment, tag: String) {
+        val transaction = childFragmentManager.beginTransaction()
+
+        childFragmentManager.fragments.forEach { child ->
+            transaction.hide(child)
+        }
+
+        if (fragment.isAdded) {
+            transaction.show(fragment)
+        } else {
+            transaction.add(R.id.search_history_fcv, fragment, tag)
+        }
+
+        transaction.commitAllowingStateLoss()
     }
 
     fun setChipsVisibility(isVisible: Boolean) {
@@ -173,7 +188,24 @@ class SearchHistoryFragment : Fragment() {
         pendingForcePlaceFilter = true
         if (_binding != null) {
             binding.chipRecentPlace.isChecked = true
-            replaceChildFragment(RecentPlaceFragment())
+            showChildFragment(recentPlaceFragment, "RECENT_PLACE")
+        }
+    }
+
+    private fun installFocusDismissTouches(view: View, routeFragment: RouteFragment?) {
+        if (view.id != R.id.search_history_fcv) {
+            view.setOnTouchListener { _, event ->
+                if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
+                    routeFragment?.dismissSearchInputFocus()
+                }
+                false
+            }
+        }
+
+        if (view is ViewGroup) {
+            for (index in 0 until view.childCount) {
+                installFocusDismissTouches(view.getChildAt(index), routeFragment)
+            }
         }
     }
 
@@ -192,12 +224,12 @@ class SearchHistoryFragment : Fragment() {
             // 루트 헤더가 보일 때 (경로 검색 중) -> 최근 장소 고정
             binding.chipRecentSearch.visibility = View.GONE
             binding.chipRecentPlace.isChecked = true
-            replaceChildFragment(RecentPlaceFragment())
+            showChildFragment(recentPlaceFragment, "RECENT_PLACE")
         } else {
             // 루트 헤더가 안 보일 때 (일반 검색 중) -> 최근 검색 고정
             binding.chipRecentSearch.visibility = View.VISIBLE
             binding.chipRecentSearch.isChecked = true
-            replaceChildFragment(RecentSearchFragment())
+            showChildFragment(recentSearchFragment, "RECENT_SEARCH")
         }
     }
 

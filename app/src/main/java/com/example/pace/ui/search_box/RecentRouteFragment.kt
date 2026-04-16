@@ -9,16 +9,13 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.PaceApplication
-import com.example.pace.data.db.SearchDatabase
-import com.example.pace.data.repository.SearchRepository
 import com.example.pace.data.viewmodel.SearchViewModel
 import com.example.pace.data.viewmodel.SearchViewModelFactory
 import com.example.pace.databinding.FragmentRecentRouteBinding
 import com.example.pace.ui.main.route.RouteFragment
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class RecentRouteFragment : Fragment() {
@@ -36,40 +33,34 @@ class RecentRouteFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
         setupRecyclerView()
         observeData()
-
         searchViewModel.deleteExpiredData()
     }
 
     private fun setupRecyclerView() {
-
         routeAdapter = RecentRouteAdapter(
             onItemClick = { route ->
                 (parentFragment?.parentFragment as? RouteFragment)?.handleRecentRouteClick(route)
             },
             onDeleteClick = { route ->
                 searchViewModel.deleteRecentRoute(route)
+                UndoSnackbar.show(binding.root, "경로가 삭제되었습니다.") {
+                    searchViewModel.insertRecentRoute(route)
+                }
+            },
+            onSwipeStart = {
+                (parentFragment?.parentFragment as? RouteFragment)?.dismissSearchInputFocus()
             }
         )
-        val touchHelper = CommonSwipeTouchHelper(
-            adapter = routeAdapter,
-            clampWidthDp = 60
-        )
-        val itemTouchHelper = ItemTouchHelper(touchHelper)
 
-        routeAdapter.setHelper(touchHelper)
         binding.rvRecentRoute.apply {
             adapter = routeAdapter
             layoutManager = LinearLayoutManager(context)
-
-            itemTouchHelper.attachToRecyclerView(this)
-
-            addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
-                override fun onScrollStateChanged(recyclerView: androidx.recyclerview.widget.RecyclerView, newState: Int) {
-                    if (newState == androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_DRAGGING) {
-                        touchHelper.closeAllMenus(this@apply)
+            addOnScrollListener(object : RecyclerView.OnScrollListener() {
+                override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                    if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
+                        (parentFragment?.parentFragment as? RouteFragment)?.dismissSearchInputFocus()
                     }
                 }
             })
@@ -83,15 +74,6 @@ class RecentRouteFragment : Fragment() {
                     routeAdapter.submitList(routes)
                 }
             }
-        }
-    }
-
-    private fun cleanUpOldRoutes() {
-        val thirtyDaysInMillis = 30L * 24 * 60 * 60 * 1000
-        val threshold = System.currentTimeMillis() - thirtyDaysInMillis
-
-        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-            SearchDatabase.getDatabase(requireContext()).recentRouteDao().deleteOldRoutes(threshold)
         }
     }
 

@@ -3,6 +3,7 @@ package com.example.pace.ui.search_box
 import android.content.res.Resources
 import android.graphics.Canvas
 import android.util.DisplayMetrics
+import android.util.Log
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
@@ -66,6 +67,7 @@ class CommonSwipeTouchHelper(
                 translationX = if (dX < 0) max(dX, -clampWidth) else 0f
                 currentScrollX = translationX
                 swipeView.translationX = translationX
+                Log.d("CommonSwipeTouchHelper", "dragging pos=${viewHolder.bindingAdapterPosition}, dX=$dX, translationX=$translationX")
             } else {
                 // 손을 뗐을 때 고정 로직
                 val position = viewHolder.bindingAdapterPosition
@@ -83,6 +85,7 @@ class CommonSwipeTouchHelper(
                     0f
                 }
                 swipeView.translationX = translationX
+                Log.d("CommonSwipeTouchHelper", "settled pos=$position, currentScrollX=$currentScrollX, translationX=$translationX")
             }
         }
     }
@@ -91,6 +94,7 @@ class CommonSwipeTouchHelper(
 
     // 외부에서 메뉴를 닫을 때 사용
     fun closeSwipedMenu(recyclerView: RecyclerView) {
+        Log.d("CommonSwipeTouchHelper", "closeSwipedMenu childCount=${recyclerView.childCount}")
         for (i in 0 until recyclerView.childCount) {
             val child = recyclerView.getChildAt(i)
             val holder = recyclerView.getChildViewHolder(child)
@@ -103,6 +107,7 @@ class CommonSwipeTouchHelper(
     }
 
     fun closeAllMenus(recyclerView: RecyclerView) {
+        Log.d("CommonSwipeTouchHelper", "closeAllMenus childCount=${recyclerView.childCount}")
         for (i in 0 until recyclerView.childCount) {
             val child = recyclerView.getChildAt(i)
             val holder = recyclerView.getChildViewHolder(child)
@@ -122,9 +127,11 @@ class CommonSwipeTouchHelper(
             val child = recyclerView.getChildAt(i)
             val holder = recyclerView.getChildViewHolder(child)
             if (holder is SwipeableViewHolder && holder.getSwipeView().translationX != 0f) {
+                Log.d("CommonSwipeTouchHelper", "isAnyMenuOpened=true pos=${holder.bindingAdapterPosition}, translationX=${holder.getSwipeView().translationX}")
                 return true
             }
         }
+        Log.d("CommonSwipeTouchHelper", "isAnyMenuOpened=false")
         return false
     }
 

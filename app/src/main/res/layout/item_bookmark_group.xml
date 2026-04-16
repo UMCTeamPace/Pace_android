@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<com.daimajia.swipe.SwipeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/item_bookmark_group"
     android:layout_width="match_parent"
     android:layout_height="wrap_content">
 
     <LinearLayout
-        android:id="@+id/view_background"
-        android:layout_width="wrap_content"
+        android:id="@+id/right_bottom_wrapper"
+        android:layout_width="120dp"
         android:layout_height="match_parent"
         android:layout_gravity="end"
         android:orientation="horizontal">
@@ -24,7 +24,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:src="@drawable/ic_edit"/>
+                android:src="@drawable/ic_edit" />
         </FrameLayout>
 
         <FrameLayout
@@ -39,20 +39,19 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:src="@drawable/ic_delete_history"/>
+                android:src="@drawable/ic_delete_history" />
         </FrameLayout>
     </LinearLayout>
-
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/view_foreground"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:minHeight="48dp"
         android:background="@color/white"
-        android:paddingHorizontal="20dp"
         android:clickable="true"
-        android:focusable="true">
+        android:focusable="true"
+        android:minHeight="48dp"
+        android:paddingHorizontal="20dp">
 
         <FrameLayout
             android:id="@+id/iv_group_icon"
@@ -73,7 +72,6 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:src="@drawable/ic_bookmark_line" />
-
         </FrameLayout>
 
         <TextView
@@ -81,11 +79,10 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
-            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
             android:text="내 장소"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
             android:textColor="@color/text_primary"
             android:textSize="14sp"
-
             app:layout_constraintBottom_toBottomOf="@+id/iv_group_icon"
             app:layout_constraintEnd_toStartOf="@id/tv_place_count"
             app:layout_constraintStart_toEndOf="@+id/iv_group_icon"
@@ -106,9 +103,8 @@
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:background="@color/gray_200"
             android:layout_marginTop="14dp"
+            android:background="@color/gray_200"
             app:layout_constraintTop_toBottomOf="@+id/iv_group_icon" />
-
     </androidx.constraintlayout.widget.ConstraintLayout>
-</FrameLayout>
+</com.daimajia.swipe.SwipeLayout>

@@ -1,26 +1,50 @@
 package com.example.pace.ui.search_box
 
-import com.example.pace.R
 import android.view.LayoutInflater
-import android.view.MotionEvent
-import android.view.View
+import android.os.Handler
+import android.os.Looper
 import android.view.ViewGroup
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.DiffUtil
-import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.daimajia.swipe.SwipeLayout
+import com.daimajia.swipe.adapters.RecyclerSwipeAdapter
+import com.daimajia.swipe.util.Attributes
+import com.daimajia.swipe.SimpleSwipeListener
+import com.example.pace.R
 import com.example.pace.data.model.RecentHistoryItem
 import com.example.pace.databinding.ItemRecentHistoryBinding
 
 class RecentHistoryAdapter(
     private val onItemClick: (RecentHistoryItem) -> Unit,
-    private val onDeleteClick: (RecentHistoryItem) -> Unit
-) : ListAdapter<RecentHistoryItem, RecentHistoryAdapter.ViewHolder>(DiffCallback) {
+    private val onDeleteClick: (RecentHistoryItem) -> Unit,
+    private val onSwipeStart: () -> Unit = {}
+) : RecyclerSwipeAdapter<RecentHistoryAdapter.ViewHolder>() {
 
-    private var touchHelper: CommonSwipeTouchHelper? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var items: List<RecentHistoryItem> = emptyList()
 
-    fun setHelper(helper: CommonSwipeTouchHelper) {
-        this.touchHelper = helper
+    fun submitList(newItems: List<RecentHistoryItem>) {
+        val diffResult = DiffUtil.calculateDiff(
+            object : DiffUtil.Callback() {
+                override fun getOldListSize(): Int = items.size
+
+                override fun getNewListSize(): Int = newItems.size
+
+                override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+                    val oldItem = items[oldItemPosition]
+                    val newItem = newItems[newItemPosition]
+                    return oldItem.mainText == newItem.mainText &&
+                        oldItem.timestamp == newItem.timestamp
+                }
+
+                override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+                    return items[oldItemPosition] == newItems[newItemPosition]
+                }
+            }
+        )
+
+        items = newItems.toList()
+        diffResult.dispatchUpdatesTo(this)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -29,67 +53,52 @@ class RecentHistoryAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.bind(getItem(position))
+        val item = items[position]
+        holder.bind(item)
+
+        mItemManger.bindView(holder.itemView, position)
+        setMode(Attributes.Mode.Single)
+
+        holder.binding.ivDelete.setOnClickListener {
+            mItemManger.closeItem(position)
+            mainHandler.postDelayed({
+                onDeleteClick(item)
+            }, 150)
+        }
+
+        holder.binding.viewForeground.setOnClickListener {
+            if (holder.binding.root.openStatus == SwipeLayout.Status.Close) {
+                onItemClick(item)
+            } else {
+                mItemManger.closeItem(position)
+            }
+        }
     }
 
-    inner class ViewHolder(private val binding: ItemRecentHistoryBinding)
-        : RecyclerView.ViewHolder(binding.root), SwipeableViewHolder {
-        override fun getSwipeView(): ConstraintLayout = binding.viewForeground
-        override fun setSwiped(isSwiped: Boolean) {
-            // 필요하면 여기에 배경색 변경 등 추가 로직 작성
+    override fun getItemCount(): Int = items.size
+
+    override fun getSwipeLayoutResourceId(position: Int): Int = R.id.item_recent_history
+
+    inner class ViewHolder(val binding: ItemRecentHistoryBinding) : RecyclerView.ViewHolder(binding.root) {
+        init {
+            binding.root.showMode = SwipeLayout.ShowMode.LayDown
+            binding.root.addDrag(SwipeLayout.DragEdge.Right, binding.rightBottomWrapper)
+            binding.root.addSwipeListener(object : SimpleSwipeListener() {
+                override fun onStartOpen(layout: SwipeLayout?) {
+                    onSwipeStart()
+                }
+            })
         }
 
         fun bind(item: RecentHistoryItem) {
+            binding.root.close(false)
             binding.tvHistoryText.text = item.mainText
-
             val iconRes = if (item.type == RecentHistoryItem.TYPE_SEARCH_TEXT) {
-                R.drawable.ic_history_search// 시계 아이콘
+                R.drawable.ic_history_search
             } else {
-                R.drawable.ic_history_place // 위치 아이콘
+                R.drawable.ic_history_place
             }
             binding.ivHistoryIcon.setImageResource(iconRes)
-
-            binding.viewForeground.translationX = 0f
-
-            binding.viewForeground.setOnClickListener {
-                val recyclerView = itemView.parent as? RecyclerView ?: return@setOnClickListener
-
-                // [리팩토링] 메뉴가 열려있다면 닫고, 닫혀있다면 클릭 이벤트 수행
-                if (touchHelper?.isAnyMenuOpened(recyclerView) == true) {
-                    touchHelper?.closeAllMenus(recyclerView)
-                } else {
-                    onItemClick(item)
-                }
-            }
-
-            binding.ivDelete.setOnTouchListener { _, event ->
-                val recyclerView = itemView.parent as? RecyclerView
-                when (event.actionMasked) {
-                    MotionEvent.ACTION_DOWN -> {
-                        recyclerView?.requestDisallowInterceptTouchEvent(true)
-                        true
-                    }
-                    MotionEvent.ACTION_UP -> {
-                        recyclerView?.requestDisallowInterceptTouchEvent(false)
-                        onDeleteClick(item)
-                        true
-                    }
-                    MotionEvent.ACTION_CANCEL -> {
-                        recyclerView?.requestDisallowInterceptTouchEvent(false)
-                        true
-                    }
-                    else -> true
-                }
-            }
-        }
-    }
-
-    companion object {
-        private val DiffCallback = object : DiffUtil.ItemCallback<RecentHistoryItem>() {
-            override fun areItemsTheSame(oldItem: RecentHistoryItem, newItem: RecentHistoryItem): Boolean {
-                return (oldItem.mainText == newItem.mainText) && (oldItem.timestamp == newItem.timestamp)
-            }
-            override fun areContentsTheSame(oldItem: RecentHistoryItem, newItem: RecentHistoryItem) = oldItem == newItem
         }
     }
 }

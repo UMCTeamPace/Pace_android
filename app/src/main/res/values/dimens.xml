@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="undo_snackbar_horizontal_margin">20dp</dimen>
+    <dimen name="undo_snackbar_bottom_margin">15dp</dimen>
+</resources>
