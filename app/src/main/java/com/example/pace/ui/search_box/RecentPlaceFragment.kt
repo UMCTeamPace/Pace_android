@@ -9,12 +9,10 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.PaceApplication
-import com.example.pace.data.db.SearchDatabase
 import com.example.pace.data.model.RecentHistoryItem
-import com.example.pace.data.repository.SearchRepository
 import com.example.pace.data.viewmodel.SearchViewModel
 import com.example.pace.data.viewmodel.SearchViewModelFactory
 import com.example.pace.databinding.FragmentRecentPlaceBinding
@@ -37,7 +35,10 @@ class RecentPlaceFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
+        binding.root.isFocusable = false
+        binding.root.isFocusableInTouchMode = false
+        binding.rvRecentPlace.isFocusable = false
+        binding.rvRecentPlace.isFocusableInTouchMode = false
         setupRecyclerView()
         observeData()
     }
@@ -48,27 +49,30 @@ class RecentPlaceFragment : Fragment() {
                 (parentFragment?.parentFragment as? RouteFragment)?.handleHistoryItemClick(item)
             },
             onDeleteClick = { item ->
-                searchViewModel.deleteHistoryItem(item) }
+                searchViewModel.deleteHistoryItem(item)
+                UndoSnackbar.show(binding.root, "장소가 삭제되었습니다.") {
+                    when (item.type) {
+                        RecentHistoryItem.TYPE_SEARCH_TEXT -> {
+                            searchViewModel.insertSearch(item.searchEntity?.query ?: item.mainText)
+                        }
+                        RecentHistoryItem.TYPE_PLACE -> {
+                            item.placeEntity?.let(searchViewModel::insertPlace)
+                        }
+                        }
+                    }
+                },
+            onSwipeStart = {
+                (parentFragment?.parentFragment as? RouteFragment)?.dismissSearchInputFocus()
+            }
         )
-
-        val touchHelper = CommonSwipeTouchHelper(
-            adapter = historyAdapter,
-            clampWidthDp = 60
-        )
-        val itemTouchHelper = ItemTouchHelper(touchHelper)
-
-        historyAdapter.setHelper(touchHelper)
 
         binding.rvRecentPlace.apply {
             adapter = historyAdapter
             layoutManager = LinearLayoutManager(context)
-
-            itemTouchHelper.attachToRecyclerView(this)
-
-            addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
-                override fun onScrollStateChanged(recyclerView: androidx.recyclerview.widget.RecyclerView, newState: Int) {
-                    if (newState == androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_DRAGGING) {
-                        touchHelper.closeAllMenus(this@apply)
+            addOnScrollListener(object : RecyclerView.OnScrollListener() {
+                override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                    if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
+                        (parentFragment?.parentFragment as? RouteFragment)?.dismissSearchInputFocus()
                     }
                 }
             })

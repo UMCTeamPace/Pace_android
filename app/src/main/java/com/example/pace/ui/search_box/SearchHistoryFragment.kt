@@ -28,12 +28,18 @@ class SearchHistoryFragment : Fragment() {
     }
 
     var onRouteOptionClick: ((isMyLocation: Boolean) -> Unit)? = null
+    private val recentSearchFragment = RecentSearchFragment()
+    private val recentPlaceFragment = RecentPlaceFragment()
+    private val recentRouteFragment = RecentRouteFragment()
+    private val bookmarkPlaceFragment = BookmarkPlaceFragment()
     private var lastRouteHeaderState: Boolean = false
     private var lastIsScheduleMode: Boolean = false
     private var pendingChipsVisible: Boolean = true
     private var pendingRouteOptionsVisible: Boolean = false
     private var pendingForcePlaceFilter: Boolean = false
     private var lastCheckedChipId: Int = View.NO_ID
+    private var chipScrollStartX = 0f
+    private var chipScrollDismissed = false
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -54,19 +60,51 @@ class SearchHistoryFragment : Fragment() {
     private fun setupChipListeners() {
         val parent = parentFragment as? RouteFragment
 
+        binding.root.isFocusable = false
+        binding.root.isFocusableInTouchMode = false
+        binding.searchChipScrollView.isFocusable = false
+        binding.searchChipScrollView.isFocusableInTouchMode = false
+        binding.chipGroup.isFocusable = false
+        binding.chipGroup.isFocusableInTouchMode = false
+        binding.searchHistoryFcv.isFocusable = false
+        binding.searchHistoryFcv.isFocusableInTouchMode = false
+
+        val touchSlop = android.view.ViewConfiguration.get(requireContext()).scaledTouchSlop
+        binding.searchChipScrollView.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    chipScrollStartX = event.x
+                    chipScrollDismissed = false
+                }
+                android.view.MotionEvent.ACTION_MOVE -> {
+                    if (!chipScrollDismissed && kotlin.math.abs(event.x - chipScrollStartX) > touchSlop) {
+                        parent?.dismissSearchInputFocus()
+                        chipScrollDismissed = true
+                    }
+                }
+                android.view.MotionEvent.ACTION_UP,
+                android.view.MotionEvent.ACTION_CANCEL -> {
+                    chipScrollDismissed = false
+                }
+            }
+            false
+        }
+
         binding.chipGroup.setOnCheckedStateChangeListener { group, checkedIds ->
             val checkedId = checkedIds.firstOrNull() ?: return@setOnCheckedStateChangeListener
+            if (lastCheckedChipId == checkedId) return@setOnCheckedStateChangeListener
             lastCheckedChipId = checkedId
 
             when (checkedIds.firstOrNull()) {
-                R.id.chip_recent_search -> replaceChildFragment(RecentSearchFragment())
-                R.id.chip_recent_place -> replaceChildFragment(RecentPlaceFragment())
-                R.id.chip_recent_route -> replaceChildFragment(RecentRouteFragment())
-                R.id.chip_saved -> replaceChildFragment(BookmarkPlaceFragment())
+                R.id.chip_recent_search -> showChildFragment(recentSearchFragment, "RECENT_SEARCH")
+                R.id.chip_recent_place -> showChildFragment(recentPlaceFragment, "RECENT_PLACE")
+                R.id.chip_recent_route -> showChildFragment(recentRouteFragment, "RECENT_ROUTE")
+                R.id.chip_saved -> showChildFragment(bookmarkPlaceFragment, "BOOKMARK_PLACE")
             }
         }
 
         binding.chipSetting.setOnClickListener {
+            parent?.dismissSearchInputFocus()
             (parentFragment as? RouteFragment)?.enterBookmarkMode()
         }
 
@@ -79,6 +117,7 @@ class SearchHistoryFragment : Fragment() {
         }
 
         binding.chipHome.setOnClickListener {
+            parent?.dismissSearchInputFocus()
             val homePlace = viewModel.homePlace.value
             if (homePlace == null) {
                 parent?.enterBookmarkMode()
@@ -88,11 +127,34 @@ class SearchHistoryFragment : Fragment() {
         }
 
         binding.chipWork.setOnClickListener {
+            parent?.dismissSearchInputFocus()
             val workPlace = viewModel.workPlace.value
             if (workPlace == null) {
                 parent?.enterBookmarkMode()
             } else {
                 parent?.handleMyPlaceClick(workPlace)
+            }
+        }
+
+        listOf(
+            binding.chipRecentSearch,
+            binding.chipRecentPlace,
+            binding.chipRecentRoute,
+            binding.chipSaved,
+            binding.chipSetting
+        ).forEach { chip ->
+            chip.isFocusable = false
+            chip.isFocusableInTouchMode = false
+        }
+
+        listOf(
+            binding.chipRecentSearch,
+            binding.chipRecentPlace,
+            binding.chipRecentRoute,
+            binding.chipSaved
+        ).forEach { chip ->
+            chip.setOnClickListener {
+                parent?.dismissSearchInputFocus()
             }
         }
     }
@@ -129,6 +191,8 @@ class SearchHistoryFragment : Fragment() {
 
         updateChipsForScheduleMode(lastRouteHeaderState, lastIsScheduleMode)
 
+        ensureSelectedChildFragment()
+
         if (pendingForcePlaceFilter) {
             binding.chipRecentPlace.isChecked = true
             pendingForcePlaceFilter = false
@@ -148,10 +212,44 @@ class SearchHistoryFragment : Fragment() {
             updateChipsForScheduleMode(lastRouteHeaderState, lastIsScheduleMode)
         }
     }
-    private fun replaceChildFragment(fragment: Fragment) {
-        childFragmentManager.beginTransaction()
-            .replace(R.id.search_history_fcv, fragment)
-            .commitAllowingStateLoss()
+    private fun showChildFragment(fragment: Fragment, tag: String) {
+        val targetFragment = childFragmentManager.findFragmentByTag(tag) ?: fragment
+        if (targetFragment.isAdded && !targetFragment.isHidden) return
+
+        val transaction = childFragmentManager.beginTransaction()
+
+        childFragmentManager.fragments.forEach { child ->
+            transaction.hide(child)
+        }
+
+        if (targetFragment.isAdded) {
+            transaction.show(targetFragment)
+        } else {
+            transaction.add(R.id.search_history_fcv, targetFragment, tag)
+        }
+
+        transaction.commitNowAllowingStateLoss()
+    }
+
+    private fun ensureSelectedChildFragment() {
+        when (binding.chipGroup.checkedChipId) {
+            R.id.chip_recent_search -> {
+                lastCheckedChipId = R.id.chip_recent_search
+                showChildFragment(recentSearchFragment, "RECENT_SEARCH")
+            }
+            R.id.chip_recent_place -> {
+                lastCheckedChipId = R.id.chip_recent_place
+                showChildFragment(recentPlaceFragment, "RECENT_PLACE")
+            }
+            R.id.chip_recent_route -> {
+                lastCheckedChipId = R.id.chip_recent_route
+                showChildFragment(recentRouteFragment, "RECENT_ROUTE")
+            }
+            R.id.chip_saved -> {
+                lastCheckedChipId = R.id.chip_saved
+                showChildFragment(bookmarkPlaceFragment, "BOOKMARK_PLACE")
+            }
+        }
     }
 
     fun setChipsVisibility(isVisible: Boolean) {
@@ -173,7 +271,6 @@ class SearchHistoryFragment : Fragment() {
         pendingForcePlaceFilter = true
         if (_binding != null) {
             binding.chipRecentPlace.isChecked = true
-            replaceChildFragment(RecentPlaceFragment())
         }
     }
 
@@ -191,13 +288,19 @@ class SearchHistoryFragment : Fragment() {
         if (isRouteHeaderVisible) {
             // 루트 헤더가 보일 때 (경로 검색 중) -> 최근 장소 고정
             binding.chipRecentSearch.visibility = View.GONE
-            binding.chipRecentPlace.isChecked = true
-            replaceChildFragment(RecentPlaceFragment())
+            if (binding.chipRecentPlace.id != lastCheckedChipId) {
+                binding.chipRecentPlace.isChecked = true
+            } else {
+                showChildFragment(recentPlaceFragment, "RECENT_PLACE")
+            }
         } else {
             // 루트 헤더가 안 보일 때 (일반 검색 중) -> 최근 검색 고정
             binding.chipRecentSearch.visibility = View.VISIBLE
-            binding.chipRecentSearch.isChecked = true
-            replaceChildFragment(RecentSearchFragment())
+            if (binding.chipRecentSearch.id != lastCheckedChipId) {
+                binding.chipRecentSearch.isChecked = true
+            } else {
+                showChildFragment(recentSearchFragment, "RECENT_SEARCH")
+            }
         }
     }
 

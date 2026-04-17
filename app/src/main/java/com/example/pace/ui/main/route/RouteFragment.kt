@@ -139,6 +139,7 @@ class RouteFragment : Fragment() {
     private var currentMapAddress: String? = ""
     private var currentMapCategory: String? = ""
     private var currentMyLocation: LatLng? = null
+    private var mapSelectRequestSeq: Long = 0L
     private var earlyArriveTime: Int = -1
     private var currentSortOption: RouteSortOption = RouteSortOption.BEST
 
@@ -158,6 +159,7 @@ class RouteFragment : Fragment() {
     private var temporarySearchCenter: LatLng? = null
     private var isPoiMode = false
     private var isPlaceDetailSheetLocked = false
+    private var isPlaceDetailCompact = false
 
     //백엔드 경로 탐색을 위해 여기다가 placeId를 좌표로 api 검색해서 주기
     private var startLatLng: LatLng? = null
@@ -196,6 +198,10 @@ class RouteFragment : Fragment() {
         val mapFragment = MapFragment()
 
         mapFragment.onMapTouched = {
+            if (binding.layoutMapSelectOverlay.root.visibility == View.VISIBLE) {
+                selectedOnMapPlace = null
+                updateMapSelectConfirmEnabled(false)
+            }
             if (::bottomSheetBehavior.isInitialized
                 && bottomSheetBehavior.state != BottomSheetBehavior.STATE_HIDDEN
                 && bottomSheetBehavior.state != BottomSheetBehavior.STATE_COLLAPSED) {
@@ -754,6 +760,9 @@ class RouteFragment : Fragment() {
     // 출발/도착 눌렀을 때 (디테일에서)
     fun onLocationSelected(itemName: String, placeId: String, isStart: Boolean) {
         exitPoiMode()
+        isPlaceDetailSheetLocked = false
+        isPlaceDetailCompact = false
+
         val detailFrag = childFragmentManager.findFragmentByTag("DETAIL")
         if (detailFrag != null) {
             childFragmentManager.popBackStackImmediate("DETAIL", androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
@@ -790,6 +799,7 @@ class RouteFragment : Fragment() {
 
         if (::bottomSheetBehavior.isInitialized) {
             bottomSheetBehavior.isHideable = true
+            bottomSheetBehavior.isDraggable = true
             bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
             bottomSheetBehavior.peekHeight = 0
         }
@@ -954,6 +964,17 @@ class RouteFragment : Fragment() {
         }
     }
 
+    private fun updateMapSelectConfirmEnabled(enabled: Boolean) {
+        binding.layoutMapSelectOverlay.btnMapSelectConfirm.isEnabled = enabled
+        binding.layoutMapSelectOverlay.btnMapSelectConfirm.backgroundTintList =
+            ColorStateList.valueOf(
+                androidx.core.content.ContextCompat.getColor(
+                    requireContext(),
+                    if (enabled) R.color.primary_500 else R.color.text_disabled
+                )
+            )
+    }
+
     private fun setupRouteDetailListeners() {
         binding.layoutRouteDetailOverlay.btnRouteDetailBackDetail.setOnClickListener {
             handleCustomBackClick()
@@ -1067,6 +1088,8 @@ class RouteFragment : Fragment() {
 
         binding.layoutMapSelectOverlay.root.visibility = View.VISIBLE
         binding.layoutMapSelectOverlay.root.bringToFront()
+        selectedOnMapPlace = null
+        updateMapSelectConfirmEnabled(false)
 
         if(isBookmarkSearchMode == true){
             binding.layoutMapSelectOverlay.tvMapSelectInfo.text = "일정 선택"
@@ -1364,7 +1387,7 @@ class RouteFragment : Fragment() {
         }
 
         binding.routeSearchFcv.visibility = View.VISIBLE
-        transaction.commitAllowingStateLoss()
+        transaction.commitNowAllowingStateLoss()
     }
 
     private fun selectCurrentLocation() {
@@ -2348,6 +2371,8 @@ class RouteFragment : Fragment() {
 
                     binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
                     mainBinding?.mainToolbar?.visibility = View.GONE
+                    mainBinding?.mainBnv?.visibility = View.VISIBLE
+                    mainBinding?.mainBackIv?.visibility = View.GONE
 
                     historyFragment.setRouteOptionsVisible(false)
                 }
@@ -2480,6 +2505,9 @@ class RouteFragment : Fragment() {
     fun updateAddressFromMapCenter(latLng: LatLng) {
         currentMapCenter = latLng
         if (binding.layoutMapSelectOverlay.root.visibility != View.VISIBLE) return
+        val requestSeq = ++mapSelectRequestSeq
+        selectedOnMapPlace = null
+        updateMapSelectConfirmEnabled(false)
 
         val geocoder = android.location.Geocoder(requireContext(), Locale.KOREAN)
 
@@ -2499,6 +2527,7 @@ class RouteFragment : Fragment() {
 
                     placesClient.searchNearby(searchNearbyRequest)
                         .addOnSuccessListener { response ->
+                            if (_binding == null || requestSeq != mapSelectRequestSeq) return@addOnSuccessListener
                             val place = response.places.firstOrNull()
 
                             val name = place?.name ?: addresses?.firstOrNull()?.featureName ?: "지정된 위치"
@@ -2516,13 +2545,20 @@ class RouteFragment : Fragment() {
                                 binding.layoutMapSelectOverlay.tvMapSelectName.text = addresses?.firstOrNull()?.featureName ?: "지정된 위치"
                                 binding.layoutMapSelectOverlay.tvMapSelectInfo.text = "지정된 위치 · ${calculateDistance(latLng)} · $fullAddress"
                             }
+                            updateMapSelectConfirmEnabled(true)
                         }
                         .addOnFailureListener {
+                            if (_binding == null || requestSeq != mapSelectRequestSeq) return@addOnFailureListener
                             it.printStackTrace()
+                            updateMapSelectConfirmEnabled(false)
                         }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+                launch(Dispatchers.Main) {
+                    if (_binding == null || requestSeq != mapSelectRequestSeq) return@launch
+                    updateMapSelectConfirmEnabled(false)
+                }
             }
         }
     }
@@ -3094,10 +3130,15 @@ class RouteFragment : Fragment() {
                 mainBinding?.mainBnv?.visibility = View.GONE
                 val mapFragment = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
                 val detailFragment = childFragmentManager.findFragmentByTag("DETAIL") as? LocationDetailFragment
-                if (isPlaceDetailSheetLocked && newState != BottomSheetBehavior.STATE_HALF_EXPANDED) {
+                val expectedLockedState = if (isPlaceDetailCompact) {
+                    BottomSheetBehavior.STATE_COLLAPSED
+                } else {
+                    BottomSheetBehavior.STATE_HALF_EXPANDED
+                }
+                if (isPlaceDetailSheetLocked && newState != expectedLockedState) {
                     bottomSheet.post {
                         if (::bottomSheetBehavior.isInitialized) {
-                            bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
+                            bottomSheetBehavior.state = expectedLockedState
                         }
                     }
                     return
@@ -3170,14 +3211,26 @@ class RouteFragment : Fragment() {
     fun setBottomSheetFixed(isFixed: Boolean) {
         if (!::bottomSheetBehavior.isInitialized) return
         if (isPlaceDetailSheetLocked) {
-            bottomSheetBehavior.apply {
-                peekHeight = getLocationDetailPeekHeight()
-                isFitToContents = false
-                halfExpandedRatio = 0.5f
-                expandedOffset = getScreenHeightPercentage(0.5f)
-                isHideable = false
-                isDraggable = false
-                state = BottomSheetBehavior.STATE_HALF_EXPANDED
+            if (isFixed) {
+                isPlaceDetailCompact = true
+                bottomSheetBehavior.apply {
+                    peekHeight = getLocationDetailCompactPeekHeight()
+                    isFitToContents = true
+                    isHideable = false
+                    isDraggable = false
+                    state = BottomSheetBehavior.STATE_COLLAPSED
+                }
+            } else {
+                isPlaceDetailCompact = false
+                bottomSheetBehavior.apply {
+                    peekHeight = getLocationDetailPeekHeight()
+                    isFitToContents = false
+                    halfExpandedRatio = 0.5f
+                    expandedOffset = getScreenHeightPercentage(0.5f)
+                    isHideable = false
+                    isDraggable = false
+                    state = BottomSheetBehavior.STATE_HALF_EXPANDED
+                }
             }
             return
         }
@@ -3213,9 +3266,15 @@ class RouteFragment : Fragment() {
         return (176 * resources.displayMetrics.density).toInt()
     }
 
+    private fun getLocationDetailCompactPeekHeight(): Int {
+        // Handle + title/meta/action row when there is no photo section.
+        return (124 * resources.displayMetrics.density).toInt()
+    }
+
     private fun showLocationDetail(item: SearchItem) {
         saveRecentPlace(item)
         isPlaceDetailSheetLocked = true
+        isPlaceDetailCompact = false
         binding.bottomSheetContainer.visibility = View.VISIBLE
         val isSchedule = currentEntryMode == EntryMode.SCHEDULE
 
@@ -3523,9 +3582,16 @@ class RouteFragment : Fragment() {
             }
         }
     }
+
     private fun saveRecentSearch(query: String){
         searchViewModel.insertSearch(query)
     }
+
+    fun dismissSearchInputFocus() {
+        hideKeyboard()
+        mainBinding?.searchEt?.clearFocus()
+    }
+
     private fun saveRecentPlace(item: SearchItem) {
         val recentPlace = RecentPlace(
             placeId = item.placeId,

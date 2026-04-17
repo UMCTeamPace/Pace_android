@@ -188,7 +188,6 @@
         <item name="android:letterSpacing">-0.001</item>
     </style>
 
-    <style name="TextAppearance.App.Num.HeadlineSm" parent="TextAppearance.App.Num.HeadlineSm.Semibold" />
 
     <style name="TextAppearance.App.Num.HeadlineSm.Regular" parent="TextAppearance.App.Roboto">
         <item name="android:textSize">18sp</item>

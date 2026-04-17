@@ -7,29 +7,22 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
-import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import com.example.pace.R
 import com.example.pace.data.model.response.GroupItem
 import com.example.pace.data.viewmodel.GroupViewModel
 import com.example.pace.databinding.FragmentBookmarkPlaceBinding
-import com.example.pace.ui.search_box.DeleteConfirmDialogFragment
+import com.example.pace.ui.main.route.RouteFragment
 import com.example.pace.ui.search_box.group.GroupDetailBottomSheet
 import dagger.hilt.android.AndroidEntryPoint
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @AndroidEntryPoint
-class BookmarkPlaceFragment : Fragment(){
+class BookmarkPlaceFragment : Fragment() {
 
     private var _binding: FragmentBookmarkPlaceBinding? = null
     private val binding get() = _binding!!
     private val groupViewModel: GroupViewModel by viewModels()
     private lateinit var groupAdapter: BookmarkGroupAdapter
     private val currentGroupList = mutableListOf<GroupItem>()
-    private var dummyIdCounter: Long = 100
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentBookmarkPlaceBinding.inflate(inflater, container, false)
@@ -38,15 +31,12 @@ class BookmarkPlaceFragment : Fragment(){
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
         setupRecyclerView()
         observeViewModel()
-
         groupViewModel.fetchGroupList()
     }
 
     private fun observeViewModel() {
-        // 그룹 리스트 관찰
         groupViewModel.groupList.observe(viewLifecycleOwner) { groups ->
             currentGroupList.clear()
             currentGroupList.addAll(groups)
@@ -63,14 +53,11 @@ class BookmarkPlaceFragment : Fragment(){
             }
         }
 
-
         groupViewModel.errorCode.observe(viewLifecycleOwner) { code ->
             Log.d("BookmarkFragment", "Error Code Received: $code")
             if (code == "PLACE_GROUP400_1") {
                 val addDialog = parentFragmentManager.findFragmentByTag("AddGroupDialog") as? AddGroupDialogFragment
                 val editDialog = parentFragmentManager.findFragmentByTag("EditGroupDialog") as? AddGroupDialogFragment
-
-
                 addDialog?.showDuplicateError()
                 editDialog?.showDuplicateError()
             }
@@ -82,17 +69,13 @@ class BookmarkPlaceFragment : Fragment(){
     }
 
     private fun setupRecyclerView() {
-//        val touchHelper = CommonSwipeTouchHelper(clampWidthDp = 120)
-//        val itemTouchHelper = ItemTouchHelper(touchHelper)
-
         groupAdapter = BookmarkGroupAdapter(
             onGroupClick = { groupItem ->
-                val bottomSheet = GroupDetailBottomSheet(groupItem)
-                bottomSheet.show(parentFragmentManager, "GroupDetailBottomSheet")
+                GroupDetailBottomSheet(groupItem).show(parentFragmentManager, "GroupDetailBottomSheet")
             },
             onEditClick = { groupItem ->
-                val dialog = AddGroupDialogFragment(groupItem) { reqest ->
-                    groupViewModel.updateGroup(groupItem.groupId, reqest.groupName, reqest.groupColor)
+                val dialog = AddGroupDialogFragment(groupItem) { request ->
+                    groupViewModel.updateGroup(groupItem.groupId, request.groupName, request.groupColor)
                 }
                 dialog.show(parentFragmentManager, "EditGroupDialog")
             },
@@ -108,35 +91,25 @@ class BookmarkPlaceFragment : Fragment(){
                     groupViewModel.createGroup(request.groupName, request.groupColor)
                 }
                 dialog.show(parentFragmentManager, "AddGroupDialog")
+            },
+            onSwipeStart = {
+                (parentFragment?.parentFragment as? RouteFragment)?.dismissSearchInputFocus()
             }
         )
-        val touchHelper = BookmarkGroupSwipeTouchHelper(
-            adapter = groupAdapter,
-            clampWidthDp = 120
-        )
-        val itemTouchHelper = ItemTouchHelper(touchHelper)
-
-        groupAdapter.setHelper(touchHelper)
 
         binding.rvBookmarkGroups.apply {
             adapter = groupAdapter
             layoutManager = LinearLayoutManager(requireContext())
-
-            itemTouchHelper.attachToRecyclerView(this)
-
-            addOnScrollListener(object : RecyclerView.OnScrollListener() {
-                override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
-                    if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
-                        touchHelper.closeAllMenus(this@apply)
+            itemAnimator = null
+            addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+                override fun onScrollStateChanged(recyclerView: androidx.recyclerview.widget.RecyclerView, newState: Int) {
+                    if (newState == androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_DRAGGING) {
+                        (parentFragment?.parentFragment as? RouteFragment)?.dismissSearchInputFocus()
                     }
                 }
             })
         }
 
-        updateAdapter()
-    }
-
-    private fun updateAdapter() {
         groupAdapter.submitList(currentGroupList.toList())
     }
 

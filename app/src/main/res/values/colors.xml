@@ -36,7 +36,7 @@
     <color name="gray_0">#FFFFFF</color>
 
     <color name="semantic_success">#4F81FF</color>
-    <color name="semantic_error_delete">#FF4242</color>
+    <color name="semantic_error_delete">#FF4F4F</color>
     <color name="semantic_warning">#FF4F4F</color>
     <color name="semantic_error">#FF4F4F</color>
     <color name="semantic_info">#98BD0B</color>

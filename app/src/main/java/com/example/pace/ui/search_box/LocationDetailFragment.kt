@@ -212,13 +212,15 @@ class LocationDetailFragment : Fragment() {
                         if (_binding == null) return@addOnSuccessListener
 
                         addDynamicPhotoView(photoResponse.bitmap)
-                    }.addOnFailureListener {
+                    }.addOnFailureListener { error ->
+                        Log.e("PlacePhoto", "Location detail photo fetch failed: placeId=$placeId, index=$i", error)
                     }
                 }
             }
-        }.addOnFailureListener {
+        }.addOnFailureListener { error ->
             if (_binding == null) return@addOnFailureListener
 
+            Log.e("PlacePhoto", "Location detail metadata fetch failed: placeId=$placeId", error)
             hasPhotoSection = false
             binding.svPhotos.visibility = View.GONE
             (parentFragment as? RouteFragment)?.setBottomSheetFixed(true)
