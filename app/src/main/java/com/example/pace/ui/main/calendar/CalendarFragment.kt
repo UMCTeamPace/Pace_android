@@ -22,6 +22,7 @@ class CalendarFragment: Fragment() {
     private var _binding: FragmentCalendarBinding? = null
     private val binding get() = _binding!!
     private var pendingResetToTodayState = false
+    private var pendingFocusDate: java.time.LocalDate? = null
     private var currentTabIndex = 1
 
     private val viewModel: ScheduleViewModel by activityViewModels()
@@ -105,6 +106,7 @@ class CalendarFragment: Fragment() {
         }
 
         applyPendingResetIfNeeded()
+        applyPendingFocusIfNeeded()
     }
 
     fun setTabVisibility(isVisible: Boolean) {
@@ -137,21 +139,39 @@ class CalendarFragment: Fragment() {
         }
         pendingResetToTodayState = false
 
-        val today = java.time.LocalDate.now()
-        viewModel.setSelectedDate(today)
-        showCalendarTab()
-
-        childFragmentManager.fragments.forEach { fragment ->
-            when (fragment) {
-                is ScheduleListFragment -> fragment.resetToToday()
-                is CalendarPageFragment -> fragment.resetToTodayState()
-            }
-        }
+        focusOnDate(java.time.LocalDate.now(), forceCalendarTab = true)
     }
 
     private fun applyPendingResetIfNeeded() {
         if (!pendingResetToTodayState || _binding == null) return
         resetToTodayState()
+    }
+
+    fun focusOnDate(date: java.time.LocalDate, forceCalendarTab: Boolean = false) {
+        if (_binding == null) {
+            pendingFocusDate = date
+            return
+        }
+
+        pendingFocusDate = null
+        viewModel.setSelectedDate(date)
+
+        if (forceCalendarTab) {
+            showCalendarTab()
+        }
+
+        childFragmentManager.fragments.forEach { fragment ->
+            when (fragment) {
+                is ScheduleListFragment -> fragment.focusOnDate(date)
+                is CalendarPageFragment -> fragment.focusOnDate(date)
+            }
+        }
+    }
+
+    private fun applyPendingFocusIfNeeded() {
+        val date = pendingFocusDate ?: return
+        if (_binding == null) return
+        focusOnDate(date)
     }
 
     private fun updateHeaderForTab(position: Int) {

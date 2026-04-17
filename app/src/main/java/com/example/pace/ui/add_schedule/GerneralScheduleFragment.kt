@@ -1220,6 +1220,11 @@ class GeneralScheduleFragment : Fragment() {
                     true -> {
                         Toast.makeText(context, "일정이 성공적으로 저장되었습니다.", Toast.LENGTH_SHORT).show()
                         viewModel.resetCreateEvent()
+                        requireActivity()
+                            .getSharedPreferences("HOME_CALENDAR", android.content.Context.MODE_PRIVATE)
+                            .edit()
+                            .putString("PENDING_FOCUS_DATE", startDate?.toString() ?: LocalDate.now().toString())
+                            .apply()
                         requireActivity().finish()
                     }
                     false -> {

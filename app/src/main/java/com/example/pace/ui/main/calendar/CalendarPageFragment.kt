@@ -85,6 +85,7 @@ class CalendarPageFragment: Fragment() {
     private var isInitialDataReady = false
     private var hasShownInitialContent = false
     private var pendingResetToTodayState = false
+    private var pendingFocusDate: LocalDate? = null
 
 
     override fun onCreateView(
@@ -102,14 +103,17 @@ class CalendarPageFragment: Fragment() {
 
         bottomSheetBehavior = BottomSheetBehavior.from(binding.bottomSheet)
 
-        val currentMonth = YearMonth.now()
+        val initialDate = viewModel.selectedDate.value
+        val currentMonth = YearMonth.from(initialDate)
         val firstDayOfWeek = DayOfWeek.SUNDAY
         selectedMonth = currentMonth
-        selectedDate = today
+        selectedDate = initialDate
         updateTitle()
-        updateSelectedDateText(today)
+        updateSelectedDateText(initialDate)
+        viewModel.setSelectedDate(initialDate)
         viewModel.setSelectedDate(today) // 초기값 세팅
 
+        viewModel.setSelectedDate(initialDate)
         setupCalendarLayout()
         setupBottomSheet()
         setupMonthYearPicker()
@@ -269,6 +273,7 @@ class CalendarPageFragment: Fragment() {
         updateSelectedDateText(today)
         binding.btnReturnToToday.visibility = if (selectedDate == today) View.GONE else View.VISIBLE
         applyPendingResetIfNeeded()
+        applyPendingFocusIfNeeded()
     }
 
     // 상단 텍스트 업데이트
@@ -639,20 +644,37 @@ class CalendarPageFragment: Fragment() {
             return
         }
         pendingResetToTodayState = false
-
-        val targetMonth = YearMonth.from(today)
-        selectedMonth = targetMonth
-        updateTitle()
-
-        selectDate(today, scrollToPager = true, fromScroll = true)
-        binding.calendarView.scrollToMonth(targetMonth)
-        binding.weekCalendarView.scrollToWeek(today)
-        bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+        focusOnDate(today)
     }
 
     private fun applyPendingResetIfNeeded() {
         if (!pendingResetToTodayState || _binding == null || !::bottomSheetBehavior.isInitialized) return
         resetToTodayState()
+    }
+
+    fun focusOnDate(date: LocalDate) {
+        if (_binding == null || !::bottomSheetBehavior.isInitialized) {
+            pendingFocusDate = date
+            return
+        }
+
+        pendingFocusDate = null
+        isProgrammaticScroll = true
+        val targetMonth = YearMonth.from(date)
+        selectedMonth = targetMonth
+        updateTitle()
+
+        selectDate(date, scrollToPager = true, fromScroll = true)
+        binding.calendarView.scrollToMonth(targetMonth)
+        binding.weekCalendarView.scrollToWeek(date)
+        bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+        binding.root.postDelayed({ isProgrammaticScroll = false }, 100)
+    }
+
+    private fun applyPendingFocusIfNeeded() {
+        val date = pendingFocusDate ?: return
+        if (_binding == null || !::bottomSheetBehavior.isInitialized) return
+        focusOnDate(date)
     }
 
     private fun isDateInRecurrence(targetDate: LocalDate, startDate: LocalDate, rRule: String): Boolean {

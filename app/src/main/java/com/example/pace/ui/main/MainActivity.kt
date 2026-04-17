@@ -51,6 +51,7 @@ import com.example.pace.data.repository.repository.ScheduleRepository
 import com.example.pace.data.viewmodel.TransitViewModel
 import dagger.hilt.android.AndroidEntryPoint // 추가
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -218,6 +219,7 @@ class MainActivity : AppCompatActivity() {
             android.util.Log.d("MainActivity", "onResume: 여전히 권한 없음, 스킵")
         }
 
+        applyPendingScheduleFocusDate()
     }
 
     override fun onPause() {
@@ -265,7 +267,8 @@ class MainActivity : AppCompatActivity() {
             R.id.home -> {
                 switchFragment(TAG_HOME) { HomeFragment() }
                 supportFragmentManager.executePendingTransactions()
-                (supportFragmentManager.findFragmentByTag(TAG_HOME) as? HomeFragment)?.resetToToday()
+                (supportFragmentManager.findFragmentByTag(TAG_HOME) as? HomeFragment)
+                    ?.focusOnDate(viewModel.selectedDate.value)
                 currentBottomMenuItem = R.id.home
                 binding.mainLogoIv.visibility = View.VISIBLE
                 binding.mainSettingsIv.visibility = View.VISIBLE
@@ -285,14 +288,15 @@ class MainActivity : AppCompatActivity() {
                     supportFragmentManager.findFragmentByTag(TAG_CALENDAR) as? CalendarFragment
 
                 if (!skipCalendarReset && existingCalendarFragment != null) {
-                    existingCalendarFragment.resetToTodayState()
+                    existingCalendarFragment.focusOnDate(viewModel.selectedDate.value)
                 }
 
                 switchFragment(TAG_CALENDAR) { CalendarFragment() }
                 supportFragmentManager.executePendingTransactions()
 
                 if (!skipCalendarReset && existingCalendarFragment == null) {
-                    (supportFragmentManager.findFragmentByTag(TAG_CALENDAR) as? CalendarFragment)?.resetToTodayState()
+                    (supportFragmentManager.findFragmentByTag(TAG_CALENDAR) as? CalendarFragment)
+                        ?.focusOnDate(viewModel.selectedDate.value)
                 }
                 currentBottomMenuItem = R.id.calendar
                 binding.mainLogoIv.visibility = android.view.View.GONE
@@ -357,6 +361,23 @@ class MainActivity : AppCompatActivity() {
                 add(R.id.main_fcv, targetFragment, tag)
             }
         }.commit()
+    }
+
+    private fun applyPendingScheduleFocusDate() {
+        val pendingDateString = spf.getString("PENDING_FOCUS_DATE", null) ?: return
+        val targetDate = runCatching { LocalDate.parse(pendingDateString) }.getOrNull() ?: run {
+            spf.edit().remove("PENDING_FOCUS_DATE").apply()
+            return
+        }
+
+        spf.edit()
+            .putString("SELECTED_DATE", targetDate.toString())
+            .remove("PENDING_FOCUS_DATE")
+            .apply()
+        viewModel.setSelectedDate(targetDate)
+
+        (supportFragmentManager.findFragmentByTag(TAG_HOME) as? HomeFragment)?.focusOnDate(targetDate)
+        (supportFragmentManager.findFragmentByTag(TAG_CALENDAR) as? CalendarFragment)?.focusOnDate(targetDate)
     }
 
     private fun createNotificationChannel() {

@@ -354,7 +354,7 @@
                                 </LinearLayout>
                             </RelativeLayout>
 
-                            <include android:id="@+id/legendLayout" layout="@layout/layout_calendar_day_legend_repeat_end" android:layout_width="match_parent"/>
+                            <include android:id="@+id/legendLayout" layout="@layout/layout_calendar_day_legend_repeat_end"/>
                             <com.kizitonwose.calendar.view.CalendarView
                                 android:id="@+id/calendarPicker"
                                 android:layout_width="match_parent"

@@ -26,6 +26,7 @@ import com.example.pace.ui.main.MainActivity
 import com.example.pace.data.viewmodel.ScheduleViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.launch
 import androidx.fragment.app.activityViewModels // 추가 확인
 import com.example.pace.data.model.response.ScheduleDetailResponse
@@ -48,6 +49,7 @@ class HomeFragment: Fragment() {
     private lateinit var selectedDate: LocalDate
     private var scheduleMap: Map<LocalDate, List<Schedule>> = emptyMap()
     private lateinit var horizontalCalendarAdapter: HorizontalCalendarRVAdapter
+    private lateinit var calendarAnchorDate: LocalDate
     private var calendarCenterPosition = 0
 
 
@@ -156,6 +158,7 @@ class HomeFragment: Fragment() {
     private fun setupCalendar() {
         val calendarSize = 1000000
         val date: LocalDate = selectedDate
+        calendarAnchorDate = date
         val layoutManager = binding.homeHorizontalCalendarRv.layoutManager as LinearLayoutManager
         val datePos = calendarSize / 2
         calendarCenterPosition = datePos
@@ -327,12 +330,19 @@ class HomeFragment: Fragment() {
             pendingResetToToday = true
             return
         }
-        performResetToToday()
+        focusOnDate(LocalDate.now())
     }
 
-    private fun performResetToToday() {
+    fun focusOnDate(date: LocalDate) {
+        if (!isAdded || !isViewReady) {
+            pendingResetToToday = true
+            selectedDate = date
+            spf.edit().putString("SELECTED_DATE", selectedDate.toString()).apply()
+            return
+        }
+
         suppressNextScheduleAnimation = true
-        selectedDate = LocalDate.now()
+        selectedDate = date
         spf.edit().putString("SELECTED_DATE", selectedDate.toString()).apply()
         viewModel.setSelectedDate(selectedDate)
 
@@ -340,13 +350,15 @@ class HomeFragment: Fragment() {
             val layoutManager = binding.homeHorizontalCalendarRv.layoutManager as? LinearLayoutManager
             binding.homeHorizontalCalendarTv.text =
                 selectedDate.year.toString() + "년 " + selectedDate.monthValue.toString() + "월"
-            horizontalCalendarAdapter.changeSelectedDate(calendarCenterPosition)
+            val targetPosition = calendarCenterPosition +
+                ChronoUnit.DAYS.between(calendarAnchorDate, selectedDate).toInt()
+            horizontalCalendarAdapter.changeSelectedDate(targetPosition)
             binding.homeHorizontalCalendarRv.post {
                 val recyclerLayoutManager = layoutManager ?: return@post
                 val screenWidth = binding.homeHorizontalCalendarRv.width
                 val itemWidth = screenWidth / 7
                 val offset = (screenWidth / 2) - (itemWidth / 2)
-                recyclerLayoutManager.scrollToPositionWithOffset(calendarCenterPosition, offset)
+                recyclerLayoutManager.scrollToPositionWithOffset(targetPosition, offset)
             }
         }
 
@@ -356,7 +368,7 @@ class HomeFragment: Fragment() {
     private fun applyPendingResetIfNeeded() {
         if (!pendingResetToToday || !isViewReady) return
         pendingResetToToday = false
-        performResetToToday()
+        focusOnDate(selectedDate)
     }
 
     override fun onDestroyView() {

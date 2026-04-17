@@ -392,6 +392,11 @@ class RouteScheduleFragment : Fragment() {
                             // 일정 저장 성공 시 알람 예약 실행
                             Toast.makeText(context, "일정이 저장되었습니다.", Toast.LENGTH_SHORT).show()
                             viewModel.resetCreateEvent() // 이벤트 초기화
+                            requireActivity()
+                                .getSharedPreferences("HOME_CALENDAR", android.content.Context.MODE_PRIVATE)
+                                .edit()
+                                .putString("PENDING_FOCUS_DATE", startDate?.toString() ?: LocalDate.now().toString())
+                                .apply()
                             requireActivity().finish()   // 화면 종료
                         }
 
@@ -646,6 +651,11 @@ class RouteScheduleFragment : Fragment() {
                         // 💡 일정 수정 성공 시 알람 예약 실행
                         Toast.makeText(context, "일정이 수정되었습니다.", Toast.LENGTH_SHORT).show()
                         viewModel.resetUpdateEvent() // 이벤트 소모
+                        requireActivity()
+                            .getSharedPreferences("HOME_CALENDAR", android.content.Context.MODE_PRIVATE)
+                            .edit()
+                            .putString("PENDING_FOCUS_DATE", startDate?.toString() ?: LocalDate.now().toString())
+                            .apply()
                         applyEditActivityResult()
                         activity?.finish()
                     } else if (isSuccess == false) {

@@ -39,6 +39,7 @@ class ScheduleListFragment : Fragment() {
     private val viewModel: ScheduleViewModel by activityViewModels()
     private var hasScrolledToToday = false
     private var pendingResetToToday = false
+    private var pendingFocusDate: LocalDate? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -243,10 +244,12 @@ class ScheduleListFragment : Fragment() {
         }
     }
 
-    private suspend fun processAndDisplaySchedules(groupedMap: Map<LocalDate, List<Schedule>>) {
+    private suspend fun processAndDisplaySchedules(
+        groupedMap: Map<LocalDate, List<Schedule>>,
+        targetDate: LocalDate = pendingFocusDate ?: viewModel.selectedDate.value
+    ) {
         val items = mutableListOf<ScheduleListItem>()
-        val today = LocalDate.now()
-        var todayPosition: Int? = null
+        var targetPosition: Int? = null
 
         if (groupedMap.isNotEmpty()) {
             withContext(Dispatchers.Default) {
@@ -255,8 +258,8 @@ class ScheduleListFragment : Fragment() {
 
                 for (date in sortedDates) {
                     val scheduleList = groupedMap[date] ?: continue
-                    if (todayPosition == null && !date.isBefore(today)) {
-                        todayPosition = items.size
+                    if (targetPosition == null && !date.isBefore(targetDate)) {
+                        targetPosition = items.size
                     }
                     items.add(ScheduleListItem.DateHeader(formatDateToHeader(date)))
 
@@ -276,7 +279,8 @@ class ScheduleListFragment : Fragment() {
         }
 
         scheduleListAdapter.updateData(items, viewModel.routeDetails.value)
-        scrollToTodayPositionIfNeeded(todayPosition)
+        scrollToTodayPositionIfNeeded(targetPosition)
+        pendingFocusDate = null
     }
 
     private fun scrollToTodayPositionIfNeeded(todayPosition: Int?) {
@@ -293,14 +297,21 @@ class ScheduleListFragment : Fragment() {
     }
 
     fun resetToToday() {
+        focusOnDate(LocalDate.now())
+    }
+
+    fun focusOnDate(date: LocalDate) {
         if (_binding == null) {
+            pendingFocusDate = date
             pendingResetToToday = true
             return
         }
         pendingResetToToday = false
+        pendingFocusDate = date
         hasScrolledToToday = false
+        viewModel.setSelectedDate(date)
         viewLifecycleOwner.lifecycleScope.launch {
-            processAndDisplaySchedules(viewModel.scheduleMap.value)
+            processAndDisplaySchedules(viewModel.scheduleMap.value, date)
         }
     }
 
@@ -314,7 +325,7 @@ class ScheduleListFragment : Fragment() {
 
     private fun applyPendingResetIfNeeded() {
         if (!pendingResetToToday || _binding == null) return
-        resetToToday()
+        focusOnDate(pendingFocusDate ?: LocalDate.now())
     }
 
     private fun formatDateToHeader(date: LocalDate): String {
