@@ -34,6 +34,10 @@ class RecentSearchFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        binding.root.isFocusable = false
+        binding.root.isFocusableInTouchMode = false
+        binding.rvRecentSearch.isFocusable = false
+        binding.rvRecentSearch.isFocusableInTouchMode = false
         setupRecyclerView()
         observeData()
     }

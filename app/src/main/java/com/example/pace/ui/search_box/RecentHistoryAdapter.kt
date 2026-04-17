@@ -80,18 +80,24 @@ class RecentHistoryAdapter(
     override fun getSwipeLayoutResourceId(position: Int): Int = R.id.item_recent_history
 
     inner class ViewHolder(val binding: ItemRecentHistoryBinding) : RecyclerView.ViewHolder(binding.root) {
+        private var suppressSwipeCallback = false
+
         init {
             binding.root.showMode = SwipeLayout.ShowMode.LayDown
             binding.root.addDrag(SwipeLayout.DragEdge.Right, binding.rightBottomWrapper)
             binding.root.addSwipeListener(object : SimpleSwipeListener() {
                 override fun onStartOpen(layout: SwipeLayout?) {
-                    onSwipeStart()
+                    if (!suppressSwipeCallback) {
+                        onSwipeStart()
+                    }
                 }
             })
         }
 
         fun bind(item: RecentHistoryItem) {
+            suppressSwipeCallback = true
             binding.root.close(false)
+            suppressSwipeCallback = false
             binding.tvHistoryText.text = item.mainText
             val iconRes = if (item.type == RecentHistoryItem.TYPE_SEARCH_TEXT) {
                 R.drawable.ic_history_search

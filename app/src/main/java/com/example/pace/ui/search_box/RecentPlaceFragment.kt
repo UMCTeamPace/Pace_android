@@ -35,6 +35,10 @@ class RecentPlaceFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        binding.root.isFocusable = false
+        binding.root.isFocusableInTouchMode = false
+        binding.rvRecentPlace.isFocusable = false
+        binding.rvRecentPlace.isFocusableInTouchMode = false
         setupRecyclerView()
         observeData()
     }

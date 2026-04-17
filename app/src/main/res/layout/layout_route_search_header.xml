@@ -154,16 +154,6 @@
             app:layout_constraintTop_toTopOf="@id/layout_start_input"
             app:layout_constraintBottom_toBottomOf="@id/layout_start_input" />
 
-        <ImageView
-            android:id="@+id/btn_save_route"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:src="@drawable/ic_favorites"
-            android:padding="10dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="@id/btn_swap_location"
-            app:layout_constraintTop_toTopOf="@id/layout_end_input"
-            app:layout_constraintBottom_toBottomOf="@id/layout_end_input" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

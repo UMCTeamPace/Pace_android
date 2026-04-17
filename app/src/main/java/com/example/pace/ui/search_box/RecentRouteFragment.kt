@@ -33,6 +33,10 @@ class RecentRouteFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        binding.root.isFocusable = false
+        binding.root.isFocusableInTouchMode = false
+        binding.rvRecentRoute.isFocusable = false
+        binding.rvRecentRoute.isFocusableInTouchMode = false
         setupRecyclerView()
         observeData()
         searchViewModel.deleteExpiredData()

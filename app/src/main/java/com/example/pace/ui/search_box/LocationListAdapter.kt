@@ -1,6 +1,7 @@
 package com.example.pace.ui.search_box
 
 import android.graphics.Bitmap
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -87,7 +88,8 @@ class LocationListAdapter(
                             val bitmap: Bitmap = fetchPhotoResponse.bitmap
                             binding.ivPlaceImage.setImageBitmap(bitmap)
                         }
-                        .addOnFailureListener {
+                        .addOnFailureListener { error ->
+                            Log.e("PlacePhoto", "Location list photo fetch failed: placeId=${item.placeId}, name=${item.name}", error)
                             binding.cvImageContainer.visibility = View.GONE
                         }
                 }
