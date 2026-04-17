@@ -38,6 +38,7 @@ class TransitViewModel @Inject constructor(
     val lastUpSubway = _lastUpSubway.asStateFlow()
     private val _lastDownSubway = MutableStateFlow<List<StationTimetableItem?>>(emptyList())
     val lastDownSubway = _lastDownSubway.asStateFlow()
+
     // 지하철 종점역들
     private val _upEndStations = MutableStateFlow<List<String>>(emptyList())
     val upEndStations = _upEndStations.asStateFlow()
@@ -107,7 +108,7 @@ class TransitViewModel @Inject constructor(
                 val first = mutableListOf<StationTimetableItem?>()
                 val last = mutableListOf<StationTimetableItem?>()
 
-                val timetableResponse =
+                var timetableResponse =
                     RetrofitClient.subwayTimetableService.getSubwayTimetable(
                         BuildConfig.PUBLIC_API_KEY,
                         "1",
@@ -117,7 +118,20 @@ class TransitViewModel @Inject constructor(
                         dailyType,
                         upDown
                     )
-                val timetableItems = timetableResponse.values.firstOrNull()?.body?.items?.item
+                var timetableItems = timetableResponse.values.firstOrNull()?.body?.items?.item
+                // 토요일과 공휴일의 데이터가 동일하면 토요일 item을 empty로 전달 -> 확인 후 공휴일 데이터 호출
+                if(dailyType == "02" && timetableItems.isNullOrEmpty()){
+                    timetableResponse = RetrofitClient.subwayTimetableService.getSubwayTimetable(
+                        BuildConfig.PUBLIC_API_KEY,
+                        "1",
+                        "240",
+                        "json",
+                        stationId,
+                        "03",
+                        upDown
+                    )
+                    timetableItems = timetableResponse.values.firstOrNull()?.body?.items?.item
+                }
                 if (!timetableItems.isNullOrEmpty()) {
                     // 종착역 별로 첫차 및 막차 나누기
                     val itemPair = mutableMapOf<String, Pair<List<StationTimetableItem>, List<StationTimetableItem>>?>()

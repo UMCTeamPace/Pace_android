@@ -138,12 +138,15 @@ class CalendarPageFragment: Fragment() {
                     return
                 }
                 // 요일에 따라 색상 작성
-                when(day.date.dayOfWeek.value){
-                    6 -> {
+                when(day.date.dayOfWeek){
+                    DayOfWeek.SATURDAY -> {
                         container.textView.setTextColor(ContextCompat.getColor(requireContext(),R.color.semantic_success))
                     }
-                    7 -> {
+                    DayOfWeek.SUNDAY -> {
                         container.textView.setTextColor(ContextCompat.getColor(requireContext(),R.color.semantic_error))
+                    }
+                    else -> {
+                        container.textView.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_primary))
                     }
                 }
                 // 바텀 시트 여부에 따라 다른 UI 적용

@@ -4,7 +4,7 @@
     android:layout_height="wrap_content"
     android:padding="8dp">
 
-    <View
+    <ImageView
         android:id="@+id/colorView"
         android:layout_width="28dp"
         android:layout_height="28dp"

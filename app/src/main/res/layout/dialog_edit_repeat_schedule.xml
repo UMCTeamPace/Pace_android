@@ -35,7 +35,7 @@
             android:layout_width="252dp"
             android:layout_height="40dp"
             android:layout_marginBottom="12dp"
-            android:background="@drawable/btn_delete_schedule_red"
+            android:background="@drawable/bg_route_dialog_confirm_btn"
             android:paddingStart="12dp"
             android:paddingTop="8dp"
             android:paddingEnd="12dp"

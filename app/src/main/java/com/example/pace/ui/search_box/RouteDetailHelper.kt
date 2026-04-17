@@ -316,7 +316,7 @@ object RouteDetailHelper {
                 val leftStationText = TextView(context).apply {
                     text = "${result.beforeSubwayCount.absoluteValue}정류장"
                     typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
-                    setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
+                    setTextColor(ContextCompat.getColor(context, R.color.text_tertiary))
                     textSize = 11f
                     layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                         setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
@@ -325,7 +325,7 @@ object RouteDetailHelper {
                 val directionText = TextView(context).apply {
                     text = if(result.updnLine == "내선" || result.updnLine == "외선") result.updnLine + "순환행" else result.updnLine
                     typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
-                    setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
+                    setTextColor(ContextCompat.getColor(context, R.color.text_tertiary))
                     textSize = 11f
                     layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                         setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
@@ -378,7 +378,7 @@ object RouteDetailHelper {
             val leftStationText1 = TextView(context).apply {
                 text = resultList.arrmsg1?.split("[")?.last()?.dropLast(1)
                 typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
-                setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
+                setTextColor(ContextCompat.getColor(context, R.color.text_tertiary))
                 textSize = 11f
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                     setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
@@ -389,7 +389,7 @@ object RouteDetailHelper {
                     TextView(context).apply {
                         text = resultList.reride_Num1
                         typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
-                        setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
+                        setTextColor(ContextCompat.getColor(context, R.color.text_tertiary))
                         textSize = 10f
                         background = ContextCompat.getDrawable(context, R.drawable.bg_subway_realtime_seats)
                         layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
@@ -428,7 +428,7 @@ object RouteDetailHelper {
                             TextView(context).apply {
                                 text = "데이터 없음"
                                 typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
-                                setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
+                                setTextColor(ContextCompat.getColor(context, R.color.text_tertiary))
                                 textSize = 11f
                                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                                     setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
@@ -442,7 +442,7 @@ object RouteDetailHelper {
                     TextView(context).apply {
                         text = "데이터 없음"
                         typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
-                        setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
+                        setTextColor(ContextCompat.getColor(context, R.color.text_tertiary))
                         textSize = 11f
                         layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                             setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
@@ -465,7 +465,7 @@ object RouteDetailHelper {
             val leftStationText2 = TextView(context).apply {
                 text = resultList.arrmsg2?.split("[")?.last()?.dropLast(1)
                 typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
-                setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
+                setTextColor(ContextCompat.getColor(context, R.color.text_tertiary))
                 textSize = 11f
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                     setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
@@ -476,7 +476,7 @@ object RouteDetailHelper {
                     TextView(context).apply {
                         text = resultList.reride_Num2
                         typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
-                        setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
+                        setTextColor(ContextCompat.getColor(context, R.color.text_tertiary))
                         textSize = 10f
                         background = ContextCompat.getDrawable(context, R.drawable.bg_subway_realtime_seats)
                         layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
@@ -515,7 +515,7 @@ object RouteDetailHelper {
                             TextView(context).apply {
                                 text = "데이터 없음"
                                 typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
-                                setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
+                                setTextColor(ContextCompat.getColor(context, R.color.text_tertiary))
                                 textSize = 11f
                                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                                     setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)
@@ -529,7 +529,7 @@ object RouteDetailHelper {
                     TextView(context).apply {
                         text = "데이터 없음"
                         typeface = ResourcesCompat.getFont(context, R.font.pretendard_regular)
-                        setTextColor(ContextCompat.getColor(context, R.color.text_secondary2))
+                        setTextColor(ContextCompat.getColor(context, R.color.text_tertiary))
                         textSize = 11f
                         layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                             setMargins((6 * context.resources.displayMetrics.density).toInt(), 0, 0, 0)

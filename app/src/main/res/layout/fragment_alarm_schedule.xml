@@ -19,7 +19,7 @@
             android:layout_height="wrap_content"
             android:text="일정 알림"
             android:textAppearance="@style/TextAppearance.App.HeadlineSm"
-            android:textColor="@color/black"
+            android:textColor="@color/text_primary"
             android:textStyle="bold" />
     </androidx.appcompat.widget.Toolbar>
 
@@ -33,29 +33,31 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="12dp">
+        android:paddingHorizontal="20dp">
 
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@drawable/box_schedule"
         app:cardCornerRadius="12dp"
-        app:cardElevation="0dp">
+        app:cardElevation="0dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="12dp">
 
         <LinearLayout
             android:id="@+id/layout_checkbox_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="8dp">
+            android:orientation="vertical">
 
             <LinearLayout
                 android:id="@+id/layout_none"
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="24dp"
+                android:paddingVertical="16dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingHorizontal="24dp"
                 android:background="?attr/selectableItemBackground">
 
                 <TextView
@@ -65,12 +67,12 @@
                 android:layout_weight="1"
                 android:text="안함"
                 android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                android:textColor="@color/black" />
+                android:textColor="@color/text_primary" />
 
                 <CheckBox
                     android:id="@+id/cb_none"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
                     android:button="@null"
                     android:background="@drawable/selector_circle_checkbox"
                     android:clickable="false"
@@ -79,15 +81,16 @@
 
             <View android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="#F1F3F5" />
+                android:background="@color/gray_200" />
 
             <LinearLayout
                 android:id="@+id/layout_starttime"
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
+                android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingHorizontal="24dp"
+                android:paddingVertical="16dp"
                 android:background="?attr/selectableItemBackground">
 
                 <TextView
@@ -97,12 +100,12 @@
                     android:layout_weight="1"
                     android:text="일정 시작 시간"
                     android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                    android:textColor="@color/black" />
+                    android:textColor="@color/text_primary" />
 
                 <CheckBox
                     android:id="@+id/cb_starttime"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
                     android:button="@null"
                     android:background="@drawable/selector_circle_checkbox"
                     android:clickable="false"
@@ -111,15 +114,16 @@
 
             <View android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="#F1F3F5" />
+                android:background="@color/gray_200" />
 
             <LinearLayout
                 android:id="@+id/layout_start5mago"
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
+                android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingHorizontal="24dp"
+                android:paddingVertical="16dp"
                 android:background="?attr/selectableItemBackground">
 
                 <TextView
@@ -129,12 +133,12 @@
                     android:layout_weight="1"
                     android:text="5분 전"
                     android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                    android:textColor="@color/black" />
+                    android:textColor="@color/text_primary" />
 
                 <CheckBox
                     android:id="@+id/cb_start5mago"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
                     android:button="@null"
                     android:background="@drawable/selector_circle_checkbox"
                     android:clickable="false"
@@ -143,15 +147,16 @@
 
             <View android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="#F1F3F5" />
+                android:background="@color/gray_200" />
 
             <LinearLayout
                 android:id="@+id/layout_start10mago"
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
+                android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingHorizontal="24dp"
+                android:paddingVertical="16dp"
                 android:background="?attr/selectableItemBackground">
 
                 <TextView
@@ -161,12 +166,12 @@
                     android:layout_weight="1"
                     android:text="10분 전"
                     android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                    android:textColor="@color/black" />
+                    android:textColor="@color/text_primary" />
 
                 <CheckBox
                     android:id="@+id/cb_start10mago"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
                     android:button="@null"
                     android:background="@drawable/selector_circle_checkbox"
                     android:clickable="false"
@@ -175,15 +180,16 @@
 
             <View android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="#F1F3F5" />
+                android:background="@color/gray_200" />
 
             <LinearLayout
                 android:id="@+id/layout_start15mago"
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
+                android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingHorizontal="24dp"
+                android:paddingVertical="16dp"
                 android:background="?attr/selectableItemBackground">
 
                 <TextView
@@ -193,12 +199,12 @@
                     android:layout_weight="1"
                     android:text="15분 전"
                     android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                    android:textColor="@color/black" />
+                    android:textColor="@color/text_primary" />
 
                 <CheckBox
                     android:id="@+id/cb_start15mago"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
                     android:button="@null"
                     android:background="@drawable/selector_circle_checkbox"
                     android:clickable="false"
@@ -207,15 +213,16 @@
 
             <View android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="#F1F3F5" />
+                android:background="@color/gray_200" />
 
             <LinearLayout
                 android:id="@+id/layout_start30mago"
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
+                android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingHorizontal="24dp"
+                android:layout_marginVertical="16dp"
                 android:background="?attr/selectableItemBackground">
 
                 <TextView
@@ -225,12 +232,12 @@
                     android:layout_weight="1"
                     android:text="30분 전"
                     android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                    android:textColor="@color/black" />
+                    android:textColor="@color/text_primary" />
 
                 <CheckBox
                     android:id="@+id/cb_start30mago"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
                     android:button="@null"
                     android:background="@drawable/selector_circle_checkbox"
                     android:clickable="false"
@@ -239,15 +246,16 @@
 
             <View android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="#F1F3F5" />
+                android:background="@color/gray_200" />
 
             <LinearLayout
                 android:id="@+id/layout_start1hago"
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
+                android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingHorizontal="24dp"
+                android:paddingVertical="16dp"
                 android:background="?attr/selectableItemBackground">
 
                 <TextView
@@ -257,12 +265,12 @@
                     android:layout_weight="1"
                     android:text="1시간 전"
                     android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                    android:textColor="@color/black" />
+                    android:textColor="@color/text_primary" />
 
                 <CheckBox
                     android:id="@+id/cb_start1hago"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
                     android:button="@null"
                     android:background="@drawable/selector_circle_checkbox"
                     android:clickable="false"
@@ -271,15 +279,16 @@
 
             <View android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="#F1F3F5" />
+                android:background="@color/gray_200" />
 
             <LinearLayout
                 android:id="@+id/layout_start2hago"
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
+                android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingHorizontal="24dp"
+                android:paddingVertical="16dp"
                 android:background="?attr/selectableItemBackground">
 
                 <TextView
@@ -289,12 +298,12 @@
                     android:layout_weight="1"
                     android:text="2시간 전"
                     android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                    android:textColor="@color/black" />
+                    android:textColor="@color/text_primary" />
 
                 <CheckBox
                     android:id="@+id/cb_start2hago"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
                     android:button="@null"
                     android:background="@drawable/selector_circle_checkbox"
                     android:clickable="false"
@@ -303,7 +312,7 @@
 
             <View android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="#F1F3F5" />
+                android:background="@color/gray_200" />
 
             <LinearLayout
                 android:id="@+id/layout_start1dago"
@@ -312,6 +321,7 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingHorizontal="24dp"
+                android:paddingVertical="16dp"
                 android:background="?attr/selectableItemBackground">
 
                 <TextView
@@ -321,12 +331,12 @@
                     android:layout_weight="1"
                     android:text="1일 전"
                     android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                    android:textColor="@color/black" />
+                    android:textColor="@color/text_primary" />
 
                 <CheckBox
                     android:id="@+id/cb_start1dago"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
                     android:button="@null"
                     android:background="@drawable/selector_circle_checkbox"
                     android:clickable="false"
@@ -335,15 +345,16 @@
 
             <View android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="#F1F3F5" />
+                android:background="@color/gray_200" />
 
             <LinearLayout
                 android:id="@+id/layout_start2dago"
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
+                android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingHorizontal="24dp"
+                android:layout_marginVertical="16dp"
                 android:background="?attr/selectableItemBackground">
 
                 <TextView
@@ -353,12 +364,12 @@
                     android:layout_weight="1"
                     android:text="2일 전"
                     android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                    android:textColor="@color/black" />
+                    android:textColor="@color/text_primary" />
 
                 <CheckBox
                     android:id="@+id/cb_start2dago"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
                     android:button="@null"
                     android:background="@drawable/selector_circle_checkbox"
                     android:clickable="false"
@@ -367,15 +378,16 @@
 
             <View android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="#F1F3F5" />
+                android:background="@color/gray_200" />
 
             <LinearLayout
                 android:id="@+id/layout_start1wago"
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
+                android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingHorizontal="24dp"
+                android:paddingVertical="16dp"
                 android:background="?attr/selectableItemBackground">
 
                 <TextView
@@ -385,12 +397,12 @@
                     android:layout_weight="1"
                     android:text="1주 전"
                     android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
-                    android:textColor="@color/black" />
+                    android:textColor="@color/text_primary" />
 
                 <CheckBox
                     android:id="@+id/cb_start1wago"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
                     android:button="@null"
                     android:background="@drawable/selector_circle_checkbox"
                     android:clickable="false"
@@ -404,7 +416,6 @@
             android:id="@+id/tv_alarm_description"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
             android:text="*알림은 총 5개 까지 설정할 수 있습니다."
             android:gravity="center"
             android:textAppearance="@style/TextAppearance.App.BodySm.Semibold"
