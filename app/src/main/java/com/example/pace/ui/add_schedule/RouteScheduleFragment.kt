@@ -63,7 +63,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.util.Locale
-
+import com.example.pace.data.model.MarkScheduleProvider
 @AndroidEntryPoint
 class RouteScheduleFragment : Fragment() {
     private data class FormSnapshot(
@@ -149,35 +149,60 @@ class RouteScheduleFragment : Fragment() {
         }
     }
 
-    // 런처/콜백
     private val routeSearchLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode == android.app.Activity.RESULT_OK) {
-            val data = result.data ?: return@registerForActivityResult
+        if (result.resultCode == Activity.RESULT_OK) {
+            val mockRoute = MarkScheduleProvider
+                .getMockRouteApiResponse()
+                .routeApiResDtoList
+                ?.firstOrNull() ?: return@registerForActivityResult
 
-            // 1. 클래스 멤버 변수(last...)에 직접 할당하여 데이터 저장
-            lastStartName = data.getStringExtra("START_NAME")
-            lastStartLat = data.getDoubleExtra("START_LAT", Double.NaN)
-            lastStartLng = data.getDoubleExtra("START_LNG", Double.NaN)
+            lastStartName = "동양미래대학"
+            lastStartLat = 37.5005419
+            lastStartLng = 126.8676709
 
-            lastDestName = data.getStringExtra("END_NAME")
-            lastDestLat = data.getDoubleExtra("END_LAT", Double.NaN)
-            lastDestLng = data.getDoubleExtra("END_LNG", Double.NaN)
+            lastDestName = "서울특별시 관악구 남부순환로 2082-25"
+            lastDestLat = 37.4760891
+            lastDestLng = 126.9810116
 
-            earlyArriveTime = data.getIntExtra("EARLY_ARRIVE_TIME", 0)
-            lastRouteJson = data.getStringExtra("ROUTE_DETAIL")
+            earlyArriveTime = 0
+            lastRouteJson = Gson().toJson(mockRoute)
 
-            // 2. UI 업데이트 (저장된 전역 변수 사용)
-            val gson = Gson()
-            val routeObj = gson.fromJson(lastRouteJson, RouteResponse::class.java)
-            updateRouteInfo(lastStartName ?: "출발지", lastDestName ?: "도착지", routeObj)
-
-            // 3. UI 가시성 처리
+            updateRouteInfo(lastStartName ?: "출발지", lastDestName ?: "도착지", mockRoute)
             binding.deleteRouteIv.visibility = View.VISIBLE
             binding.deleteRouteIv.bringToFront()
         }
     }
+    // 런처/콜백
+//    private val routeSearchLauncher = registerForActivityResult(
+//        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+//    ) { result ->
+//        if (result.resultCode == android.app.Activity.RESULT_OK) {
+//            val data = result.data ?: return@registerForActivityResult
+//
+//            // 1. 클래스 멤버 변수(last...)에 직접 할당하여 데이터 저장
+//            lastStartName = data.getStringExtra("START_NAME")
+//            lastStartLat = data.getDoubleExtra("START_LAT", Double.NaN)
+//            lastStartLng = data.getDoubleExtra("START_LNG", Double.NaN)
+//
+//            lastDestName = data.getStringExtra("END_NAME")
+//            lastDestLat = data.getDoubleExtra("END_LAT", Double.NaN)
+//            lastDestLng = data.getDoubleExtra("END_LNG", Double.NaN)
+//
+//            earlyArriveTime = data.getIntExtra("EARLY_ARRIVE_TIME", 0)
+//            lastRouteJson = data.getStringExtra("ROUTE_DETAIL")
+//
+//            // 2. UI 업데이트 (저장된 전역 변수 사용)
+//            val gson = Gson()
+//            val routeObj = gson.fromJson(lastRouteJson, RouteResponse::class.java)
+//            updateRouteInfo(lastStartName ?: "출발지", lastDestName ?: "도착지", routeObj)
+//
+//            // 3. UI 가시성 처리
+//            binding.deleteRouteIv.visibility = View.VISIBLE
+//            binding.deleteRouteIv.bringToFront()
+//        }
+//    }
 
     private val backPressedCallback = object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
@@ -1384,6 +1409,7 @@ class RouteScheduleFragment : Fragment() {
 
     private fun shouldBlockRouteScheduleCount(routeObject: RouteResponse?): Boolean {
         if (routeObject == null) return false
+
 
         val projectedRouteCount = if (originalIsRouteSchedule) {
             currentRouteScheduleCount

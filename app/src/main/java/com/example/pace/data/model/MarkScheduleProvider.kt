@@ -126,8 +126,8 @@ object MarkScheduleProvider {
                 RouteResponse(
                     totalDistance = 13406,
                     totalTime = 2105,
-                    arrivalTime = "2026-04-11T23:59:00",
-                    departureTime = "2026-04-11T22:59:00",
+                    arrivalTime = "2026-04-17T02:59:00",
+                    departureTime = "2026-04-17T01:59:00",
                     routeDetails = listOf(
                         RouteDetail(
                             sequence = 1,
