@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
@@ -54,15 +55,13 @@ class SearchFragment : Fragment() {
         setupRecyclerView()
         setupSearchInput()
         setupButtons()
+        setupKeyboardDismissOnTouch()
         observeSearchResults()
 
         showInitialState()
 
         binding.etSearch.requestFocus()
         showKeyboard()
-
-        (requireActivity() as MainActivity).binding.mainToolbar.visibility = View.GONE
-        (requireActivity() as MainActivity).binding.mainBnv.visibility = View.GONE
     }
 
     private fun setupRecyclerView() {
@@ -103,6 +102,13 @@ class SearchFragment : Fragment() {
             )
             layoutManager = LinearLayoutManager(context)
             adapter = searchAdapter
+            setOnTouchListener { _, event ->
+                if (event.action == MotionEvent.ACTION_DOWN) {
+                    binding.etSearch.clearFocus()
+                    hideKeyboard()
+                }
+                false
+            }
         }
     }
 
@@ -164,6 +170,24 @@ class SearchFragment : Fragment() {
 
         binding.ivList.setOnClickListener {
             SearchFilterBottomSheet().show(childFragmentManager, "filter")
+        }
+    }
+
+    private fun setupKeyboardDismissOnTouch() {
+        binding.root.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                binding.etSearch.clearFocus()
+                hideKeyboard()
+            }
+            false
+        }
+
+        binding.searchResultContainer.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                binding.etSearch.clearFocus()
+                hideKeyboard()
+            }
+            false
         }
     }
 
@@ -275,8 +299,7 @@ class SearchFragment : Fragment() {
     override fun onDestroyView() {
         hideKeyboard()
         super.onDestroyView()
-        (requireActivity() as MainActivity).binding.mainToolbar.visibility = View.VISIBLE
-        (requireActivity() as MainActivity).binding.mainBnv.visibility = View.VISIBLE
+        (requireActivity() as MainActivity).binding.mainOverlayFcv.visibility = View.GONE
         _binding = null
     }
 }

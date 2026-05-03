@@ -205,6 +205,12 @@ class SettingFragment : Fragment() {
     private fun navigateTo(fragment: Fragment, titleText: String, titleView: TextView?) {
         titleView?.text = titleText
         parentFragmentManager.beginTransaction()
+            .setCustomAnimations(
+                android.R.anim.slide_in_left,
+                android.R.anim.slide_out_right,
+                android.R.anim.slide_in_left,
+                android.R.anim.slide_out_right
+            )
             .replace(R.id.settings_fcv, fragment)
             .addToBackStack(null)
             .commit()

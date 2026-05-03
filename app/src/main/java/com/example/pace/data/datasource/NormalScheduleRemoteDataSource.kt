@@ -203,7 +203,6 @@ class NormalScheduleRemoteDataSource @Inject constructor(
                     val calendarColor = it.getInt(calColorIdx)
 
                     val reminders = fetchReminders(id)
-
                     scheduleList.add(
                         Schedule(
                             id = id,

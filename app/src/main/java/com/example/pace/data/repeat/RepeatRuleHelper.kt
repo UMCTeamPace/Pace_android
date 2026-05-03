@@ -147,6 +147,7 @@ object RepeatRuleHelper {
         val byMonth = params["BYMONTH"]
         val ordinalPrefix = byDay?.takeLastIfHasOrdinal()?.dropLast(2)?.toIntOrNull()
         val ordinalDay = byDay?.takeLastIfHasOrdinal()?.takeLast(2)
+        val untilDate = params["UNTIL"]?.toRepeatEndDate()
 
         return runCatching {
             RepeatInfo(
@@ -173,13 +174,11 @@ object RepeatRuleHelper {
                 referenceWeekOfMonth = ordinalPrefix,
                 endType = when {
                     recur.count != null -> "COUNT"
-                    recur.until != null -> "DATE"
+                    untilDate != null -> "DATE"
                     else -> "NEVER"
                 },
                 endCount = recur.count ?: 1,
-                repeatEndDate = recur.until?.let {
-                    SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(it.date)
-                } ?: endDate
+                repeatEndDate = untilDate
             )
         }.getOrNull()
     }
@@ -219,5 +218,17 @@ object RepeatRuleHelper {
 
     private fun String.takeLastIfHasOrdinal(): String? {
         return takeIf { it.length >= 3 }
+    }
+
+    private fun String.toRepeatEndDate(): String? {
+        val digits = filter { it.isDigit() }
+        if (digits.length < 8) return null
+
+        return runCatching {
+            val year = digits.substring(0, 4)
+            val month = digits.substring(4, 6)
+            val day = digits.substring(6, 8)
+            "$year-$month-$day".takeUnless { it == "1970-01-01" }
+        }.getOrNull()
     }
 }

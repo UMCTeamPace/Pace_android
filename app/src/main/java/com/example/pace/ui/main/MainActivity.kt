@@ -15,6 +15,7 @@ import android.os.Looper
 import android.util.Log
 import android.view.MenuItem
 import android.view.View
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -176,6 +177,29 @@ class MainActivity : AppCompatActivity() {
         }
 
         handleIntent(intent)
+        setupBottomTabBackNavigation()
+    }
+
+    private fun setupBottomTabBackNavigation() {
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    if (currentBottomMenuItem == R.id.home) {
+                        isEnabled = false
+                        onBackPressedDispatcher.onBackPressed()
+                        isEnabled = true
+                        return
+                    }
+
+                    navigateToHomeTab()
+                }
+            }
+        )
+    }
+
+    fun navigateToHomeTab() {
+        binding.mainBnv.selectedItemId = R.id.home
     }
 
     private fun checkCalendarPermissions() {

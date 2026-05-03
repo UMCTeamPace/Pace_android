@@ -646,21 +646,78 @@ class ScheduleViewModel @Inject constructor(
     fun getRepeatDescription(info: RepeatInfo?): String {
         if (info == null || info.repeatType.uppercase() == "NONE") return "반복 안 함"
 
-        val typeStr = when(info.repeatType.uppercase()) {
-            "DAILY" -> "매일"
-            "WEEKLY" -> "매주"
-            "MONTHLY" -> "매월"
-            "YEARLY" -> "매년"
+        val intervalText = when (info.repeatType.uppercase()) {
+            "DAILY" -> if (info.repeatInterval == 1) "매일" else "${info.repeatInterval}일마다"
+            "WEEKLY" -> if (info.repeatInterval == 1) "매주" else "${info.repeatInterval}주마다"
+            "MONTHLY" -> if (info.repeatInterval == 1) "매월" else "${info.repeatInterval}개월마다"
+            "YEARLY" -> if (info.repeatInterval == 1) "매년" else "${info.repeatInterval}년마다"
             else -> ""
         }
 
-        val endStr = when(info.endType.uppercase()) {
-            "COUNT" -> ", ${info.endCount}회 반복"
-            "DATE" -> ", ${info.repeatEndDate}까지"
+        val detailInfo = when (info.repeatType.uppercase()) {
+            "WEEKLY" -> formatWeeklyRepeatDays(info.daysOfWeek)
+            "MONTHLY" -> if (info.monthlyOption == "SPECIFIC_DATE") {
+                info.monthlyDays
+                    ?.split(",")
+                    ?.mapNotNull { it.trim().toIntOrNull() }
+                    ?.sorted()
+                    ?.joinToString(", ")
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { "${it}일" }
+                    .orEmpty()
+            } else {
+                ""
+            }
+            "YEARLY" -> if (info.yearlyOption == "SPECIFIC_DATE") {
+                info.yearlyMonths
+                    ?.split(",")
+                    ?.mapNotNull { it.trim().toIntOrNull() }
+                    ?.sorted()
+                    ?.joinToString(", ") { "${it}월" }
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { "$it 반복" }
+                    .orEmpty()
+            } else {
+                ""
+            }
             else -> ""
         }
 
-        return "$typeStr 반복$endStr"
+        val endText = when (info.endType.uppercase()) {
+            "COUNT" -> "${info.endCount ?: 1}회 반복됩니다"
+            "DATE" -> formatRepeatEndDate(info.repeatEndDate)
+                .takeIf { it.isNotBlank() }
+                ?.let { "${it}까지 반복됩니다" }
+                ?: "반복됩니다"
+            else -> "반복됩니다"
+        }
+
+        return "$intervalText $detailInfo $endText".replace("\\s+".toRegex(), " ").trim()
+    }
+
+    private fun formatWeeklyRepeatDays(daysOfWeek: String?): String {
+        val dayNames = mapOf(
+            "SU" to "일",
+            "MO" to "월",
+            "TU" to "화",
+            "WE" to "수",
+            "TH" to "목",
+            "FR" to "금",
+            "SA" to "토"
+        )
+        val selectedDays = daysOfWeek
+            ?.split(",")
+            ?.mapNotNull { dayNames[it.trim().takeLast(2).uppercase()] }
+            .orEmpty()
+
+        return if (selectedDays.isEmpty()) "" else "${selectedDays.joinToString(", ")}요일"
+    }
+
+    private fun formatRepeatEndDate(repeatEndDate: String?): String {
+        if (repeatEndDate.isNullOrBlank()) return ""
+        return runCatching {
+            LocalDate.parse(repeatEndDate).format(DateTimeFormatter.ofPattern("yyyy.MM.dd(E)", Locale.KOREAN))
+        }.getOrElse { repeatEndDate }
     }
 
     // Reset create event after it is consumed

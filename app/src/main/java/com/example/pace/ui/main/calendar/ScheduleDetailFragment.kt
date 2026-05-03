@@ -82,7 +82,6 @@ class ScheduleDetailFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        configureChrome()
         setupClicks()
         observeScheduleUpdates()
         observeRouteDetail()
@@ -92,27 +91,6 @@ class ScheduleDetailFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         if (_binding != null) loadSchedule()
-    }
-
-    private fun configureChrome() {
-        val activity = requireActivity() as? MainActivity ?: return
-        activity.binding.mainToolbar.visibility = View.GONE
-        activity.binding.mainBnv.visibility = View.GONE
-    }
-
-    private fun restoreChrome() {
-        val activity = activity as? MainActivity ?: return
-        activity.binding.mainToolbar.visibility = View.VISIBLE
-        activity.binding.mainBnv.visibility = View.VISIBLE
-        activity.binding.mainLogoIv.visibility = View.GONE
-        activity.binding.mainSettingsIv.visibility = View.GONE
-        activity.binding.scheduleTitleTv.visibility = View.VISIBLE
-        activity.binding.scheduleActionContainer.visibility = View.VISIBLE
-        activity.binding.scheduleSearchIv.visibility = View.VISIBLE
-        activity.binding.scheduleAddIv.visibility = View.VISIBLE
-        activity.binding.scheduleEditIv.visibility = View.GONE
-        activity.binding.mainBackIv.visibility = View.GONE
-        activity.binding.mainSearchLl.visibility = View.GONE
     }
 
     private fun setupClicks() {
@@ -569,7 +547,7 @@ class ScheduleDetailFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        restoreChrome()
+        (requireActivity() as MainActivity).binding.mainOverlayFcv.visibility = View.GONE
         _binding = null
     }
 

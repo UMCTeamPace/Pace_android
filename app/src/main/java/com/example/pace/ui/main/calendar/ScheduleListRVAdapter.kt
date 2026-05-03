@@ -168,11 +168,7 @@ class ScheduleListRVAdapter(
         RecyclerView.ViewHolder(binding.root) {
         fun bind(header: ScheduleListItem.DateHeader) {
             binding.dateHeaderTv.text = header.date
-            val isToday =
-                LocalDate.parse(
-                    header.date,
-                    DateTimeFormatter.ofPattern("yyyy년 MM월 dd일 (E)", Locale.KOREAN)
-                ) == LocalDate.now()
+            val isToday = parseHeaderDate(header.date) == LocalDate.now()
 
             binding.dateHeaderTv.setTextAppearance(
                 if (isToday) R.style.TextAppearance_App_BodyMd_SemiBold
@@ -185,6 +181,17 @@ class ScheduleListRVAdapter(
                     if (isToday) R.color.text_primary else R.color.text_tertiary
                 )
             )
+        }
+
+        private fun parseHeaderDate(text: String): LocalDate? {
+            val match = Regex("""(\d{4}).*?(\d{2}).*?(\d{2})""").find(text) ?: return null
+            return runCatching {
+                LocalDate.of(
+                    match.groupValues[1].toInt(),
+                    match.groupValues[2].toInt(),
+                    match.groupValues[3].toInt()
+                )
+            }.getOrNull()
         }
     }
 

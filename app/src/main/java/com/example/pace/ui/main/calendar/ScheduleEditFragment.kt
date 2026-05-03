@@ -12,13 +12,11 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.data.model.Schedule
 import com.example.pace.data.viewmodel.ScheduleViewModel
 import com.example.pace.databinding.FragmentScheduleListBinding
 import com.example.pace.ui.add_schedule.AddScheduleActivity
 import com.example.pace.ui.main.MainActivity
-import com.example.pace.ui.main.calendar.SearchFragment
 import com.example.pace.ui.main.home.DeleteRepeatScheduleDialog
 import com.example.pace.ui.main.home.DeleteScheduleDialog
 import dagger.hilt.android.AndroidEntryPoint
@@ -31,15 +29,13 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @AndroidEntryPoint
-class ScheduleListFragment : Fragment() {
+class ScheduleEditFragment : Fragment() {
     private var _binding: FragmentScheduleListBinding? = null
     private val binding get() = _binding!!
 
     private lateinit var scheduleListAdapter: ScheduleListRVAdapter
     private val viewModel: ScheduleViewModel by activityViewModels()
     private var hasScrolledToToday = false
-    private var pendingResetToToday = false
-    private var editModeChromeInitialized = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -54,10 +50,10 @@ class ScheduleListFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         setupOnBackPressed()
         setupRecyclerView()
-        setupObservers()
-        observeEditMode()
         setupEditBarButtons()
-        applyPendingResetIfNeeded()
+        setupObservers()
+        viewModel.setEditMode(false)
+        scheduleListAdapter.setEditMode(true)
     }
 
     private fun setupOnBackPressed() {
@@ -65,180 +61,10 @@ class ScheduleListFragment : Fragment() {
             viewLifecycleOwner,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
-                    if (viewModel.isEditMode.value) {
-                        viewModel.setEditMode(false)
-                        return
-                    }
-
-                    isEnabled = false
-                    requireActivity().onBackPressedDispatcher.onBackPressed()
-                    isEnabled = true
+                    closeEditScreen()
                 }
             }
         )
-    }
-
-    private fun observeEditMode() {
-        viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.isEditMode.collectLatest { isEditMode ->
-                val mainActivity = requireActivity() as MainActivity
-                val parent = parentFragment as? CalendarFragment
-
-                updateEditModeChrome(isEditMode, mainActivity, parent)
-            }
-        }
-    }
-
-    private fun updateEditModeChrome(
-        isEditMode: Boolean,
-        mainActivity: MainActivity,
-        parent: CalendarFragment?
-    ) {
-        if (!editModeChromeInitialized) {
-            editModeChromeInitialized = true
-            binding.layoutEditHeader.visibility = if (isEditMode) View.VISIBLE else View.GONE
-            binding.layoutEditBar.visibility = if (isEditMode) View.VISIBLE else View.GONE
-            mainActivity.binding.mainToolbar.visibility = if (isEditMode) View.GONE else View.VISIBLE
-            mainActivity.binding.mainBnv.visibility = if (isEditMode) View.GONE else View.VISIBLE
-            parent?.setTabVisibility(!isEditMode)
-            scheduleListAdapter.setEditMode(isEditMode)
-            return
-        }
-
-        if (isEditMode) {
-            fadeMainChrome(mainActivity, show = false)
-            fadeListModeChange {
-                parent?.setTabVisibility(false)
-                binding.layoutEditHeader.visibility = View.VISIBLE
-                binding.layoutEditBar.visibility = View.VISIBLE
-                scheduleListAdapter.setEditMode(true)
-            }
-        } else {
-            fadeListModeChange {
-                scheduleListAdapter.setEditMode(false)
-                binding.layoutEditHeader.visibility = View.GONE
-                binding.layoutEditBar.visibility = View.GONE
-                parent?.setTabVisibility(true)
-            }
-            fadeMainChrome(mainActivity, show = true) {
-                mainActivity.binding.mainToolbar.visibility = View.VISIBLE
-                mainActivity.binding.mainBnv.visibility = View.VISIBLE
-            }
-        }
-    }
-
-    private fun fadeListModeChange(applyState: () -> Unit) {
-        binding.root.animate().cancel()
-        binding.root.animate()
-            .alpha(0f)
-            .setDuration(90)
-            .withEndAction {
-                applyState()
-                binding.root.animate()
-                    .alpha(1f)
-                    .setDuration(140)
-                    .start()
-            }
-            .start()
-    }
-
-    private fun fadeMainChrome(
-        mainActivity: MainActivity,
-        show: Boolean,
-        endAction: (() -> Unit)? = null
-    ) {
-        val targets = listOf(mainActivity.binding.mainToolbar, mainActivity.binding.mainBnv)
-        var finishedCount = 0
-        targets.forEach { view ->
-            view.animate().cancel()
-            if (show) {
-                view.alpha = 0f
-                view.visibility = View.VISIBLE
-            }
-            view.animate()
-                .alpha(if (show) 1f else 0f)
-                .setDuration(140)
-                .withEndAction {
-                    if (!show) {
-                        view.visibility = View.GONE
-                        view.alpha = 1f
-                    }
-                    finishedCount += 1
-                    if (finishedCount == targets.size) {
-                        endAction?.invoke()
-                    }
-                }
-                .start()
-        }
-    }
-
-    private fun setupEditBarButtons() {
-        binding.btnEditCancel.setOnClickListener {
-            viewModel.setEditMode(false)
-        }
-        binding.btnEditDelete.setOnClickListener {
-            showBulkDeleteDialog()
-        }
-    }
-
-    private fun showBulkDeleteDialog() {
-        val selectedSchedules =
-            scheduleListAdapter.getSelectedSchedules(viewModel.selectedOccurrenceKeys.value)
-        if (selectedSchedules.isEmpty()) return
-
-        val repeatingSchedules = selectedSchedules.filter {
-            it.type != "ROUTE" && !it.repeatRule.isNullOrEmpty()
-        }
-        val singleSchedules = selectedSchedules.filterNot {
-            it.type != "ROUTE" && !it.repeatRule.isNullOrEmpty()
-        }
-
-        if (repeatingSchedules.isNotEmpty()) {
-            DeleteRepeatScheduleDialog(requireContext()).apply {
-                setOnOptionSelectedListener { option ->
-                    deleteSelectedSchedules(repeatingSchedules, option)
-
-                    if (singleSchedules.isNotEmpty()) {
-                        showSingleDeleteDialog(singleSchedules)
-                    } else {
-                        viewModel.setEditMode(false)
-                    }
-                }
-            }.show()
-            return
-        }
-
-        showSingleDeleteDialog(singleSchedules)
-    }
-
-    private fun showSingleDeleteDialog(singleSchedules: List<Schedule>) {
-        if (singleSchedules.isEmpty()) return
-
-        DeleteScheduleDialog(requireContext()).apply {
-            setOnConfirmListener {
-                deleteSelectedSchedules(singleSchedules, null)
-                viewModel.setEditMode(false)
-            }
-        }.show()
-    }
-
-    private fun deleteSelectedSchedules(selectedSchedules: List<Schedule>, repeatOption: String?) {
-        selectedSchedules.forEach { schedule ->
-            when {
-                schedule.type == "ROUTE" -> {
-                    viewModel.deleteSchedule(schedule.id, withRoute = true)
-                }
-
-                !schedule.repeatRule.isNullOrEmpty() && repeatOption == "ONLY_THIS" -> {
-                    val occurrenceDate = LocalDate.parse(schedule.startDate)
-                    viewModel.deleteOnlyThisOccurrence(schedule, occurrenceDate)
-                }
-
-                else -> {
-                    viewModel.deleteSchedule(schedule.id, withRoute = false)
-                }
-            }
-        }
     }
 
     private fun setupRecyclerView() {
@@ -266,13 +92,24 @@ class ScheduleListFragment : Fragment() {
                 viewModel.toggleOccurrenceSelection(schedule.id, schedule.startDate)
             },
             onItemClick = { schedule ->
-                openScheduleDetail(schedule)
+                viewModel.toggleOccurrenceSelection(schedule.id, schedule.startDate)
             }
         )
 
+        binding.layoutEditHeader.visibility = View.VISIBLE
+        binding.layoutEditBar.visibility = View.VISIBLE
         binding.scheduleListRv.apply {
             layoutManager = LinearLayoutManager(context)
             adapter = scheduleListAdapter
+        }
+    }
+
+    private fun setupEditBarButtons() {
+        binding.btnEditCancel.setOnClickListener {
+            closeEditScreen()
+        }
+        binding.btnEditDelete.setOnClickListener {
+            showBulkDeleteDialog()
         }
     }
 
@@ -315,25 +152,20 @@ class ScheduleListFragment : Fragment() {
 
         if (groupedMap.isNotEmpty()) {
             withContext(Dispatchers.Default) {
-                val sortedDates = groupedMap.keys
-                    .sorted()
-
-                for (date in sortedDates) {
-                    val scheduleList = groupedMap[date] ?: continue
+                groupedMap.keys.sorted().forEach { date ->
+                    val scheduleList = groupedMap[date] ?: return@forEach
                     if (todayPosition == null && !date.isBefore(today)) {
                         todayPosition = items.size
                     }
                     items.add(ScheduleListItem.DateHeader(formatDateToHeader(date)))
 
-                    val sortedList = scheduleList.sortedWith(
+                    scheduleList.sortedWith(
                         compareBy(
                             { !it.isPinned },
                             { !it.isAllDay },
                             { it.startTime }
                         )
-                    )
-
-                    sortedList.forEach { schedule ->
+                    ).forEach { schedule ->
                         items.add(ScheduleListItem.ScheduleItem(schedule))
                     }
                 }
@@ -341,6 +173,7 @@ class ScheduleListFragment : Fragment() {
         }
 
         scheduleListAdapter.updateData(items, viewModel.routeDetails.value)
+        scheduleListAdapter.setEditMode(true)
         scrollToTodayPositionIfNeeded(todayPosition)
     }
 
@@ -357,37 +190,63 @@ class ScheduleListFragment : Fragment() {
         }
     }
 
-    fun resetToToday() {
-        if (_binding == null) {
-            pendingResetToToday = true
+    private fun showBulkDeleteDialog() {
+        val selectedSchedules =
+            scheduleListAdapter.getSelectedSchedules(viewModel.selectedOccurrenceKeys.value)
+        if (selectedSchedules.isEmpty()) return
+
+        val repeatingSchedules = selectedSchedules.filter {
+            it.type != "ROUTE" && !it.repeatRule.isNullOrEmpty()
+        }
+        val singleSchedules = selectedSchedules.filterNot {
+            it.type != "ROUTE" && !it.repeatRule.isNullOrEmpty()
+        }
+
+        if (repeatingSchedules.isNotEmpty()) {
+            DeleteRepeatScheduleDialog(requireContext()).apply {
+                setOnOptionSelectedListener { option ->
+                    deleteSelectedSchedules(repeatingSchedules, option)
+
+                    if (singleSchedules.isNotEmpty()) {
+                        showSingleDeleteDialog(singleSchedules)
+                    } else {
+                        closeEditScreen()
+                    }
+                }
+            }.show()
             return
         }
-        pendingResetToToday = false
-        hasScrolledToToday = false
-        viewLifecycleOwner.lifecycleScope.launch {
-            processAndDisplaySchedules(viewModel.scheduleMap.value)
-        }
+
+        showSingleDeleteDialog(singleSchedules)
     }
 
-    private fun openScheduleDetail(schedule: Schedule) {
-        (parentFragment as? CalendarFragment)?.openScheduleDetail(
-            scheduleId = schedule.id,
-            occurrenceDate = schedule.startDate,
-            scheduleType = schedule.type
-        )
+    private fun showSingleDeleteDialog(singleSchedules: List<Schedule>) {
+        if (singleSchedules.isEmpty()) return
+
+        DeleteScheduleDialog(requireContext()).apply {
+            setOnConfirmListener {
+                deleteSelectedSchedules(singleSchedules, null)
+                closeEditScreen()
+            }
+        }.show()
     }
 
-    private fun applyPendingResetIfNeeded() {
-        if (!pendingResetToToday || _binding == null) return
-        resetToToday()
-    }
+    private fun deleteSelectedSchedules(selectedSchedules: List<Schedule>, repeatOption: String?) {
+        selectedSchedules.forEach { schedule ->
+            when {
+                schedule.type == "ROUTE" -> {
+                    viewModel.deleteSchedule(schedule.id, withRoute = true)
+                }
 
-    private fun formatDateToHeader(date: LocalDate): String {
-        return try {
-            val formatter = DateTimeFormatter.ofPattern("yyyy년 MM월 dd일 (E)", Locale.KOREAN)
-            date.format(formatter)
-        } catch (e: Exception) {
-            date.toString()
+                !schedule.repeatRule.isNullOrEmpty() && repeatOption == "ONLY_THIS" -> {
+                    val occurrenceDate = LocalDate.parse(schedule.startDate)
+                    viewModel.deleteOnlyThisOccurrence(schedule, occurrenceDate)
+                }
+
+                else -> {
+                    viewModel.deleteSchedule(schedule.id, withRoute = false)
+                }
+            }
         }
     }
 
@@ -420,9 +279,25 @@ class ScheduleListFragment : Fragment() {
         }
     }
 
+    private fun closeEditScreen() {
+        viewModel.setEditMode(false)
+        parentFragmentManager.popBackStack()
+    }
+
+    private fun formatDateToHeader(date: LocalDate): String {
+        return try {
+            val formatter = DateTimeFormatter.ofPattern("yyyy년 MM월 dd일 (E)", Locale.KOREAN)
+            date.format(formatter)
+        } catch (e: Exception) {
+            date.toString()
+        }
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         hasScrolledToToday = false
+        viewModel.setEditMode(false)
+        (requireActivity() as MainActivity).binding.mainOverlayFcv.visibility = View.GONE
         _binding = null
     }
 }

@@ -932,6 +932,9 @@ class ScheduleRepeatFragment : Fragment() {
                 info.repeatEndDate?.let {
                     selectedEndDate = LocalDate.parse(it)
                     binding.calendarPicker.notifyDateChanged(selectedEndDate!!)
+                    val endMonth = YearMonth.from(selectedEndDate)
+                    binding.calendarPicker.scrollToMonth(endMonth)
+                    binding.tvCurrentMonth.text = monthFormatter.format(endMonth)
                 }
             }
         }

@@ -13,9 +13,9 @@ import com.google.android.material.tabs.TabLayoutMediator
 import com.example.pace.ui.main.calendar.SearchFragment
 import com.example.pace.R
 import com.example.pace.ui.add_schedule.AddScheduleActivity
-import androidx.fragment.app.activityViewModels // 추가
+import androidx.fragment.app.activityViewModels
 import com.example.pace.data.viewmodel.ScheduleViewModel
-import dagger.hilt.android.AndroidEntryPoint // 추가
+import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class CalendarFragment: Fragment() {
@@ -43,7 +43,7 @@ class CalendarFragment: Fragment() {
         mainActivity.binding.scheduleEditIv.setOnClickListener {
             // ViewModel을 통해 편집 모드 활성화
             // 이 값을 관찰 중인 ScheduleListFragment가 UI를 자동으로 바꿉니다.
-            viewModel.setEditMode(true)
+            openScheduleEdit()
         }
 
         // 1. 액티비티 툴바의 돋보기 버튼 리스너 달기
@@ -171,18 +171,44 @@ class CalendarFragment: Fragment() {
     }
 
     fun openSearch() {
+        (requireActivity() as MainActivity).binding.mainOverlayFcv.visibility = View.VISIBLE
         parentFragmentManager.beginTransaction()
-            .hide(this)
-            .add(R.id.main_fcv, SearchFragment())
+            .setCustomAnimations(
+                R.anim.fade_in_fast,
+                R.anim.fade_out_fast,
+                R.anim.fade_in_fast,
+                R.anim.fade_out_fast
+            )
+            .add(R.id.main_overlay_fcv, SearchFragment())
+            .addToBackStack(null)
+            .commit()
+    }
+
+    private fun openScheduleEdit() {
+        (requireActivity() as MainActivity).binding.mainOverlayFcv.visibility = View.VISIBLE
+        parentFragmentManager.beginTransaction()
+            .setCustomAnimations(
+                R.anim.fade_in_fast,
+                R.anim.fade_out_fast,
+                R.anim.fade_in_fast,
+                R.anim.fade_out_fast
+            )
+            .add(R.id.main_overlay_fcv, ScheduleEditFragment())
             .addToBackStack(null)
             .commit()
     }
 
     fun openScheduleDetail(scheduleId: Long, occurrenceDate: String, scheduleType: String) {
+        (requireActivity() as MainActivity).binding.mainOverlayFcv.visibility = View.VISIBLE
         parentFragmentManager.beginTransaction()
-            .hide(this)
+            .setCustomAnimations(
+                R.anim.fade_in_fast,
+                R.anim.fade_out_fast,
+                R.anim.fade_in_fast,
+                R.anim.fade_out_fast
+            )
             .add(
-                R.id.main_fcv,
+                R.id.main_overlay_fcv,
                 ScheduleDetailFragment.newInstance(
                     scheduleId = scheduleId,
                     occurrenceDate = occurrenceDate,

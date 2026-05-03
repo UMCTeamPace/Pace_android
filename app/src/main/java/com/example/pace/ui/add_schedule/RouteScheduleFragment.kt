@@ -674,6 +674,12 @@ class RouteScheduleFragment : Fragment() {
             alarmFragment.arguments = bundle
 
             requireActivity().supportFragmentManager.beginTransaction()
+                .setCustomAnimations(
+                    android.R.anim.slide_in_left,
+                    android.R.anim.slide_out_right,
+                    android.R.anim.slide_in_left,
+                    android.R.anim.slide_out_right
+                )
                 .replace(android.R.id.content, alarmFragment)
                 .addToBackStack(null)
                 .commit()
