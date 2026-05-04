@@ -23,6 +23,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.NumberPicker
 import android.widget.TextView
+import androidx.core.view.updateLayoutParams
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
 import androidx.core.content.ContextCompat
@@ -506,6 +507,7 @@ class CalendarPageFragment: Fragment() {
         val btn = binding.btnReturnToToday
 
         if (show) {
+            updateTodayButtonDirection(selectedDate ?: today)
             if (btn.visibility != View.VISIBLE) {
                 btn.visibility = View.VISIBLE
                 btn.animate()
@@ -525,6 +527,43 @@ class CalendarPageFragment: Fragment() {
                     .start()
             }
         }
+    }
+
+    private fun updateTodayButtonDirection(date: LocalDate) {
+        val arrow = binding.ivReturnToTodayArrow
+        val text = binding.tvReturnToToday
+        val button = binding.btnReturnToToday
+        val arrowSidePadding = dpToPx(12)
+        val textSidePadding = dpToPx(16)
+        val innerGap = dpToPx(2)
+
+        if (date.isBefore(today)) {
+            button.removeView(arrow)
+            button.removeView(text)
+            button.addView(text)
+            button.addView(arrow)
+            button.setPadding(textSidePadding, button.paddingTop, arrowSidePadding, button.paddingBottom)
+            arrow.updateLayoutParams<LinearLayout.LayoutParams> {
+                marginStart = innerGap
+                marginEnd = 0
+            }
+            arrow.setImageResource(R.drawable.ic_arrow_closed)
+        } else {
+            button.removeView(arrow)
+            button.removeView(text)
+            button.addView(arrow)
+            button.addView(text)
+            button.setPadding(arrowSidePadding, button.paddingTop, textSidePadding, button.paddingBottom)
+            arrow.updateLayoutParams<LinearLayout.LayoutParams> {
+                marginStart = 0
+                marginEnd = innerGap
+            }
+            arrow.setImageResource(R.drawable.ic_arrow_opened)
+        }
+    }
+
+    private fun dpToPx(dp: Int): Int {
+        return (dp * resources.displayMetrics.density).roundToInt()
     }
 
     private fun crossfade(fadeInView: View, fadeOutView: View, durationMs: Long = 350) {

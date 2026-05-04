@@ -84,6 +84,7 @@ class ScheduleRepeatFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        applySystemBarInsets()
         setupFocusClearInteractions()
         setupMainListeners()
         expandRepeatOptionTouchArea()
@@ -107,13 +108,36 @@ class ScheduleRepeatFragment : Fragment() {
             hideKeyboard()
         }
 
+    }
+
+    private fun applySystemBarInsets() {
+        val rootBasePaddingTop = binding.root.paddingTop
+        val scrollBasePaddingBottom = binding.repeatScrollView.paddingBottom
+
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val imeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
+
+            binding.root.setPadding(
+                binding.root.paddingLeft,
+                rootBasePaddingTop + systemBars.top,
+                binding.root.paddingRight,
+                binding.root.paddingBottom
+            )
+
+            binding.repeatScrollView.setPadding(
+                binding.repeatScrollView.paddingLeft,
+                binding.repeatScrollView.paddingTop,
+                binding.repeatScrollView.paddingRight,
+                scrollBasePaddingBottom + if (imeVisible) 0 else systemBars.bottom
+            )
+
             if (!imeVisible) {
                 clearCurrentInputFocus()
             }
             insets
         }
+        ViewCompat.requestApplyInsets(binding.root)
     }
 
     private fun setupMainListeners() {
@@ -128,53 +152,16 @@ class ScheduleRepeatFragment : Fragment() {
         }
 
         binding.rgEndOptions.setOnCheckedChangeListener { _, checkedId ->
-            // 어떤 옵션을 누르든 일단 키보드부터 내림
-            hideKeyboard()
-
-            // 포커스를 라디오 그룹으로 강제 이동시켜 EditText에서 포커스를 뺏어옴
-            binding.rgEndOptions.requestFocus()
-
             handleEndLayoutVisibility()
             updateFullDescription()
-
-            if (checkedId == R.id.rb_end_count) {
-                // '횟수 지정'일 때만 다시 키보드 올림
-                binding.etEndCount.postDelayed({ // 레이아웃 안정화 후 키보드 팝업
-                    binding.etEndCount.requestFocus()
-                    val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-                    imm.showSoftInput(binding.etEndCount, InputMethodManager.SHOW_IMPLICIT)
-                }, 100)
+            if (checkedId != R.id.rb_end_count) {
+                hideKeyboard()
             }
         }
 
-        binding.rbEndNever.setOnClickListener {
-            // 1. 강제 포커스 해제 (EditText에서 포커스를 완전히 뺏어옴)
-            binding.etEndCount.clearFocus()
-
-            // 2. 키보드 즉시 숨김
-            val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            imm.hideSoftInputFromWindow(view?.windowToken, 0)
-
-            // 3. 라디오 버튼 체크 강제 수행 (간혹 이벤트가 씹히는 것 방지)
-            binding.rbEndNever.isChecked = true
-            handleEndLayoutVisibility()
-            updateFullDescription()
-        }
-
-        val endRadioButtons = listOf(binding.rbEndNever, binding.rbEndCount, binding.rbEndDate)
-        endRadioButtons.forEach { rb ->
-            rb.setOnClickListener { clickedView ->
-                endRadioButtons.forEach { it.isChecked = (it == clickedView) }
-                handleEndLayoutVisibility()
-                updateFullDescription()
-
-                if (clickedView == binding.rbEndCount) {
-                    binding.etEndCount.requestFocus()
-                    val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-                    imm.showSoftInput(binding.etEndCount, InputMethodManager.SHOW_IMPLICIT)
-                }
-            }
-        }
+        binding.rbEndNever.setOnClickListener { handleEndOptionClick(R.id.rb_end_never) }
+        binding.rbEndCount.setOnClickListener { handleEndOptionClick(R.id.rb_end_count) }
+        binding.rbEndDate.setOnClickListener { handleEndOptionClick(R.id.rb_end_date) }
 
         binding.etEndCount.addTextChangedListener(descriptionWatcher)
 
@@ -191,6 +178,22 @@ class ScheduleRepeatFragment : Fragment() {
                 // scrollToMonth 대신 smoothScrollToMonth 사용
                 binding.calendarPicker.smoothScrollToMonth(it.yearMonth.plusMonths(1))
             }
+        }
+    }
+
+    private fun handleEndOptionClick(checkedId: Int) {
+        binding.rgEndOptions.check(checkedId)
+        hideKeyboard()
+        binding.rgEndOptions.requestFocus()
+        handleEndLayoutVisibility()
+        updateFullDescription()
+
+        if (checkedId == R.id.rb_end_count) {
+            binding.etEndCount.postDelayed({
+                binding.etEndCount.requestFocus()
+                val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.showSoftInput(binding.etEndCount, InputMethodManager.SHOW_IMPLICIT)
+            }, 120)
         }
     }
 
@@ -803,9 +806,12 @@ class ScheduleRepeatFragment : Fragment() {
     }
 
     private fun hideKeyboard() {
+        val focusedView = requireActivity().currentFocus ?: view
         clearCurrentInputFocus()
         val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        imm.hideSoftInputFromWindow(view?.windowToken, 0)
+        focusedView?.windowToken?.let { imm.hideSoftInputFromWindow(it, 0) }
+        binding.root.windowToken?.let { imm.hideSoftInputFromWindow(it, 0) }
+        binding.etEndCount.windowToken?.let { imm.hideSoftInputFromWindow(it, 0) }
     }
 
     private fun setupLegend() {
