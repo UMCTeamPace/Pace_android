@@ -8,6 +8,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
+import androidx.activity.OnBackPressedCallback
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
@@ -23,6 +24,7 @@ import com.example.pace.ui.add_schedule.AddScheduleActivity
 import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.main.home.DeleteRepeatScheduleDialog
 import com.example.pace.ui.main.home.DeleteScheduleDialog
+import com.example.pace.util.ScheduleSortUtils
 import com.example.pace.util.SearchTextMatcher
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
@@ -55,6 +57,7 @@ class SearchFragment : Fragment() {
         setupRecyclerView()
         setupSearchInput()
         setupButtons()
+        setupOnBackPressed()
         setupKeyboardDismissOnTouch()
         observeSearchResults()
 
@@ -62,6 +65,17 @@ class SearchFragment : Fragment() {
 
         binding.etSearch.requestFocus()
         showKeyboard()
+    }
+
+    private fun setupOnBackPressed() {
+        requireActivity().onBackPressedDispatcher.addCallback(
+            viewLifecycleOwner,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    closeSearchScreen()
+                }
+            }
+        )
     }
 
     private fun setupRecyclerView() {
@@ -164,8 +178,7 @@ class SearchFragment : Fragment() {
 
     private fun setupButtons() {
         binding.btnBack.setOnClickListener {
-            hideKeyboard()
-            parentFragmentManager.popBackStack()
+            closeSearchScreen()
         }
 
         binding.ivList.setOnClickListener {
@@ -235,6 +248,12 @@ class SearchFragment : Fragment() {
         imm.hideSoftInputFromWindow(binding.etSearch.windowToken, 0)
     }
 
+    private fun closeSearchScreen() {
+        hideKeyboard()
+        parentFragmentManager.popBackStack()
+        (requireActivity() as MainActivity).hideOverlayContainerIfEmpty()
+    }
+
     private fun showDeleteDialog(schedule: Schedule) {
         if (schedule.type == "ROUTE") {
             DeleteScheduleDialog(requireContext()).apply {
@@ -274,13 +293,7 @@ class SearchFragment : Fragment() {
             resultList.add(ScheduleListItem.DateHeader(formatDateToHeader(date)))
 
             grouped[dateStr]?.let { daySchedules ->
-                val sortedList = daySchedules.sortedWith(
-                    compareBy(
-                        { !it.isPinned },
-                        { !it.isAllDay },
-                        { it.startTime }
-                    )
-                )
+                val sortedList = daySchedules.sortedWith(ScheduleSortUtils.displayComparator())
                 resultList.addAll(sortedList.map { ScheduleListItem.ScheduleItem(it) })
             }
         }
@@ -299,7 +312,7 @@ class SearchFragment : Fragment() {
     override fun onDestroyView() {
         hideKeyboard()
         super.onDestroyView()
-        (requireActivity() as MainActivity).binding.mainOverlayFcv.visibility = View.GONE
+        (requireActivity() as MainActivity).hideOverlayContainerIfEmpty()
         _binding = null
     }
 }

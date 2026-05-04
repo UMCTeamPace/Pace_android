@@ -21,6 +21,7 @@ import com.example.pace.data.model.response.RouteInfo
 import com.example.pace.databinding.ItemDateHeaderBinding
 import com.example.pace.databinding.ItemScheduleBinding
 import com.example.pace.ui.RouteCalculator
+import com.example.pace.util.ScheduleSortUtils
 import com.example.pace.util.SearchTextMatcher
 import com.google.gson.Gson
 import java.time.LocalDate
@@ -66,15 +67,7 @@ class SearchAdapter(
             when (item) {
                 is ScheduleListItem.DateHeader -> {
                     if (tempDayItems.isNotEmpty()) {
-                        finalItems.addAll(
-                            tempDayItems.sortedWith(
-                                compareBy(
-                                    { !it.schedule.isPinned },
-                                    { !it.schedule.isAllDay },
-                                    { it.schedule.startTime }
-                                )
-                            )
-                        )
+                        finalItems.addAll(sortScheduleItems(tempDayItems))
                         tempDayItems.clear()
                     }
                     finalItems.add(item)
@@ -85,18 +78,14 @@ class SearchAdapter(
         }
 
         if (tempDayItems.isNotEmpty()) {
-            finalItems.addAll(
-                tempDayItems.sortedWith(
-                    compareBy(
-                        { !it.schedule.isPinned },
-                        { !it.schedule.isAllDay },
-                        { it.schedule.startTime }
-                    )
-                )
-            )
+            finalItems.addAll(sortScheduleItems(tempDayItems))
         }
 
         updateData(finalItems, routeInfoMap)
+    }
+
+    private fun sortScheduleItems(items: List<ScheduleListItem.ScheduleItem>): List<ScheduleListItem.ScheduleItem> {
+        return items.sortedWith(compareBy(ScheduleSortUtils.displayComparator()) { it.schedule })
     }
 
     fun updateSelectedIds(ids: Set<Long>) {

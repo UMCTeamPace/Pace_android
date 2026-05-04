@@ -102,6 +102,7 @@ class GeneralScheduleFragment : Fragment() {
     private val dateFormatter = DateTimeFormatter.ofPattern("M월 d일 (E)", Locale.KOREAN)
     val colorInt = android.graphics.Color.parseColor(selectedColorHex)
     private var currentRepeatInfo: RepeatInfo? = null
+    private var isRepeatChanged: Boolean = false
 
     private val settingsViewModel: SettingsViewModel by viewModels()
 
@@ -307,11 +308,10 @@ class GeneralScheduleFragment : Fragment() {
                             reminders = currentSelectedAlarms?.toList() ?: existing.reminders,
 
                             // 💡 [핵심] 반복 정보 업데이트 (수정 시 repeatInfo를 RRULE로 변환하여 넣어줘야 함)
-                            repeatRule = if (currentRepeatInfo != null) {
-                                // ViewModel에 rrule 생성 함수가 있다면 활용
-                                viewModel.buildRRuleString(currentRepeatInfo)
-                            } else {
-                                existing.repeatRule // 변경 없으면 기존 값 유지
+                            repeatRule = when {
+                                currentRepeatInfo != null -> viewModel.buildRRuleString(currentRepeatInfo)
+                                isRepeatChanged -> null
+                                else -> existing.repeatRule
                             }
                         )
 
@@ -714,6 +714,7 @@ class GeneralScheduleFragment : Fragment() {
                 @Suppress("DEPRECATION")
                 bundle.getSerializable("repeatInfo") as? RepeatInfo
             }
+            isRepeatChanged = true
         }
 
     }

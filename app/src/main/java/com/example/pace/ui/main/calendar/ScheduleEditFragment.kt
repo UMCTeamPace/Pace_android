@@ -19,6 +19,7 @@ import com.example.pace.ui.add_schedule.AddScheduleActivity
 import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.main.home.DeleteRepeatScheduleDialog
 import com.example.pace.ui.main.home.DeleteScheduleDialog
+import com.example.pace.util.ScheduleSortUtils
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -159,13 +160,7 @@ class ScheduleEditFragment : Fragment() {
                     }
                     items.add(ScheduleListItem.DateHeader(formatDateToHeader(date)))
 
-                    scheduleList.sortedWith(
-                        compareBy(
-                            { !it.isPinned },
-                            { !it.isAllDay },
-                            { it.startTime }
-                        )
-                    ).forEach { schedule ->
+                    scheduleList.sortedWith(ScheduleSortUtils.displayComparator()).forEach { schedule ->
                         items.add(ScheduleListItem.ScheduleItem(schedule))
                     }
                 }
@@ -282,6 +277,7 @@ class ScheduleEditFragment : Fragment() {
     private fun closeEditScreen() {
         viewModel.setEditMode(false)
         parentFragmentManager.popBackStack()
+        (requireActivity() as MainActivity).hideOverlayContainerIfEmpty()
     }
 
     private fun formatDateToHeader(date: LocalDate): String {
@@ -297,7 +293,7 @@ class ScheduleEditFragment : Fragment() {
         super.onDestroyView()
         hasScrolledToToday = false
         viewModel.setEditMode(false)
-        (requireActivity() as MainActivity).binding.mainOverlayFcv.visibility = View.GONE
+        (requireActivity() as MainActivity).hideOverlayContainerIfEmpty()
         _binding = null
     }
 }

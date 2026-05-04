@@ -11,6 +11,7 @@ import com.example.pace.data.model.response.RouteInfo
 import com.example.pace.databinding.ItemSchedulePageBinding
 import com.example.pace.ui.main.calendar.ScheduleAdapter
 import com.example.pace.ui.main.calendar.ScheduleListItem
+import com.example.pace.util.ScheduleSortUtils
 import java.time.LocalDate
 import kotlin.collections.sortedWith
 
@@ -94,9 +95,9 @@ class DailyPageAdapter(
         fun bind(date: LocalDate) {
             val daySchedules = events[date] ?: emptyList()
 
-            val sortedItems = daySchedules.sortedWith(
-                compareBy({ !it.isPinned }, { !it.isAllDay }, { it.startTime })
-            ).map { ScheduleListItem.ScheduleItem(it) }
+            val sortedItems = daySchedules
+                .sortedWith(ScheduleSortUtils.displayComparator())
+                .map { ScheduleListItem.ScheduleItem(it) }
 
             scheduleAdapter.updateRouteInfo(routeInfoMap)
             scheduleAdapter.updateData(sortedItems)
@@ -139,12 +140,8 @@ class DailyPageAdapter(
 
         override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
             val date = dates[oldItemPosition]
-            val oldSchedules = oldEvents[date].orEmpty().sortedWith(
-                compareBy({ !it.isPinned }, { !it.isAllDay }, { it.startTime })
-            )
-            val newSchedules = newEvents[date].orEmpty().sortedWith(
-                compareBy({ !it.isPinned }, { !it.isAllDay }, { it.startTime })
-            )
+            val oldSchedules = oldEvents[date].orEmpty().sortedWith(ScheduleSortUtils.displayComparator())
+            val newSchedules = newEvents[date].orEmpty().sortedWith(ScheduleSortUtils.displayComparator())
 
             if (oldSchedules != newSchedules) return false
 

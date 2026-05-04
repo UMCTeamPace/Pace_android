@@ -217,7 +217,7 @@ class ScheduleRepositoryImpl @Inject constructor(
                                 placeJson = local.placeJson,
                                 departureReminders = local.departureReminders,
                                 reminders = if (remote.reminders.isEmpty()) local.reminders else remote.reminders,
-                                repeatRule = local.repeatRule ?: remote.repeatRule,
+                                repeatRule = remote.repeatRule,
                                 exDate = local.exDate ?: remote.exDate,
 
                                 type = local.type,

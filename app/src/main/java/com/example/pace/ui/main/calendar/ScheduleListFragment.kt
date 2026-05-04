@@ -21,6 +21,7 @@ import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.main.calendar.SearchFragment
 import com.example.pace.ui.main.home.DeleteRepeatScheduleDialog
 import com.example.pace.ui.main.home.DeleteScheduleDialog
+import com.example.pace.util.ScheduleSortUtils
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -325,13 +326,7 @@ class ScheduleListFragment : Fragment() {
                     }
                     items.add(ScheduleListItem.DateHeader(formatDateToHeader(date)))
 
-                    val sortedList = scheduleList.sortedWith(
-                        compareBy(
-                            { !it.isPinned },
-                            { !it.isAllDay },
-                            { it.startTime }
-                        )
-                    )
+                    val sortedList = scheduleList.sortedWith(ScheduleSortUtils.displayComparator())
 
                     sortedList.forEach { schedule ->
                         items.add(ScheduleListItem.ScheduleItem(schedule))

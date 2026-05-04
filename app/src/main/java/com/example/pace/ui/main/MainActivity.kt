@@ -202,6 +202,17 @@ class MainActivity : AppCompatActivity() {
         binding.mainBnv.selectedItemId = R.id.home
     }
 
+    fun hideOverlayContainerIfEmpty() {
+        binding.mainOverlayFcv.post {
+            val hasOverlayFragment = supportFragmentManager.fragments.any { fragment ->
+                fragment.id == R.id.main_overlay_fcv && fragment.isAdded && !fragment.isRemoving
+            }
+            if (!hasOverlayFragment) {
+                binding.mainOverlayFcv.visibility = View.GONE
+            }
+        }
+    }
+
     private fun checkCalendarPermissions() {
         Log.d("MainActivity", "onCreate2: checkCalendarPermissions()")
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED ||

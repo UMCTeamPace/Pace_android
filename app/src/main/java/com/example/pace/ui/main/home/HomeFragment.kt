@@ -29,6 +29,7 @@ import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
 import androidx.fragment.app.activityViewModels // 추가 확인
 import com.example.pace.data.model.response.ScheduleDetailResponse
+import com.example.pace.util.ScheduleSortUtils
 import dagger.hilt.android.AndroidEntryPoint // 1. 추가
 
 @AndroidEntryPoint
@@ -276,14 +277,7 @@ class HomeFragment: Fragment() {
         val routeSchedules = filteredList.filter { it.type == "ROUTE" }
 
 
-        // 정렬 로직 추가 (필요 시: 고정 -> 시간순)
-        val sortedList = filteredList.sortedWith(
-            compareBy(
-                { !it.isPinned },
-                { !it.isAllDay },
-                { it.startTime }
-            )
-        )
+        val sortedList = filteredList.sortedWith(ScheduleSortUtils.displayComparator())
 
         val shouldSuppressAnimation =
             suppressNextScheduleAnimation ||

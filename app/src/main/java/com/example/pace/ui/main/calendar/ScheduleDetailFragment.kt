@@ -10,6 +10,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -83,9 +84,21 @@ class ScheduleDetailFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupClicks()
+        setupOnBackPressed()
         observeScheduleUpdates()
         observeRouteDetail()
         loadSchedule()
+    }
+
+    private fun setupOnBackPressed() {
+        requireActivity().onBackPressedDispatcher.addCallback(
+            viewLifecycleOwner,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    closeDetailScreen()
+                }
+            }
+        )
     }
 
     override fun onResume() {
@@ -95,7 +108,7 @@ class ScheduleDetailFragment : Fragment() {
 
     private fun setupClicks() {
         binding.btnBack.setOnClickListener {
-            requireActivity().supportFragmentManager.popBackStack()
+            closeDetailScreen()
         }
 
         binding.btnEdit.setOnClickListener {
@@ -517,7 +530,7 @@ class ScheduleDetailFragment : Fragment() {
                 DeleteScheduleDialog(requireContext()).apply {
                     setOnConfirmListener {
                         viewModel.deleteSchedule(schedule.id, withRoute = true)
-                        requireActivity().supportFragmentManager.popBackStack()
+                        closeDetailScreen()
                     }
                 }.show()
             }
@@ -529,7 +542,7 @@ class ScheduleDetailFragment : Fragment() {
                             "ONLY_THIS" -> viewModel.deleteOnlyThisOccurrence(schedule, parseDate(currentOccurrenceDate))
                             "ALL" -> viewModel.deleteSchedule(schedule.id, withRoute = false)
                         }
-                        requireActivity().supportFragmentManager.popBackStack()
+                        closeDetailScreen()
                     }
                 }.show()
             }
@@ -538,16 +551,21 @@ class ScheduleDetailFragment : Fragment() {
                 DeleteScheduleDialog(requireContext()).apply {
                     setOnConfirmListener {
                         viewModel.deleteSchedule(schedule.id, withRoute = false)
-                        requireActivity().supportFragmentManager.popBackStack()
+                        closeDetailScreen()
                     }
                 }.show()
             }
         }
     }
 
+    private fun closeDetailScreen() {
+        parentFragmentManager.popBackStack()
+        (requireActivity() as MainActivity).hideOverlayContainerIfEmpty()
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
-        (requireActivity() as MainActivity).binding.mainOverlayFcv.visibility = View.GONE
+        (requireActivity() as MainActivity).hideOverlayContainerIfEmpty()
         _binding = null
     }
 

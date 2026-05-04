@@ -213,7 +213,7 @@
                 android:paddingHorizontal="24dp">
                 <LinearLayout android:id="@+id/btn_route" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
                     <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_route_unselected" />
-                    <TextView android:id="@+id/tv_location_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:text="장소" android:textAppearance="@style/TextAppearance.App.BodySm.Regular" android:textColor="@color/text_tertiary"/>
+                    <TextView android:id="@+id/tv_location_status" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_weight="1" android:ellipsize="end" android:maxLines="1" android:text="장소" android:textAppearance="@style/TextAppearance.App.BodySm.Regular" android:textColor="@color/text_tertiary"/>
                 </LinearLayout>
             </LinearLayout>
 
@@ -227,7 +227,7 @@
                 android:paddingHorizontal="24dp">
                 <LinearLayout android:id="@+id/btn_remindalarm" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
                     <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_alarm_schedule" />
-                    <TextView android:id="@+id/tv_remind_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:text="일정 알림 안함" android:textAppearance="@style/TextAppearance.App.BodySm.Regular" android:textColor="@color/text_tertiary"/>
+                    <TextView android:id="@+id/tv_remind_status" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_weight="1" android:ellipsize="end" android:maxLines="1" android:text="일정 알림 안함" android:textAppearance="@style/TextAppearance.App.BodySm.Regular" android:textColor="@color/text_tertiary"/>
                 </LinearLayout>
             </LinearLayout>
 
@@ -275,7 +275,7 @@
                 android:paddingHorizontal="24dp">
                 <LinearLayout android:id="@+id/btn_calendar" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
                     <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_day_unselected" />
-                    <TextView android:id="@+id/tv_calendar_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:text="캘린더" android:textAppearance="@style/TextAppearance.App.BodySm.Regular" android:textColor="@color/text_tertiary"/>
+                    <TextView android:id="@+id/tv_calendar_status" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_weight="1" android:ellipsize="end" android:maxLines="1" android:text="캘린더" android:textAppearance="@style/TextAppearance.App.BodySm.Regular" android:textColor="@color/text_tertiary"/>
                 </LinearLayout>
             </LinearLayout>
 
