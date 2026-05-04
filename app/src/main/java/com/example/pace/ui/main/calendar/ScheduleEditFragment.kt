@@ -167,7 +167,7 @@ class ScheduleEditFragment : Fragment() {
             }
         }
 
-        scheduleListAdapter.updateData(items, viewModel.routeDetails.value)
+        scheduleListAdapter.updateDataAsync(items, viewModel.routeDetails.value)
         scheduleListAdapter.setEditMode(true)
         scrollToTodayPositionIfNeeded(todayPosition)
     }
@@ -205,7 +205,7 @@ class ScheduleEditFragment : Fragment() {
                     if (singleSchedules.isNotEmpty()) {
                         showSingleDeleteDialog(singleSchedules)
                     } else {
-                        closeEditScreen()
+                        viewModel.clearOccurrenceSelection()
                     }
                 }
             }.show()
@@ -221,7 +221,7 @@ class ScheduleEditFragment : Fragment() {
         DeleteScheduleDialog(requireContext()).apply {
             setOnConfirmListener {
                 deleteSelectedSchedules(singleSchedules, null)
-                closeEditScreen()
+                viewModel.clearOccurrenceSelection()
             }
         }.show()
     }

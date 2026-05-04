@@ -1,8 +1,6 @@
 package com.example.pace.ui.main.home
 
 import android.content.Context
-import android.content.res.ColorStateList
-import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -16,6 +14,7 @@ import com.example.pace.data.model.Schedule
 import com.example.pace.data.model.response.RouteInfo
 import com.example.pace.databinding.ItemScheduleBinding
 import com.example.pace.ui.RouteCalculator
+import com.example.pace.util.ScheduleItemStyleUtils
 import com.google.gson.Gson
 
 class ScheduleRVAdapter(
@@ -137,12 +136,7 @@ class ScheduleRVAdapter(
             binding.scheduleCheckbox.visibility = View.GONE
             binding.scheduleTitleTv.text = schedule.title ?: "제목 없음"
 
-            val colorResId = when {
-                schedule.eventColor != null && schedule.eventColor != 0 -> schedule.eventColor
-                schedule.calendarColor != null && schedule.calendarColor != 0 -> schedule.calendarColor
-                else -> Color.parseColor("#A2BD3B")
-            }
-            binding.scheduleCategoryIv.imageTintList = ColorStateList.valueOf(colorResId)
+            val colorResId = ScheduleItemStyleUtils.resolveScheduleColor(schedule)
 
             binding.scheduleTimeTv.text =
                 if (schedule.isAllDay) "하루 종일" else "${schedule.startTime} - ${schedule.endTime}"
@@ -177,6 +171,23 @@ class ScheduleRVAdapter(
                     binding.scheduleNormalLocationLl.visibility = View.GONE
                 }
             }
+
+            ScheduleItemStyleUtils.applyScheduleColors(
+                context = context,
+                schedule = schedule,
+                scheduleColor = colorResId,
+                titleViews = listOf(binding.scheduleTitleTv, binding.scheduleRouteNameTv),
+                secondaryViews = listOf(
+                    binding.scheduleTimeTv,
+                    binding.scheduleRepeatTv,
+                    binding.scheduleNormalLocationTv,
+                    binding.scheduleRouteRangeTv,
+                    binding.scheduleRouteDurationTv
+                ),
+                accentViews = listOf(binding.scheduleRepeatIv, binding.scheduleNormalLocationIv),
+                categoryView = binding.scheduleCategoryIv,
+                pinnedView = binding.schedulePinnedIv
+            )
         }
 
         private fun buildRouteName(

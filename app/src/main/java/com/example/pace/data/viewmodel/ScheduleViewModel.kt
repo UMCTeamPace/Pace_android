@@ -151,6 +151,10 @@ class ScheduleViewModel @Inject constructor(
         _selectedOccurrenceKeys.value = current
     }
 
+    fun clearOccurrenceSelection() {
+        _selectedOccurrenceKeys.value = emptySet()
+    }
+
     fun buildOccurrenceSelectionKey(scheduleId: Long, occurrenceDate: String): String {
         return "$scheduleId|$occurrenceDate"
     }

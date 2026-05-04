@@ -1,8 +1,6 @@
 package com.example.pace.ui.main.calendar
 
 import android.content.Context
-import android.content.res.ColorStateList
-import android.graphics.Color
 import android.graphics.fonts.FontStyle
 import android.view.LayoutInflater
 import android.view.View
@@ -19,9 +17,11 @@ import com.example.pace.data.model.response.RouteInfo
 import com.example.pace.databinding.ItemDateHeaderBinding
 import com.example.pace.databinding.ItemScheduleBinding
 import com.example.pace.ui.RouteCalculator
+import com.example.pace.util.ScheduleItemStyleUtils
 import com.google.gson.Gson
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
-import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -40,10 +40,6 @@ class ScheduleListRVAdapter(
     private var isEditMode = false
     private var selectedKeys = setOf<String>()
     private var routeInfoMap: Map<Long, RouteInfo> = emptyMap()
-    private val primaryTextColor by lazy { ContextCompat.getColor(context, R.color.text_primary) }
-    private val secondaryTextColor by lazy { ContextCompat.getColor(context, R.color.text_secondary) }
-    private val disabledTextColor by lazy { ContextCompat.getColor(context, R.color.text_disabled) }
-
     companion object {
         private const val TYPE_HEADER = 0
         private const val TYPE_ITEM = 1
@@ -59,6 +55,25 @@ class ScheduleListRVAdapter(
                 newRouteMap = newRouteMap
             )
         )
+        routeInfoMap = newRouteMap
+        items = newItems.toMutableList()
+        diffResult.dispatchUpdatesTo(this)
+    }
+
+    suspend fun updateDataAsync(newItems: List<ScheduleListItem>, newRouteMap: Map<Long, RouteInfo> = emptyMap()) {
+        mItemManger.closeAllItems()
+        val oldItems = items.toList()
+        val oldRouteMap = routeInfoMap
+        val diffResult = withContext(Dispatchers.Default) {
+            DiffUtil.calculateDiff(
+                ScheduleListDiffCallback(
+                    oldItems = oldItems,
+                    newItems = newItems,
+                    oldRouteMap = oldRouteMap,
+                    newRouteMap = newRouteMap
+                )
+            )
+        }
         routeInfoMap = newRouteMap
         items = newItems.toMutableList()
         diffResult.dispatchUpdatesTo(this)
@@ -207,9 +222,7 @@ class ScheduleListRVAdapter(
             binding.scheduleTimeTv.text =
                 if (schedule.isAllDay) "하루 종일" else "${schedule.startTime} - ${schedule.endTime}"
 
-            val colorResId = schedule.eventColor.takeIf { it != null && it != 0 }
-                ?: schedule.calendarColor.takeIf { it != null && it != 0 }
-                ?: Color.parseColor("#A2BD3B")
+            val colorResId = ScheduleItemStyleUtils.resolveScheduleColor(schedule)
             applyTodayScheduleColors(schedule, colorResId)
 
             if (isEditMode) {
@@ -285,40 +298,26 @@ class ScheduleListRVAdapter(
         }
 
         private fun applyTodayScheduleColors(schedule: Schedule, scheduleColor: Int) {
-            val today = LocalDate.now()
-            val scheduleDate = runCatching { LocalDate.parse(schedule.startDate.take(10)) }.getOrNull()
-            val isToday = scheduleDate == today
-            val isPastTimedSchedule = isToday &&
-                !schedule.isAllDay &&
-                runCatching { LocalTime.parse(schedule.endTime) }.getOrNull()?.isBefore(LocalTime.now()) == true
-
-            val titleColor = when {
-                isToday && schedule.isAllDay -> primaryTextColor
-                isPastTimedSchedule -> disabledTextColor
-                else -> primaryTextColor
-            }
-            val secondaryColor = if (isPastTimedSchedule) disabledTextColor else secondaryTextColor
-            val accentColor = if (isPastTimedSchedule) disabledTextColor else secondaryTextColor
-            val categoryColor = if (isPastTimedSchedule) {
-                (scheduleColor and 0x00FFFFFF) or (0x80 shl 24)
-            } else {
-                scheduleColor
-            }
-
-            binding.scheduleTitleTv.setTextColor(titleColor)
-            binding.scheduleTimeTv.setTextColor(secondaryColor)
-            binding.scheduleRepeatTv.setTextColor(secondaryColor)
-            binding.scheduleNormalLocationTv.setTextColor(secondaryColor)
-            binding.scheduleRouteNameTv.setTextColor(titleColor)
-            binding.scheduleRouteRangeTv.setTextColor(secondaryColor)
-            binding.scheduleRouteDurationTv.setTextColor(secondaryColor)
-
-            binding.scheduleCategoryIv.imageTintList = ColorStateList.valueOf(categoryColor)
-            binding.scheduleRepeatIv.imageTintList = ColorStateList.valueOf(accentColor)
-            binding.scheduleNormalLocationIv.imageTintList = ColorStateList.valueOf(accentColor)
-            binding.scheduleRouteLocationIv.imageTintList = ColorStateList.valueOf(accentColor)
-            binding.schedulePinnedIv.imageTintList =
-                if (isPastTimedSchedule) ColorStateList.valueOf(disabledTextColor) else null
+            ScheduleItemStyleUtils.applyScheduleColors(
+                context = context,
+                schedule = schedule,
+                scheduleColor = scheduleColor,
+                titleViews = listOf(binding.scheduleTitleTv, binding.scheduleRouteNameTv),
+                secondaryViews = listOf(
+                    binding.scheduleTimeTv,
+                    binding.scheduleRepeatTv,
+                    binding.scheduleNormalLocationTv,
+                    binding.scheduleRouteRangeTv,
+                    binding.scheduleRouteDurationTv
+                ),
+                accentViews = listOf(
+                    binding.scheduleRepeatIv,
+                    binding.scheduleNormalLocationIv,
+                    binding.scheduleRouteLocationIv
+                ),
+                categoryView = binding.scheduleCategoryIv,
+                pinnedView = binding.schedulePinnedIv
+            )
         }
 
         private fun buildRouteName(

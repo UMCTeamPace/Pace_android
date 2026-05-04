@@ -1,8 +1,6 @@
 package com.example.pace.ui.main.calendar
 
 import android.content.Context
-import android.content.res.ColorStateList
-import android.graphics.Color
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.ForegroundColorSpan
@@ -21,6 +19,7 @@ import com.example.pace.data.model.response.RouteInfo
 import com.example.pace.databinding.ItemDateHeaderBinding
 import com.example.pace.databinding.ItemScheduleBinding
 import com.example.pace.ui.RouteCalculator
+import com.example.pace.util.ScheduleItemStyleUtils
 import com.example.pace.util.ScheduleSortUtils
 import com.example.pace.util.SearchTextMatcher
 import com.google.gson.Gson
@@ -208,7 +207,9 @@ class SearchAdapter(
             binding.dateHeaderTv.text = date
             if(LocalDate.parse(date, DateTimeFormatter.ofPattern("yyyy년 MM월 dd일(E)", Locale.KOREAN)) == LocalDate.now()){
                 binding.dateHeaderTv.typeface = ResourcesCompat.getFont(context, R.font.pretendard_semibold)
-                binding.dateHeaderTv.setTextColor(R.color.text_primary)
+                binding.dateHeaderTv.setTextColor(
+                    ContextCompat.getColor(context, R.color.text_primary)
+                )
             }
         }
     }
@@ -242,8 +243,7 @@ class SearchAdapter(
                 }
             }
 
-            val colorResId = schedule.eventColor ?: schedule.calendarColor ?: Color.parseColor("#A2BD3B")
-            binding.scheduleCategoryIv.imageTintList = ColorStateList.valueOf(colorResId)
+            val colorResId = ScheduleItemStyleUtils.resolveScheduleColor(schedule)
             binding.scheduleTimeTv.text =
                 if (schedule.isAllDay) "하루 종일" else "${schedule.startTime} - ${schedule.endTime}"
 
@@ -276,6 +276,27 @@ class SearchAdapter(
 
             binding.schedulePinnedIv.visibility = if (schedule.isPinned) View.VISIBLE else View.GONE
             binding.scheduleCheckbox.visibility = View.INVISIBLE
+
+            ScheduleItemStyleUtils.applyScheduleColors(
+                context = context,
+                schedule = schedule,
+                scheduleColor = colorResId,
+                titleViews = listOf(binding.scheduleTitleTv, binding.scheduleRouteNameTv),
+                secondaryViews = listOf(
+                    binding.scheduleTimeTv,
+                    binding.scheduleRepeatTv,
+                    binding.scheduleNormalLocationTv,
+                    binding.scheduleRouteRangeTv,
+                    binding.scheduleRouteDurationTv
+                ),
+                accentViews = listOf(
+                    binding.scheduleRepeatIv,
+                    binding.scheduleNormalLocationIv,
+                    binding.scheduleRouteLocationIv
+                ),
+                categoryView = binding.scheduleCategoryIv,
+                pinnedView = binding.schedulePinnedIv
+            )
 
             binding.root.showMode = SwipeLayout.ShowMode.LayDown
             binding.root.addDrag(SwipeLayout.DragEdge.Left, binding.scheduleLeftBottomWrapper)

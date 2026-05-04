@@ -655,7 +655,7 @@ class CalendarPageFragment: Fragment() {
 
                 val position = dailyPageAdapter.getPosition(date)
                 binding.root.findViewById<ViewPager2>(R.id.vp_daily_schedule)
-                    .setCurrentItem(position, true)
+                    .setCurrentItem(position, false)
 
                 if (!fromScroll) {
                     // 이 안에서 scrollToMonth 등이 호출될 때 리스너가 동작하지 않도록 보장

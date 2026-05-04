@@ -335,7 +335,7 @@ class ScheduleListFragment : Fragment() {
             }
         }
 
-        scheduleListAdapter.updateData(items, viewModel.routeDetails.value)
+        scheduleListAdapter.updateDataAsync(items, viewModel.routeDetails.value)
         scrollToTodayPositionIfNeeded(todayPosition)
     }
 
