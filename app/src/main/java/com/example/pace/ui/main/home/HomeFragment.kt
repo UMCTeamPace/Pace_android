@@ -106,7 +106,11 @@ class HomeFragment: Fragment() {
                     position,
                     selectedDate,
                     viewModel,
-                    viewLifecycleOwner
+                    viewLifecycleOwner,
+                    onRouteScheduleClick = { routeSchedule ->
+                        (requireActivity() as MainActivity).openRouteTabWithSelectedRouteSchedule(routeSchedule)
+                        modalCaseDialog?.dismiss()
+                    }
                 ).also { dialog ->
                     dialog.setOnDismissListener { modalCaseDialog = null }
                     dialog.show()
@@ -166,7 +170,7 @@ class HomeFragment: Fragment() {
         val layoutManager = binding.homeHorizontalCalendarRv.layoutManager as LinearLayoutManager
         val datePos = calendarSize / 2
         calendarCenterPosition = datePos
-        var calendarText = date.year.toString() + "년 " + date.monthValue.toString() + "월"
+        var calendarText = formatCalendarMonthText(date)
 
         horizontalCalendarAdapter = HorizontalCalendarRVAdapter(date)
         binding.homeHorizontalCalendarRv.adapter = horizontalCalendarAdapter
@@ -232,7 +236,7 @@ class HomeFragment: Fragment() {
                             date.minusDays(diff)
                         }
 
-                        calendarText = centerDate.year.toString() + "년 " + centerDate.monthValue.toString() + "월"
+                        calendarText = formatCalendarMonthText(centerDate)
                         binding.homeHorizontalCalendarTv.text = calendarText
                         
                         selectedDate = centerDate
@@ -241,7 +245,42 @@ class HomeFragment: Fragment() {
                     }
                 }
             }
+
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+
+                val centerPosition = findCenterCalendarPosition(recyclerView) ?: return
+                val centerDate = dateForCalendarPosition(centerPosition, date, datePos)
+                binding.homeHorizontalCalendarTv.text = formatCalendarMonthText(centerDate)
+            }
         })
+    }
+
+    private fun findCenterCalendarPosition(recyclerView: RecyclerView): Int? {
+        val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return null
+        val centerX = recyclerView.width / 2
+        var closestPosition: Int? = null
+        var closestDistance = Int.MAX_VALUE
+
+        for (index in 0 until layoutManager.childCount) {
+            val child = layoutManager.getChildAt(index) ?: continue
+            val childCenterX = (child.left + child.right) / 2
+            val distance = kotlin.math.abs(childCenterX - centerX)
+            if (distance < closestDistance) {
+                closestDistance = distance
+                closestPosition = recyclerView.getChildAdapterPosition(child)
+            }
+        }
+
+        return closestPosition?.takeIf { it != RecyclerView.NO_POSITION }
+    }
+
+    private fun dateForCalendarPosition(position: Int, baseDate: LocalDate, basePosition: Int): LocalDate {
+        return baseDate.plusDays((position - basePosition).toLong())
+    }
+
+    private fun formatCalendarMonthText(date: LocalDate): String {
+        return date.year.toString() + "년 " + date.monthValue.toString() + "월"
     }
 
     private fun setupObservers() {
@@ -315,12 +354,6 @@ class HomeFragment: Fragment() {
             binding.homeNoSchedule.visibility = View.GONE
             binding.homeScheduleRv.visibility = View.VISIBLE
         }
-    }
-
-    override fun onStop() {
-        modalCaseDialog?.dismiss()
-        modalCaseDialog = null
-        super.onStop()
     }
 
     fun resetToToday() {

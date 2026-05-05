@@ -45,10 +45,12 @@ import com.example.pace.PaceApplication
 import com.example.pace.data.datasource.AuthDataStore
 import com.example.pace.data.db.ScheduleDatabase
 import com.example.pace.data.datasource.NormalScheduleRemoteDataSource
+import com.example.pace.data.model.response.RouteOnlyScheduleData
 import com.example.pace.data.repository.repository.SettingsRepository
 import com.example.pace.data.util.syncMemberSettingsIfNeeded
 import com.example.pace.data.viewmodel.ScheduleViewModel
 import com.example.pace.data.repository.repository.ScheduleRepository
+import com.example.pace.data.viewmodel.RouteViewModel
 import com.example.pace.data.viewmodel.TransitViewModel
 import dagger.hilt.android.AndroidEntryPoint // 추가
 import kotlinx.coroutines.launch
@@ -64,6 +66,7 @@ class MainActivity : AppCompatActivity() {
     lateinit var binding: ActivityMainBinding
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private val viewModel: ScheduleViewModel by viewModels()
+    private val routeViewModel: RouteViewModel by viewModels()
     private val transitViewModel: TransitViewModel by viewModels()
     // ViewModel injection
 
@@ -200,6 +203,13 @@ class MainActivity : AppCompatActivity() {
 
     fun navigateToHomeTab() {
         binding.mainBnv.selectedItemId = R.id.home
+    }
+
+    fun openRouteTabWithSelectedRouteSchedule(schedule: RouteOnlyScheduleData) {
+        routeViewModel.selectRouteSchedule(schedule)
+        showRouteTab(resetIfNeeded = false)
+        (supportFragmentManager.findFragmentByTag(TAG_ROUTE) as? RouteFragment)
+            ?.showSelectedRouteSchedule(schedule)
     }
 
     fun hideOverlayContainerIfEmpty() {

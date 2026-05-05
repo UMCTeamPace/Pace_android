@@ -110,7 +110,7 @@ class RouteFragment : Fragment() {
         SearchViewModelFactory((requireActivity().application as PaceApplication).searchRepository)
     }
 
-    private val routeViewModel: RouteViewModel by viewModels()
+    private val routeViewModel: RouteViewModel by activityViewModels()
     private val settingsViewModel: SettingsViewModel by activityViewModels()
     private val transitViewModel: TransitViewModel by viewModels()
 
@@ -397,7 +397,7 @@ class RouteFragment : Fragment() {
 
         routeViewModel.routeOnlySchedule.observe(viewLifecycleOwner) { data ->
             if (currentEntryMode != EntryMode.MAIN) return@observe
-            showMainEntryOverlay(data)
+            showMainEntryOverlay(currentMainEntryRouteSchedule() ?: data)
             return@observe
             // Single source of truth is routeViewModel.routeOnlySchedule.
             if (data != null) {
@@ -424,6 +424,11 @@ class RouteFragment : Fragment() {
                     binding.layoutRouteDetailOverlay.bottomSheetRouteDetail.visibility = View.GONE
                 }
             }
+        }
+
+        routeViewModel.selectedRouteSchedule.observe(viewLifecycleOwner) { data ->
+            if (currentEntryMode != EntryMode.MAIN || data == null) return@observe
+            showMainEntryOverlay(data)
         }
     }
 
@@ -1045,6 +1050,7 @@ class RouteFragment : Fragment() {
         val adapter = RouteScheduleListAdapter(groupedList) { selectedData ->
             hasSchedule = true
 
+            routeViewModel.selectRouteSchedule(selectedData)
             showDefaultScheduleOverlay(selectedData)
             dialog.dismiss()
         }
@@ -2116,7 +2122,7 @@ class RouteFragment : Fragment() {
                 mainBinding?.mainBackIv?.visibility = View.GONE
 
                 if (hasSchedule) {
-                    showMainEntryOverlay(routeViewModel.routeOnlySchedule.value)
+                    showMainEntryOverlay(currentMainEntryRouteSchedule())
                 } else {
                     binding.layoutRouteDetailOverlay.root.visibility = View.VISIBLE
                     binding.layoutRouteDetailOverlay.root.bringToFront()
@@ -2276,7 +2282,7 @@ class RouteFragment : Fragment() {
             mainBinding?.mainBackIv?.visibility = View.GONE
             if (hasSchedule) {
                 // 일정이 있으면 해당 일정 오버레이 표시
-                showMainEntryOverlay(routeViewModel.routeOnlySchedule.value)
+                showMainEntryOverlay(currentMainEntryRouteSchedule())
             } else {
                 binding.layoutRouteDetailOverlay.root.visibility = View.VISIBLE
                 binding.layoutRouteDetailOverlay.root.bringToFront()
@@ -2382,7 +2388,7 @@ class RouteFragment : Fragment() {
             exitSearchMode()
             mainBinding?.mainBackIv?.visibility = View.GONE
             if (hasSchedule) {
-                showMainEntryOverlay(routeViewModel.routeOnlySchedule.value)
+                showMainEntryOverlay(currentMainEntryRouteSchedule())
                 mainBinding?.mainBnv?.visibility = View.VISIBLE
             }
             else {
@@ -3480,7 +3486,7 @@ class RouteFragment : Fragment() {
             moveMapToCurrentLocation(it, animate = false)
         }
 
-        val defaultScheduleData = routeViewModel.routeOnlySchedule.value
+        val defaultScheduleData = currentMainEntryRouteSchedule()
         if (hasSchedule && defaultScheduleData != null) {
             showDefaultScheduleOverlay(defaultScheduleData)
         } else {
@@ -3495,6 +3501,27 @@ class RouteFragment : Fragment() {
             binding.layoutRouteDetailOverlay.layoutRouteSelectContainer.visibility = View.GONE
             binding.layoutRouteDetailOverlay.bottomSheetRouteDetail.visibility = View.GONE
         }
+    }
+
+    private fun currentMainEntryRouteSchedule(): RouteOnlyScheduleData? {
+        return routeViewModel.selectedRouteSchedule.value ?: routeViewModel.routeOnlySchedule.value
+    }
+
+    fun showSelectedRouteSchedule(data: RouteOnlyScheduleData) {
+        if (_binding == null || !isAdded) return
+
+        currentEntryMode = EntryMode.MAIN
+        hasSchedule = true
+        routeViewModel.selectRouteSchedule(data)
+
+        binding.routeSearchFcv.visibility = View.GONE
+        binding.layoutRouteInputHeader.root.visibility = View.GONE
+        binding.layoutMapSelectOverlay.root.visibility = View.GONE
+        mainBinding?.mainToolbar?.visibility = View.VISIBLE
+        mainBinding?.mainBnv?.visibility = View.VISIBLE
+        mainBinding?.mainBackIv?.visibility = View.GONE
+
+        showMainEntryOverlay(data)
     }
 
     private fun showMainEntryOverlay(data: RouteOnlyScheduleData?) {

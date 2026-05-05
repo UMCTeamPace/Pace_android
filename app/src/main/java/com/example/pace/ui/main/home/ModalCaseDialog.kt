@@ -17,6 +17,7 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.example.pace.data.model.Schedule
+import com.example.pace.data.model.response.RouteOnlyScheduleData
 import com.example.pace.data.model.response.ScheduleDetailResponse
 import com.example.pace.databinding.DialogModalCaseBinding
 import com.example.pace.data.viewmodel.ScheduleViewModel
@@ -32,7 +33,8 @@ class ModalCaseDialog(
     private val position: Int,
     private var date: LocalDate,
     private val viewModel: ScheduleViewModel,
-    private val lifecycleOwner: LifecycleOwner
+    private val lifecycleOwner: LifecycleOwner,
+    private val onRouteScheduleClick: (RouteOnlyScheduleData) -> Unit
 ): Dialog(context) {
 
     lateinit var binding: DialogModalCaseBinding
@@ -43,17 +45,15 @@ class ModalCaseDialog(
         setContentView(binding.root)
 
         lifecycleOwner.lifecycle.addObserver(object : DefaultLifecycleObserver {
-            override fun onStop(owner: LifecycleOwner) {
-                if (isShowing) dismiss()
-            }
-
             override fun onDestroy(owner: LifecycleOwner) {
                 if (isShowing) dismiss()
                 lifecycleOwner.lifecycle.removeObserver(this)
             }
         })
 
-        val adapter = ModalVPAdapter(context, scheduleList)
+        val adapter = ModalVPAdapter(context, scheduleList) { routeSchedule ->
+            onRouteScheduleClick(routeSchedule)
+        }
         binding.modalCaseTv.text = date.year.toString() + "년 " + date.monthValue.toString() + "월 " + date.dayOfMonth.toString() + "일 " + date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.KOREAN)
         binding.modalCaseVp.adapter = adapter
         binding.modalCaseVp.setCurrentItem(position, false)
@@ -63,7 +63,7 @@ class ModalCaseDialog(
         // 각 일정에 대한 상세 정보 호출
         lifecycleOwner.lifecycleScope.launch {
             lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED){
-                scheduleList.forEach { schedule ->
+                scheduleList.filter { it.type == "ROUTE" }.forEach { schedule ->
                     viewModel.getScheduleDetail(schedule.id)
                 }
                 viewModel.scheduleDetailInfoMap.collect {
