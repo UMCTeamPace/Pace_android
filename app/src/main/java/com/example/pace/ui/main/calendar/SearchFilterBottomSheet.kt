@@ -14,6 +14,7 @@ import com.example.pace.data.viewmodel.ScheduleViewModel
 import com.example.pace.databinding.BottomSheetSearchFilterBinding
 import com.example.pace.ui.main.MainActivity
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 class SearchFilterBottomSheet : BottomSheetDialogFragment() {
@@ -54,7 +55,9 @@ class SearchFilterBottomSheet : BottomSheetDialogFragment() {
     private fun setupColorPalette() {
         viewLifecycleOwner.lifecycleScope.launch {
             // 1. 사용할 수 있는 색상 목록을 가져와서 UI 생성 (최초 1회 또는 목록 변경 시)
-            viewModel.usedColors.collect { colors ->
+            combine(viewModel.usedColors, viewModel.filterColors) { colors, selectedColors ->
+                colors to selectedColors
+            }.collect { (colors, selectedColors) ->
                 binding.layoutColorContainer.removeAllViews()
 
                 colors.forEachIndexed { index, colorStr ->
@@ -76,12 +79,10 @@ class SearchFilterBottomSheet : BottomSheetDialogFragment() {
                     colorCircle.backgroundTintList = ColorStateList.valueOf(colorInt)
 
                     // 초기 체크 상태 설정
-                    checkIcon.visibility = if (viewModel.filterColors.value.contains(colorStr)) View.VISIBLE else View.GONE
+                    checkIcon.visibility = if (selectedColors.contains(colorStr)) View.VISIBLE else View.GONE
 
                     itemView.setOnClickListener {
                         viewModel.toggleFilterColor(colorStr)
-                        // UI 즉시 토글
-                        checkIcon.visibility = if (checkIcon.visibility == View.VISIBLE) View.GONE else View.VISIBLE
                     }
 
                     binding.layoutColorContainer.addView(itemView)

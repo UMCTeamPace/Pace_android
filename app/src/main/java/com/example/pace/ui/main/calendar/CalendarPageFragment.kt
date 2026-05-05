@@ -49,6 +49,7 @@ import com.example.pace.data.viewmodel.ScheduleViewModel
 import com.example.pace.databinding.ItemMonthViewMultipleDaysBinding
 import com.example.pace.databinding.ItemMonthViewSingleDayBinding
 import com.example.pace.databinding.ItemWeekViewBinding
+import com.example.pace.util.ScheduleUiRefreshTicker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlin.math.roundToInt
 
@@ -86,6 +87,13 @@ class CalendarPageFragment: Fragment() {
     private var isInitialDataReady = false
     private var hasShownInitialContent = false
     private var pendingResetToTodayState = false
+    private val scheduleUiRefreshTicker = ScheduleUiRefreshTicker {
+        if (_binding != null && ::dailyPageAdapter.isInitialized) {
+            val targetDate = selectedDate ?: today
+            dailyPageAdapter.refreshDate(targetDate)
+            scheduleCurrentDateRefresh()
+        }
+    }
 
 
     override fun onCreateView(
@@ -324,6 +332,7 @@ class CalendarPageFragment: Fragment() {
 
                 if (::dailyPageAdapter.isInitialized) {
                     dailyPageAdapter.updateEvents(events, viewModel.routeDetails.value)
+                    scheduleCurrentDateRefresh()
                 }
 
                 binding.calendarView.notifyCalendarChanged()
@@ -339,6 +348,7 @@ class CalendarPageFragment: Fragment() {
                     // 캘린더 전체를 새로고침(notifyCalendarChanged)할 필요 없이
                     // 어댑터 데이터만 갱신해서 "경로를 불러오는 중..."을 실제 데이터로 바꿉니다.
                     dailyPageAdapter.updateEvents(events, routeMap)
+                    scheduleCurrentDateRefresh()
                 }
             }
         }
@@ -642,6 +652,7 @@ class CalendarPageFragment: Fragment() {
 
             updateSelectedDateText(date)
             toggleTodayButton(date != today)
+            scheduleCurrentDateRefresh()
 
 
             // 날짜 갱신 알림
@@ -820,8 +831,14 @@ class CalendarPageFragment: Fragment() {
         )
     }
 
+    private fun scheduleCurrentDateRefresh() {
+        val schedules = events[selectedDate ?: today].orEmpty()
+        scheduleUiRefreshTicker.schedule(schedules)
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
+        scheduleUiRefreshTicker.cancel()
         isInitialLayoutReady = false
         isInitialDataReady = false
         hasShownInitialContent = false

@@ -22,6 +22,7 @@ import com.example.pace.ui.main.calendar.SearchFragment
 import com.example.pace.ui.main.home.DeleteRepeatScheduleDialog
 import com.example.pace.ui.main.home.DeleteScheduleDialog
 import com.example.pace.util.ScheduleSortUtils
+import com.example.pace.util.ScheduleUiRefreshTicker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -41,6 +42,13 @@ class ScheduleListFragment : Fragment() {
     private var hasScrolledToToday = false
     private var pendingResetToToday = false
     private var editModeChromeInitialized = false
+    private val scheduleUiRefreshTicker = ScheduleUiRefreshTicker {
+        if (_binding != null) {
+            viewLifecycleOwner.lifecycleScope.launch {
+                processAndDisplaySchedules(viewModel.scheduleMap.value, scrollToToday = false)
+            }
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -309,7 +317,10 @@ class ScheduleListFragment : Fragment() {
         }
     }
 
-    private suspend fun processAndDisplaySchedules(groupedMap: Map<LocalDate, List<Schedule>>) {
+    private suspend fun processAndDisplaySchedules(
+        groupedMap: Map<LocalDate, List<Schedule>>,
+        scrollToToday: Boolean = true
+    ) {
         val items = mutableListOf<ScheduleListItem>()
         val today = LocalDate.now()
         var todayPosition: Int? = null
@@ -336,7 +347,10 @@ class ScheduleListFragment : Fragment() {
         }
 
         scheduleListAdapter.updateDataAsync(items, viewModel.routeDetails.value)
-        scrollToTodayPositionIfNeeded(todayPosition)
+        scheduleUiRefreshTicker.schedule(groupedMap.values.flatten())
+        if (scrollToToday) {
+            scrollToTodayPositionIfNeeded(todayPosition)
+        }
     }
 
     private fun scrollToTodayPositionIfNeeded(todayPosition: Int?) {
@@ -417,6 +431,7 @@ class ScheduleListFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        scheduleUiRefreshTicker.cancel()
         hasScrolledToToday = false
         _binding = null
     }

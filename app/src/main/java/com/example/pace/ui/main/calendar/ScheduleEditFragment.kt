@@ -20,6 +20,7 @@ import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.main.home.DeleteRepeatScheduleDialog
 import com.example.pace.ui.main.home.DeleteScheduleDialog
 import com.example.pace.util.ScheduleSortUtils
+import com.example.pace.util.ScheduleUiRefreshTicker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -37,6 +38,13 @@ class ScheduleEditFragment : Fragment() {
     private lateinit var scheduleListAdapter: ScheduleListRVAdapter
     private val viewModel: ScheduleViewModel by activityViewModels()
     private var hasScrolledToToday = false
+    private val scheduleUiRefreshTicker = ScheduleUiRefreshTicker {
+        if (_binding != null) {
+            viewLifecycleOwner.lifecycleScope.launch {
+                processAndDisplaySchedules(viewModel.scheduleMap.value, scrollToToday = false)
+            }
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -146,7 +154,10 @@ class ScheduleEditFragment : Fragment() {
         }
     }
 
-    private suspend fun processAndDisplaySchedules(groupedMap: Map<LocalDate, List<Schedule>>) {
+    private suspend fun processAndDisplaySchedules(
+        groupedMap: Map<LocalDate, List<Schedule>>,
+        scrollToToday: Boolean = true
+    ) {
         val items = mutableListOf<ScheduleListItem>()
         val today = LocalDate.now()
         var todayPosition: Int? = null
@@ -169,7 +180,10 @@ class ScheduleEditFragment : Fragment() {
 
         scheduleListAdapter.updateDataAsync(items, viewModel.routeDetails.value)
         scheduleListAdapter.setEditMode(true)
-        scrollToTodayPositionIfNeeded(todayPosition)
+        scheduleUiRefreshTicker.schedule(groupedMap.values.flatten())
+        if (scrollToToday) {
+            scrollToTodayPositionIfNeeded(todayPosition)
+        }
     }
 
     private fun scrollToTodayPositionIfNeeded(todayPosition: Int?) {
@@ -291,6 +305,7 @@ class ScheduleEditFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        scheduleUiRefreshTicker.cancel()
         hasScrolledToToday = false
         viewModel.setEditMode(false)
         (requireActivity() as MainActivity).hideOverlayContainerIfEmpty()

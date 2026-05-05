@@ -8,6 +8,7 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.example.pace.R
 import com.example.pace.data.model.Schedule
+import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -63,5 +64,25 @@ object ScheduleItemStyleUtils {
         return schedule.eventColor.takeIf { it != null && it != 0 }
             ?: schedule.calendarColor.takeIf { it != null && it != 0 }
             ?: Color.parseColor("#A2BD3B")
+    }
+
+    fun nextPastTimedRefreshDelayMillis(
+        schedules: List<Schedule>,
+        today: LocalDate = LocalDate.now(),
+        now: LocalTime = LocalTime.now()
+    ): Long? {
+        val nextEndTime = schedules
+            .asSequence()
+            .filterNot { it.isAllDay }
+            .filter {
+                runCatching { LocalDate.parse(it.startDate.take(10)) }.getOrNull() == today
+            }
+            .mapNotNull { runCatching { LocalTime.parse(it.endTime) }.getOrNull() }
+            .filter { !it.isBefore(now) }
+            .minOrNull()
+
+        return nextEndTime?.let {
+            Duration.between(now, it).toMillis().coerceAtLeast(0L) + 1000L
+        }
     }
 }

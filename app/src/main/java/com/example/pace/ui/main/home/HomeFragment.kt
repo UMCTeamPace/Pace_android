@@ -30,6 +30,7 @@ import kotlinx.coroutines.launch
 import androidx.fragment.app.activityViewModels // 추가 확인
 import com.example.pace.data.model.response.ScheduleDetailResponse
 import com.example.pace.util.ScheduleSortUtils
+import com.example.pace.util.ScheduleUiRefreshTicker
 import dagger.hilt.android.AndroidEntryPoint // 1. 추가
 
 @AndroidEntryPoint
@@ -43,6 +44,11 @@ class HomeFragment: Fragment() {
     private var pendingResetToToday = false
     private var lastRenderedScheduleDate: LocalDate? = null
     private var suppressNextScheduleAnimation = false
+    private val scheduleUiRefreshTicker = ScheduleUiRefreshTicker {
+        if (isViewReady) {
+            filterAndDisplaySchedules()
+        }
+    }
 
     // 선택한 날짜 저장 및 불러오기
     private lateinit var spf: SharedPreferences
@@ -288,6 +294,7 @@ class HomeFragment: Fragment() {
         }
 
         scheduleAdapter.updateData(sortedList, viewModel.routeDetails.value)
+        scheduleUiRefreshTicker.schedule(sortedList)
         lastRenderedScheduleDate = selectedDate
 
         if (shouldSuppressAnimation) {
@@ -356,6 +363,7 @@ class HomeFragment: Fragment() {
     override fun onDestroyView() {
         modalCaseDialog?.dismiss()
         modalCaseDialog = null
+        scheduleUiRefreshTicker.cancel()
         isViewReady = false
         super.onDestroyView()
     }

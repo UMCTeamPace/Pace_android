@@ -518,6 +518,18 @@ class ScheduleViewModel @Inject constructor(
         Log.d("SearchFlow", "ScheduleViewModel: 검색어와 결과 초기화 완료")
     }
 
+    fun resetSearchState() {
+        searchJob?.cancel()
+        lastQuery = ""
+        searchStartDate = LocalDate.now().minusYears(1)
+        searchEndDate = LocalDate.now().plusYears(1)
+        updateRangeText()
+        _filterColor.value = null
+        _filterColors.value = emptySet()
+        _filterIncludeRoute.value = true
+        _searchResults.value = emptyList()
+    }
+
     fun createSchedule(
         request: CreateScheduleRequest,
         placeId: String? = null,

@@ -8,7 +8,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
-import androidx.core.content.res.ResourcesCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.daimajia.swipe.SwipeLayout
@@ -33,6 +32,7 @@ class SearchAdapter(
     private val onPinClick: (Schedule) -> Unit,
     private val onDeleteClick: (Schedule) -> Unit,
     private val onEditClick: (Schedule) -> Unit,
+    private val onItemClick: (Schedule) -> Unit,
     private val onEditSelect: (Long) -> Unit,
     private var routeInfoMap: Map<Long, RouteInfo> = emptyMap()
 ) : RecyclerSwipeAdapter<RecyclerView.ViewHolder>() {
@@ -205,12 +205,30 @@ class SearchAdapter(
         RecyclerView.ViewHolder(binding.root) {
         fun bind(date: String) {
             binding.dateHeaderTv.text = date
-            if(LocalDate.parse(date, DateTimeFormatter.ofPattern("yyyy년 MM월 dd일(E)", Locale.KOREAN)) == LocalDate.now()){
-                binding.dateHeaderTv.typeface = ResourcesCompat.getFont(context, R.font.pretendard_semibold)
-                binding.dateHeaderTv.setTextColor(
-                    ContextCompat.getColor(context, R.color.text_primary)
+            val isToday = parseHeaderDate(date) == LocalDate.now()
+
+            binding.dateHeaderTv.setTextAppearance(
+                if (isToday) R.style.TextAppearance_App_BodyMd_SemiBold
+                else R.style.TextAppearance_App_BodyMd_Medium
+            )
+
+            binding.dateHeaderTv.setTextColor(
+                ContextCompat.getColor(
+                    context,
+                    if (isToday) R.color.text_primary else R.color.text_tertiary
                 )
-            }
+            )
+        }
+
+        private fun parseHeaderDate(text: String): LocalDate? {
+            val match = Regex("""(\d{4}).*?(\d{2}).*?(\d{2})""").find(text) ?: return null
+            return runCatching {
+                LocalDate.of(
+                    match.groupValues[1].toInt(),
+                    match.groupValues[2].toInt(),
+                    match.groupValues[3].toInt()
+                )
+            }.getOrNull()
         }
     }
 
@@ -316,6 +334,10 @@ class SearchAdapter(
             binding.scheduleDeleteIv.setOnClickListener {
                 onDeleteClick(schedule)
                 mItemManger.closeItem(bindingAdapterPosition)
+            }
+
+            binding.scheduleViewTop.setOnClickListener {
+                onItemClick(schedule)
             }
         }
 

@@ -73,6 +73,10 @@ class DailyPageAdapter(
     fun getDate(position: Int): LocalDate = LocalDate.now().plusDays((position - START_POSITION).toLong())
     fun getPosition(date: LocalDate): Int = START_POSITION + java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(), date).toInt()
 
+    fun refreshDate(date: LocalDate) {
+        notifyItemChanged(getPosition(date))
+    }
+
     inner class PageViewHolder(val binding: ItemSchedulePageBinding) : RecyclerView.ViewHolder(binding.root) {
         private val scheduleAdapter = ScheduleAdapter(
             context = context,
