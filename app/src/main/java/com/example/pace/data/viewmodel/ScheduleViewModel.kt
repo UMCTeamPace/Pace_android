@@ -64,6 +64,10 @@ class ScheduleViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
+    private companion object {
+        const val SEARCH_RANGE_YEARS = 3L
+    }
+
     private var searchJob: Job? = null
 
     private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
@@ -73,8 +77,8 @@ class ScheduleViewModel @Inject constructor(
     private var lastQuery: String = ""
 
     // Search date range state
-    private var searchStartDate = LocalDate.now().minusYears(1)
-    private var searchEndDate = LocalDate.now().plusYears(1)
+    private var searchStartDate = LocalDate.now().minusYears(SEARCH_RANGE_YEARS)
+    private var searchEndDate = LocalDate.now().plusYears(SEARCH_RANGE_YEARS)
 
     // UI search range label
     private val _searchRangeText = MutableStateFlow("")
@@ -521,8 +525,8 @@ class ScheduleViewModel @Inject constructor(
     fun resetSearchState() {
         searchJob?.cancel()
         lastQuery = ""
-        searchStartDate = LocalDate.now().minusYears(1)
-        searchEndDate = LocalDate.now().plusYears(1)
+        searchStartDate = LocalDate.now().minusYears(SEARCH_RANGE_YEARS)
+        searchEndDate = LocalDate.now().plusYears(SEARCH_RANGE_YEARS)
         updateRangeText()
         _filterColor.value = null
         _filterColors.value = emptySet()

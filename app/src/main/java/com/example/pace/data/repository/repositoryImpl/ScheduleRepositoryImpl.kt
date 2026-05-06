@@ -62,6 +62,7 @@ class ScheduleRepositoryImpl @Inject constructor(
         private val ROUTE_SOURCE_ZONE: ZoneId = ZoneId.of("Asia/Seoul")
         private val UTC_API_TIME_FORMATTER: DateTimeFormatter =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+        private const val RECURRENCE_EXPANSION_RANGE_YEARS = 3L
         private const val SWAGGER_LOG_TAG = "SwaggerScheduleRequest"
         private const val LOG_CHUNK_SIZE = 3000
     }
@@ -740,8 +741,8 @@ class ScheduleRepositoryImpl @Inject constructor(
         val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
         val currentLocalDate = LocalDate.now()
-        val rangeStartLocalDate = currentLocalDate.minusYears(2)
-        val rangeEndLocalDate = currentLocalDate.plusYears(2)
+        val rangeStartLocalDate = currentLocalDate.minusYears(RECURRENCE_EXPANSION_RANGE_YEARS)
+        val rangeEndLocalDate = currentLocalDate.plusYears(RECURRENCE_EXPANSION_RANGE_YEARS)
 
         val rangeStartDate = Date.from(rangeStartLocalDate.atStartOfDay(ZoneId.systemDefault()).toInstant())
         val rangeEndDate = Date.from(rangeEndLocalDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant())
