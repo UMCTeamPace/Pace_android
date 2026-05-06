@@ -17,8 +17,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.data.model.Schedule
 import com.example.pace.databinding.ItemModalBinding
 import com.example.pace.R
+import com.example.pace.data.model.response.RouteOnlyScheduleData
 import com.example.pace.data.model.response.RouteDetailResponse
 import com.example.pace.data.model.response.RouteInfo
+import com.example.pace.data.model.response.ScheduleInfo
 import com.example.pace.data.model.response.ScheduleDetailResponse
 import com.example.pace.databinding.ItemRouteDetailBriefBinding
 import com.example.pace.databinding.ItemRouteVehicleBinding
@@ -26,13 +28,16 @@ import com.example.pace.ui.RouteCalculator
 import com.example.pace.data.viewmodel.ScheduleViewModel
 import com.example.pace.ui.add_schedule.AddScheduleActivity
 import dagger.hilt.android.qualifiers.ActivityContext
+import com.google.gson.Gson
 
 class ModalVPAdapter(
     private val context: Context,
-    private val scheduleList:List<Schedule>
+    private val scheduleList:List<Schedule>,
+    private val onRouteScheduleClick: (RouteOnlyScheduleData) -> Unit
 ): RecyclerView.Adapter<ModalVPAdapter.ViewHolder>() {
     lateinit var binding: ItemModalBinding
     private var scheduleDetailInfo: Map<Long, ScheduleDetailResponse> = emptyMap()
+    private val gson = Gson()
     override fun onCreateViewHolder(
         parent: ViewGroup,
         viewType: Int
@@ -45,20 +50,28 @@ class ModalVPAdapter(
         holder: ViewHolder,
         position: Int
     ) {
-        holder.bind(scheduleList[position])
-        if(scheduleList[position].type == "ROUTE"){
-            holder.binding.modalRouteBriefLl.setOnClickListener {
-                // todo: 경로뷰로 이동
+        val schedule = scheduleList[position]
+        holder.bind(schedule)
+        if(schedule.type == "ROUTE"){
+            val openRouteSchedule = View.OnClickListener {
+                buildRouteScheduleData(schedule)?.let(onRouteScheduleClick)
             }
+            holder.binding.modalRouteLocationLl.setOnClickListener(openRouteSchedule)
+            holder.binding.modalRouteBriefLl.setOnClickListener(openRouteSchedule)
+            holder.binding.modalRouteVehicleLl.setOnClickListener(openRouteSchedule)
+        } else {
+            holder.binding.modalRouteLocationLl.setOnClickListener(null)
+            holder.binding.modalRouteBriefLl.setOnClickListener(null)
+            holder.binding.modalRouteVehicleLl.setOnClickListener(null)
         }
         holder.binding.root.setOnClickListener {
             val intent = Intent(context, AddScheduleActivity::class.java).apply {
                 putExtra("isEdit", true)
-                putExtra("SCHEDULE_ID", scheduleList[position].id)
-                putExtra("OCCURRENCE_DATE", scheduleList[position].startDate)
-                putExtra("SCHEDULE_TYPE", scheduleList[position].type) // ⭐ 타입 명시 (ROUTE 또는 GENERAL)
+                putExtra("SCHEDULE_ID", schedule.id)
+                putExtra("OCCURRENCE_DATE", schedule.startDate)
+                putExtra("SCHEDULE_TYPE", schedule.type) // ⭐ 타입 명시 (ROUTE 또는 GENERAL)
 
-                if (scheduleList[position].type == "ROUTE") {
+                if (schedule.type == "ROUTE") {
                     putExtra("OPEN_ROUTE_TAB", true)
                 }
             }
@@ -71,6 +84,32 @@ class ModalVPAdapter(
     fun getScheduleDetails(newMap: Map<Long, ScheduleDetailResponse>){
         scheduleDetailInfo = newMap
         notifyDataSetChanged()
+    }
+
+    private fun buildRouteScheduleData(schedule: Schedule): RouteOnlyScheduleData? {
+        val route = scheduleDetailInfo[schedule.id]?.route ?: schedule.routeJson?.let { routeJson ->
+            runCatching { gson.fromJson(routeJson, RouteInfo::class.java) }.getOrNull()
+        } ?: return null
+
+        val color = schedule.eventColor ?: schedule.calendarColor
+        val colorHex = color?.let { String.format("#%06X", 0xFFFFFF and it) }
+
+        return RouteOnlyScheduleData(
+            scheduleId = schedule.id,
+            scheduleInfo = ScheduleInfo(
+                title = schedule.title.orEmpty(),
+                isAllDay = schedule.isAllDay,
+                startDate = schedule.startDate,
+                endDate = schedule.endDate,
+                startTime = schedule.startTime,
+                endTime = schedule.endTime,
+                memo = schedule.memo,
+                isPathIncluded = true,
+                color = colorHex,
+                calendarId = schedule.calendarId.toString()
+            ),
+            route = route
+        )
     }
 
     inner class ViewHolder(val binding: ItemModalBinding): RecyclerView.ViewHolder(binding.root) {

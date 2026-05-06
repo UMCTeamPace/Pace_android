@@ -28,6 +28,9 @@ class RouteViewModel @Inject constructor(
     private val _routeOnlySchedule = MutableLiveData<RouteOnlyScheduleData?>()
     val routeOnlySchedule: LiveData<RouteOnlyScheduleData?> get() = _routeOnlySchedule
 
+    private val _selectedRouteSchedule = MutableLiveData<RouteOnlyScheduleData?>()
+    val selectedRouteSchedule: LiveData<RouteOnlyScheduleData?> get() = _selectedRouteSchedule
+
     private val _routeScheduleList = MutableLiveData<List<RouteOnlyScheduleData>>()
     val routeScheduleList: LiveData<List<RouteOnlyScheduleData>> get() = _routeScheduleList
 
@@ -74,6 +77,10 @@ class RouteViewModel @Inject constructor(
         Log.w("RouteApi", "Route search fallback suppressed: $reason")
         _errorMessage.value = reason
         _routeResult.value = emptyList()
+    }
+
+    fun selectRouteSchedule(schedule: RouteOnlyScheduleData) {
+        _selectedRouteSchedule.value = schedule
     }
 
     fun fetchRouteOnlySchedule() {
