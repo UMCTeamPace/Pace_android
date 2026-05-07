@@ -247,8 +247,10 @@ class ScheduleViewModel @Inject constructor(
 
         Log.d("SearchFlow", "색상 필터 변경: ${_filterColors.value}")
 
-        if (lastQuery.isNotBlank()) {
+        if (hasActiveSearchCriteria()) {
             searchSchedules(lastQuery)
+        } else {
+            clearSearch()
         }
     }
 
@@ -256,7 +258,7 @@ class ScheduleViewModel @Inject constructor(
         val trimmedQuery = query.trim()
         lastQuery = trimmedQuery
 
-        if (trimmedQuery.isBlank()) {
+        if (!hasActiveSearchCriteria()) {
             searchJob?.cancel()
             _searchResults.value = emptyList()
             return
@@ -284,22 +286,30 @@ class ScheduleViewModel @Inject constructor(
 
     fun setFilterColor(color: String?) {
         _filterColor.value = color
-        if (lastQuery.isNotBlank()) {
+        if (hasActiveSearchCriteria()) {
             searchSchedules(lastQuery)
+        } else {
+            clearSearch()
         }
     }
 
     fun setIncludeRouteFilter(include: Boolean) {
         _filterIncludeRoute.value = include
-        if (lastQuery.isNotBlank()) {
+        if (hasActiveSearchCriteria()) {
             searchSchedules(lastQuery)
+        } else {
+            clearSearch()
         }
     }
 
     private fun refreshSearchResultsIfNeeded() {
-        if (lastQuery.isNotBlank()) {
+        if (hasActiveSearchCriteria()) {
             searchSchedules(lastQuery)
         }
+    }
+
+    fun hasActiveSearchCriteria(): Boolean {
+        return lastQuery.isNotBlank() || _filterColors.value.isNotEmpty() || !_filterIncludeRoute.value
     }
 
 //    private fun refreshSearchResultsIfNeeded() {
@@ -392,7 +402,7 @@ class ScheduleViewModel @Inject constructor(
                         scheduleId = targetScheduleId,
                         request = request,
                         calendarId = schedule.calendarId,
-                        selectedColor = schedule.eventColor ?: 0
+                        selectedColor = schedule.eventColor
                     )
 
                     if (response.isSuccess) {
@@ -441,7 +451,7 @@ class ScheduleViewModel @Inject constructor(
         // Convert color int to hex
         val colorHex = schedule.eventColor?.let {
             String.format("#%06X", (0xFFFFFF and it))
-        } ?: "#DC354B"
+        }
 
         return CreateScheduleRequest(
             title = schedule.title ?: "",
@@ -465,7 +475,7 @@ class ScheduleViewModel @Inject constructor(
         scheduleId: Long,
         request: CreateScheduleRequest,
         calendarId: Long?,
-        selectedColor: Int
+        selectedColor: Int?
     ) {
         viewModelScope.launch {
             try {
@@ -513,6 +523,8 @@ class ScheduleViewModel @Inject constructor(
     }
 
     fun clearSearch() {
+        searchJob?.cancel()
+
         // Clear last query
         lastQuery = ""
 
@@ -590,7 +602,7 @@ class ScheduleViewModel @Inject constructor(
         placeId: String? = null,
         customAlarms: List<Int>? = null,
         calendarId: Long? = null,
-        selectedColor: Int
+        selectedColor: Int?
     ) {
         val settings = userSettings.value
         val reminders = mutableListOf<ReminderRequest>()
@@ -616,7 +628,7 @@ class ScheduleViewModel @Inject constructor(
         }
 
         // Convert color int to hex string
-        val colorHex = String.format("#%06X", (0xFFFFFF and selectedColor))
+        val colorHex = selectedColor?.let { String.format("#%06X", (0xFFFFFF and it)) }
 
         // Build create request
         val request = CreateScheduleRequest(
@@ -1086,9 +1098,7 @@ class ScheduleViewModel @Inject constructor(
                 val placeRequest = updatedSchedule.placeJson?.let {
                     runCatching { Gson().fromJson(it, PlaceRequest::class.java) }.getOrNull()
                 }
-                val colorInt = updatedSchedule.eventColor
-                    ?: updatedSchedule.calendarColor
-                    ?: Color.parseColor("#DC354B")
+                val eventColorInt = updatedSchedule.eventColor
                 val reminders = updatedSchedule.reminders.map {
                     ReminderRequest(reminderType = "SCHEDULE", minutesBefore = it)
                 }
@@ -1108,7 +1118,7 @@ class ScheduleViewModel @Inject constructor(
                     reminders = reminders,
                     route = null,
                     calendarId = updatedSchedule.calendarId.toString(),
-                    color = String.format("#%06X", (0xFFFFFF and colorInt))
+                    color = eventColorInt?.let { String.format("#%06X", (0xFFFFFF and it)) }
                 )
 
                 val token = authDataStore.getAccessToken() ?: ""
@@ -1123,7 +1133,7 @@ class ScheduleViewModel @Inject constructor(
                     request = request,
                     placeId = null,
                     calendarId = updatedSchedule.calendarId,
-                    selectedColor = colorInt
+                    selectedColor = eventColorInt
                 )
 
                 repository.refreshSchedules()

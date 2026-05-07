@@ -139,6 +139,8 @@ class RouteScheduleFragment : Fragment() {
     private var currentSelectedCalendarId: Long? = null
     private var currentSelectedCalendarName: String? = null
     private var currentSelectedCalendarColor: Int? = null
+    private var colorAdapter: ColorAdapter? = null
+    private var hasUserSelectedEventColor = false
     private var initialFormSnapshot: FormSnapshot? = null
     private var isKeyboardVisible = false
     private var isTouchingInputArea = false
@@ -354,7 +356,9 @@ class RouteScheduleFragment : Fragment() {
 
                 if (calendarColor != -1) {
                     currentSelectedCalendarColor = calendarColor
+                    hasUserSelectedEventColor = false
                     showColorDot(calendarColor)
+                    colorAdapter?.selectColor(colorIntToHex(calendarColor))
                 }
             }
         }
@@ -485,7 +489,8 @@ class RouteScheduleFragment : Fragment() {
             val startTime = binding.tvStartTime.text.toString()
             val endTime = binding.tvEndTime.text.toString()
             val saveColorInt = getSaveColorInt()
-            val saveColorHex = colorIntToHex(saveColorInt)
+            val saveEventColorInt = getSelectedEventColorInt()
+            val saveColorHex = saveEventColorInt?.let(::colorIntToHex)
 
             // [디버깅] 현재 모드와 ID 확인 - 로그캣에서 "ConfirmMode"를 검색하세요.
             Log.d("ConfirmMode", "isEditMode: $isEditMode, scheduleId: $scheduleId, selectedColor: $selectedColorHex, calendarId: $currentSelectedCalendarId")
@@ -632,7 +637,7 @@ class RouteScheduleFragment : Fragment() {
                     )
                     // ViewModel의 createSchedule 호출
                     Log.d("ConfirmMode", "..., calendarId: $currentSelectedCalendarId")
-                    viewModel.createSchedule(createRequest, null, currentSelectedCalendarId, saveColorInt)
+                    viewModel.createSchedule(createRequest, null, currentSelectedCalendarId, saveEventColorInt)
                 }
 
                 // 서버 응답 여부와 관계없이 로컬 알람 예약 로직 즉시 실행
@@ -763,20 +768,21 @@ class RouteScheduleFragment : Fragment() {
         }
         binding.etScheduleName.onFocusChangeListener = null
 
+        val selectedColorForPalette = colorIntToHex(getSaveColorInt())
         val colorList = listOf(
-            ColorItem(R.color.schedule_5, "#DC354B"),
-            ColorItem(R.color.route_line_3, "#D8643F"),
-            ColorItem(R.color.route_suin_bundang, "#FFBB00"),
-            ColorItem(R.color.route_branch_bus, "#53B332"),
-            ColorItem(R.color.schedule_14, "#51AEED"),
-            ColorItem(R.color.schedule_12, "#2A4ABF"),
-            ColorItem(R.color.schedule_8, "#5F46DD"),
-            ColorItem(R.color.route_line_8, "#F14C82"),
-            ColorItem(R.color.gray_600, "#666666")
+            ColorItem(R.color.schedule_5, "#DC354B", "#DC354B".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.route_line_3, "#D8643F", "#D8643F".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.route_suin_bundang, "#FFBB00", "#FFBB00".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.route_branch_bus, "#53B332", "#53B332".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.schedule_14, "#51AEED", "#51AEED".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.schedule_12, "#2A4ABF", "#2A4ABF".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.schedule_8, "#5F46DD", "#5F46DD".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.route_line_8, "#F14C82", "#F14C82".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.gray_600, "#666666", "#666666".equals(selectedColorForPalette, ignoreCase = true))
         )
 
 
-        val colorAdapter = ColorAdapter(requireContext(), colorList) { selectedColor ->
+        colorAdapter = ColorAdapter(requireContext(), colorList) { selectedColor ->
             changeSelectedColor(selectedColor)
         }
 
@@ -1063,6 +1069,8 @@ class RouteScheduleFragment : Fragment() {
 
         val color = colorStr.toColorInt()
         showColorDot(color)
+        colorAdapter?.selectColor(colorStr)
+        hasUserSelectedEventColor = true
         // 수동 색상 선택 시 캘린더 색상 우선순위 해제
         currentSelectedCalendarColor = null
 
@@ -1849,7 +1857,9 @@ class RouteScheduleFragment : Fragment() {
         val color = viewModel.getCalendarColorById(calendarId) ?: return
         if (color == 0) return
         currentSelectedCalendarColor = color
+        hasUserSelectedEventColor = false
         showColorDot(color)
+        colorAdapter?.selectColor(colorIntToHex(color))
     }
 
     private fun resolveDefaultCalendarId(preferredId: Long): Long {
@@ -1884,7 +1894,13 @@ class RouteScheduleFragment : Fragment() {
     }
 
     private fun getSaveColorInt(): Int {
-        return currentSelectedCalendarColor ?: selectedColorHex.toColorInt()
+        return getSelectedEventColorInt()
+            ?: currentSelectedCalendarColor
+            ?: selectedColorHex.toColorInt()
+    }
+
+    private fun getSelectedEventColorInt(): Int? {
+        return if (hasUserSelectedEventColor) selectedColorHex.toColorInt() else null
     }
 
     private fun colorIntToHex(color: Int): String {
@@ -2004,7 +2020,7 @@ class RouteScheduleFragment : Fragment() {
             placeId = null,
             customAlarms = currentSelectedAlarms?.toList(),
             calendarId = currentSelectedCalendarId,
-            selectedColor = getSaveColorInt(),
+            selectedColor = getSelectedEventColorInt(),
             repeatInfo = null // 보정된 RepeatInfo 전달
         )
     }

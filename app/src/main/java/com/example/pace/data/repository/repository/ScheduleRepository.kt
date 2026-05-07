@@ -70,7 +70,7 @@ interface ScheduleRepository {
         scheduleId: Long,
         request: CreateScheduleRequest,
         calendarId: Long?,
-        selectedColor: Int
+        selectedColor: Int?
     ): RawDefaultResponse<CreateScheduleResponse> // T를 CreateScheduleResponse로 설정
 
 

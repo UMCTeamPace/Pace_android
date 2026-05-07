@@ -14,6 +14,7 @@ import com.example.pace.data.model.Schedule
 import com.example.pace.data.model.response.RouteInfo
 import com.example.pace.databinding.ItemScheduleBinding
 import com.example.pace.ui.RouteCalculator
+import com.example.pace.util.ScheduleDisplayTextUtils
 import com.example.pace.util.ScheduleItemStyleUtils
 import com.google.gson.Gson
 
@@ -134,7 +135,7 @@ class ScheduleRVAdapter(
         fun bind(schedule: Schedule) {
             binding.root.close(false)
             binding.scheduleCheckbox.visibility = View.GONE
-            binding.scheduleTitleTv.text = schedule.title ?: "제목 없음"
+            binding.scheduleTitleTv.text = ScheduleDisplayTextUtils.titleOrDefault(schedule.title)
 
             val colorResId = ScheduleItemStyleUtils.resolveScheduleColor(schedule)
 

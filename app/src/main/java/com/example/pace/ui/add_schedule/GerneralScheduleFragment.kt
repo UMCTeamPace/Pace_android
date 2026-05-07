@@ -98,6 +98,8 @@ class GeneralScheduleFragment : Fragment() {
     private var currentSelectedCalendarId: Long? = null
     private var currentSelectedCalendarName: String? = null
     private var currentSelectedCalendarColor: Int? = null
+    private var colorAdapter: ColorAdapter? = null
+    private var hasUserSelectedEventColor = false
 
     private val dateFormatter = DateTimeFormatter.ofPattern("M월 d일 (E)", Locale.KOREAN)
     val colorInt = android.graphics.Color.parseColor(selectedColorHex)
@@ -250,11 +252,7 @@ class GeneralScheduleFragment : Fragment() {
         binding.btnConfirm.setOnClickListener {
             val scheduleName = binding.etScheduleName.text.toString().trim()
 
-            // 1. 필수 유효성 체크 (일정명 및 시작일)
-            if (scheduleName.isEmpty()) {
-                Toast.makeText(context, "일정명을 입력해 주세요.", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
+            // 1. 필수 유효성 체크 (시작일)
             if (startDate == null) {
                 Toast.makeText(context, "시작 날짜를 선택해 주세요.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
@@ -285,7 +283,7 @@ class GeneralScheduleFragment : Fragment() {
             }
 
             // 색상 String -> Int 변환
-            val saveColorInt = getSaveColorInt()
+            val saveEventColorInt = getSelectedEventColorInt()
 
             if (isEditMode && scheduleIdForEdit != -1L) {
                 // A. 수정 모드
@@ -303,7 +301,8 @@ class GeneralScheduleFragment : Fragment() {
                             endTime = if (isAllDay) "23:59" else binding.tvEndTime.text.toString(),
                             isAllDay = isAllDay,
                             calendarId = currentSelectedCalendarId ?: existing.calendarId,
-                            eventColor = saveColorInt,
+                            eventColor = saveEventColorInt,
+                            calendarColor = currentSelectedCalendarColor ?: existing.calendarColor,
                             placeJson = placeRequest?.let { com.google.gson.Gson().toJson(it) },
                             reminders = currentSelectedAlarms?.toList() ?: existing.reminders,
 
@@ -351,7 +350,7 @@ class GeneralScheduleFragment : Fragment() {
                     placeId = selectedPlaceId,
                     customAlarms = currentSelectedAlarms?.toList(),
                     calendarId = currentSelectedCalendarId,
-                    selectedColor = saveColorInt,
+                    selectedColor = saveEventColorInt,
                     repeatInfo = currentRepeatInfo // 보정된 RepeatInfo 전달
                 )
             }
@@ -453,20 +452,22 @@ class GeneralScheduleFragment : Fragment() {
         binding.etScheduleName.onFocusChangeListener = null
         installInputProtection()
 
+        binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(getSaveColorInt())
+        val selectedColorForPalette = colorIntToHex(getSaveColorInt())
         val colorList = listOf(
-            ColorItem(R.color.schedule_5, "#DC354B"),
-            ColorItem(R.color.route_line_3, "#D8643F"),
-            ColorItem(R.color.route_suin_bundang, "#FFBB00"),
-            ColorItem(R.color.route_branch_bus, "#53B332"),
-            ColorItem(R.color.schedule_14, "#51AEED"),
-            ColorItem(R.color.schedule_12, "#2A4ABF"),
-            ColorItem(R.color.schedule_8, "#5F46DD"),
-            ColorItem(R.color.route_line_8, "#F14C82"),
-            ColorItem(R.color.gray_600, "#666666")
+            ColorItem(R.color.schedule_5, "#DC354B", "#DC354B".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.route_line_3, "#D8643F", "#D8643F".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.route_suin_bundang, "#FFBB00", "#FFBB00".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.route_branch_bus, "#53B332", "#53B332".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.schedule_14, "#51AEED", "#51AEED".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.schedule_12, "#2A4ABF", "#2A4ABF".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.schedule_8, "#5F46DD", "#5F46DD".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.route_line_8, "#F14C82", "#F14C82".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.gray_600, "#666666", "#666666".equals(selectedColorForPalette, ignoreCase = true))
         )
 
 
-        val colorAdapter = ColorAdapter(requireContext(), colorList) { selectedColor ->
+        colorAdapter = ColorAdapter(requireContext(), colorList) { selectedColor ->
             changeSelectedColor(selectedColor)
         }
 
@@ -697,7 +698,9 @@ class GeneralScheduleFragment : Fragment() {
 
                 if (calendarColor != -1) {
                     currentSelectedCalendarColor = calendarColor
+                    hasUserSelectedEventColor = false
                     binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(calendarColor)
+                    colorAdapter?.selectColor(colorIntToHex(calendarColor))
                 }
             }
         }
@@ -725,6 +728,8 @@ class GeneralScheduleFragment : Fragment() {
 
         val color = Color.parseColor(colorStr)
         binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(color)
+        colorAdapter?.selectColor(colorStr)
+        hasUserSelectedEventColor = true
         // 수동 색상 선택 시 캘린더 색상 우선순위 해제
         currentSelectedCalendarColor = null
 
@@ -1275,7 +1280,9 @@ class GeneralScheduleFragment : Fragment() {
         val color = viewModel.getCalendarColorById(calendarId) ?: return
         if (color == 0) return
         currentSelectedCalendarColor = color
+        hasUserSelectedEventColor = false
         binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(color)
+        colorAdapter?.selectColor(colorIntToHex(color))
     }
 
     private fun resolveDefaultCalendarId(preferredId: Long): Long {
@@ -1305,7 +1312,17 @@ class GeneralScheduleFragment : Fragment() {
     }
 
     private fun getSaveColorInt(): Int {
-        return currentSelectedCalendarColor ?: Color.parseColor(selectedColorHex)
+        return getSelectedEventColorInt()
+            ?: currentSelectedCalendarColor
+            ?: Color.parseColor(selectedColorHex)
+    }
+
+    private fun getSelectedEventColorInt(): Int? {
+        return if (hasUserSelectedEventColor) Color.parseColor(selectedColorHex) else null
+    }
+
+    private fun colorIntToHex(color: Int): String {
+        return String.format("#%06X", 0xFFFFFF and color)
     }
     private fun minutesToText(minutes: Int): String {
         return when (minutes) {
@@ -1452,7 +1469,9 @@ class GeneralScheduleFragment : Fragment() {
                         selectedColorHex = hexColor
                     } else {
                         currentSelectedCalendarColor = effectiveColor
+                        hasUserSelectedEventColor = false
                         binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(effectiveColor)
+                        colorAdapter?.selectColor(colorIntToHex(effectiveColor))
                     }
                 } else {
                     applyCalendarColor(s.calendarId)

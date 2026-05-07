@@ -49,6 +49,7 @@ import com.example.pace.data.viewmodel.ScheduleViewModel
 import com.example.pace.databinding.ItemMonthViewMultipleDaysBinding
 import com.example.pace.databinding.ItemMonthViewSingleDayBinding
 import com.example.pace.databinding.ItemWeekViewBinding
+import com.example.pace.util.ScheduleDisplayTextUtils
 import com.example.pace.util.ScheduleUiRefreshTicker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlin.math.roundToInt
@@ -886,7 +887,7 @@ class CalendarPageFragment: Fragment() {
                             val binding = ItemMonthViewSingleDayBinding.inflate(layoutInflater)
                             val icon = binding.itemMonthViewSingleColor
                             icon.backgroundTintList = setBackgroundTintByScheduleColor(schedule)
-                            binding.itemMonthViewSingleTv.text = schedule.title
+                            binding.itemMonthViewSingleTv.text = ScheduleDisplayTextUtils.titleOrDefault(schedule.title)
                             binding.root.layoutParams = params
                             eventContainer.addView(binding.root)
                         }
@@ -901,7 +902,7 @@ class CalendarPageFragment: Fragment() {
                                 else -> R.drawable.bg_item_month_view_middle
                             })
                             binding.itemMonthViewMultipleDays.text = when{
-                                isStart -> schedule.title
+                                isStart -> ScheduleDisplayTextUtils.titleOrDefault(schedule.title)
                                 else -> ""
                             }
 
@@ -998,7 +999,7 @@ class CalendarPageFragment: Fragment() {
         }.thenBy { schedule ->
             schedule.startTime
         }.thenBy { schedule ->
-            schedule.title.orEmpty()
+            ScheduleDisplayTextUtils.titleOrDefault(schedule.title)
         }.thenBy { schedule ->
             schedule.startDate
         }.thenBy { schedule ->
@@ -1074,7 +1075,7 @@ class CalendarPageFragment: Fragment() {
                         start = dates.first(),
                         end = dates.last(),
                         priority = priority,
-                        title = representative.title.orEmpty(),
+                        title = ScheduleDisplayTextUtils.titleOrDefault(representative.title),
                         id = representative.id
                     )
                 }

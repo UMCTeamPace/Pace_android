@@ -21,7 +21,25 @@ class ColorAdapter(
     private val colors: List<ColorItem>,
     private val onColorClick: (String) -> Unit
 ) : RecyclerView.Adapter<ColorAdapter.ColorViewHolder>() {
-    private var selectedPos = -1
+    private var selectedPos = colors.indexOfFirst { it.isSelected }
+
+    fun selectColor(colorHex: String) {
+        val newPos = colors.indexOfFirst { it.colorHex.equals(colorHex, ignoreCase = true) }
+        if (newPos == selectedPos) return
+
+        val oldPos = selectedPos
+        if (oldPos != -1) {
+            colors[oldPos].isSelected = false
+            notifyItemChanged(oldPos)
+        }
+
+        selectedPos = newPos
+        if (newPos != -1) {
+            colors[newPos].isSelected = true
+            notifyItemChanged(newPos)
+        }
+    }
+
     inner class ColorViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val colorView: ImageView = view.findViewById(R.id.colorView)
         fun bind(item: ColorItem) {
@@ -49,14 +67,7 @@ class ColorAdapter(
     override fun onBindViewHolder(holder: ColorViewHolder, position: Int){
         holder.bind(colors[position])
         holder.itemView.setOnClickListener {
-            if(selectedPos != -1){
-                colors[selectedPos].isSelected = false
-                notifyItemChanged(selectedPos)
-            }
-            colors[position].isSelected = true
-            notifyItemChanged(position)
-            selectedPos = holder.absoluteAdapterPosition
-
+            selectColor(colors[position].colorHex)
             onColorClick(colors[position].colorHex)
         }
     }

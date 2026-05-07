@@ -17,6 +17,7 @@ import com.example.pace.data.model.response.RouteInfo
 import com.example.pace.databinding.ItemDateHeaderBinding
 import com.example.pace.databinding.ItemScheduleBinding
 import com.example.pace.ui.RouteCalculator
+import com.example.pace.util.ScheduleDisplayTextUtils
 import com.example.pace.util.ScheduleItemStyleUtils
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
@@ -218,7 +219,7 @@ class ScheduleListRVAdapter(
             binding.scheduleViewTop.translationX = 0f
             binding.root.setSwipeEnabled(!isEditMode)
 
-            binding.scheduleTitleTv.text = schedule.title ?: "제목 없음"
+            binding.scheduleTitleTv.text = ScheduleDisplayTextUtils.titleOrDefault(schedule.title)
             binding.scheduleTimeTv.text =
                 if (schedule.isAllDay) "하루 종일" else "${schedule.startTime} - ${schedule.endTime}"
 

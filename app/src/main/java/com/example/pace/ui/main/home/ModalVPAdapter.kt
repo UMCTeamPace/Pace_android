@@ -29,6 +29,7 @@ import com.example.pace.data.viewmodel.ScheduleViewModel
 import com.example.pace.ui.add_schedule.AddScheduleActivity
 import dagger.hilt.android.qualifiers.ActivityContext
 import com.google.gson.Gson
+import com.example.pace.util.ScheduleDisplayTextUtils
 
 class ModalVPAdapter(
     private val context: Context,
@@ -97,7 +98,7 @@ class ModalVPAdapter(
         return RouteOnlyScheduleData(
             scheduleId = schedule.id,
             scheduleInfo = ScheduleInfo(
-                title = schedule.title.orEmpty(),
+                title = ScheduleDisplayTextUtils.titleOrDefault(schedule.title),
                 isAllDay = schedule.isAllDay,
                 startDate = schedule.startDate,
                 endDate = schedule.endDate,
@@ -126,7 +127,7 @@ class ModalVPAdapter(
                 categoryIv.setColor(context.resources.getColor(R.color.schedule_18))
             }
             binding.scheduleCategoryIv.setImageDrawable(categoryIv)
-            binding.scheduleTitleTv.text = schedule.title ?: "제목 없음"
+            binding.scheduleTitleTv.text = ScheduleDisplayTextUtils.titleOrDefault(schedule.title)
             binding.modalTimeTv.text = if(schedule.isAllDay){
                 "하루 종일"
             }else{

@@ -18,6 +18,7 @@ import com.example.pace.data.model.response.RouteInfo
 import com.example.pace.databinding.ItemDateHeaderBinding
 import com.example.pace.databinding.ItemScheduleBinding
 import com.example.pace.ui.RouteCalculator
+import com.example.pace.util.ScheduleDisplayTextUtils
 import com.example.pace.util.ScheduleItemStyleUtils
 import com.example.pace.util.ScheduleSortUtils
 import com.example.pace.util.SearchTextMatcher
@@ -236,7 +237,7 @@ class SearchAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(schedule: Schedule, query: String) {
-            val title = schedule.title ?: "제목 없음"
+            val title = ScheduleDisplayTextUtils.titleOrDefault(schedule.title)
             if (query.isBlank()) {
                 binding.scheduleTitleTv.text = title
             } else {

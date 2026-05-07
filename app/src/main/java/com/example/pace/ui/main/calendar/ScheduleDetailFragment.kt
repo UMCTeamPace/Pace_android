@@ -31,6 +31,7 @@ import com.example.pace.ui.add_schedule.AddScheduleActivity
 import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.main.home.DeleteRepeatScheduleDialog
 import com.example.pace.ui.main.home.DeleteScheduleDialog
+import com.example.pace.util.ScheduleDisplayTextUtils
 import com.google.gson.Gson
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -184,7 +185,7 @@ class ScheduleDetailFragment : Fragment() {
             ?: schedule.calendarColor
             ?: requireContext().getColor(R.color.schedule_18)
         binding.viewScheduleColor.backgroundTintList = ColorStateList.valueOf(color)
-        binding.tvScheduleTitle.text = schedule.title ?: "제목 없음"
+        binding.tvScheduleTitle.text = ScheduleDisplayTextUtils.titleOrDefault(schedule.title)
 
         val displayStartDate = resolveDisplayStartDate(schedule)
         val displayEndDate = resolveDisplayEndDate(schedule, displayStartDate)

@@ -146,7 +146,8 @@ class SearchFragment : Fragment() {
                         val query = binding.etSearch.text.toString().trim()
                         searchAdapter.updateQuery(query)
 
-                        if (query.isEmpty()) {
+                        val hasActiveCriteria = viewModel.hasActiveSearchCriteria()
+                        if (query.isEmpty() && !hasActiveCriteria) {
                             showInitialState()
                         } else if (results.isEmpty()) {
                             showEmptyState()
@@ -181,7 +182,7 @@ class SearchFragment : Fragment() {
         binding.etSearch.addTextChangedListener { text ->
             val query = text?.toString()?.trim() ?: ""
             searchAdapter.updateQuery(query)
-            if (query.isEmpty()) {
+            if (query.isEmpty() && !viewModel.hasActiveSearchCriteria()) {
                 viewModel.clearSearch()
                 showInitialState()
             } else {
