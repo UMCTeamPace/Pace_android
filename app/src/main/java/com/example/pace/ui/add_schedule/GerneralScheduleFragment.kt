@@ -74,6 +74,12 @@ class GeneralScheduleFragment : Fragment() {
         END_TIME
     }
 
+    private enum class ExpandedPicker {
+        NONE,
+        CALENDAR,
+        TIME
+    }
+
     private var _binding: FragmentGeneralScheduleBinding? = null
     private val binding get() = _binding!!
 
@@ -82,6 +88,7 @@ class GeneralScheduleFragment : Fragment() {
 
     private var isEditingStartTime: Boolean = true
     private var activeInput: ActiveInput? = null
+    private var expandedPicker: ExpandedPicker = ExpandedPicker.NONE
 
     private var isAllDay = true
 
@@ -391,17 +398,12 @@ class GeneralScheduleFragment : Fragment() {
                 .addToBackStack(null)
                 .commit()
         }
-
-        val dateClickAction = View.OnClickListener {
-            // 하루종일 여부와 상관없이 날짜는 항상 수정 가능해야 하므로 캘린더를 엽니다.
-            // 단, 캘린더가 열릴 때 시간 피커는 확실히 닫습니다.
-            showCalendar()
-        }
-
-        binding.btnStartDate.setOnClickListener(dateClickAction)
-        binding.btnEndDate.setOnClickListener(dateClickAction)
         binding.btnStartDate.setOnClickListener {
             dismissKeyboard()
+            if (expandedPicker == ExpandedPicker.CALENDAR && activeInput == ActiveInput.START_DATE) {
+                closeExpandedPicker()
+                return@setOnClickListener
+            }
             activeInput = ActiveInput.START_DATE
             updateDateDisplay()
             updateTimeVisibility()
@@ -409,6 +411,10 @@ class GeneralScheduleFragment : Fragment() {
         }
         binding.btnEndDate.setOnClickListener {
             dismissKeyboard()
+            if (expandedPicker == ExpandedPicker.CALENDAR && activeInput == ActiveInput.END_DATE) {
+                closeExpandedPicker()
+                return@setOnClickListener
+            }
             activeInput = ActiveInput.END_DATE
             updateDateDisplay()
             updateTimeVisibility()
@@ -420,23 +426,29 @@ class GeneralScheduleFragment : Fragment() {
         binding.tvStartTime.setOnClickListener {
             dismissKeyboard()
             if (isAllDay) return@setOnClickListener
+            if (expandedPicker == ExpandedPicker.TIME && activeInput == ActiveInput.START_TIME) {
+                closeExpandedPicker()
+                return@setOnClickListener
+            }
             isEditingStartTime = true
             activeInput = ActiveInput.START_TIME
             updateDateDisplay()
             updateTimeVisibility() // [수정] 피커를 보여주기 전에 색상부터 즉시 변경
             showTimePicker()
-            binding.calendarContainer.visibility = View.GONE
         }
 
         binding.tvEndTime.setOnClickListener {
             dismissKeyboard()
             if (isAllDay) return@setOnClickListener
+            if (expandedPicker == ExpandedPicker.TIME && activeInput == ActiveInput.END_TIME) {
+                closeExpandedPicker()
+                return@setOnClickListener
+            }
             isEditingStartTime = false
             activeInput = ActiveInput.END_TIME
             updateDateDisplay()
             updateTimeVisibility() // [수정] 즉시 초록색 불 켜기
             showTimePicker()
-            binding.calendarContainer.visibility = View.GONE
         }
 
 
@@ -505,6 +517,7 @@ class GeneralScheduleFragment : Fragment() {
                 // 하루종일 켜지면 피커들을 다 닫음
                 binding.calendarContainer.visibility = View.GONE
                 binding.timePickerContainer.visibility = View.GONE
+                expandedPicker = ExpandedPicker.NONE
                 if (activeInput == ActiveInput.START_TIME || activeInput == ActiveInput.END_TIME) {
                     activeInput = null
                 }
@@ -834,9 +847,9 @@ class GeneralScheduleFragment : Fragment() {
 
     private fun showCalendar() {
         animateLayoutChange()
+        expandedPicker = ExpandedPicker.CALENDAR
 
         // 1. 방해 요소 제거
-        binding.layoutColorSelector.visibility = View.GONE
         binding.timePickerContainer.visibility = View.GONE
 
         // 2. 컨테이너와 캘린더 본체를 모두 VISIBLE로
@@ -862,9 +875,9 @@ class GeneralScheduleFragment : Fragment() {
 
         // 1. 레이아웃 가시성 조절
         animateLayoutChange()
+        expandedPicker = ExpandedPicker.TIME
         binding.timePickerContainer.visibility = View.VISIBLE
         binding.calendarContainer.visibility = View.GONE
-        binding.layoutColorSelector.visibility = View.GONE
 
         // 2. 현재 선택된 시간 텍스트를 파싱하여 피커 초기값 설정
         val timeText = if (isEditingStartTime) {
@@ -894,12 +907,25 @@ class GeneralScheduleFragment : Fragment() {
         }
     }
 
+    private fun closeExpandedPicker() {
+        animateLayoutChange()
+        binding.calendarContainer.visibility = View.GONE
+        binding.timePickerContainer.visibility = View.GONE
+        expandedPicker = ExpandedPicker.NONE
+        activeInput = null
+        updateDateDisplay()
+        updateTimeVisibility()
+    }
+
 
     private fun updateTimeVisibility() {
         if (isAllDay) {
             binding.tvStartTime.visibility = View.GONE
             binding.tvEndTime.visibility = View.GONE
             binding.timePickerContainer.visibility = View.GONE
+            if (expandedPicker == ExpandedPicker.TIME) {
+                expandedPicker = ExpandedPicker.NONE
+            }
         } else {
             binding.tvStartTime.visibility = View.VISIBLE
             binding.tvEndTime.visibility = View.VISIBLE
@@ -1022,26 +1048,19 @@ class GeneralScheduleFragment : Fragment() {
     }
 
     private fun selectDate(date: LocalDate) {
-        // 1. 이미 범위 선택이 완료되었거나(start/end 둘 다 있음), 아예 없는 경우 -> 새로 시작
-        if (startDate != null && endDate != null) {
-            startDate = date
-            endDate = null // 종료일만 null로 비워서 다음 클릭을 기다림
-        }
-        // 2. 시작일만 있고 종료일은 없는 상태 -> 종료일 확정
-        else if (startDate != null && endDate == null) {
-            if (date.isBefore(startDate)) {
-                startDate = date // 시작일보다 이전이면 시작일을 변경
-            } else {
-                endDate = date
-                onDateSelectionComplete()
+        if (activeInput == ActiveInput.END_DATE) {
+            endDate = date
+            if (startDate == null || startDate!!.isAfter(date)) {
+                startDate = date
             }
-        }
-        // 3. 혹시나 둘 다 null인 경우 (방어 코드)
-        else {
-            startDate = date
-            endDate = null
+            binding.calendarPicker.notifyCalendarChanged()
+            onDateSelectionComplete()
+            return
         }
 
+        startDate = date
+        endDate = null
+        activeInput = ActiveInput.END_DATE
         binding.calendarPicker.notifyCalendarChanged()
         updateDateDisplay()
     }
@@ -1049,6 +1068,7 @@ class GeneralScheduleFragment : Fragment() {
         animateLayoutChange()
         if (isAllDay) {
             binding.calendarContainer.visibility = View.GONE
+            expandedPicker = ExpandedPicker.NONE
             activeInput = null
         } else {
             binding.calendarContainer.visibility = View.GONE
