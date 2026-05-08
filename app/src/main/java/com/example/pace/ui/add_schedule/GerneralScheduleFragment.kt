@@ -33,6 +33,7 @@ import com.kizitonwose.calendar.view.MonthDayBinder
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import com.example.pace.data.model.request.PlaceRequest
@@ -89,6 +90,7 @@ class GeneralScheduleFragment : Fragment() {
     private var isEditingStartTime: Boolean = true
     private var activeInput: ActiveInput? = null
     private var expandedPicker: ExpandedPicker = ExpandedPicker.NONE
+    private var isSyncingTimePicker = false
 
     private var isAllDay = true
 
@@ -266,6 +268,8 @@ class GeneralScheduleFragment : Fragment() {
             }
 
             // 날짜 문자열 확정 (null 방지)
+            enforceValidTimeRange()
+
             val finalStartDateStr = startDate.toString()
             val finalEndDateStr = (endDate ?: startDate).toString()
 
@@ -817,32 +821,14 @@ class GeneralScheduleFragment : Fragment() {
             wrapSelectorWheel = true
         }
 
-        val timeChangeListener = NumberPicker.OnValueChangeListener { _, _, _ ->
-            val hour = binding.pickerHour.value
-            // [수정] 실제 분 계산: 선택된 인덱스 * 5
-            val minute = binding.pickerMinute.value * 5
-            val formattedTime = String.format("%02d:%02d", hour, minute)
-
-            val isSameDay = startDate != null && endDate != null && startDate == endDate
-
-            if (activeInput == ActiveInput.START_TIME) {
-                binding.tvStartTime.text = formattedTime
-                if (isSameDay) {
-                    val endTime = binding.tvEndTime.text.toString()
-                    if (isTimeAfter(formattedTime, endTime)) {
-                        // 시작 시간이 종료 시간보다 늦으면 종료 시간을 1시간 뒤로
-                        val newEndHour = if (hour < 23) hour + 1 else 23
-                        binding.tvEndTime.text = String.format("%02d:%02d", newEndHour, minute)
-                    }
-                }
-            } else if (activeInput == ActiveInput.END_TIME) {
-                binding.tvEndTime.text = formattedTime
-            }
-            updateTimeVisibility()
+        binding.pickerHour.setOnValueChangedListener { _, oldValue, newValue ->
+            if (isSyncingTimePicker) return@setOnValueChangedListener
+            applyTimePickerDelta(hourDelta(oldValue, newValue) * 60L)
         }
-
-        binding.pickerHour.setOnValueChangedListener(timeChangeListener)
-        binding.pickerMinute.setOnValueChangedListener(timeChangeListener)
+        binding.pickerMinute.setOnValueChangedListener { _, oldValue, newValue ->
+            if (isSyncingTimePicker) return@setOnValueChangedListener
+            applyTimePickerDelta(minuteDelta(oldValue, newValue).toLong())
+        }
     }
 
     private fun showCalendar() {
@@ -891,14 +877,10 @@ class GeneralScheduleFragment : Fragment() {
             if (parts.size == 2) {
                 val h = parts[0].trim().toInt()
                 val m = parts[1].trim().toInt()
-
-                binding.pickerHour.value = h
-                // 5분 단위 인덱스 계산 (예: 15분 -> index 3)
-                binding.pickerMinute.value = (m / 5).coerceIn(0, 11)
+                syncTimePickerValues(h, (m / 5).coerceIn(0, 11))
             }
         } catch (e: Exception) {
-            binding.pickerHour.value = 10
-            binding.pickerMinute.value = 0
+            syncTimePickerValues(10, 0)
         }
 
         // 3. 스크롤을 시간 피커 위치로 이동
@@ -1035,6 +1017,103 @@ class GeneralScheduleFragment : Fragment() {
 
     private fun shouldSuppressKeyboardDismiss(): Boolean {
         return android.os.SystemClock.uptimeMillis() < suppressKeyboardDismissUntil
+    }
+
+    private fun applyTimePickerDelta(deltaMinutes: Long) {
+        when (activeInput) {
+            ActiveInput.START_TIME -> {
+                val start = parseDateTime(startDate, binding.tvStartTime.text) ?: return
+                applyStartDateTime(start.plusMinutes(deltaMinutes))
+                binding.calendarPicker.notifyCalendarChanged()
+                updateDateDisplay()
+                enforceValidTimeRange(ActiveInput.START_TIME)
+            }
+            ActiveInput.END_TIME -> {
+                val end = parseDateTime(endDate ?: startDate, binding.tvEndTime.text) ?: return
+                applyEndDateTime(end.plusMinutes(deltaMinutes))
+                binding.calendarPicker.notifyCalendarChanged()
+                updateDateDisplay()
+                enforceValidTimeRange(ActiveInput.END_TIME)
+            }
+            else -> return
+        }
+        syncPickerToActiveTime()
+        updateTimeVisibility()
+    }
+
+    private fun syncPickerToActiveTime() {
+        val timeText = when (activeInput) {
+            ActiveInput.START_TIME -> binding.tvStartTime.text
+            ActiveInput.END_TIME -> binding.tvEndTime.text
+            else -> return
+        }
+        val parts = timeText.toString().split(":")
+        if (parts.size != 2) return
+
+        val hour = parts[0].trim().toIntOrNull() ?: return
+        val minute = parts[1].trim().toIntOrNull() ?: return
+        syncTimePickerValues(hour, minute / 5)
+    }
+
+    private fun syncTimePickerValues(hour: Int, minuteIndex: Int) {
+        isSyncingTimePicker = true
+        binding.pickerHour.value = hour.coerceIn(0, 23)
+        binding.pickerMinute.value = minuteIndex.coerceIn(0, 11)
+        isSyncingTimePicker = false
+    }
+
+    private fun hourDelta(oldValue: Int, newValue: Int): Int {
+        return when {
+            oldValue == 23 && newValue == 0 -> 1
+            oldValue == 0 && newValue == 23 -> -1
+            else -> newValue - oldValue
+        }
+    }
+
+    private fun minuteDelta(oldValue: Int, newValue: Int): Int {
+        return when {
+            oldValue == 11 && newValue == 0 -> 5
+            oldValue == 0 && newValue == 11 -> -5
+            else -> (newValue - oldValue) * 5
+        }
+    }
+
+    private fun enforceValidTimeRange(changedInput: ActiveInput? = activeInput) {
+        if (isAllDay) return
+
+        val start = parseDateTime(startDate, binding.tvStartTime.text)
+        val end = parseDateTime(endDate ?: startDate, binding.tvEndTime.text)
+        if (start == null || end == null || start.isBefore(end)) return
+
+        if (changedInput == ActiveInput.END_TIME) {
+            endDate = end.toLocalDate()
+            applyStartDateTime(end.minusHours(1))
+        } else {
+            applyEndDateTime(start.plusHours(1))
+        }
+
+        binding.calendarPicker.notifyCalendarChanged()
+        updateDateDisplay()
+    }
+
+    private fun parseDateTime(date: LocalDate?, timeText: CharSequence?): LocalDateTime? {
+        val targetDate = date ?: return null
+        val parts = timeText?.toString()?.split(":") ?: return null
+        if (parts.size != 2) return null
+
+        return runCatching {
+            targetDate.atTime(parts[0].trim().toInt(), parts[1].trim().toInt())
+        }.getOrNull()
+    }
+
+    private fun applyStartDateTime(dateTime: LocalDateTime) {
+        startDate = dateTime.toLocalDate()
+        binding.tvStartTime.text = dateTime.format(DateTimeFormatter.ofPattern("HH:mm"))
+    }
+
+    private fun applyEndDateTime(dateTime: LocalDateTime) {
+        endDate = dateTime.toLocalDate()
+        binding.tvEndTime.text = dateTime.format(DateTimeFormatter.ofPattern("HH:mm"))
     }
 
     private fun isTimeAfter(t1: String, t2: String): Boolean {
