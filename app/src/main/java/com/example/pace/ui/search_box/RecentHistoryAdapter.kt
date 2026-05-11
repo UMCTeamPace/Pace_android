@@ -4,7 +4,6 @@ import android.view.LayoutInflater
 import android.os.Handler
 import android.os.Looper
 import android.view.ViewGroup
-import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.daimajia.swipe.SwipeLayout
 import com.daimajia.swipe.adapters.RecyclerSwipeAdapter
@@ -24,27 +23,9 @@ class RecentHistoryAdapter(
     private var items: List<RecentHistoryItem> = emptyList()
 
     fun submitList(newItems: List<RecentHistoryItem>) {
-        val diffResult = DiffUtil.calculateDiff(
-            object : DiffUtil.Callback() {
-                override fun getOldListSize(): Int = items.size
-
-                override fun getNewListSize(): Int = newItems.size
-
-                override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-                    val oldItem = items[oldItemPosition]
-                    val newItem = newItems[newItemPosition]
-                    return oldItem.mainText == newItem.mainText &&
-                        oldItem.timestamp == newItem.timestamp
-                }
-
-                override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-                    return items[oldItemPosition] == newItems[newItemPosition]
-                }
-            }
-        )
-
+        mItemManger.closeAllItems()
         items = newItems.toList()
-        diffResult.dispatchUpdatesTo(this)
+        notifyDataSetChanged()
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {

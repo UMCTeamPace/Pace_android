@@ -23,6 +23,10 @@ class RecentPlaceFragment : Fragment() {
     private var _binding: FragmentRecentPlaceBinding? = null
     private val binding get() = _binding!!
     private lateinit var historyAdapter: RecentHistoryAdapter
+    private var hasObservedHistory = false
+    private var lastFirstHistoryKey: String? = null
+    private var lastHistorySize = 0
+    private var isUserScrolling = false
 
     private val searchViewModel: SearchViewModel by viewModels {
         SearchViewModelFactory((requireActivity().application as PaceApplication).searchRepository)
@@ -69,8 +73,11 @@ class RecentPlaceFragment : Fragment() {
         binding.rvRecentPlace.apply {
             adapter = historyAdapter
             layoutManager = LinearLayoutManager(context)
+            itemAnimator = null
             addOnScrollListener(object : RecyclerView.OnScrollListener() {
                 override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                    isUserScrolling = newState == RecyclerView.SCROLL_STATE_DRAGGING ||
+                        newState == RecyclerView.SCROLL_STATE_SETTLING
                     if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
                         (parentFragment?.parentFragment as? RouteFragment)?.dismissSearchInputFocus()
                     }
@@ -84,10 +91,32 @@ class RecentPlaceFragment : Fragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 searchViewModel.allHistory.collect { historyItems ->
                     val placesOnly = historyItems.filter { it.type == RecentHistoryItem.TYPE_PLACE }
+                    val shouldScrollToTop = shouldScrollToTop(placesOnly)
                     historyAdapter.submitList(placesOnly)
+                    updateHistorySnapshot(placesOnly)
+                    if (shouldScrollToTop) {
+                        binding.rvRecentPlace.scrollToPosition(0)
+                    }
                 }
             }
         }
+    }
+
+    private fun shouldScrollToTop(historyList: List<RecentHistoryItem>): Boolean {
+        if (!hasObservedHistory || isUserScrolling) return false
+        val newFirstKey = historyList.firstOrNull()?.historyKey()
+        val isDeletion = historyList.size < lastHistorySize
+        return !isDeletion && newFirstKey != null && newFirstKey != lastFirstHistoryKey
+    }
+
+    private fun updateHistorySnapshot(historyList: List<RecentHistoryItem>) {
+        hasObservedHistory = true
+        lastFirstHistoryKey = historyList.firstOrNull()?.historyKey()
+        lastHistorySize = historyList.size
+    }
+
+    private fun RecentHistoryItem.historyKey(): String {
+        return "$type:$mainText:$timestamp"
     }
 
     override fun onDestroyView() {
