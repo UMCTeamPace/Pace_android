@@ -13,16 +13,22 @@ import com.example.pace.R
 import com.example.pace.data.model.RecentRoute
 import com.example.pace.databinding.ItemRecentRouteBinding
 
+data class RecentRouteUiItem(
+    val route: RecentRoute,
+    val startPlaceName: String,
+    val endPlaceName: String
+)
+
 class RecentRouteAdapter(
-    private val onItemClick: (RecentRoute) -> Unit,
+    private val onItemClick: (RecentRouteUiItem) -> Unit,
     private val onDeleteClick: (RecentRoute) -> Unit,
     private val onSwipeStart: () -> Unit = {}
 ) : RecyclerSwipeAdapter<RecentRouteAdapter.ViewHolder>() {
 
     private val mainHandler = Handler(Looper.getMainLooper())
-    private var items: List<RecentRoute> = emptyList()
+    private var items: List<RecentRouteUiItem> = emptyList()
 
-    fun submitList(newItems: List<RecentRoute>) {
+    fun submitList(newItems: List<RecentRouteUiItem>) {
         mItemManger.closeAllItems()
         items = newItems.toList()
         notifyDataSetChanged()
@@ -43,7 +49,7 @@ class RecentRouteAdapter(
         holder.binding.ivDelete.setOnClickListener {
             mItemManger.closeItem(position)
             mainHandler.postDelayed({
-                onDeleteClick(item)
+                onDeleteClick(item.route)
             }, 150)
         }
 
@@ -71,7 +77,7 @@ class RecentRouteAdapter(
             })
         }
 
-        fun bind(item: RecentRoute) {
+        fun bind(item: RecentRouteUiItem) {
             binding.root.close(false)
             binding.tvRouteStartText.text = item.startPlaceName
             binding.tvRouteEndText.text = item.endPlaceName

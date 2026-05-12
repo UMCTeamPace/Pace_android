@@ -11,13 +11,19 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.pace.BuildConfig
 import com.example.pace.PaceApplication
 import com.example.pace.data.model.RecentHistoryItem
 import com.example.pace.data.viewmodel.SearchViewModel
 import com.example.pace.data.viewmodel.SearchViewModelFactory
 import com.example.pace.databinding.FragmentRecentSearchBinding
 import com.example.pace.ui.main.route.RouteFragment
+import com.google.android.libraries.places.api.Places
+import com.google.android.libraries.places.api.model.Place
+import com.google.android.libraries.places.api.net.FetchPlaceRequest
+import com.google.android.libraries.places.api.net.PlacesClient
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 class RecentSearchFragment : Fragment() {
     private var _binding: FragmentRecentSearchBinding? = null
@@ -30,6 +36,7 @@ class RecentSearchFragment : Fragment() {
         SearchViewModelFactory((requireActivity().application as PaceApplication).searchRepository)
     }
     private lateinit var historyAdapter: RecentHistoryAdapter
+    private lateinit var placesClient: PlacesClient
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentRecentSearchBinding.inflate(inflater, container, false)
@@ -42,8 +49,16 @@ class RecentSearchFragment : Fragment() {
         binding.root.isFocusableInTouchMode = false
         binding.rvRecentSearch.isFocusable = false
         binding.rvRecentSearch.isFocusableInTouchMode = false
+        initPlacesClient()
         setupRecyclerView()
         observeData()
+    }
+
+    private fun initPlacesClient() {
+        if (!Places.isInitialized()) {
+            Places.initialize(requireContext(), BuildConfig.GOOGLE_API_KEY)
+        }
+        placesClient = Places.createClient(requireContext())
     }
 
     private fun setupRecyclerView() {
@@ -56,7 +71,8 @@ class RecentSearchFragment : Fragment() {
                 UndoSnackbar.show(binding.root, "검색어가 삭제되었습니다.") {
                     when (item.type) {
                         RecentHistoryItem.TYPE_SEARCH_TEXT -> {
-                            searchViewModel.insertSearch(item.searchEntity?.query ?: item.mainText)
+                            item.searchEntity?.let(searchViewModel::insertSearch)
+                                ?: searchViewModel.insertSearch(item.mainText)
                         }
                         RecentHistoryItem.TYPE_PLACE -> {
                             item.placeEntity?.let(searchViewModel::insertPlace)
@@ -90,7 +106,7 @@ class RecentSearchFragment : Fragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 searchViewModel.allHistory.collect { historyList ->
                     val shouldScrollToTop = shouldScrollToTop(historyList)
-                    historyAdapter.submitList(historyList)
+                    historyAdapter.submitList(resolveHistoryItems(historyList))
                     updateHistorySnapshot(historyList)
                     if (shouldScrollToTop) {
                         binding.rvRecentSearch.scrollToPosition(0)
@@ -115,6 +131,33 @@ class RecentSearchFragment : Fragment() {
 
     private fun RecentHistoryItem.historyKey(): String {
         return "$type:$mainText:$timestamp"
+    }
+
+    private suspend fun resolveHistoryItems(historyList: List<RecentHistoryItem>): List<RecentHistoryItem> {
+        return historyList.map { item ->
+            if (item.type != RecentHistoryItem.TYPE_PLACE) {
+                item
+            } else {
+                val placeId = item.placeEntity?.placeId ?: item.mainText
+                item.copy(mainText = fetchPlaceName(placeId) ?: placeId)
+            }
+        }
+    }
+
+    private suspend fun fetchPlaceName(placeId: String): String? = suspendCancellableCoroutine { continuation ->
+        if (placeId.isBlank()) {
+            continuation.resume(null, null)
+            return@suspendCancellableCoroutine
+        }
+
+        val request = FetchPlaceRequest.newInstance(placeId, listOf(Place.Field.NAME))
+        placesClient.fetchPlace(request)
+            .addOnSuccessListener { response ->
+                continuation.resume(response.place.name, null)
+            }
+            .addOnFailureListener {
+                continuation.resume(null, null)
+            }
     }
 
     override fun onDestroyView() {

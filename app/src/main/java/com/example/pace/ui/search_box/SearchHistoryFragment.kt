@@ -259,6 +259,7 @@ class SearchHistoryFragment : Fragment() {
         }
     }
     fun setRouteOptionsVisible(isVisible: Boolean) {
+        pendingRouteOptionsVisible = isVisible
         if (_binding == null) return
         if (isVisible) {
             binding.layoutRouteOptions.visibility = View.VISIBLE

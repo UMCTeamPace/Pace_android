@@ -173,6 +173,7 @@ class RouteFragment : Fragment() {
     private var responseArrivelTime: String = ""
     private lateinit var bottomSheetBehavior: BottomSheetBehavior<View>
     private var searchJob: Job? = null
+    private var suppressSearchTextWatcher = false
     private var realtimePollingJob: Job? = null
     private var currentRealtimeParams: List<RealtimeParam>? = null
     private var sessionToken: AutocompleteSessionToken? = null
@@ -1502,6 +1503,7 @@ class RouteFragment : Fragment() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
                 if (_binding == null || !isAdded || isDetached) return
+                if (suppressSearchTextWatcher) return
 
                 val query = s.toString().trim()
                 searchJob?.cancel()
@@ -1778,15 +1780,15 @@ class RouteFragment : Fragment() {
         mapFrag.moveCameraToSinglePosition(lat, lng)
     }
 
-    fun handleRecentRouteClick(route: RecentRoute){
-        selectedStartPlace = Pair(route.startPlaceName, route.startPlaceId)
-        selectedEndPlace = Pair(route.endPlaceName, route.endPlaceId)
+    fun handleRecentRouteClick(route: RecentRoute, startPlaceName: String, endPlaceName: String){
+        selectedStartPlace = Pair(startPlaceName, route.startPlaceId)
+        selectedEndPlace = Pair(endPlaceName, route.endPlaceId)
 
         startLatLng = null
         endLatLng = null
 
-        binding.layoutRouteInputHeader.tvRouteStart.text = route.startPlaceName
-        binding.layoutRouteInputHeader.tvRouteEnd.text = route.endPlaceName
+        binding.layoutRouteInputHeader.tvRouteStart.text = startPlaceName
+        binding.layoutRouteInputHeader.tvRouteEnd.text = endPlaceName
 
         updateClearButtonVisibility()
 
@@ -1823,8 +1825,8 @@ class RouteFragment : Fragment() {
         Log.d("Route", "22${selectedStartPlace.toString()}--${selectedEndPlace.toString()} +${startLatLng.toString()}--${endLatLng.toString()} ")
         if ((selectedStartPlace != null && selectedEndPlace != null) || (startLatLng != null && endLatLng != null)) {
             saveCurrentRoute()
-            if (historyFragment.isAdded) transaction.remove(historyFragment)
-            if (recommendFragment.isAdded) transaction.remove(recommendFragment)
+            if (historyFragment.isAdded) transaction.hide(historyFragment)
+            if (recommendFragment.isAdded) transaction.hide(recommendFragment)
 
             if (existingRouteFrag != null) {
                 transaction.show(existingRouteFrag)
@@ -1905,9 +1907,7 @@ class RouteFragment : Fragment() {
         if (start.first == end.first) return
 
         val newRoute = RecentRoute(
-            startPlaceName = start.first,
             startPlaceId = start.second,
-            endPlaceName = end.first,
             endPlaceId = end.second
         )
 
@@ -3279,6 +3279,7 @@ class RouteFragment : Fragment() {
 
     private fun showLocationDetail(item: SearchItem) {
         saveRecentPlace(item)
+        setSearchTextSilently(item.name)
         isPlaceDetailSheetLocked = true
         isPlaceDetailCompact = false
         binding.bottomSheetContainer.visibility = View.VISIBLE
@@ -3310,6 +3311,14 @@ class RouteFragment : Fragment() {
         }
     }
 
+    private fun setSearchTextSilently(text: String) {
+        val searchEditText = mainBinding?.searchEt ?: return
+        suppressSearchTextWatcher = true
+        searchEditText.setText(text)
+        searchEditText.setSelection(searchEditText.text?.length ?: 0)
+        suppressSearchTextWatcher = false
+    }
+
     fun handleHistoryItemClick(item: RecentHistoryItem){
         when (item.type) {
             RecentHistoryItem.TYPE_SEARCH_TEXT -> {
@@ -3323,21 +3332,14 @@ class RouteFragment : Fragment() {
 
             RecentHistoryItem.TYPE_PLACE -> {
                 val place = item.placeEntity ?: return
+                fetchRecentPlaceItem(place.placeId) { searchItem ->
 
                 if (isBookmarkSearchMode) {
-                    onScheduleLocationSelected(place.name, place.placeId)
-                    return
+                    onScheduleLocationSelected(searchItem.name, searchItem.placeId)
+                    return@fetchRecentPlaceItem
                 }
 
-                saveRecentPlace(SearchItem(
-                    placeId = place.placeId,
-                    name = place.name,
-                    address = place.address,
-                    category = place.category,
-                    lat = place.lat,
-                    lng = place.lng,
-                    distance = ""
-                ))
+                saveRecentPlace(searchItem)
 
                 when (currentEntryMode) {
                     EntryMode.ROUTE_PLAN, EntryMode.SCHEDULE_ROUTE -> {
@@ -3345,25 +3347,15 @@ class RouteFragment : Fragment() {
 
                         if (isHeaderVisible) {
                             if (selectedStartPlace == null) {
-                                onLocationSelected(place.name, place.placeId, isStart = true)
+                                onLocationSelected(searchItem.name, searchItem.placeId, isStart = true)
                             } else {
-                                onLocationSelected(place.name, place.placeId, isStart = false)
+                                onLocationSelected(searchItem.name, searchItem.placeId, isStart = false)
                             }
                         }else{
-                            onLocationSelected(place.name, place.placeId, isSelectingStart)
+                            onLocationSelected(searchItem.name, searchItem.placeId, isSelectingStart)
                         }
                     }
                     else -> {
-                        val searchItem = SearchItem(
-                            placeId = place.placeId,
-                            name = place.name,
-                            address = place.address,
-                            category = place.category,
-                            openStatus = place.openStatus,
-                            lat = place.lat,
-                            lng = place.lng,
-                            distance = ""
-                        )
                         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
                         exitSearchMode()
                         isDetailFromRecommend = true
@@ -3371,6 +3363,7 @@ class RouteFragment : Fragment() {
                         mapFrag?.clearMarkers()
                         mapFrag?.showMultipleMarkers(listOf(searchItem)){}
                     }
+                }
                 }
             }
         }
@@ -3622,16 +3615,46 @@ class RouteFragment : Fragment() {
     private fun saveRecentPlace(item: SearchItem) {
         val recentPlace = RecentPlace(
             placeId = item.placeId,
-            name = item.name,
-            address = item.address,
-            category = item.category,
-            openStatus = item.openStatus ?: "",
-            lat = item.lat,
-            lng = item.lng,
             timestamp = System.currentTimeMillis()
         )
 
         searchViewModel.insertPlace(recentPlace)
+    }
+
+    private fun fetchRecentPlaceItem(placeId: String, onSuccess: (SearchItem) -> Unit) {
+        if (placeId.isBlank()) return
+        if (!::placesClient.isInitialized) {
+            initPlacesClient()
+        }
+
+        val placeFields = listOf(
+            Place.Field.ID,
+            Place.Field.NAME,
+            Place.Field.ADDRESS,
+            Place.Field.LAT_LNG,
+            Place.Field.TYPES,
+            Place.Field.OPENING_HOURS,
+            Place.Field.UTC_OFFSET,
+            Place.Field.BUSINESS_STATUS,
+            Place.Field.PHOTO_METADATAS
+        )
+        val request = FetchPlaceRequest.newInstance(placeId, placeFields)
+        placesClient.fetchPlace(request)
+            .addOnSuccessListener { response ->
+                val place = response.place
+                val item = SearchItem(
+                    placeId = place.id ?: placeId,
+                    name = sanitizeDisplayPlaceName(place.name),
+                    address = place.address ?: "",
+                    distance = calculateDistance(place.latLng),
+                    category = convertTypeToKorean(place.types?.map { it.toString().lowercase() } ?: emptyList()),
+                    openStatus = getPlaceStatus(place),
+                    photoMetadata = place.photoMetadatas?.firstOrNull(),
+                    lat = place.latLng?.latitude ?: 0.0,
+                    lng = place.latLng?.longitude ?: 0.0
+                )
+                onSuccess(item)
+            }
     }
 
     private fun startRealtimePolling(params: List<RealtimeParam>) {

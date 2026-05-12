@@ -7,6 +7,7 @@ import com.example.pace.data.model.MyPlace
 import com.example.pace.data.model.RecentHistoryItem
 import com.example.pace.data.model.RecentPlace
 import com.example.pace.data.model.RecentRoute
+import com.example.pace.data.model.RecentSearch
 import com.example.pace.data.repository.SearchRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
@@ -30,6 +31,10 @@ class SearchViewModel(private val repository: SearchRepository) : ViewModel() {
         )
     fun insertSearch(query: String) = viewModelScope.launch {
         repository.insertSearch(query)
+    }
+
+    fun insertSearch(search: RecentSearch) = viewModelScope.launch {
+        repository.insertSearch(search)
     }
 
     fun insertPlace(place: RecentPlace) = viewModelScope.launch {

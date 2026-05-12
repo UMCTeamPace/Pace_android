@@ -30,7 +30,7 @@ class SearchRepository(
             RecentHistoryItem(RecentHistoryItem.TYPE_SEARCH_TEXT, it.query, it.timestamp, searchEntity = it)
         })
         historyList.addAll(places.map {
-            RecentHistoryItem(RecentHistoryItem.TYPE_PLACE, it.name, it.timestamp, placeEntity = it)
+            RecentHistoryItem(RecentHistoryItem.TYPE_PLACE, it.placeId, it.timestamp, placeEntity = it)
         })
         historyList.sortByDescending { it.timestamp }
         historyList
@@ -38,6 +38,10 @@ class SearchRepository(
 
     suspend fun insertSearch(query: String) {
         searchDao.insertSearch(RecentSearch(query = query))
+    }
+
+    suspend fun insertSearch(search: RecentSearch) {
+        searchDao.insertSearch(search)
     }
 
     suspend fun deleteSearch(search: RecentSearch) {

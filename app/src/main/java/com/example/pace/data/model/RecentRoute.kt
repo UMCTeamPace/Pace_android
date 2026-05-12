@@ -8,9 +8,7 @@ import androidx.room.PrimaryKey
     primaryKeys = ["startPlaceId", "endPlaceId"]
 )
 data class RecentRoute(
-    val startPlaceName: String,
     val startPlaceId: String,
-    val endPlaceName: String,
     val endPlaceId: String,
     val saveTime: Long = System.currentTimeMillis()
 )
