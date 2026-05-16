@@ -164,6 +164,7 @@ class GroupViewModel @Inject constructor(
     fun clearErrorState() {
         _errorCode.value = null
         _errorMessage.value = ""
+        _isOperationSuccess.value = false
     }
 
     fun getSavedPlaces(groupId: Long, sortType: String = "LATEST") {

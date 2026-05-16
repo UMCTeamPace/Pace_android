@@ -952,7 +952,11 @@ class RouteFragment : Fragment() {
 
                 saveRecentPlace(selectedItem)
                 onLocationSelected(tempName, existingId, isSelectingStart)
-                startLatLng = currentMapCenter
+                if (isSelectingStart) {
+                    startLatLng = currentMapCenter
+                } else {
+                    endLatLng = currentMapCenter
+                }
 
                 binding.layoutMapSelectOverlay.root.visibility = View.GONE
                 val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
@@ -1340,6 +1344,7 @@ class RouteFragment : Fragment() {
         if (historyFragment.isAdded) transaction.hide(historyFragment)
         if (recommendFragment.isAdded) transaction.hide(recommendFragment)
         transaction.commitAllowingStateLoss()
+        historyFragment.resetToRecentSearch()
 
         mainBinding?.mainSearchLl?.visibility = View.VISIBLE
         binding.routeSearchFcv.visibility = View.GONE
@@ -1903,6 +1908,8 @@ class RouteFragment : Fragment() {
         val start = selectedStartPlace ?: return
         val end = selectedEndPlace ?: return
 
+        if (start.second.isBlank() || end.second.isBlank()) return
+        if (start.second == "내 위치" || end.second == "내 위치") return
         if (start.second == end.second && start.second.isNotEmpty()) return
         if (start.first == end.first) return
 
@@ -2026,6 +2033,7 @@ class RouteFragment : Fragment() {
             showSearchFragment(historyFragment)
 
         } else {
+            historyFragment.resetToRecentSearch()
             enterSearchMode()
         }
     }
@@ -3613,6 +3621,8 @@ class RouteFragment : Fragment() {
     }
 
     private fun saveRecentPlace(item: SearchItem) {
+        if (item.placeId.isBlank()) return
+
         val recentPlace = RecentPlace(
             placeId = item.placeId,
             timestamp = System.currentTimeMillis()

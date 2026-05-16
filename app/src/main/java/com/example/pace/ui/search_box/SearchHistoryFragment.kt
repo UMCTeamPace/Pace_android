@@ -37,6 +37,7 @@ class SearchHistoryFragment : Fragment() {
     private var pendingChipsVisible: Boolean = true
     private var pendingRouteOptionsVisible: Boolean = false
     private var pendingForcePlaceFilter: Boolean = false
+    private var pendingResetToRecentSearch: Boolean = false
     private var lastCheckedChipId: Int = View.NO_ID
     private var chipScrollStartX = 0f
     private var chipScrollDismissed = false
@@ -197,6 +198,10 @@ class SearchHistoryFragment : Fragment() {
             binding.chipRecentPlace.isChecked = true
             pendingForcePlaceFilter = false
         }
+
+        if (pendingResetToRecentSearch) {
+            resetToRecentSearch()
+        }
     }
 
     override fun onResume() {
@@ -275,10 +280,26 @@ class SearchHistoryFragment : Fragment() {
         }
     }
 
+    fun resetToRecentSearch() {
+        pendingResetToRecentSearch = true
+        if (_binding == null) return
+
+        pendingResetToRecentSearch = false
+        lastCheckedChipId = View.NO_ID
+        binding.chipRecentSearch.visibility = View.VISIBLE
+        binding.chipRecentSearch.isChecked = true
+        binding.searchChipScrollView.post {
+            binding.searchChipScrollView.scrollTo(0, 0)
+        }
+        ensureSelectedChildFragment()
+    }
+
     fun updateChipsForScheduleMode(isRouteHeaderVisible: Boolean, isScheduleMode: Boolean = false) {
         this.lastRouteHeaderState = isRouteHeaderVisible
         this.lastIsScheduleMode = isScheduleMode
         if (_binding == null) return
+
+        val currentCheckedChipId = binding.chipGroup.checkedChipId
 
         if (isScheduleMode) {
             binding.chipRecentRoute.visibility = View.GONE
@@ -289,18 +310,23 @@ class SearchHistoryFragment : Fragment() {
         if (isRouteHeaderVisible) {
             // 루트 헤더가 보일 때 (경로 검색 중) -> 최근 장소 고정
             binding.chipRecentSearch.visibility = View.GONE
-            if (binding.chipRecentPlace.id != lastCheckedChipId) {
+            if (currentCheckedChipId == R.id.chip_recent_search ||
+                currentCheckedChipId == View.NO_ID ||
+                (currentCheckedChipId == R.id.chip_recent_route && isScheduleMode)
+            ) {
                 binding.chipRecentPlace.isChecked = true
             } else {
-                showChildFragment(recentPlaceFragment, "RECENT_PLACE")
+                ensureSelectedChildFragment()
             }
         } else {
             // 루트 헤더가 안 보일 때 (일반 검색 중) -> 최근 검색 고정
             binding.chipRecentSearch.visibility = View.VISIBLE
-            if (binding.chipRecentSearch.id != lastCheckedChipId) {
+            if (currentCheckedChipId == R.id.chip_recent_route && isScheduleMode) {
+                binding.chipRecentSearch.isChecked = true
+            } else if (currentCheckedChipId == View.NO_ID) {
                 binding.chipRecentSearch.isChecked = true
             } else {
-                showChildFragment(recentSearchFragment, "RECENT_SEARCH")
+                ensureSelectedChildFragment()
             }
         }
     }

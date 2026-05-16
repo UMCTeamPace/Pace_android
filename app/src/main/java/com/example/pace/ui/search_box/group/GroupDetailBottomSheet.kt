@@ -3,7 +3,9 @@ package com.example.pace.ui.search_box.group
 import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.Button
@@ -80,20 +82,20 @@ class GroupDetailBottomSheet(
         val bottomSheet = dialog?.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
 
         bottomSheet?.let { sheet ->
+            val displayMetrics = resources.displayMetrics
+            val sheetHeight = (displayMetrics.heightPixels * 663f / 800f).toInt()
             val layoutParams = sheet.layoutParams
-            layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT
+            layoutParams.height = sheetHeight
             sheet.layoutParams = layoutParams
 
             val behavior = BottomSheetBehavior.from(sheet)
 
-            behavior.isHideable = false
-
-            val displayMetrics = resources.displayMetrics
-            behavior.peekHeight = (displayMetrics.heightPixels * 0.6).toInt()
-
-            behavior.state = BottomSheetBehavior.STATE_COLLAPSED
-
-            behavior.isDraggable = true
+            behavior.isHideable = true
+            behavior.skipCollapsed = true
+            behavior.peekHeight = sheetHeight
+            behavior.state = BottomSheetBehavior.STATE_EXPANDED
+            behavior.isDraggable = false
+            setupHandleSwipe(behavior)
         }
     }
 
@@ -128,6 +130,36 @@ class GroupDetailBottomSheet(
 
         binding.layoutFilter.setOnClickListener {
             showFilterDialog() //todo
+        }
+    }
+
+    private fun setupHandleSwipe(behavior: BottomSheetBehavior<View>) {
+        val closeThreshold = ViewConfiguration.get(requireContext()).scaledTouchSlop * 2
+        var downY = 0f
+        var isClosing = false
+
+        binding.layoutDragHandleArea.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    downY = event.rawY
+                    isClosing = false
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val deltaY = event.rawY - downY
+                    if (!isClosing && deltaY > closeThreshold) {
+                        isClosing = true
+                        behavior.state = BottomSheetBehavior.STATE_HIDDEN
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP,
+                MotionEvent.ACTION_CANCEL -> {
+                    isClosing = false
+                    true
+                }
+                else -> true
+            }
         }
     }
 

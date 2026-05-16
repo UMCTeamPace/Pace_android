@@ -47,9 +47,14 @@ class RecentRouteAdapter(
         setMode(Attributes.Mode.Single)
 
         holder.binding.ivDelete.setOnClickListener {
-            mItemManger.closeItem(position)
+            val currentPosition = holder.bindingAdapterPosition
+            if (currentPosition == RecyclerView.NO_POSITION) return@setOnClickListener
+
+            val currentItem = items[currentPosition]
+            mItemManger.closeItem(currentPosition)
             mainHandler.postDelayed({
-                onDeleteClick(item.route)
+                removeItem(currentItem)
+                onDeleteClick(currentItem.route)
             }, 150)
         }
 
@@ -65,6 +70,11 @@ class RecentRouteAdapter(
     override fun getItemCount(): Int = items.size
 
     override fun getSwipeLayoutResourceId(position: Int): Int = R.id.item_recent_route
+
+    private fun removeItem(item: RecentRouteUiItem) {
+        items = items.filterNot { it == item }
+        notifyDataSetChanged()
+    }
 
     inner class ViewHolder(val binding: ItemRecentRouteBinding) : RecyclerView.ViewHolder(binding.root) {
         init {

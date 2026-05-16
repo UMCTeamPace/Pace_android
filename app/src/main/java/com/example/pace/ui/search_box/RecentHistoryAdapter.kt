@@ -41,9 +41,14 @@ class RecentHistoryAdapter(
         setMode(Attributes.Mode.Single)
 
         holder.binding.ivDelete.setOnClickListener {
-            mItemManger.closeItem(position)
+            val currentPosition = holder.bindingAdapterPosition
+            if (currentPosition == RecyclerView.NO_POSITION) return@setOnClickListener
+
+            val currentItem = items[currentPosition]
+            mItemManger.closeItem(currentPosition)
             mainHandler.postDelayed({
-                onDeleteClick(item)
+                removeItem(currentItem)
+                onDeleteClick(currentItem)
             }, 150)
         }
 
@@ -59,6 +64,11 @@ class RecentHistoryAdapter(
     override fun getItemCount(): Int = items.size
 
     override fun getSwipeLayoutResourceId(position: Int): Int = R.id.item_recent_history
+
+    private fun removeItem(item: RecentHistoryItem) {
+        items = items.filterNot { it == item }
+        notifyDataSetChanged()
+    }
 
     inner class ViewHolder(val binding: ItemRecentHistoryBinding) : RecyclerView.ViewHolder(binding.root) {
         private var suppressSwipeCallback = false

@@ -7,7 +7,9 @@ import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.pace.R
 import com.example.pace.data.model.response.SavePlaceResponse
@@ -28,14 +30,18 @@ class GroupEditActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityGroupEditBinding.inflate(layoutInflater)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         window.apply {
             statusBarColor = Color.WHITE
+            navigationBarColor = Color.WHITE
             val decorView = window.decorView
             val controller = WindowCompat.getInsetsController(this, decorView)
             controller.isAppearanceLightStatusBars = true
+            controller.isAppearanceLightNavigationBars = true
         }
 
         setContentView(binding.root)
+        applySystemBarInsets()
 
         // 1. Intent 데이터 수신
         val groupId = intent.getLongExtra("GROUP_ID", -1L)
@@ -54,6 +60,27 @@ class GroupEditActivity : AppCompatActivity() {
         setupRecyclerView()
         setupListeners()
         observeViewModel()
+    }
+
+    private fun applySystemBarInsets() {
+        val rootBasePaddingLeft = binding.root.paddingLeft
+        val rootBasePaddingTop = binding.root.paddingTop
+        val rootBasePaddingRight = binding.root.paddingRight
+        val rootBasePaddingBottom = binding.root.paddingBottom
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+
+            binding.root.setPadding(
+                rootBasePaddingLeft + systemBars.left,
+                rootBasePaddingTop + systemBars.top,
+                rootBasePaddingRight + systemBars.right,
+                rootBasePaddingBottom + systemBars.bottom
+            )
+
+            insets
+        }
+        ViewCompat.requestApplyInsets(binding.root)
     }
 
     private fun observeViewModel() {
