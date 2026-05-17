@@ -30,7 +30,12 @@ class SearchRepository(
             RecentHistoryItem(RecentHistoryItem.TYPE_SEARCH_TEXT, it.query, it.timestamp, searchEntity = it)
         })
         historyList.addAll(places.map {
-            RecentHistoryItem(RecentHistoryItem.TYPE_PLACE, it.placeId, it.timestamp, placeEntity = it)
+            RecentHistoryItem(
+                RecentHistoryItem.TYPE_PLACE,
+                it.placeName.ifBlank { it.placeId },
+                it.timestamp,
+                placeEntity = it
+            )
         })
         historyList.sortByDescending { it.timestamp }
         historyList

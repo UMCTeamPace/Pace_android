@@ -22,7 +22,7 @@ import com.example.pace.data.model.UserSettingsEntity
         MyPlace::class,
         UserSettingsEntity::class
     ],
-    version = 13,
+    version = 15,
     exportSchema = false
 )
 
@@ -65,6 +65,18 @@ abstract class SearchDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `recent_places` ADD COLUMN `placeName` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `recent_routes` ADD COLUMN `startPlaceName` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `recent_routes` ADD COLUMN `endPlaceName` TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        private val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) = Unit
+        }
+
         fun getDatabase(context: Context): SearchDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -72,7 +84,7 @@ abstract class SearchDatabase : RoomDatabase() {
                     SearchDatabase::class.java,
                     "pace_database" // DB 파일 이름 확인
                 )
-                    .addMigrations(MIGRATION_12_13)
+                    .addMigrations(MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15)
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance

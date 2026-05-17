@@ -21,21 +21,27 @@ class ColorAdapter(
     private val colors: List<ColorItem>,
     private val onColorClick: (String) -> Unit
 ) : RecyclerView.Adapter<ColorAdapter.ColorViewHolder>() {
-    private var selectedPos = colors.indexOfFirst { it.isSelected }
+    private val items = colors.toMutableList()
+    private var selectedPos = items.indexOfFirst { it.isSelected }
 
     fun selectColor(colorHex: String) {
-        val newPos = colors.indexOfFirst { it.colorHex.equals(colorHex, ignoreCase = true) }
-        if (newPos == selectedPos) return
+        var newPos = items.indexOfFirst { it.colorHex.equals(colorHex, ignoreCase = true) }
+        if (newPos == -1) {
+            items.add(0, ColorItem(R.color.gray_600, colorHex, false))
+            selectedPos = if (selectedPos == -1) -1 else selectedPos + 1
+            notifyItemInserted(0)
+            newPos = 0
+        }
 
         val oldPos = selectedPos
         if (oldPos != -1) {
-            colors[oldPos].isSelected = false
+            items[oldPos].isSelected = false
             notifyItemChanged(oldPos)
         }
 
         selectedPos = newPos
         if (newPos != -1) {
-            colors[newPos].isSelected = true
+            items[newPos].isSelected = true
             notifyItemChanged(newPos)
         }
     }
@@ -65,11 +71,11 @@ class ColorAdapter(
     }
 
     override fun onBindViewHolder(holder: ColorViewHolder, position: Int){
-        holder.bind(colors[position])
+        holder.bind(items[position])
         holder.itemView.setOnClickListener {
-            selectColor(colors[position].colorHex)
-            onColorClick(colors[position].colorHex)
+            selectColor(items[position].colorHex)
+            onColorClick(items[position].colorHex)
         }
     }
-    override fun getItemCount() = colors.size
+    override fun getItemCount() = items.size
 }

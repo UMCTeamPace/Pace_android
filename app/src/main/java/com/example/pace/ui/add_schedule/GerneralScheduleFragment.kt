@@ -470,17 +470,7 @@ class GeneralScheduleFragment : Fragment() {
 
         binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(getSaveColorInt())
         val selectedColorForPalette = colorIntToHex(getSaveColorInt())
-        val colorList = listOf(
-            ColorItem(R.color.schedule_5, "#DC354B", "#DC354B".equals(selectedColorForPalette, ignoreCase = true)),
-            ColorItem(R.color.route_line_3, "#D8643F", "#D8643F".equals(selectedColorForPalette, ignoreCase = true)),
-            ColorItem(R.color.route_suin_bundang, "#FFBB00", "#FFBB00".equals(selectedColorForPalette, ignoreCase = true)),
-            ColorItem(R.color.route_branch_bus, "#53B332", "#53B332".equals(selectedColorForPalette, ignoreCase = true)),
-            ColorItem(R.color.schedule_14, "#51AEED", "#51AEED".equals(selectedColorForPalette, ignoreCase = true)),
-            ColorItem(R.color.schedule_12, "#2A4ABF", "#2A4ABF".equals(selectedColorForPalette, ignoreCase = true)),
-            ColorItem(R.color.schedule_8, "#5F46DD", "#5F46DD".equals(selectedColorForPalette, ignoreCase = true)),
-            ColorItem(R.color.route_line_8, "#F14C82", "#F14C82".equals(selectedColorForPalette, ignoreCase = true)),
-            ColorItem(R.color.gray_600, "#666666", "#666666".equals(selectedColorForPalette, ignoreCase = true))
-        )
+        val colorList = buildColorItems(selectedColorForPalette)
 
 
         colorAdapter = ColorAdapter(requireContext(), colorList) { selectedColor ->
@@ -1418,6 +1408,24 @@ class GeneralScheduleFragment : Fragment() {
 
     private fun getSelectedEventColorInt(): Int? {
         return if (hasUserSelectedEventColor) Color.parseColor(selectedColorHex) else null
+    }
+
+    private fun buildColorItems(selectedColorForPalette: String): List<ColorItem> {
+        val colors = mutableListOf(
+            ColorItem(R.color.schedule_5, "#DC354B", "#DC354B".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.route_line_3, "#D8643F", "#D8643F".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.route_suin_bundang, "#FFBB00", "#FFBB00".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.route_branch_bus, "#53B332", "#53B332".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.schedule_14, "#51AEED", "#51AEED".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.schedule_12, "#2A4ABF", "#2A4ABF".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.schedule_8, "#5F46DD", "#5F46DD".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.route_line_8, "#F14C82", "#F14C82".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.gray_600, "#666666", "#666666".equals(selectedColorForPalette, ignoreCase = true))
+        )
+        if (colors.none { it.isSelected }) {
+            colors.add(0, ColorItem(R.color.gray_600, selectedColorForPalette, true))
+        }
+        return colors
     }
 
     private fun colorIntToHex(color: Int): String {

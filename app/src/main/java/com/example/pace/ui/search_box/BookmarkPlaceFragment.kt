@@ -32,8 +32,18 @@ class BookmarkPlaceFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupRecyclerView()
+        setupFragmentResultListeners()
         observeViewModel()
         groupViewModel.fetchGroupList()
+    }
+
+    private fun setupFragmentResultListeners() {
+        parentFragmentManager.setFragmentResultListener(
+            GroupDetailBottomSheet.SAVED_PLACES_CHANGED_REQUEST_KEY,
+            viewLifecycleOwner
+        ) { _, _ ->
+            groupViewModel.fetchGroupList()
+        }
     }
 
     private fun observeViewModel() {

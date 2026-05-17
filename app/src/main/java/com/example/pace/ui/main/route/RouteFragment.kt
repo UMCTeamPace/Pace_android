@@ -145,6 +145,7 @@ class RouteFragment : Fragment() {
 
     private var isDetailFromRecommend = false
     private var isSelectingStart = true
+    private var isScheduleRouteInitialSearch = false
     private var isBookmarkSearchMode = false
     private var wasRouteHeaderVisibleBeforeBookmark = false
     enum class BookmarkTarget { NONE, HOME, WORK }
@@ -736,6 +737,12 @@ class RouteFragment : Fragment() {
             selectedEndPlace = null
         }
         isStart = false
+        isScheduleRouteInitialSearch = selectedStartPlace == null && selectedEndPlace == null
+        isSelectingStart = when {
+            selectedStartPlace == null -> true
+            selectedEndPlace == null -> false
+            else -> true
+        }
 
         binding.layoutRouteInputHeader.tvRouteStart.text = selectedStartPlace?.first ?: ""
         binding.layoutRouteInputHeader.tvRouteEnd.text = selectedEndPlace?.first ?: ""
@@ -744,23 +751,32 @@ class RouteFragment : Fragment() {
 
         earlyArriveTime = intent.getIntExtra("EARLY_ARRIVE_TIME", -1)
 
+        val hasCompleteRouteSelection =
+            (selectedStartPlace != null && selectedEndPlace != null) ||
+                (startLatLng != null && endLatLng != null)
+
         binding.layoutMapSelectOverlay.root.visibility = View.GONE
         if (::bottomSheetBehavior.isInitialized) {
             bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
         }
-        hideKeyboard()
 
-        mainBinding?.mainBnv?.visibility = View.GONE
-        mainBinding?.mainToolbar?.visibility = View.GONE
-        mainBinding?.mainBackIv?.visibility = View.GONE
+        if (hasCompleteRouteSelection) {
+            hideKeyboard()
 
-        binding.routeSearchFcv.visibility = View.VISIBLE
-        binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
-        binding.layoutRouteInputHeader.root.bringToFront()
+            mainBinding?.mainBnv?.visibility = View.GONE
+            mainBinding?.mainToolbar?.visibility = View.GONE
+            mainBinding?.mainBackIv?.visibility = View.GONE
 
-        binding.layoutRouteDetailOverlay.root.visibility = View.GONE
+            binding.routeSearchFcv.visibility = View.VISIBLE
+            binding.layoutRouteInputHeader.root.visibility = View.VISIBLE
+            binding.layoutRouteInputHeader.root.bringToFront()
 
-        showSearchRouteFragment()
+            binding.layoutRouteDetailOverlay.root.visibility = View.GONE
+
+            showSearchRouteFragment()
+        } else {
+            enterSearchMode()
+        }
     }
 
     // 출발/도착 눌렀을 때 (디테일에서)
@@ -768,6 +784,9 @@ class RouteFragment : Fragment() {
         exitPoiMode()
         isPlaceDetailSheetLocked = false
         isPlaceDetailCompact = false
+        if (currentEntryMode == EntryMode.SCHEDULE_ROUTE) {
+            isScheduleRouteInitialSearch = false
+        }
 
         val detailFrag = childFragmentManager.findFragmentByTag("DETAIL")
         if (detailFrag != null) {
@@ -1742,6 +1761,11 @@ class RouteFragment : Fragment() {
             return
         }
 
+        if (currentEntryMode == EntryMode.SCHEDULE_ROUTE && isScheduleRouteInitialSearch) {
+            showScheduleRouteInitialPlaceDetail(item)
+            return
+        }
+
         if(currentEntryMode == EntryMode.ROUTE_PLAN || currentEntryMode == EntryMode.SCHEDULE_ROUTE){
             onLocationSelected(item.name, item.placeId, isSelectingStart)
 
@@ -1915,7 +1939,9 @@ class RouteFragment : Fragment() {
 
         val newRoute = RecentRoute(
             startPlaceId = start.second,
-            endPlaceId = end.second
+            startPlaceName = start.first,
+            endPlaceId = end.second,
+            endPlaceName = end.first
         )
 
         // 3. DB 저장 및 청소
@@ -1935,7 +1961,14 @@ class RouteFragment : Fragment() {
         Log.d("Route", "시작${selectedStartPlace.toString()}--${selectedEndPlace.toString()} +${startLatLng.toString()}--${endLatLng.toString()} ")
         when {
             currentEntryMode == EntryMode.SCHEDULE -> {
-                onScheduleLocationSelected(name, placeId)
+                fetchRecentPlaceItem(placeId) { searchItem ->
+                    hideKeyboard()
+                    mainBinding?.searchEt?.clearFocus()
+                    exitSearchMode()
+                    isDetailFromRecommend = true
+                    showLocationDetail(searchItem)
+                    mainBinding?.mainBackIv?.visibility = View.VISIBLE
+                }
             }
 
             currentEntryMode == EntryMode.MAIN -> {
@@ -2084,11 +2117,13 @@ class RouteFragment : Fragment() {
 
     private fun setupRouteHeaderListeners() {
         binding.layoutRouteInputHeader.tvRouteStart.setOnClickListener {
+            isScheduleRouteInitialSearch = false
             isSelectingStart = true
             enterSearchMode()
         }
 
         binding.layoutRouteInputHeader.tvRouteEnd.setOnClickListener {
+            isScheduleRouteInitialSearch = false
             isSelectingStart = false
             enterSearchMode()
         }
@@ -3327,6 +3362,27 @@ class RouteFragment : Fragment() {
         suppressSearchTextWatcher = false
     }
 
+    private fun showScheduleRouteInitialPlaceDetail(item: SearchItem) {
+        hideKeyboard()
+        mainBinding?.searchEt?.clearFocus()
+        mainBinding?.searchEt?.setText("")
+
+        val transaction = childFragmentManager.beginTransaction()
+        if (historyFragment.isAdded) transaction.hide(historyFragment)
+        if (recommendFragment.isAdded) transaction.hide(recommendFragment)
+        transaction.commitAllowingStateLoss()
+
+        binding.routeSearchFcv.visibility = View.GONE
+        isDetailFromRecommend = true
+        showLocationDetail(item)
+
+        val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+        mapFrag?.clearMarkers()
+        mapFrag?.showMultipleMarkers(listOf(item)) {}
+
+        mainBinding?.mainBackIv?.visibility = View.VISIBLE
+    }
+
     fun handleHistoryItemClick(item: RecentHistoryItem){
         when (item.type) {
             RecentHistoryItem.TYPE_SEARCH_TEXT -> {
@@ -3350,7 +3406,24 @@ class RouteFragment : Fragment() {
                 saveRecentPlace(searchItem)
 
                 when (currentEntryMode) {
-                    EntryMode.ROUTE_PLAN, EntryMode.SCHEDULE_ROUTE -> {
+                    EntryMode.SCHEDULE_ROUTE -> {
+                        if (isScheduleRouteInitialSearch) {
+                            showScheduleRouteInitialPlaceDetail(searchItem)
+                        } else {
+                            val isHeaderVisible = binding.layoutRouteInputHeader.root.visibility == View.VISIBLE
+
+                            if (isHeaderVisible) {
+                                if (selectedStartPlace == null) {
+                                    onLocationSelected(searchItem.name, searchItem.placeId, isStart = true)
+                                } else {
+                                    onLocationSelected(searchItem.name, searchItem.placeId, isStart = false)
+                                }
+                            } else {
+                                onLocationSelected(searchItem.name, searchItem.placeId, isSelectingStart)
+                            }
+                        }
+                    }
+                    EntryMode.ROUTE_PLAN -> {
                         val isHeaderVisible = binding.layoutRouteInputHeader.root.visibility == View.VISIBLE
 
                         if (isHeaderVisible) {
@@ -3427,6 +3500,7 @@ class RouteFragment : Fragment() {
         isStart = true
         isDetailFromRecommend = false
         isSelectingStart = true
+        isScheduleRouteInitialSearch = false
         isBookmarkSearchMode = false
         wasRouteHeaderVisibleBeforeBookmark = false
         bookmarkTarget = BookmarkTarget.NONE
@@ -3625,6 +3699,7 @@ class RouteFragment : Fragment() {
 
         val recentPlace = RecentPlace(
             placeId = item.placeId,
+            placeName = item.name,
             timestamp = System.currentTimeMillis()
         )
 
