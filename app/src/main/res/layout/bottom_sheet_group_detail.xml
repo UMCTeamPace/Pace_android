@@ -17,9 +17,9 @@
         <View
             android:id="@+id/view_handle"
             android:layout_width="60dp"
-            android:layout_height="4dp"
+            android:layout_height="5dp"
             android:layout_gravity="center"
-            android:background="@color/gray_400" />
+            android:background="@drawable/bg_bottom_sheet_handle_large" />
     </FrameLayout>
 
     <TextView

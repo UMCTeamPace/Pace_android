@@ -2524,6 +2524,12 @@ class RouteFragment : Fragment() {
         if (isSearchMode()) {
 
             if (currentEntryMode == EntryMode.SCHEDULE_ROUTE) {
+                if (isScheduleRouteInitialSearch) {
+                    binding.routeMapFcv.visibility = View.GONE
+                    activity?.finish()
+                    return
+                }
+
                 hideKeyboard()
                 mainBinding?.searchEt?.clearFocus()
                 mainBinding?.searchEt?.setText("")

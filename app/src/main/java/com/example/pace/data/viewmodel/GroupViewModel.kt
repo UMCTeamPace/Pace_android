@@ -16,8 +16,18 @@ import com.example.pace.data.model.response.SavePlaceResponse
 import com.example.pace.data.repository.repository.PlaceGroupRepository
 import com.example.pace.data.repository.repository.SavedPlaceRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+data class PlaceSavedGroupState(
+    val groupId: Long,
+    val groupColor: String,
+    val savedPlaceId: Long,
+    val createdAt: String
+)
 
 @HiltViewModel
 class GroupViewModel @Inject constructor(
@@ -52,6 +62,23 @@ class GroupViewModel @Inject constructor(
 
     private val _savedPlaces = MutableLiveData<List<SavePlaceResponse>>()
     val savedPlaces: LiveData<List<SavePlaceResponse>> get() = _savedPlaces
+
+    private val _placeSavedGroupMap = MutableLiveData<Map<Long, Long>>()
+    val placeSavedGroupMap: LiveData<Map<Long, Long>> get() = _placeSavedGroupMap
+
+    private val placeSavedStateCache = mutableMapOf<String, List<PlaceSavedGroupState>>()
+
+    private val _placeSavedStatesByPlaceId = MutableLiveData<Map<String, List<PlaceSavedGroupState>>>(emptyMap())
+    val placeSavedStatesByPlaceId: LiveData<Map<String, List<PlaceSavedGroupState>>> get() = _placeSavedStatesByPlaceId
+
+    private val _isPlaceSavedGroupLoading = MutableLiveData<Boolean>()
+    val isPlaceSavedGroupLoading: LiveData<Boolean> get() = _isPlaceSavedGroupLoading
+
+    private val _isPlaceGroupEditSuccess = MutableLiveData<Boolean>()
+    val isPlaceGroupEditSuccess: LiveData<Boolean> get() = _isPlaceGroupEditSuccess
+
+    private val _isPlaceGroupEditLoading = MutableLiveData<Boolean>()
+    val isPlaceGroupEditLoading: LiveData<Boolean> get() = _isPlaceGroupEditLoading
 
     fun fetchGroupList() {
         viewModelScope.launch {
@@ -161,10 +188,144 @@ class GroupViewModel @Inject constructor(
         }
     }
 
+    fun fetchSavedGroupsForPlace(placeId: String, groups: List<GroupItem>, forceRefresh: Boolean = false) {
+        viewModelScope.launch {
+            if (placeId.isBlank()) {
+                _placeSavedGroupMap.value = emptyMap()
+                return@launch
+            }
+
+            if (!forceRefresh && placeSavedStateCache.containsKey(placeId)) {
+                val cachedStates = placeSavedStateCache[placeId].orEmpty()
+                _placeSavedGroupMap.value = cachedStates.associate { it.groupId to it.savedPlaceId }
+                _placeSavedStatesByPlaceId.value = placeSavedStateCache.toMap()
+                return@launch
+            }
+
+            _isPlaceSavedGroupLoading.value = true
+            _errorCode.value = null
+
+            try {
+                val resultStates = coroutineScope {
+                    groups.map { group ->
+                        async {
+                            try {
+                                val response = savedPlaceRepository.getSavedPlacesByGroup(
+                                    token,
+                                    group.groupId,
+                                    currentSortType
+                                )
+                                val matchedPlace = response.result
+                                    ?.savedPlaceList
+                                    ?.firstOrNull { it.placeId == placeId }
+
+                                matchedPlace?.let {
+                                    PlaceSavedGroupState(
+                                        groupId = group.groupId,
+                                        groupColor = group.groupColor,
+                                        savedPlaceId = it.savedPlaceId,
+                                        createdAt = it.createdAt
+                                    )
+                                }
+                            } catch (e: Exception) {
+                                null
+                            }
+                        }
+                    }.awaitAll().filterNotNull()
+                }
+
+                placeSavedStateCache[placeId] = resultStates
+                _placeSavedGroupMap.value = resultStates.associate { it.groupId to it.savedPlaceId }
+                _placeSavedStatesByPlaceId.value = placeSavedStateCache.toMap()
+            } finally {
+                _isPlaceSavedGroupLoading.value = false
+            }
+        }
+    }
+
+    fun updatePlaceGroups(
+        placeId: String,
+        placeName: String,
+        groupIdsToAdd: List<Long>,
+        savedPlaceIdsToDelete: List<Long>
+    ) {
+        viewModelScope.launch {
+            _errorCode.value = null
+            _isPlaceGroupEditSuccess.value = false
+            _isPlaceGroupEditLoading.value = true
+
+            try {
+                groupIdsToAdd.forEach { groupId ->
+                    val saveResponse = savedPlaceRepository.savePlace(
+                        token,
+                        SavePlaceRequest(
+                            placeName = placeName,
+                            placeId = placeId,
+                            groupId = groupId
+                        )
+                    )
+                    if (!saveResponse.isSuccess) {
+                        _errorCode.value = saveResponse.code
+                        _errorMessage.value = saveResponse.message
+                        return@launch
+                    }
+                }
+
+                if (savedPlaceIdsToDelete.isNotEmpty()) {
+                    val deleteResponse = savedPlaceRepository.deleteSavedPlaces(
+                        token,
+                        DeletePlacesRequest(savedPlaceIdsToDelete)
+                    )
+                    if (!deleteResponse.isSuccess) {
+                        _errorCode.value = deleteResponse.code
+                        _errorMessage.value = deleteResponse.message
+                        return@launch
+                    }
+                }
+
+                fetchGroupList()
+                val currentGroups = _groupList.value.orEmpty()
+                if (currentGroups.isNotEmpty()) {
+                    fetchSavedGroupsForPlace(placeId, currentGroups, forceRefresh = true)
+                } else {
+                    invalidatePlaceSavedState(placeId)
+                }
+                _isPlaceGroupEditSuccess.value = true
+            } catch (e: retrofit2.HttpException) {
+                val errorJson = e.response()?.errorBody()?.string()
+                try {
+                    val errorResponse = com.google.gson.Gson().fromJson(errorJson, com.example.pace.data.model.response.RawDefaultResponse::class.java)
+                    _errorCode.value = errorResponse.code
+                    _errorMessage.value = errorResponse.message
+                } catch (parsingError: Exception) {
+                    _errorMessage.value = "Server error (400)"
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _errorMessage.value = "Save failed: ${e.message}"
+            } finally {
+                _isPlaceGroupEditLoading.value = false
+            }
+        }
+    }
+
+    fun invalidatePlaceSavedState(placeId: String) {
+        placeSavedStateCache.remove(placeId)
+        _placeSavedStatesByPlaceId.value = placeSavedStateCache.toMap()
+    }
+
+    fun clearPlaceSavedStateCache() {
+        placeSavedStateCache.clear()
+        _placeSavedGroupMap.value = emptyMap()
+        _placeSavedStatesByPlaceId.value = emptyMap()
+    }
+
     fun clearErrorState() {
         _errorCode.value = null
         _errorMessage.value = ""
         _isOperationSuccess.value = false
+        _isPlaceGroupEditSuccess.value = false
+        _isPlaceGroupEditLoading.value = false
     }
 
     fun getSavedPlaces(groupId: Long, sortType: String = "LATEST") {

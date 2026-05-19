@@ -11,12 +11,12 @@ import android.widget.Button
 import android.widget.RadioGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.viewModels
+import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.pace.R
 import com.example.pace.data.viewmodel.GroupViewModel
 import com.example.pace.databinding.FragmentLocationBottomSheetBinding
-import com.example.pace.ui.search_box.group.GroupSelectBottomSheet
+import com.example.pace.ui.search_box.group.SavePlaceGroupSelectBottomSheet
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.net.PlacesClient
 import com.google.android.libraries.places.api.net.SearchByTextRequest
@@ -28,7 +28,7 @@ class LocationBottomSheetFragment : Fragment() {
     private var _binding: FragmentLocationBottomSheetBinding? = null
     private val binding get() = _binding!!
 
-    private val groupViewModel: GroupViewModel by viewModels()
+    private val groupViewModel: GroupViewModel by activityViewModels()
 
     private lateinit var adapter: LocationListAdapter
     private lateinit var placesClient: PlacesClient
@@ -80,6 +80,22 @@ class LocationBottomSheetFragment : Fragment() {
             if (isSuccess) {
             }
         }
+
+        groupViewModel.groupList.observe(viewLifecycleOwner) { groups ->
+            if (groups.isNotEmpty()) {
+                requestSavedStatesForCurrentItems()
+            }
+        }
+
+        groupViewModel.placeSavedStatesByPlaceId.observe(viewLifecycleOwner) { statesByPlaceId ->
+            if (!::adapter.isInitialized) return@observe
+            val colorsByPlaceId = currentItems.mapNotNull { item ->
+                val latestState = statesByPlaceId[item.placeId]
+                    ?.maxByOrNull { it.createdAt }
+                latestState?.let { item.placeId to it.groupColor }
+            }.toMap()
+            adapter.updateSavedStarColors(colorsByPlaceId)
+        }
     }
 
     private fun setupRecyclerView() {
@@ -89,18 +105,12 @@ class LocationBottomSheetFragment : Fragment() {
 
         adapter.onFavoriteClick = { selectedItem ->
             Log.d("DEBUG", "선택된 장소 ID: ${selectedItem.placeId}")
-            val groupSelectSheet = GroupSelectBottomSheet(
-                mode = GroupSelectBottomSheet.Mode.SAVE,
-                placeName = selectedItem.name
-            ) { groupId, savedName ->
-                groupViewModel.savePlace(
-                    groupId = groupId,
-                    placeId = selectedItem.placeId,
-                    placeName = savedName ?: "알 수 없는 장소"
-                )
-            }
+            val groupSelectSheet = SavePlaceGroupSelectBottomSheet(
+                placeName = selectedItem.name,
+                placeId = selectedItem.placeId
+            )
 
-            groupSelectSheet.show(parentFragmentManager, "GroupSelectBottomSheet")
+            groupSelectSheet.show(parentFragmentManager, "SavePlaceGroupSelectBottomSheet")
         }
 
         binding.rvSearchResults.apply {
@@ -169,8 +179,27 @@ class LocationBottomSheetFragment : Fragment() {
             return
         }
         adapter.submitList(items)
+        requestSavedStatesForCurrentItems()
 
         binding.rvSearchResults.scrollToPosition(0)
+    }
+
+    private fun requestSavedStatesForCurrentItems() {
+        if (currentItems.isEmpty()) return
+
+        val groups = groupViewModel.groupList.value
+        if (groups.isNullOrEmpty()) {
+            groupViewModel.fetchGroupList()
+            return
+        }
+
+        currentItems
+            .map { it.placeId }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .forEach { placeId ->
+                groupViewModel.fetchSavedGroupsForPlace(placeId, groups)
+            }
     }
 
     fun resetFilter() {

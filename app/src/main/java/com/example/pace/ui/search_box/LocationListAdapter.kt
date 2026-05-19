@@ -1,6 +1,8 @@
 package com.example.pace.ui.search_box
 
+import android.content.res.ColorStateList
 import android.graphics.Bitmap
+import android.graphics.Color
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -16,10 +18,16 @@ class LocationListAdapter(
     private val onItemClick: (SearchItem) -> Unit
 ): RecyclerView.Adapter<LocationListAdapter.LocationViewHolder>() {
     private var items: List<SearchItem> = emptyList()
+    private var savedStarColorsByPlaceId: Map<String, String> = emptyMap()
 
     var onFavoriteClick: ((SearchItem) -> Unit)? = null
     fun submitList(newItems: List<SearchItem>) {
         this.items = newItems
+        notifyDataSetChanged()
+    }
+
+    fun updateSavedStarColors(colorsByPlaceId: Map<String, String>) {
+        savedStarColorsByPlaceId = colorsByPlaceId
         notifyDataSetChanged()
     }
 
@@ -61,6 +69,7 @@ class LocationListAdapter(
             }
             val color = androidx.core.content.ContextCompat.getColor(context, colorResId)
             binding.tvOpenStatus.setTextColor(color)
+            bindFavoriteIcon(item)
 
             // 메타 정보
             val metaText = " ${item.category} · ${item.distance} · ${item.address}"
@@ -99,8 +108,25 @@ class LocationListAdapter(
                 onItemClick(item)
             }
 
-            binding.ivFavorite.setOnClickListener {
+            binding.layoutFavorite.setOnClickListener {
                 onFavoriteClick?.invoke(item)
+            }
+        }
+
+        private fun bindFavoriteIcon(item: SearchItem) {
+            val groupColor = savedStarColorsByPlaceId[item.placeId]
+            if (groupColor.isNullOrBlank()) {
+                binding.ivFavoriteLine.imageTintList = null
+                binding.ivFavoriteLine.setImageResource(R.drawable.ic_favorite_line_outline)
+                return
+            }
+
+            try {
+                binding.ivFavoriteLine.setImageResource(R.drawable.ic_favorite_line_filled)
+                binding.ivFavoriteLine.imageTintList = ColorStateList.valueOf(Color.parseColor(groupColor))
+            } catch (e: Exception) {
+                binding.ivFavoriteLine.imageTintList = null
+                binding.ivFavoriteLine.setImageResource(R.drawable.ic_favorite_line_outline)
             }
         }
     }

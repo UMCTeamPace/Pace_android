@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.pace.data.model.response.GroupItem
@@ -21,6 +22,7 @@ class BookmarkPlaceFragment : Fragment() {
     private var _binding: FragmentBookmarkPlaceBinding? = null
     private val binding get() = _binding!!
     private val groupViewModel: GroupViewModel by viewModels()
+    private val sharedGroupViewModel: GroupViewModel by activityViewModels()
     private lateinit var groupAdapter: BookmarkGroupAdapter
     private val currentGroupList = mutableListOf<GroupItem>()
 
@@ -42,6 +44,7 @@ class BookmarkPlaceFragment : Fragment() {
             GroupDetailBottomSheet.SAVED_PLACES_CHANGED_REQUEST_KEY,
             viewLifecycleOwner
         ) { _, _ ->
+            sharedGroupViewModel.clearPlaceSavedStateCache()
             groupViewModel.fetchGroupList()
         }
     }
@@ -55,6 +58,7 @@ class BookmarkPlaceFragment : Fragment() {
 
         groupViewModel.isOperationSuccess.observe(viewLifecycleOwner) { isSuccess ->
             if (isSuccess) {
+                sharedGroupViewModel.clearPlaceSavedStateCache()
                 val addDialog = parentFragmentManager.findFragmentByTag("AddGroupDialog") as? AddGroupDialogFragment
                 addDialog?.dismiss()
 
