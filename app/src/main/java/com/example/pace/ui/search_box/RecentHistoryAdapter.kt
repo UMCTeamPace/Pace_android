@@ -1,8 +1,11 @@
 package com.example.pace.ui.search_box
 
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.view.LayoutInflater
 import android.os.Handler
 import android.os.Looper
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.daimajia.swipe.SwipeLayout
@@ -21,10 +24,16 @@ class RecentHistoryAdapter(
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private var items: List<RecentHistoryItem> = emptyList()
+    private var savedStarColorsByPlaceId: Map<String, String> = emptyMap()
 
     fun submitList(newItems: List<RecentHistoryItem>) {
         mItemManger.closeAllItems()
         items = newItems.toList()
+        notifyDataSetChanged()
+    }
+
+    fun updateSavedStarColors(colorsByPlaceId: Map<String, String>) {
+        savedStarColorsByPlaceId = colorsByPlaceId
         notifyDataSetChanged()
     }
 
@@ -90,12 +99,40 @@ class RecentHistoryAdapter(
             binding.root.close(false)
             suppressSwipeCallback = false
             binding.tvHistoryText.text = item.mainText
-            val iconRes = if (item.type == RecentHistoryItem.TYPE_SEARCH_TEXT) {
-                R.drawable.ic_history_search
-            } else {
-                R.drawable.ic_history_place
+            bindHistoryIcon(item)
+        }
+
+        private fun bindHistoryIcon(item: RecentHistoryItem) {
+            binding.ivHistoryIcon.imageTintList = null
+            binding.ivSavedStarLine.imageTintList = null
+            binding.ivSavedStarBg.visibility = View.GONE
+            binding.ivSavedStarLine.visibility = View.GONE
+            binding.ivHistoryIcon.visibility = View.VISIBLE
+
+            if (item.type == RecentHistoryItem.TYPE_SEARCH_TEXT) {
+                binding.ivHistoryIcon.setImageResource(R.drawable.ic_history_search)
+                return
             }
-            binding.ivHistoryIcon.setImageResource(iconRes)
+
+            val placeId = item.placeEntity?.placeId
+            val groupColor = placeId?.let { savedStarColorsByPlaceId[it] }
+            if (groupColor.isNullOrBlank()) {
+                binding.ivHistoryIcon.setImageResource(R.drawable.ic_history_place)
+                return
+            }
+
+            try {
+                binding.ivHistoryIcon.visibility = View.GONE
+                binding.ivSavedStarBg.visibility = View.VISIBLE
+                binding.ivSavedStarLine.visibility = View.VISIBLE
+                binding.ivSavedStarLine.imageTintList = ColorStateList.valueOf(Color.parseColor(groupColor))
+            } catch (e: Exception) {
+                binding.ivSavedStarBg.visibility = View.GONE
+                binding.ivSavedStarLine.visibility = View.GONE
+                binding.ivSavedStarLine.imageTintList = null
+                binding.ivHistoryIcon.visibility = View.VISIBLE
+                binding.ivHistoryIcon.setImageResource(R.drawable.ic_history_place)
+            }
         }
     }
 }

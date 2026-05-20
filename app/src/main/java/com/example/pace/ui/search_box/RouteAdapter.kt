@@ -4,6 +4,9 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -48,7 +51,7 @@ class RouteAdapter(
             binding.routeBriefLl.removeAllViews()
             binding.routeVehicleLl.removeAllViews()
 
-            binding.routeTotalTv.text = if(item.totalTime / 3600L > 0 ){
+            val durationText = if(item.totalTime / 3600L > 0 ){
                 val time = item.totalTime % 3600L
                 if(time / 60L > 0){
                     "${item.totalTime / 3600L}시간 ${time / 60L}분"
@@ -57,6 +60,16 @@ class RouteAdapter(
                 }
             }else{
                 "${item.totalTime / 60L}분"
+            }
+            val fullText = "총 $durationText 소요"
+            val durationStart = fullText.indexOf(durationText)
+            binding.routeTotalTv.text = SpannableString(fullText).apply {
+                setSpan(
+                    ForegroundColorSpan(ContextCompat.getColor(context, R.color.primary_500)),
+                    durationStart,
+                    durationStart + durationText.length,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
             }
 
             // 시간 자르기 (2026-02-03T09:00:00 -> 09:00)

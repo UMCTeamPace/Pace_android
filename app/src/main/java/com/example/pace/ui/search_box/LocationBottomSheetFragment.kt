@@ -197,8 +197,8 @@ class LocationBottomSheetFragment : Fragment() {
             .map { it.placeId }
             .filter { it.isNotBlank() }
             .distinct()
-            .forEach { placeId ->
-                groupViewModel.fetchSavedGroupsForPlace(placeId, groups)
+            .let { placeIds ->
+                groupViewModel.fetchSavedGroupsForPlaces(placeIds, groups)
             }
     }
 

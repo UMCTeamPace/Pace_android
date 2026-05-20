@@ -243,6 +243,72 @@ class GroupViewModel @Inject constructor(
         }
     }
 
+    fun fetchSavedGroupsForPlaces(placeIds: Collection<String>, groups: List<GroupItem>, forceRefresh: Boolean = false) {
+        viewModelScope.launch {
+            val distinctPlaceIds = placeIds
+                .filter { it.isNotBlank() }
+                .distinct()
+
+            if (distinctPlaceIds.isEmpty()) return@launch
+
+            val targetPlaceIds = if (forceRefresh) {
+                distinctPlaceIds
+            } else {
+                distinctPlaceIds.filterNot { placeSavedStateCache.containsKey(it) }
+            }
+
+            if (targetPlaceIds.isEmpty()) {
+                _placeSavedStatesByPlaceId.value = placeSavedStateCache.toMap()
+                return@launch
+            }
+
+            _isPlaceSavedGroupLoading.value = true
+            _errorCode.value = null
+
+            try {
+                val targetPlaceIdSet = targetPlaceIds.toSet()
+                val statesByPlaceId = targetPlaceIds.associateWith { mutableListOf<PlaceSavedGroupState>() }
+
+                coroutineScope {
+                    groups.map { group ->
+                        async {
+                            try {
+                                val response = savedPlaceRepository.getSavedPlacesByGroup(
+                                    token,
+                                    group.groupId,
+                                    currentSortType
+                                )
+                                response.result
+                                    ?.savedPlaceList
+                                    ?.filter { targetPlaceIdSet.contains(it.placeId) }
+                                    ?.map {
+                                        it.placeId to PlaceSavedGroupState(
+                                            groupId = group.groupId,
+                                            groupColor = group.groupColor,
+                                            savedPlaceId = it.savedPlaceId,
+                                            createdAt = it.createdAt
+                                        )
+                                    }
+                                    .orEmpty()
+                            } catch (e: Exception) {
+                                emptyList()
+                            }
+                        }
+                    }.awaitAll().flatten()
+                }.forEach { (placeId, state) ->
+                    statesByPlaceId[placeId]?.add(state)
+                }
+
+                targetPlaceIds.forEach { placeId ->
+                    placeSavedStateCache[placeId] = statesByPlaceId[placeId].orEmpty()
+                }
+                _placeSavedStatesByPlaceId.value = placeSavedStateCache.toMap()
+            } finally {
+                _isPlaceSavedGroupLoading.value = false
+            }
+        }
+    }
+
     fun updatePlaceGroups(
         placeId: String,
         placeName: String,

@@ -17,6 +17,7 @@ import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
+import android.widget.EditText
 import android.widget.NumberPicker
 import android.widget.RadioGroup
 import androidx.activity.OnBackPressedCallback
@@ -54,6 +55,7 @@ import com.example.pace.data.viewmodel.SearchViewModel
 import com.example.pace.data.viewmodel.SearchViewModelFactory
 import com.example.pace.data.viewmodel.SettingsViewModel
 import com.example.pace.data.viewmodel.TransitViewModel
+import com.example.pace.data.viewmodel.GroupViewModel
 import com.example.pace.databinding.FragmentRouteBinding
 import com.example.pace.ui.NetworkErrorDialog
 import com.example.pace.ui.add_schedule.AddScheduleActivity
@@ -112,6 +114,7 @@ class RouteFragment : Fragment() {
 
     private val routeViewModel: RouteViewModel by activityViewModels()
     private val settingsViewModel: SettingsViewModel by activityViewModels()
+    private val groupViewModel: GroupViewModel by activityViewModels()
     private val transitViewModel: TransitViewModel by viewModels()
 
     private var hasSchedule: Boolean = true
@@ -371,20 +374,26 @@ class RouteFragment : Fragment() {
     private fun observeRouteViewModel() {
         // 결과 데이터 관찰
         routeViewModel.routeResult.observe(viewLifecycleOwner) { routes ->
+            val fragment = childFragmentManager.findFragmentByTag("ROUTE_RESULT") as? RouteResultFragment
             Log.d("RouteDebug", "데이터 수신: ${routes?.size}개")
             if (routes.isNullOrEmpty()) {
-                android.widget.Toast.makeText(requireContext(), "검색 기록 없음", android.widget.Toast.LENGTH_SHORT).show()
-                // 1. 검색 결과가 없을 때 -> '결과 없음' 뷰 표시
-                binding.layoutNoSearchResult.visibility = View.VISIBLE
-                binding.layoutNoSearchResult.bringToFront()
+                binding.layoutNoSearchResult.visibility = View.GONE
+                fragment?.updateRoutes(emptyList(), selectedEndPlace?.first ?: "도착지 없음")
 
             }else{
                 binding.layoutNoSearchResult.visibility = View.GONE
-                val fragment = childFragmentManager.findFragmentByTag("ROUTE_RESULT") as? RouteResultFragment
                 fragment?.updateRoutes(routes, selectedEndPlace?.first ?: "도착지 없음")
 
             }
 
+        }
+
+        routeViewModel.isLoading.observe(viewLifecycleOwner) { loading ->
+            val fragment = childFragmentManager.findFragmentByTag("ROUTE_RESULT") as? RouteResultFragment
+            fragment?.setLoading(loading == true)
+            if (loading == true) {
+                binding.layoutNoSearchResult.visibility = View.GONE
+            }
         }
 
         // 에러 메시지 관찰
@@ -392,8 +401,7 @@ class RouteFragment : Fragment() {
             if (msg.isNotEmpty()) {
                 android.util.Log.d("RouteFragment", "검색 에러 발생: $msg")
 
-                binding.layoutNoSearchResult.visibility = View.VISIBLE
-                binding.layoutNoSearchResult.bringToFront()
+                binding.layoutNoSearchResult.visibility = View.GONE
             }
         }
 
@@ -459,6 +467,7 @@ class RouteFragment : Fragment() {
                 return@setOnClickListener
             }
 
+            prefetchSavedPlaceGroups()
             if (!searchEditText.hasFocus()) {
                 searchEditText.requestFocus()
             } else {
@@ -478,6 +487,7 @@ class RouteFragment : Fragment() {
                         }.show()
                         return@setOnFocusChangeListener
                     }
+                    prefetchSavedPlaceGroups()
                     enterSearchMode()
                 }
             }
@@ -491,6 +501,7 @@ class RouteFragment : Fragment() {
                     }.show()
                     return@setOnClickListener
                 }
+                prefetchSavedPlaceGroups()
                 if (!hasFocus()) {
                     requestFocus()
                 } else {
@@ -527,6 +538,13 @@ class RouteFragment : Fragment() {
             if (mainBinding?.searchEt?.text?.isNotEmpty() == true) mainBinding?.searchEt?.setText("")
         }
     }
+
+    private fun prefetchSavedPlaceGroups() {
+        if (groupViewModel.groupList.value.isNullOrEmpty()) {
+            groupViewModel.fetchGroupList()
+        }
+    }
+
     private fun FinalfetchRouteData(){
         if (!isNetworkAvailable()) {
             NetworkErrorDialog(requireContext()) {
@@ -921,13 +939,23 @@ class RouteFragment : Fragment() {
         tvFullAddress.text = originalName
         etPlaceName.requestFocus()
 
+        dialogView.setOnClickListener {
+            hideKeyboardFrom(etPlaceName)
+            etPlaceName.clearFocus()
+        }
+
+        etPlaceName.setOnTouchListener { _, _ ->
+            etPlaceName.requestFocus()
+            false
+        }
 
         btnCancel.setOnClickListener {
+            hideKeyboardFrom(etPlaceName)
             alertDialog.dismiss()
         }
 
         btnSave.setOnClickListener {
-            hideKeyboard()
+            hideKeyboardFrom(etPlaceName)
             val finalName = etPlaceName.text.toString().trim()
             if (finalName.isNotEmpty()) {
                 onConfirm(finalName)
@@ -937,7 +965,11 @@ class RouteFragment : Fragment() {
 
         alertDialog.show()
 
-        showKeyBoard()
+        alertDialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
+        etPlaceName.postDelayed({
+            etPlaceName.requestFocus()
+            showKeyboardFor(etPlaceName)
+        }, 150)
     }
 
 
@@ -3788,6 +3820,15 @@ class RouteFragment : Fragment() {
             bottomSheetBehavior.state != BottomSheetBehavior.STATE_HIDDEN
     private fun showKeyBoard() = (requireActivity().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showSoftInput(mainBinding?.searchEt, InputMethodManager.SHOW_IMPLICIT)
     private fun hideKeyboard() = (requireActivity().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(mainBinding?.searchEt?.windowToken, 0)
+    private fun showKeyboardFor(editText: EditText) {
+        val inputMethodManager = requireActivity().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        inputMethodManager.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    private fun hideKeyboardFrom(editText: EditText) {
+        val inputMethodManager = requireActivity().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        inputMethodManager.hideSoftInputFromWindow(editText.windowToken, 0)
+    }
 
     private fun isKeyboardVisible(): Boolean {
         // 1. 루트 뷰의 인셋 정보 가져오기

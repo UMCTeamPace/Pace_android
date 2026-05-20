@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -13,6 +14,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.PaceApplication
 import com.example.pace.data.model.RecentHistoryItem
+import com.example.pace.data.viewmodel.GroupViewModel
 import com.example.pace.data.viewmodel.SearchViewModel
 import com.example.pace.data.viewmodel.SearchViewModelFactory
 import com.example.pace.databinding.FragmentRecentSearchBinding
@@ -26,9 +28,12 @@ class RecentSearchFragment : Fragment() {
     private var lastFirstHistoryKey: String? = null
     private var lastHistorySize = 0
     private var isUserScrolling = false
+    private var currentHistoryItems: List<RecentHistoryItem> = emptyList()
+    private var requestedPlaceIds: Set<String> = emptySet()
     private val searchViewModel: SearchViewModel by viewModels {
         SearchViewModelFactory((requireActivity().application as PaceApplication).searchRepository)
     }
+    private val groupViewModel: GroupViewModel by activityViewModels()
     private lateinit var historyAdapter: RecentHistoryAdapter
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -44,6 +49,7 @@ class RecentSearchFragment : Fragment() {
         binding.rvRecentSearch.isFocusableInTouchMode = false
         setupRecyclerView()
         observeData()
+        observeSavedPlaceState()
     }
 
     private fun setupRecyclerView() {
@@ -90,8 +96,11 @@ class RecentSearchFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 searchViewModel.allHistory.collect { historyList ->
+                    currentHistoryItems = historyList
                     val shouldScrollToTop = shouldScrollToTop(historyList)
                     historyAdapter.submitList(historyList)
+                    updateSavedStarColorsFromCache()
+                    requestSavedStatesForCurrentItems()
                     updateHistorySnapshot(historyList)
                     if (shouldScrollToTop) {
                         binding.rvRecentSearch.scrollToPosition(0)
@@ -99,6 +108,55 @@ class RecentSearchFragment : Fragment() {
                 }
             }
         }
+    }
+
+    private fun observeSavedPlaceState() {
+        groupViewModel.groupList.observe(viewLifecycleOwner) { groups ->
+            if (groups.isNotEmpty()) {
+                requestSavedStatesForCurrentItems()
+            }
+        }
+
+        groupViewModel.placeSavedStatesByPlaceId.observe(viewLifecycleOwner) { statesByPlaceId ->
+            if (!::historyAdapter.isInitialized) return@observe
+            if (statesByPlaceId.isEmpty() && currentHistoryItems.isNotEmpty() && requestedPlaceIds.isNotEmpty()) {
+                requestedPlaceIds = emptySet()
+                requestSavedStatesForCurrentItems()
+            }
+            updateSavedStarColorsFromCache()
+        }
+    }
+
+    private fun updateSavedStarColorsFromCache() {
+        if (!::historyAdapter.isInitialized) return
+        val statesByPlaceId = groupViewModel.placeSavedStatesByPlaceId.value.orEmpty()
+        val colorsByPlaceId = currentHistoryItems.mapNotNull { item ->
+            val placeId = item.placeEntity?.placeId ?: return@mapNotNull null
+            val latestState = statesByPlaceId[placeId]
+                ?.maxByOrNull { it.createdAt }
+            latestState?.let { placeId to it.groupColor }
+        }.toMap()
+        historyAdapter.updateSavedStarColors(colorsByPlaceId)
+    }
+
+    private fun requestSavedStatesForCurrentItems() {
+        if (currentHistoryItems.isEmpty()) return
+
+        val groups = groupViewModel.groupList.value
+        if (groups.isNullOrEmpty()) {
+            groupViewModel.fetchGroupList()
+            return
+        }
+
+        val placeIds = currentHistoryItems
+            .mapNotNull { it.placeEntity?.placeId }
+            .filter { it.isNotBlank() }
+            .toSet()
+
+        val placeIdsToRequest = placeIds - requestedPlaceIds
+        requestedPlaceIds = requestedPlaceIds + placeIdsToRequest
+
+        groupViewModel.fetchSavedGroupsForPlaces(placeIdsToRequest, groups)
     }
 
     private fun shouldScrollToTop(historyList: List<RecentHistoryItem>): Boolean {
