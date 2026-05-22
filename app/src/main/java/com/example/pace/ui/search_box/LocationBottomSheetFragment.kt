@@ -209,6 +209,22 @@ class LocationBottomSheetFragment : Fragment() {
         }
     }
 
+    fun setDragHandleTouchListener(listener: View.OnTouchListener?) {
+        _binding?.viewDragHandle?.setOnTouchListener(listener)
+    }
+
+    fun setSearchResultBottomInset(extraBottomInsetPx: Int) {
+        val binding = _binding ?: return
+        val baseBottomPadding = (20 * resources.displayMetrics.density).toInt()
+        val bottomPadding = baseBottomPadding + extraBottomInsetPx.coerceAtLeast(0)
+        binding.rvSearchResults.setPadding(
+            binding.rvSearchResults.paddingLeft,
+            binding.rvSearchResults.paddingTop,
+            binding.rvSearchResults.paddingRight,
+            bottomPadding
+        )
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null

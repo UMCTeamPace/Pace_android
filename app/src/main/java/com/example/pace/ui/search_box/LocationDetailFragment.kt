@@ -242,11 +242,9 @@ class LocationDetailFragment : Fragment() {
             if (metadataList.isNullOrEmpty()) {
                 hasPhotoSection = false
                 binding.svPhotos.visibility = View.GONE
-                (parentFragment as? RouteFragment)?.setBottomSheetFixed(true)
             }else {
                 hasPhotoSection = true
                 binding.svPhotos.visibility = View.VISIBLE
-                (parentFragment as? RouteFragment)?.setBottomSheetFixed(false)
                 binding.photoContainer.removeAllViews()
 
                 val count = minOf(metadataList.size, 3)
@@ -273,7 +271,6 @@ class LocationDetailFragment : Fragment() {
             Log.e("PlacePhoto", "Location detail metadata fetch failed: placeId=$placeId", error)
             hasPhotoSection = false
             binding.svPhotos.visibility = View.GONE
-            (parentFragment as? RouteFragment)?.setBottomSheetFixed(true)
         }
     }
 
@@ -320,6 +317,10 @@ class LocationDetailFragment : Fragment() {
 
     private fun dpToPx(dp: Int): Int {
         return (dp * resources.displayMetrics.density).toInt()
+    }
+
+    fun setDragHandleTouchListener(listener: View.OnTouchListener?) {
+        _binding?.viewDragHandle?.setOnTouchListener(listener)
     }
 
     override fun onDestroyView() {

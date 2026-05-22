@@ -4,24 +4,37 @@
     android:layout_height="match_parent"
     android:background="@drawable/bg_bottom_sheet_rounded"
     xmlns:app="http://schemas.android.com/apk/res-auto">
-    <View
+    <FrameLayout
         android:id="@+id/bottom_sheet_route_detail_view"
-        android:layout_width="60dp"
-        android:layout_height="5dp"
-        android:background="@color/gray_400"
-        android:layout_marginTop="10dp"
+        android:layout_width="match_parent"
+        android:layout_height="39dp"
+        android:clickable="true"
+        android:focusable="true"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <View
+            android:layout_width="60dp"
+            android:layout_height="5dp"
+            android:layout_gravity="top|center_horizontal"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/bg_bottom_sheet_handle" />
+
+    </FrameLayout>
+
     <androidx.core.widget.NestedScrollView
+        android:id="@+id/route_detail_scroll_view"
         android:layout_width="match_parent"
         android:layout_height="0dp"
+        android:fillViewport="false"
         android:orientation="vertical"
+        android:overScrollMode="never"
         android:paddingStart="20dp"
         android:paddingEnd="20dp"
         android:paddingBottom="20dp"
-        android:layout_marginTop="24dp"
-        app:layout_constraintTop_toBottomOf="@id/bottom_sheet_route_detail_view">
+        app:layout_constraintTop_toBottomOf="@id/bottom_sheet_route_detail_view"
+        app:layout_constraintBottom_toBottomOf="parent">
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
