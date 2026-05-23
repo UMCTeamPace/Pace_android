@@ -10,6 +10,7 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.RadioGroup
 import android.widget.Toast
+import androidx.core.view.ViewCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -115,6 +116,7 @@ class LocationBottomSheetFragment : Fragment() {
 
         binding.rvSearchResults.apply {
             layoutManager = LinearLayoutManager(context)
+            ViewCompat.setNestedScrollingEnabled(this, false)
             this.adapter = this@LocationBottomSheetFragment.adapter
         }
     }

@@ -285,13 +285,21 @@ class SearchHistoryFragment : Fragment() {
         if (_binding == null) return
 
         pendingResetToRecentSearch = false
-        lastCheckedChipId = View.NO_ID
         binding.chipRecentSearch.visibility = View.VISIBLE
-        binding.chipRecentSearch.isChecked = true
+        selectRecentSearchChip()
         binding.searchChipScrollView.post {
             binding.searchChipScrollView.scrollTo(0, 0)
+            selectRecentSearchChip()
         }
         ensureSelectedChildFragment()
+    }
+
+    private fun selectRecentSearchChip() {
+        lastCheckedChipId = View.NO_ID
+        binding.chipGroup.clearCheck()
+        binding.chipGroup.check(R.id.chip_recent_search)
+        binding.chipRecentSearch.isChecked = true
+        showChildFragment(recentSearchFragment, "RECENT_SEARCH")
     }
 
     fun updateChipsForScheduleMode(isRouteHeaderVisible: Boolean, isScheduleMode: Boolean = false) {

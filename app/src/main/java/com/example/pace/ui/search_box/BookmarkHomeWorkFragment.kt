@@ -87,16 +87,20 @@ class BookmarkHomeWorkFragment : Fragment() {
         resetHomeSwipe()
 
         if (place != null) {
+            binding.ivHomeIcon.setImageResource(R.drawable.ic_home)
             binding.tvHomeAddress.text = place.name
             binding.tvHomeAddress.setTextColor(Color.BLACK)
 
             binding.layoutHomeForeground.setOnTouchListener(
-                SwipeOnTouchListener(menuWidthPx.toFloat()) {}
+                SwipeOnTouchListener(menuWidthPx.toFloat()) {
+                    (parentFragment as? RouteFragment)?.startBookmarkSearch(RouteFragment.BookmarkTarget.HOME)
+                }
             )
             binding.layoutHomeForeground.setOnClickListener(null)
 
         } else {
             binding.tvHomeAddress.text = "집을 등록하세요"
+            binding.ivHomeIcon.setImageResource(R.drawable.ic_home_unselected)
             binding.tvHomeAddress.setTextColor(ContextCompat.getColor(requireContext(), R.color.gray_500))
 
             binding.layoutHomeForeground.setOnTouchListener(null)
@@ -109,15 +113,19 @@ class BookmarkHomeWorkFragment : Fragment() {
 
     private fun updateWorkUI(place: MyPlace?) {
         if (place != null) {
+            binding.ivWorkIcon.setImageResource(R.drawable.ic_work_selected)
             binding.tvWorkName.text = place.name
             binding.tvWorkName.setTextColor(Color.BLACK)
 
             binding.layoutWorkForeground.setOnTouchListener(
-                SwipeOnTouchListener(menuWidthPx.toFloat()) {}
+                SwipeOnTouchListener(menuWidthPx.toFloat()) {
+                    (parentFragment as? RouteFragment)?.startBookmarkSearch(RouteFragment.BookmarkTarget.WORK)
+                }
             )
             binding.layoutWorkForeground.setOnClickListener(null)
         } else {
             binding.tvWorkName.text = "학교/회사를 등록하세요"
+            binding.ivWorkIcon.setImageResource(R.drawable.ic_work_unselected)
             binding.tvWorkName.setTextColor(ContextCompat.getColor(requireContext(), R.color.gray_500))
 
             binding.layoutWorkForeground.setOnTouchListener(null)
