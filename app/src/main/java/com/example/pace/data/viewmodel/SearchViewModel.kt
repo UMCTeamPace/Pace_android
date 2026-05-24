@@ -31,18 +31,22 @@ class SearchViewModel(private val repository: SearchRepository) : ViewModel() {
         )
     fun insertSearch(query: String) = viewModelScope.launch {
         repository.insertSearch(query)
+        repository.deleteExpiredData()
     }
 
     fun insertSearch(search: RecentSearch) = viewModelScope.launch {
         repository.insertSearch(search)
+        repository.deleteExpiredData()
     }
 
     fun insertPlace(place: RecentPlace) = viewModelScope.launch {
         repository.insertPlace(place)
+        repository.deleteExpiredData()
     }
 
     fun insertRecentRoute(route: RecentRoute) = viewModelScope.launch {
         repository.insertRecentRoute(route)
+        repository.deleteExpiredData()
     }
 
     fun deleteHistoryItem(item: RecentHistoryItem) {

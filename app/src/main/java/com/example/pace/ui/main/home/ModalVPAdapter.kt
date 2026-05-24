@@ -30,7 +30,8 @@ import com.example.pace.util.ScheduleDisplayTextUtils
 class ModalVPAdapter(
     private val context: Context,
     scheduleList: List<Schedule>,
-    private val onRouteScheduleClick: (RouteOnlyScheduleData) -> Unit
+    private val onRouteScheduleClick: (RouteOnlyScheduleData) -> Unit,
+    private val onScheduleEditClick: (Schedule) -> Unit
 ): RecyclerView.Adapter<ModalVPAdapter.ViewHolder>() {
     lateinit var binding: ItemModalBinding
     private val schedules = scheduleList.toMutableList()
@@ -63,17 +64,7 @@ class ModalVPAdapter(
             holder.binding.modalRouteVehicleLl.setOnClickListener(null)
         }
         holder.binding.root.setOnClickListener {
-            val intent = Intent(context, AddScheduleActivity::class.java).apply {
-                putExtra("isEdit", true)
-                putExtra("SCHEDULE_ID", schedule.id)
-                putExtra("OCCURRENCE_DATE", schedule.startDate)
-                putExtra("SCHEDULE_TYPE", schedule.type) // ⭐ 타입 명시 (ROUTE 또는 GENERAL)
-
-                if (schedule.type == "ROUTE") {
-                    putExtra("OPEN_ROUTE_TAB", true)
-                }
-            }
-            context.startActivity(intent)
+            onScheduleEditClick(schedule)
         }
     }
 

@@ -266,9 +266,25 @@ class RouteScheduleFragment : Fragment() {
 
         val startName = arguments?.getString("START_NAME") ?: "미지정"
         val endName = arguments?.getString("END_NAME") ?: "미지정"
+        val startLatArg = arguments?.getDouble("START_LAT", Double.NaN) ?: Double.NaN
+        val startLngArg = arguments?.getDouble("START_LNG", Double.NaN) ?: Double.NaN
+        val endLatArg = arguments?.getDouble("END_LAT", Double.NaN) ?: Double.NaN
+        val endLngArg = arguments?.getDouble("END_LNG", Double.NaN) ?: Double.NaN
         val earlyTime = arguments?.getInt("EARLY_ARRIVE_TIME", 0)
         // 비어있을 때 문자열로 넣으면 에러남
         val routeDetail = arguments?.getString("ROUTE_DETAIL") // 뒤에 ?: "데이터 없음" 삭제
+        val fromRouteSearchResult = arguments?.getBoolean("FROM_ROUTE_SEARCH_RESULT", false) == true
+
+        if (!startLatArg.isNaN() && !startLngArg.isNaN()) {
+            lastStartName = startName
+            lastStartLat = startLatArg
+            lastStartLng = startLngArg
+        }
+        if (!endLatArg.isNaN() && !endLngArg.isNaN()) {
+            lastDestName = endName
+            lastDestLat = endLatArg
+            lastDestLng = endLngArg
+        }
 
         // routeDetail 파싱해 경로 동적 바인딩 + route의 값에 따라 UI 업데이트
         val gson = Gson()
@@ -281,6 +297,7 @@ class RouteScheduleFragment : Fragment() {
 
                 // 파싱된 route 객체로 UI 업데이트
                 updateRouteInfo(startName, endName, route)
+                applyRouteSearchResultDateTimeIfNeeded(route, fromRouteSearchResult)
 
                 // 경로가 확실히 있으므로 삭제 버튼 활성화
                 binding.deleteRouteIv.visibility = View.VISIBLE
@@ -403,6 +420,13 @@ class RouteScheduleFragment : Fragment() {
                         true -> {
                             // 일정 저장 성공 시 알람 예약 실행
                             Toast.makeText(context, "일정이 저장되었습니다.", Toast.LENGTH_SHORT).show()
+                            requireActivity().setResult(
+                                Activity.RESULT_OK,
+                                Intent().putExtra(
+                                    "SAVED_SCHEDULE_DATE",
+                                    startDate?.toString() ?: LocalDate.now().toString()
+                                )
+                            )
                             viewModel.resetCreateEvent() // 이벤트 초기화
                             requireActivity().finish()   // 화면 종료
                         }
@@ -1434,6 +1458,32 @@ class RouteScheduleFragment : Fragment() {
 
     private fun parseScheduleStartDateTime(date: LocalDate, time: String): LocalDateTime? {
         return runCatching { LocalDateTime.parse("${date}T$time") }.getOrNull()
+    }
+
+    private fun applyRouteSearchResultDateTimeIfNeeded(routeObject: RouteResponse?, fromRouteSearchResult: Boolean) {
+        if (!fromRouteSearchResult || isEditMode) return
+
+        val routeArrival = parseRouteArrivalToKst(routeObject?.arrivalTime) ?: return
+        val newStart = roundToNearestFiveMinutes(routeArrival)
+        val currentEnd = parseDateTime(endDate ?: startDate, binding.tvEndTime.text)
+
+        applyStartDateTime(newStart)
+
+        val newEnd = if (currentEnd != null && currentEnd.isAfter(newStart)) {
+            currentEnd
+        } else {
+            newStart.plusHours(1)
+        }
+        applyEndDateTime(newEnd)
+        binding.calendarPicker.notifyCalendarChanged()
+        updateDateDisplay()
+    }
+
+    private fun roundToNearestFiveMinutes(dateTime: LocalDateTime): LocalDateTime {
+        val base = dateTime.withSecond(0).withNano(0)
+        val totalMinutes = base.hour * 60 + base.minute
+        val roundedMinutes = ((totalMinutes / 5) + 1) * 5
+        return base.toLocalDate().atStartOfDay().plusMinutes(roundedMinutes.toLong())
     }
 
     private fun parseRouteArrivalToKst(raw: String?): LocalDateTime? {

@@ -9,6 +9,7 @@ import android.content.res.ColorStateList
 import android.graphics.Color
 import android.location.Location
 import android.os.Bundle
+import android.os.SystemClock
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
@@ -23,6 +24,7 @@ import android.widget.EditText
 import android.widget.NumberPicker
 import android.widget.RadioGroup
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -89,6 +91,7 @@ import java.lang.AutoCloseable
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -99,6 +102,8 @@ import java.util.Locale
 import java.util.TimeZone
 import javax.inject.Inject
 import kotlin.math.abs
+
+private const val ROUTE_ONLY_SCHEDULE_FETCH_THROTTLE_MS = 1000L
 
 @AndroidEntryPoint
 class RouteFragment : Fragment() {
@@ -119,6 +124,16 @@ class RouteFragment : Fragment() {
     private val settingsViewModel: SettingsViewModel by activityViewModels()
     private val groupViewModel: GroupViewModel by activityViewModels()
     private val transitViewModel: TransitViewModel by viewModels()
+
+    private val addRouteScheduleLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode != android.app.Activity.RESULT_OK) return@registerForActivityResult
+        val dateText = result.data?.getStringExtra("SAVED_SCHEDULE_DATE")
+            ?: result.data?.getStringExtra("UPDATED_OCCURRENCE_DATE")
+            ?: return@registerForActivityResult
+        (activity as? MainActivity)?.openHomeTabWithDate(dateText)
+    }
 
     private var hasSchedule: Boolean = true
     private var currentTransitType: String? = null // 칩 선택 값
@@ -204,6 +219,7 @@ class RouteFragment : Fragment() {
     private var sessionToken: AutocompleteSessionToken? = null
     private var pendingResetToCurrentLocationState = false
     private var pendingActionModeExtras: Bundle? = null
+    private var lastRouteOnlyScheduleFetchAt = 0L
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -264,7 +280,7 @@ class RouteFragment : Fragment() {
 
         hasSchedule = false
 
-        routeViewModel.fetchRouteOnlySchedule()
+        fetchRouteOnlyScheduleForMainEntry(force = true)
 
         observeRouteViewModel()
         observeSettings()
@@ -1082,16 +1098,11 @@ class RouteFragment : Fragment() {
                 return@setOnClickListener
             }
 
-            routeViewModel.fetchAllRouteSchedules()
-
-            routeViewModel.routeScheduleList.observe(viewLifecycleOwner, object : androidx.lifecycle.Observer<List<RouteOnlyScheduleData>> {
-                override fun onChanged(list: List<RouteOnlyScheduleData>) {
-                    if (list.isNotEmpty()) {
-                        showGroupedRouteBottomSheet(list) // 아래 만든 함수 호출
-                        routeViewModel.routeScheduleList.removeObserver(this)
-                    }
+            routeViewModel.fetchAllRouteSchedules { list ->
+                if (list.isNotEmpty()) {
+                    showGroupedRouteBottomSheet(list)
                 }
-            })
+            }
         }
     }
 
@@ -1104,7 +1115,12 @@ class RouteFragment : Fragment() {
         // 1. 데이터 그룹화 로직 (startDate 기준)
         val groupedList = mutableListOf<RouteScheduleItem>()
         // 날짜순 정렬
-        val sortedList = dataList.sortedBy { it.scheduleInfo.startDate }
+        val sortedList = dataList.sortedWith(
+            compareBy<RouteOnlyScheduleData>(
+                { it.scheduleInfo.startDate },
+                { parseRouteScheduleTimeOrEnd(it.scheduleInfo.startTime) }
+            )
+        )
         var lastDate = ""
 
         sortedList.forEach { item ->
@@ -1147,6 +1163,10 @@ class RouteFragment : Fragment() {
         bottomSheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
 
         dialog.show()
+    }
+
+    private fun parseRouteScheduleTimeOrEnd(value: String?): LocalTime {
+        return runCatching { LocalTime.parse(value?.take(5)) }.getOrDefault(LocalTime.MAX)
     }
 
     fun onSelectOnMapSelected() {
@@ -1321,14 +1341,19 @@ class RouteFragment : Fragment() {
         }else {
             val intent = android.content.Intent(requireContext(), AddScheduleActivity::class.java).apply {
                 putExtra("START_NAME", binding.layoutRouteInputHeader.tvRouteStart.text)
+                putExtra("START_LAT", startLatLng?.latitude)
+                putExtra("START_LNG", startLatLng?.longitude)
                 putExtra("END_NAME", binding.layoutRouteInputHeader.tvRouteEnd.text)
+                putExtra("END_LAT", endLatLng?.latitude)
+                putExtra("END_LNG", endLatLng?.longitude)
                 putExtra("EARLY_ARRIVE_TIME", earlyArriveTime)
                 putExtra("ROUTE_DETAIL", Gson().toJson(item))
+                putExtra("FROM_ROUTE_SEARCH_RESULT", true)
 
                 // 일반 일정이 아닌 '경로 일정' 탭으로 바로 보내기 위한 플래그
                 putExtra("OPEN_ROUTE_TAB", true)
             }
-            startActivity(intent)
+            addRouteScheduleLauncher.launch(intent)
         }
     }
 
@@ -1448,6 +1473,11 @@ class RouteFragment : Fragment() {
         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
         mapFrag?.clearMarkers()
         mapFrag?.setMapPadding(0)
+        mapFrag?.updateButtonTranslation(0f)
+        clearHiddenPlaceBottomSheetState(clearMode = true)
+        if (currentEntryMode == EntryMode.MAIN) {
+            mainBinding?.mainBnv?.visibility = View.VISIBLE
+        }
 
         if (::bottomSheetBehavior.isInitialized) {
             bottomSheetBehavior.isHideable = true
@@ -2301,6 +2331,9 @@ class RouteFragment : Fragment() {
         if (isKeyboardVisible()) {
             hideKeyboard()
             return
+        }
+        if (isBottomSheetHiddenByHandle) {
+            clearHiddenPlaceBottomSheetState(clearMode = false)
         }
         if (isPoiMode) {
             val transaction = childFragmentManager.beginTransaction()
@@ -3279,10 +3312,7 @@ class RouteFragment : Fragment() {
                     }
                     BottomSheetBehavior.STATE_COLLAPSED -> {
                         bottomSheet.visibility = if (binding.routeSearchFcv.isVisible) View.GONE else View.VISIBLE
-                        val parentHeight = (bottomSheet.parent as View).height
-                        val currentSheetHeight = parentHeight - bottomSheet.top
-                        mapFragment?.setMapPadding(currentSheetHeight)
-                        mapFragment?.updateButtonTranslation(currentSheetHeight.toFloat())
+                        val currentSheetHeight = updatePlaceMapOverlayBySheet(bottomSheet)
                         detailFragment?.updateCollapsedState(true)
                         compactDetailFragment?.updateCollapsedState(true)
                         updateSearchResultBottomInset(currentSheetHeight)
@@ -3290,10 +3320,7 @@ class RouteFragment : Fragment() {
                     BottomSheetBehavior.STATE_HALF_EXPANDED,
                     BottomSheetBehavior.STATE_EXPANDED -> {
                         bottomSheet.visibility = if (binding.routeSearchFcv.isVisible) View.GONE else View.VISIBLE
-                        val parentHeight = (bottomSheet.parent as View).height
-                        val currentSheetHeight = parentHeight - bottomSheet.top
-                        mapFragment?.setMapPadding(currentSheetHeight)
-                        mapFragment?.updateButtonTranslation(currentSheetHeight.toFloat())
+                        val currentSheetHeight = updatePlaceMapOverlayBySheet(bottomSheet)
                         detailFragment?.updateCollapsedState(false)
                         compactDetailFragment?.updateCollapsedState(false)
                         updateSearchResultBottomInset(currentSheetHeight)
@@ -3301,11 +3328,7 @@ class RouteFragment : Fragment() {
                 }
             }
             override fun onSlide(bottomSheet: View, slideOffset: Float) {
-                val mapFragment = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
-                val parentHeight = (bottomSheet.parent as View).height
-                val currentSheetHeight = parentHeight - bottomSheet.top
-                val offset = currentSheetHeight.toFloat()
-                mapFragment?.updateButtonTranslation(offset)
+                updatePlaceMapOverlayBySheet(bottomSheet)
             }
         })
 
@@ -3461,6 +3484,25 @@ class RouteFragment : Fragment() {
             if (visible) View.VISIBLE else View.GONE
     }
 
+    private fun clearHiddenPlaceBottomSheetState(clearMode: Boolean) {
+        isBottomSheetHiddenByHandle = false
+        setBottomSheetRestoreChipVisible(false)
+        binding.bottomSheetContainer.visibility = View.GONE
+        setBottomSheetContainerHeight(null)
+        if (clearMode) {
+            currentPlaceBottomSheetMode = PlaceBottomSheetMode.NONE
+        }
+
+        val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+        mapFrag?.setMapPadding(0)
+        mapFrag?.updateButtonTranslation(0f)
+
+        if (::bottomSheetBehavior.isInitialized) {
+            bottomSheetBehavior.isHideable = true
+            bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+        }
+    }
+
     private fun updateSearchResultBottomInset(currentSheetHeight: Int) {
         if (currentPlaceBottomSheetMode != PlaceBottomSheetMode.SEARCH_RESULTS) return
         val sheetFragment = childFragmentManager.findFragmentByTag(LocationBottomSheetFragment.TAG)
@@ -3468,6 +3510,15 @@ class RouteFragment : Fragment() {
         val parentHeight = (binding.bottomSheetContainer.parent as? View)?.height ?: return
         val hiddenSheetHeight = (parentHeight - currentSheetHeight).coerceAtLeast(0)
         sheetFragment.setSearchResultBottomInset(hiddenSheetHeight)
+    }
+
+    private fun updatePlaceMapOverlayBySheet(bottomSheet: View): Int {
+        val parentHeight = (bottomSheet.parent as? View)?.height ?: return 0
+        val currentSheetHeight = (parentHeight - bottomSheet.top).coerceAtLeast(0)
+        val mapFragment = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+        mapFragment?.setMapPadding(currentSheetHeight)
+        mapFragment?.updateButtonTranslation(currentSheetHeight.toFloat())
+        return currentSheetHeight
     }
 
     private fun updateSearchResultBottomInsetForExpandedState() {
@@ -4101,10 +4152,23 @@ class RouteFragment : Fragment() {
             binding.layoutRouteDetailOverlay.layoutRouteSelectContainer.visibility = View.GONE
             binding.layoutRouteDetailOverlay.bottomSheetRouteDetail.visibility = View.GONE
         }
+        fetchRouteOnlyScheduleForMainEntry()
     }
 
     private fun currentMainEntryRouteSchedule(): RouteOnlyScheduleData? {
         return routeViewModel.selectedRouteSchedule.value ?: routeViewModel.routeOnlySchedule.value
+    }
+
+    private fun fetchRouteOnlyScheduleForMainEntry(force: Boolean = false) {
+        if (_binding == null || !isAdded || currentEntryMode != EntryMode.MAIN) return
+
+        val now = SystemClock.uptimeMillis()
+        if (!force && now - lastRouteOnlyScheduleFetchAt < ROUTE_ONLY_SCHEDULE_FETCH_THROTTLE_MS) {
+            return
+        }
+
+        lastRouteOnlyScheduleFetchAt = now
+        routeViewModel.fetchRouteOnlySchedule()
     }
 
     fun showSelectedRouteSchedule(data: RouteOnlyScheduleData) {
@@ -4419,7 +4483,14 @@ class RouteFragment : Fragment() {
         super.onHiddenChanged(hidden)
         if (hidden && _binding != null) {
             stopRealtimePolling()
+        } else if (!hidden) {
+            fetchRouteOnlyScheduleForMainEntry()
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        fetchRouteOnlyScheduleForMainEntry()
     }
 
     override fun onPause() {

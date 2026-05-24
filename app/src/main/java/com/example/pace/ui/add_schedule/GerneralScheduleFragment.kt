@@ -1314,6 +1314,13 @@ class GeneralScheduleFragment : Fragment() {
                 when (isSuccess) {
                     true -> {
                         Toast.makeText(context, "일정이 성공적으로 저장되었습니다.", Toast.LENGTH_SHORT).show()
+                        requireActivity().setResult(
+                            Activity.RESULT_OK,
+                            Intent().putExtra(
+                                "SAVED_SCHEDULE_DATE",
+                                startDate?.toString() ?: LocalDate.now().toString()
+                            )
+                        )
                         viewModel.resetCreateEvent()
                         requireActivity().finish()
                     }

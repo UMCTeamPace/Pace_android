@@ -28,7 +28,8 @@ class ModalCaseDialog(
     private var date: LocalDate,
     private val viewModel: ScheduleViewModel,
     private val lifecycleOwner: LifecycleOwner,
-    private val onRouteScheduleClick: (RouteOnlyScheduleData) -> Unit
+    private val onRouteScheduleClick: (RouteOnlyScheduleData) -> Unit,
+    private val onScheduleEditClick: (Schedule) -> Unit
 ): Dialog(context) {
 
     lateinit var binding: DialogModalCaseBinding
@@ -46,9 +47,12 @@ class ModalCaseDialog(
             }
         })
 
-        val adapter = ModalVPAdapter(context, scheduleList) { routeSchedule ->
-            onRouteScheduleClick(routeSchedule)
-        }
+        val adapter = ModalVPAdapter(
+            context = context,
+            scheduleList = scheduleList,
+            onRouteScheduleClick = { routeSchedule -> onRouteScheduleClick(routeSchedule) },
+            onScheduleEditClick = onScheduleEditClick
+        )
         binding.modalCaseTv.text = date.year.toString() + "년 " + date.monthValue.toString() + "월 " + date.dayOfMonth.toString() + "일 " + date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.KOREAN)
         binding.modalCaseVp.adapter = adapter
         binding.modalCaseVp.setCurrentItem(position, false)
@@ -87,9 +91,6 @@ class ModalCaseDialog(
                 }
 
                 launch {
-                    scheduleList.filter { it.type == "ROUTE" }.forEach { schedule ->
-                        viewModel.getScheduleDetail(schedule.id)
-                    }
                     viewModel.scheduleDetailInfoMap.collect {
                         adapter.getScheduleDetails(it)
                     }

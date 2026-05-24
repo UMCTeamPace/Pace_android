@@ -13,6 +13,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.pace.data.model.Schedule
+import com.example.pace.data.viewmodel.RouteViewModel
 import com.example.pace.data.viewmodel.ScheduleViewModel
 import com.example.pace.databinding.FragmentRouteScheduleListBinding
 import com.example.pace.ui.main.calendar.ScheduleListItem
@@ -30,10 +31,13 @@ class RouteScheduleListFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val viewModel: ScheduleViewModel by activityViewModels()
+    private val routeViewModel: RouteViewModel by activityViewModels()
     private lateinit var adapter: ScheduleListRVAdapter
     private var isEditMode = false
     private var selectedKeys = linkedSetOf<String>()
     private var currentRouteSchedules: List<Schedule> = emptyList()
+    private var latestGroupedMap: Map<LocalDate, List<Schedule>> = emptyMap()
+    private val pendingDeletedRouteIds = mutableSetOf<Long>()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -93,6 +97,9 @@ class RouteScheduleListFragment : Fragment() {
             onDeleteClick = { schedule ->
                 DeleteScheduleDialog(requireContext()).apply {
                     setOnConfirmListener {
+                        pendingDeletedRouteIds.add(schedule.id)
+                        routeViewModel.removeRouteScheduleLocally(schedule.id)
+                        updateRouteScheduleList(latestGroupedMap)
                         viewModel.deleteSchedule(schedule.id, withRoute = true)
                     }
                 }.show()
@@ -124,12 +131,8 @@ class RouteScheduleListFragment : Fragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
                     viewModel.scheduleMap.collectLatest { groupedMap ->
-                        currentRouteSchedules = groupedMap.values
-                            .flatten()
-                            .filter { it.type == "ROUTE" }
-                        val routeItems = buildRouteItems(groupedMap)
-                        adapter.updateData(routeItems, viewModel.routeDetails.value)
-                        syncSelectionState()
+                        latestGroupedMap = groupedMap
+                        updateRouteScheduleList(groupedMap)
                     }
                 }
 
@@ -142,13 +145,22 @@ class RouteScheduleListFragment : Fragment() {
         }
     }
 
+    private fun updateRouteScheduleList(groupedMap: Map<LocalDate, List<Schedule>>) {
+        currentRouteSchedules = groupedMap.values
+            .flatten()
+            .filter { it.type == "ROUTE" && it.id !in pendingDeletedRouteIds }
+        val routeItems = buildRouteItems(groupedMap)
+        adapter.updateData(routeItems, viewModel.routeDetails.value)
+        syncSelectionState()
+    }
+
     private fun buildRouteItems(groupedMap: Map<LocalDate, List<com.example.pace.data.model.Schedule>>): List<ScheduleListItem> {
         val items = mutableListOf<ScheduleListItem>()
         val sortedDates = groupedMap.keys.sorted()
 
         sortedDates.forEach { date ->
             val routeSchedules = groupedMap[date]
-                ?.filter { it.type == "ROUTE" }
+                ?.filter { it.type == "ROUTE" && it.id !in pendingDeletedRouteIds }
                 ?.sortedWith(
                     compareBy(
                         { !it.isPinned },
@@ -256,9 +268,12 @@ class RouteScheduleListFragment : Fragment() {
         currentRouteSchedules
             .filter { selectionKey(it) in selectedKeys }
             .forEach { schedule ->
+                pendingDeletedRouteIds.add(schedule.id)
+                routeViewModel.removeRouteScheduleLocally(schedule.id)
                 viewModel.deleteSchedule(schedule.id, withRoute = true)
             }
 
+        updateRouteScheduleList(latestGroupedMap)
         exitEditMode()
     }
 

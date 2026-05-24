@@ -54,6 +54,7 @@ import com.example.pace.data.viewmodel.RouteViewModel
 import com.example.pace.data.viewmodel.TransitViewModel
 import dagger.hilt.android.AndroidEntryPoint // 추가
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -203,6 +204,32 @@ class MainActivity : AppCompatActivity() {
 
     fun navigateToHomeTab() {
         binding.mainBnv.selectedItemId = R.id.home
+    }
+
+    fun openHomeTabWithDate(dateText: String) {
+        val targetDate = runCatching { LocalDate.parse(dateText.take(10)) }.getOrNull() ?: return
+        spf.edit().putString("SELECTED_DATE", targetDate.toString()).apply()
+
+        switchFragment(TAG_HOME) { HomeFragment() }
+        supportFragmentManager.executePendingTransactions()
+        currentBottomMenuItem = R.id.home
+        binding.mainBnv.menu.findItem(R.id.home)?.isChecked = true
+
+        binding.mainToolbar.visibility = View.VISIBLE
+        binding.mainBnv.visibility = View.VISIBLE
+        binding.mainLogoIv.visibility = View.VISIBLE
+        binding.mainSettingsIv.visibility = View.VISIBLE
+        binding.scheduleTitleTv.visibility = View.GONE
+        binding.scheduleActionContainer.visibility = View.GONE
+        binding.scheduleEditIv.visibility = View.GONE
+        binding.scheduleSearchIv.visibility = View.GONE
+        binding.scheduleAddIv.visibility = View.GONE
+        binding.mainBackIv.visibility = View.GONE
+        binding.mainSearchLl.visibility = View.GONE
+        hideOverlayContainerIfEmpty()
+
+        (supportFragmentManager.findFragmentByTag(TAG_HOME) as? HomeFragment)
+            ?.selectDateFromExternal(targetDate)
     }
 
     fun openRouteTabWithSelectedRouteSchedule(schedule: RouteOnlyScheduleData) {

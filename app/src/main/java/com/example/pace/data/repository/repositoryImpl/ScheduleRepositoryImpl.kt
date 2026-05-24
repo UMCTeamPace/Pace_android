@@ -286,6 +286,7 @@ class ScheduleRepositoryImpl @Inject constructor(
         lastDate: String?,
         lastId: Long?
     ) = safeApiCall {
+        cleanUpExpiredServerRouteSchedules()
         val response = api.getScheduleList(accessToken, startDate, endDate, lastDate, lastId)
         if (response.isSuccess && response.result != null) {
             val serverSchedules = response.result.content
@@ -1096,10 +1097,12 @@ class ScheduleRepositoryImpl @Inject constructor(
         endDate: String?
     ): RawDefaultResponse<RouteOnlyScheduleData?> {
 
+        cleanUpExpiredServerRouteSchedules()
+
         val response = api.getScheduleList(
             accessToken = accessToken,
             startDate = startDate,
-            endDate = null,
+            endDate = endDate,
             lastDate = null,
             lastId = null
         )
@@ -1108,6 +1111,7 @@ class ScheduleRepositoryImpl @Inject constructor(
         val mappedData: RouteOnlyScheduleData? = response.result?.content
             ?.filter { item ->
                 val isRouteItem = item.place == null && item.route != null
+                val isSameDate = item.scheduleInfo.startDate == startDate
 
                 val isFuture = try {
                     val itemTime = java.time.LocalTime.parse(item.scheduleInfo.startTime)
@@ -1115,7 +1119,7 @@ class ScheduleRepositoryImpl @Inject constructor(
                 } catch (e: Exception) {
                     false
                 }
-                isRouteItem && isFuture
+                isRouteItem && isSameDate && isFuture
             }
             ?.minByOrNull { item ->
                 item.scheduleInfo.startTime ?: "23:59:59"
@@ -1123,7 +1127,7 @@ class ScheduleRepositoryImpl @Inject constructor(
             ?.let { item ->
                 RouteOnlyScheduleData(
                     scheduleId = item.scheduleId,
-                    scheduleInfo = item.scheduleInfo,
+                    scheduleInfo = item.scheduleInfo.withCalendarColorFallback(),
                     route = item.route
                 )
             }
@@ -1141,6 +1145,8 @@ class ScheduleRepositoryImpl @Inject constructor(
         startDate: String,
         endDate: String?
     ): RawDefaultResponse<List<RouteOnlyScheduleData?>> {
+
+        cleanUpExpiredServerRouteSchedules()
 
         val response = api.getScheduleList(
             accessToken = accessToken,
@@ -1166,7 +1172,7 @@ class ScheduleRepositoryImpl @Inject constructor(
 
                 RouteOnlyScheduleData(
                     scheduleId = item.scheduleId,
-                    scheduleInfo = item.scheduleInfo,
+                    scheduleInfo = item.scheduleInfo.withCalendarColorFallback(),
                     route = route?.copy(routeDetails = flattenedDetails)
                 )
             } ?: emptyList()
@@ -1195,7 +1201,7 @@ class ScheduleRepositoryImpl @Inject constructor(
             }
             ?: return null
 
-        val colorHex = eventColor?.let { color ->
+        val colorHex = (eventColor ?: calendarColor)?.let { color ->
             String.format(Locale.US, "#%06X", 0xFFFFFF and color)
         }
 
@@ -1215,6 +1221,18 @@ class ScheduleRepositoryImpl @Inject constructor(
             ),
             route = routeInfo
         )
+    }
+
+    private fun ScheduleInfo.withCalendarColorFallback(): ScheduleInfo {
+        if (!color.isNullOrBlank()) return this
+
+        val calendarColorHex = calendarId
+            ?.toLongOrNull()
+            ?.let { getCalendarColor(it) }
+            ?.let { colorInt -> String.format(Locale.US, "#%06X", 0xFFFFFF and colorInt) }
+            ?: return this
+
+        return copy(color = calendarColorHex)
     }
 
 
@@ -1470,6 +1488,20 @@ class ScheduleRepositoryImpl @Inject constructor(
 
         scheduleDao.deleteSchedulesByIds(staleRouteIds)
         Log.d("ScheduleRepository", "서버에서 삭제된 경로 일정 정리 완료: ${staleRouteIds.joinToString()}")
+    }
+
+    private suspend fun cleanUpExpiredServerRouteSchedules() {
+        val cutoffDate = LocalDate.now().minusDays(30).format(DateTimeFormatter.ISO_LOCAL_DATE)
+        val expiredRouteIds = scheduleDao.getExpiredServerRouteScheduleIds(cutoffDate)
+        if (expiredRouteIds.isEmpty()) return
+
+        val workManager = WorkManager.getInstance(context)
+        expiredRouteIds.forEach { scheduleId ->
+            workManager.cancelUniqueWork("finalize_$scheduleId")
+        }
+
+        scheduleDao.deleteSchedulesByIds(expiredRouteIds)
+        Log.d("ScheduleRepository", "Expired route schedules removed: ${expiredRouteIds.joinToString()}")
     }
 
 }

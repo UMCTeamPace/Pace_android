@@ -41,6 +41,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -410,6 +411,12 @@ class ScheduleViewModel @Inject constructor(
                             previousSchedule = existingSchedule,
                             scheduleId = targetScheduleId
                         )
+                        waitForScheduleId(targetScheduleId)
+                        _lastEditResult.value = ScheduleEditResult(
+                            scheduleId = targetScheduleId,
+                            occurrenceDate = schedule.startDate,
+                            scheduleType = schedule.type
+                        )
                         _updateScheduleEvent.value = true
                         Log.d("ScheduleViewModel", "경로 일정 서버 수정 성공")
                     } else {
@@ -419,6 +426,10 @@ class ScheduleViewModel @Inject constructor(
                 } else {
                     // Normal schedules are updated in the provider and local Room DB
                     repository.updateSchedule(schedule)
+                    if (!schedule.repeatRule.isNullOrEmpty()) {
+                        repository.refreshSchedules()
+                    }
+                    waitForScheduleSnapshot(schedule)
                     _lastEditResult.value = ScheduleEditResult(
                         scheduleId = schedule.id,
                         occurrenceDate = schedule.startDate,
@@ -430,11 +441,6 @@ class ScheduleViewModel @Inject constructor(
                     }
                 }
 
-                // Reload after update so calendar UI reflects changes immediately
-                if (schedule.type != "ROUTE") {
-                    refreshSchedules()
-                }
-
             } catch (e: Exception) {
                 Log.e("ScheduleViewModel", "일정 수정 실패: ${e.message}")
                 _updateScheduleEvent.value = false
@@ -442,6 +448,29 @@ class ScheduleViewModel @Inject constructor(
         }
     }
 
+    private suspend fun waitForScheduleSnapshot(schedule: Schedule) {
+        withTimeoutOrNull(1000L) {
+            repository.allSchedules.firstOrNull { schedules ->
+                schedules.any { item ->
+                    item.id == schedule.id &&
+                        item.startDate == schedule.startDate &&
+                        item.endDate == schedule.endDate &&
+                        item.startTime == schedule.startTime &&
+                        item.endTime == schedule.endTime &&
+                        item.title == schedule.title &&
+                        item.memo == schedule.memo
+                }
+            }
+        }
+    }
+
+    private suspend fun waitForScheduleId(scheduleId: Long) {
+        withTimeoutOrNull(1000L) {
+            repository.allSchedules.firstOrNull { schedules ->
+                schedules.any { it.id == scheduleId || it.serverId == scheduleId }
+            }
+        }
+    }
 
     private fun mapScheduleToRequest(schedule: Schedule): CreateScheduleRequest {
         val placeRequest = schedule.placeJson?.let {
@@ -504,6 +533,7 @@ class ScheduleViewModel @Inject constructor(
                             scheduleId = scheduleId
                         )
                     }
+                    waitForScheduleId(scheduleId)
                     _lastEditResult.value = ScheduleEditResult(
                         scheduleId = scheduleId,
                         occurrenceDate = request.startDate,
@@ -901,6 +931,7 @@ class ScheduleViewModel @Inject constructor(
                         scheduleId = scheduleId,
                         arrivalTimeOverride = arrival
                     )
+                    waitForScheduleId(scheduleId)
                     _lastEditResult.value = ScheduleEditResult(
                         scheduleId = scheduleId,
                         occurrenceDate = generalRequest.startDate,
@@ -963,11 +994,42 @@ class ScheduleViewModel @Inject constructor(
         WorkManager.getInstance(context).cancelUniqueWork("finalize_${schedule.id}")
     }
 
+    private fun parseRouteInfo(schedule: Schedule): RouteInfo? {
+        return sequenceOf(schedule.routeJson, schedule.placeJson)
+            .filterNotNull()
+            .filter { it.isNotBlank() }
+            .mapNotNull { json ->
+                runCatching { Gson().fromJson(json, RouteInfo::class.java) }.getOrNull()
+            }
+            .firstOrNull { route ->
+                !route.departureTime.isNullOrBlank() || !route.arrivalTime.isNullOrBlank()
+            }
+    }
+
+    private fun parseRouteTimeMillis(startDate: String, time: String?): Long? {
+        if (time.isNullOrBlank()) return null
+
+        return runCatching {
+            if (time.contains("T")) {
+                val cleanTime = time.replace("T", " ").substring(0, 16)
+                SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.KOREA).apply {
+                    this.timeZone = TimeZone.getTimeZone("UTC")
+                }.parse(cleanTime)?.time
+            } else {
+                SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+                    .parse("$startDate ${time.take(5)}")
+                    ?.time
+            }
+        }.getOrNull()
+    }
+
     private fun scheduleRouteAlarms(schedule: Schedule) {
-        val scheduleTimeMillis = runCatching {
-            val dateTimeText = "${schedule.startDate} ${schedule.startTime}"
-            SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).parse(dateTimeText)?.time
-        }.getOrNull() ?: return
+        val scheduleTimeMillis = parseRouteTimeMillis(schedule.startDate, schedule.startTime) ?: return
+        val departureTime = parseRouteInfo(schedule)?.departureTime
+        val departureTimeMillis = parseRouteTimeMillis(
+            startDate = schedule.startDate,
+            time = departureTime
+        )
 
         schedule.reminders.forEach { minutes ->
             AlarmScheduler.schedulePaceAlarm(
@@ -979,42 +1041,41 @@ class ScheduleViewModel @Inject constructor(
             )
         }
 
+        if (departureTimeMillis == null) {
+            if (schedule.departureReminders.isNotEmpty()) {
+                Log.w("PaceAlarm", "Departure alarm skipped: invalid departureTime=$departureTime, scheduleId=${schedule.id}")
+            }
+            return
+        }
+
         schedule.departureReminders.forEach { minutes ->
             AlarmScheduler.schedulePaceAlarm(
                 context = context,
                 scheduleId = schedule.id,
                 alarmType = "DEPARTURE",
-                scheduleTimeMillis = scheduleTimeMillis,
+                scheduleTimeMillis = departureTimeMillis,
                 leadMinutes = minutes
             )
         }
     }
 
     private fun scheduleFinalize(schedule: Schedule, arrivalTimeOverride: String? = null) {
-        val arrivalTime = arrivalTimeOverride ?: schedule.routeJson?.let {
-            runCatching { Gson().fromJson(it, RouteInfo::class.java).arrivalTime }.getOrNull()
-        }
-        if (!arrivalTime.isNullOrBlank()) {
-            scheduleFinalizeWorker(schedule.id, schedule.startDate, arrivalTime)
+        val arrivalTime = arrivalTimeOverride ?: parseRouteInfo(schedule)?.arrivalTime
+        val arrivalTimeMillis = parseRouteTimeMillis(schedule.startDate, arrivalTime)
+        if (arrivalTimeMillis != null) {
+            scheduleFinalizeWorker(schedule.id, arrivalTimeMillis)
+        } else if (!arrivalTime.isNullOrBlank()) {
+            Log.w("WorkManager", "Route finalize skipped: invalid arrivalTime=$arrivalTime, scheduleId=${schedule.id}")
         }
     }
 
-    private fun scheduleFinalizeWorker(scheduleId: Long, startDate: String, arrivalTime: String) {
+    private fun scheduleFinalizeWorker(scheduleId: Long, arrivalTimeMillis: Long) {
         try {
-            // Normalize incoming arrival time
-            val cleanArrival = if (arrivalTime.contains("T")) {
-                arrivalTime.replace("T", " ").substring(0, 16)
-            } else {
-                "$startDate $arrivalTime"
-            }
-
-            val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.KOREA)
-            sdf.timeZone = TimeZone.getTimeZone("UTC")
-
-            val arrivalDate = sdf.parse(cleanArrival)
             val currentTime = System.currentTimeMillis()
+            val arrivalDate = Date(arrivalTimeMillis)
+            val cleanArrival = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.KOREA).format(arrivalDate)
 
-            val delay = (arrivalDate?.time ?: 0) - currentTime
+            val delay = arrivalTimeMillis - currentTime
 
             Log.d("WorkManagerTest", """
             [타임존 체크]
