@@ -62,6 +62,7 @@ class ScheduleRepositoryImpl @Inject constructor(
         private val ROUTE_SOURCE_ZONE: ZoneId = ZoneId.of("Asia/Seoul")
         private val UTC_API_TIME_FORMATTER: DateTimeFormatter =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+        private const val RECURRENCE_EXPANSION_RANGE_YEARS = 3L
         private const val SWAGGER_LOG_TAG = "SwaggerScheduleRequest"
         private const val LOG_CHUNK_SIZE = 3000
     }
@@ -217,7 +218,7 @@ class ScheduleRepositoryImpl @Inject constructor(
                                 placeJson = local.placeJson,
                                 departureReminders = local.departureReminders,
                                 reminders = if (remote.reminders.isEmpty()) local.reminders else remote.reminders,
-                                repeatRule = local.repeatRule ?: remote.repeatRule,
+                                repeatRule = remote.repeatRule,
                                 exDate = local.exDate ?: remote.exDate,
 
                                 type = local.type,
@@ -227,7 +228,7 @@ class ScheduleRepositoryImpl @Inject constructor(
 
                                 // 4. Prefer provider-derived fields, but keep local-only flags
                                 calendarId = if (remote.calendarId == 0L) local.calendarId else remote.calendarId,
-                                eventColor = remote.eventColor ?: local.eventColor
+                                eventColor = remote.eventColor
                             )
                         } else {
                             remote
@@ -285,6 +286,7 @@ class ScheduleRepositoryImpl @Inject constructor(
         lastDate: String?,
         lastId: Long?
     ) = safeApiCall {
+        cleanUpExpiredServerRouteSchedules()
         val response = api.getScheduleList(accessToken, startDate, endDate, lastDate, lastId)
         if (response.isSuccess && response.result != null) {
             val serverSchedules = response.result.content
@@ -354,7 +356,7 @@ class ScheduleRepositoryImpl @Inject constructor(
         val raw = scheduleDao.getSchedulesInRange(startDate, endDate)
 
         return expandSchedules(raw).filter { schedule ->
-            val titleMatch = SearchTextMatcher.contains(schedule.title, query)
+            val titleMatch = query.isBlank() || SearchTextMatcher.contains(schedule.title, query)
             val calendarMatch = if (schedule.type == "ROUTE") {
                 true
             } else {
@@ -377,10 +379,8 @@ class ScheduleRepositoryImpl @Inject constructor(
         calendarId: Long?,
         selectedColor: Int?
     ) = safeApiCall {
-        val defaultColorInt = android.graphics.Color.parseColor("#DC354B")
-        val finalColor = selectedColor ?: defaultColorInt
-
         val targetId = if ((calendarId ?: 0L) <= 0L) 1L else calendarId!!
+        val targetCalendarColor = getCalendarColor(targetId)
         var dName = "기본 일정"
         var aName = "Pace"
 
@@ -405,7 +405,7 @@ class ScheduleRepositoryImpl @Inject constructor(
             val systemId = normalDataSource.insertToCalendarProvider(
                 request = request,
                 selectedCalendarId = targetId,
-                selectedColor = finalColor
+                selectedColor = selectedColor
             )
 
             if (systemId != -1L) {
@@ -437,8 +437,8 @@ class ScheduleRepositoryImpl @Inject constructor(
                     isPinned = false,
                     isSwiped = false,
                     type = "NORMAL",
-                    eventColor = finalColor,
-                    calendarColor = finalColor,
+                    eventColor = selectedColor,
+                    calendarColor = targetCalendarColor,
                     sourceType = "SYSTEM",
                     serverId = null,
                     routeId = null,
@@ -553,12 +553,10 @@ class ScheduleRepositoryImpl @Inject constructor(
                     }
                 }
 
-                val colorHex = info.color ?: "#DC354B"
-                val colorInt = try {
-                    Color.parseColor(colorHex)
-                } catch (e: Exception) {
-                    finalColor
-                }
+                val eventColorInt = info.color?.let { colorHex ->
+                    try { Color.parseColor(colorHex) } catch (e: Exception) { null }
+                } ?: selectedColor
+                val calendarColorInt = getCalendarColor(serverCalendarId)
 
 
                 val displayLocation = if (routeData != null) {
@@ -583,8 +581,8 @@ class ScheduleRepositoryImpl @Inject constructor(
                     calendarDisplayName = dName,
                     calendarAccountName = aName,
 
-                    eventColor = colorInt,
-                    calendarColor = colorInt,
+                    eventColor = eventColorInt,
+                    calendarColor = calendarColorInt,
 
                     reminders = eventReminders,
                     departureReminders = departureReminders,
@@ -740,8 +738,8 @@ class ScheduleRepositoryImpl @Inject constructor(
         val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
         val currentLocalDate = LocalDate.now()
-        val rangeStartLocalDate = currentLocalDate.minusYears(2)
-        val rangeEndLocalDate = currentLocalDate.plusYears(2)
+        val rangeStartLocalDate = currentLocalDate.minusYears(RECURRENCE_EXPANSION_RANGE_YEARS)
+        val rangeEndLocalDate = currentLocalDate.plusYears(RECURRENCE_EXPANSION_RANGE_YEARS)
 
         val rangeStartDate = Date.from(rangeStartLocalDate.atStartOfDay(ZoneId.systemDefault()).toInstant())
         val rangeEndDate = Date.from(rangeEndLocalDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant())
@@ -916,10 +914,13 @@ class ScheduleRepositoryImpl @Inject constructor(
     private fun parseRecurrenceString(rruleStr: String): Recurrence? = RepeatRuleHelper.parseRecurrenceString(rruleStr)
 
     // Map server create response to local entity
-    private fun CreateScheduleResponse.toEntity(selectedColorStr: String, fallbackCalendarId: Long?): Schedule {
+    private fun CreateScheduleResponse.toEntity(selectedColorStr: String?, fallbackCalendarId: Long?): Schedule {
         val info = this.scheduleInfo
-        val finalColorHex = info.color ?: selectedColorStr
-        val colorInt = try { android.graphics.Color.parseColor(finalColorHex) } catch (e: Exception) { android.graphics.Color.RED }
+        val eventColorInt = info.color?.let { colorHex ->
+            try { android.graphics.Color.parseColor(colorHex) } catch (e: Exception) { null }
+        } ?: selectedColorStr?.let { colorHex ->
+            try { android.graphics.Color.parseColor(colorHex) } catch (e: Exception) { null }
+        }
 
         val finalId = info.calendarId?.toLongOrNull() ?: fallbackCalendarId ?: 1L
 
@@ -955,8 +956,8 @@ class ScheduleRepositoryImpl @Inject constructor(
 
             withRoute = true,
             type = "ROUTE",
-            eventColor = colorInt,
-            calendarColor = colorInt,
+            eventColor = eventColorInt,
+            calendarColor = getCalendarColor(finalId),
             isCompleted = false,
             isPinned = false,
             pinnedDates = null,
@@ -969,13 +970,11 @@ class ScheduleRepositoryImpl @Inject constructor(
     }
 
     private fun ScheduleItem.toScheduleEntity(): Schedule {
-        val colorHex = this.scheduleInfo.color ?: "#DC354B"
-        val colorInt = try {
-            android.graphics.Color.parseColor(colorHex)
-        } catch (e: Exception) {
-            android.graphics.Color.parseColor("#DC354B")
-        }
         val serverCalendarId = this.scheduleInfo.calendarId?.toLongOrNull() ?: 1L
+        val eventColorInt = this.scheduleInfo.color?.let { colorHex ->
+            try { android.graphics.Color.parseColor(colorHex) } catch (e: Exception) { null }
+        }
+        val calendarColorInt = getCalendarColor(serverCalendarId)
 
         // Route schedules are identified either by flag or route payload
         val isRouteType = (this.scheduleInfo.isPathIncluded == true) || (this.route != null)
@@ -1005,8 +1004,8 @@ class ScheduleRepositoryImpl @Inject constructor(
             location = this.route?.destName ?: this.place?.targetName,
 
             calendarId = serverCalendarId,
-            eventColor = colorInt,
-            calendarColor = colorInt,
+            eventColor = eventColorInt,
+            calendarColor = calendarColorInt,
             calendarDisplayName = "기본 일정",
             calendarAccountName = "Pace",
 
@@ -1040,15 +1039,13 @@ class ScheduleRepositoryImpl @Inject constructor(
     }
 
     private fun ScheduleDetailResponse.toScheduleEntity(existing: Schedule?): Schedule {
-        val colorHex = scheduleInfo.color ?: "#DC354B"
-        val colorInt = try {
-            android.graphics.Color.parseColor(colorHex)
-        } catch (e: Exception) {
-            android.graphics.Color.parseColor("#DC354B")
-        }
         val serverCalendarId = scheduleInfo.calendarId?.toLongOrNull()
             ?: existing?.calendarId
             ?: 1L
+        val eventColorInt = scheduleInfo.color?.let { colorHex ->
+            try { android.graphics.Color.parseColor(colorHex) } catch (e: Exception) { null }
+        }
+        val calendarColorInt = getCalendarColor(serverCalendarId) ?: existing?.calendarColor
         val eventRemindersList = reminders
             .filter { it.reminderType == "EVENT" }
             .map { it.minutesBefore }
@@ -1081,8 +1078,8 @@ class ScheduleRepositoryImpl @Inject constructor(
             pinnedDates = existing?.pinnedDates,
             isSwiped = existing?.isSwiped ?: false,
             type = if (isRouteType) "ROUTE" else "NORMAL",
-            eventColor = colorInt,
-            calendarColor = colorInt,
+            eventColor = eventColorInt,
+            calendarColor = calendarColorInt,
             serverId = scheduleId,
             sourceType = "SERVER",
             placeJson = placeJsonString,
@@ -1100,10 +1097,12 @@ class ScheduleRepositoryImpl @Inject constructor(
         endDate: String?
     ): RawDefaultResponse<RouteOnlyScheduleData?> {
 
+        cleanUpExpiredServerRouteSchedules()
+
         val response = api.getScheduleList(
             accessToken = accessToken,
             startDate = startDate,
-            endDate = null,
+            endDate = endDate,
             lastDate = null,
             lastId = null
         )
@@ -1112,6 +1111,7 @@ class ScheduleRepositoryImpl @Inject constructor(
         val mappedData: RouteOnlyScheduleData? = response.result?.content
             ?.filter { item ->
                 val isRouteItem = item.place == null && item.route != null
+                val isSameDate = item.scheduleInfo.startDate == startDate
 
                 val isFuture = try {
                     val itemTime = java.time.LocalTime.parse(item.scheduleInfo.startTime)
@@ -1119,7 +1119,7 @@ class ScheduleRepositoryImpl @Inject constructor(
                 } catch (e: Exception) {
                     false
                 }
-                isRouteItem && isFuture
+                isRouteItem && isSameDate && isFuture
             }
             ?.minByOrNull { item ->
                 item.scheduleInfo.startTime ?: "23:59:59"
@@ -1127,7 +1127,7 @@ class ScheduleRepositoryImpl @Inject constructor(
             ?.let { item ->
                 RouteOnlyScheduleData(
                     scheduleId = item.scheduleId,
-                    scheduleInfo = item.scheduleInfo,
+                    scheduleInfo = item.scheduleInfo.withCalendarColorFallback(),
                     route = item.route
                 )
             }
@@ -1145,6 +1145,8 @@ class ScheduleRepositoryImpl @Inject constructor(
         startDate: String,
         endDate: String?
     ): RawDefaultResponse<List<RouteOnlyScheduleData?>> {
+
+        cleanUpExpiredServerRouteSchedules()
 
         val response = api.getScheduleList(
             accessToken = accessToken,
@@ -1170,7 +1172,7 @@ class ScheduleRepositoryImpl @Inject constructor(
 
                 RouteOnlyScheduleData(
                     scheduleId = item.scheduleId,
-                    scheduleInfo = item.scheduleInfo,
+                    scheduleInfo = item.scheduleInfo.withCalendarColorFallback(),
                     route = route?.copy(routeDetails = flattenedDetails)
                 )
             } ?: emptyList()
@@ -1199,7 +1201,7 @@ class ScheduleRepositoryImpl @Inject constructor(
             }
             ?: return null
 
-        val colorHex = eventColor?.let { color ->
+        val colorHex = (eventColor ?: calendarColor)?.let { color ->
             String.format(Locale.US, "#%06X", 0xFFFFFF and color)
         }
 
@@ -1219,6 +1221,18 @@ class ScheduleRepositoryImpl @Inject constructor(
             ),
             route = routeInfo
         )
+    }
+
+    private fun ScheduleInfo.withCalendarColorFallback(): ScheduleInfo {
+        if (!color.isNullOrBlank()) return this
+
+        val calendarColorHex = calendarId
+            ?.toLongOrNull()
+            ?.let { getCalendarColor(it) }
+            ?.let { colorInt -> String.format(Locale.US, "#%06X", 0xFFFFFF and colorInt) }
+            ?: return this
+
+        return copy(color = calendarColorHex)
     }
 
 
@@ -1274,9 +1288,9 @@ class ScheduleRepositoryImpl @Inject constructor(
         scheduleId: Long,
         request: CreateScheduleRequest,
         calendarId: Long?,
-        selectedColor: Int
+        selectedColor: Int?
     ): RawDefaultResponse<CreateScheduleResponse> = safeApiCall {
-        val colorHex = String.format("#%06X", (0xFFFFFF and selectedColor))
+        val colorHex = selectedColor?.let { String.format("#%06X", (0xFFFFFF and it)) }
         val finalRequest = request.copy(
             color = colorHex,
             calendarId = calendarId?.toString()
@@ -1387,7 +1401,7 @@ class ScheduleRepositoryImpl @Inject constructor(
                     }
 
                     val request = CreateScheduleRequest(
-                        title = oldSchedule.title ?: "제목 없음",
+                        title = oldSchedule.title ?: "",
                         isAllDay = oldSchedule.isAllDay,
                         startDate = oldSchedule.startDate,
                         endDate = oldSchedule.endDate,
@@ -1401,7 +1415,7 @@ class ScheduleRepositoryImpl @Inject constructor(
                         reminders = eventReminders,
                         route = null,
                         calendarId = oldSchedule.calendarId.toString(),
-                        color = String.format("#%06X", (0xFFFFFF and (oldSchedule.eventColor ?: 0)))
+                        color = oldSchedule.eventColor?.let { String.format("#%06X", (0xFFFFFF and it)) }
                     )
 
                     Log.d("CONVERT_DEBUG", """
@@ -1474,6 +1488,20 @@ class ScheduleRepositoryImpl @Inject constructor(
 
         scheduleDao.deleteSchedulesByIds(staleRouteIds)
         Log.d("ScheduleRepository", "서버에서 삭제된 경로 일정 정리 완료: ${staleRouteIds.joinToString()}")
+    }
+
+    private suspend fun cleanUpExpiredServerRouteSchedules() {
+        val cutoffDate = LocalDate.now().minusDays(30).format(DateTimeFormatter.ISO_LOCAL_DATE)
+        val expiredRouteIds = scheduleDao.getExpiredServerRouteScheduleIds(cutoffDate)
+        if (expiredRouteIds.isEmpty()) return
+
+        val workManager = WorkManager.getInstance(context)
+        expiredRouteIds.forEach { scheduleId ->
+            workManager.cancelUniqueWork("finalize_$scheduleId")
+        }
+
+        scheduleDao.deleteSchedulesByIds(expiredRouteIds)
+        Log.d("ScheduleRepository", "Expired route schedules removed: ${expiredRouteIds.joinToString()}")
     }
 
 }

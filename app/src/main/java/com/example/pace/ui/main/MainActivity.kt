@@ -15,6 +15,7 @@ import android.os.Looper
 import android.util.Log
 import android.view.MenuItem
 import android.view.View
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -44,13 +45,16 @@ import com.example.pace.PaceApplication
 import com.example.pace.data.datasource.AuthDataStore
 import com.example.pace.data.db.ScheduleDatabase
 import com.example.pace.data.datasource.NormalScheduleRemoteDataSource
+import com.example.pace.data.model.response.RouteOnlyScheduleData
 import com.example.pace.data.repository.repository.SettingsRepository
 import com.example.pace.data.util.syncMemberSettingsIfNeeded
 import com.example.pace.data.viewmodel.ScheduleViewModel
 import com.example.pace.data.repository.repository.ScheduleRepository
+import com.example.pace.data.viewmodel.RouteViewModel
 import com.example.pace.data.viewmodel.TransitViewModel
 import dagger.hilt.android.AndroidEntryPoint // 추가
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -63,6 +67,7 @@ class MainActivity : AppCompatActivity() {
     lateinit var binding: ActivityMainBinding
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private val viewModel: ScheduleViewModel by viewModels()
+    private val routeViewModel: RouteViewModel by viewModels()
     private val transitViewModel: TransitViewModel by viewModels()
     // ViewModel injection
 
@@ -176,6 +181,73 @@ class MainActivity : AppCompatActivity() {
         }
 
         handleIntent(intent)
+        setupBottomTabBackNavigation()
+    }
+
+    private fun setupBottomTabBackNavigation() {
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    if (currentBottomMenuItem == R.id.home) {
+                        isEnabled = false
+                        onBackPressedDispatcher.onBackPressed()
+                        isEnabled = true
+                        return
+                    }
+
+                    navigateToHomeTab()
+                }
+            }
+        )
+    }
+
+    fun navigateToHomeTab() {
+        binding.mainBnv.selectedItemId = R.id.home
+    }
+
+    fun openHomeTabWithDate(dateText: String) {
+        val targetDate = runCatching { LocalDate.parse(dateText.take(10)) }.getOrNull() ?: return
+        spf.edit().putString("SELECTED_DATE", targetDate.toString()).apply()
+
+        switchFragment(TAG_HOME) { HomeFragment() }
+        supportFragmentManager.executePendingTransactions()
+        currentBottomMenuItem = R.id.home
+        binding.mainBnv.menu.findItem(R.id.home)?.isChecked = true
+
+        binding.mainToolbar.visibility = View.VISIBLE
+        binding.mainBnv.visibility = View.VISIBLE
+        binding.mainLogoIv.visibility = View.VISIBLE
+        binding.mainSettingsIv.visibility = View.VISIBLE
+        binding.scheduleTitleTv.visibility = View.GONE
+        binding.scheduleActionContainer.visibility = View.GONE
+        binding.scheduleEditIv.visibility = View.GONE
+        binding.scheduleSearchIv.visibility = View.GONE
+        binding.scheduleAddIv.visibility = View.GONE
+        binding.mainBackIv.visibility = View.GONE
+        binding.mainSearchLl.visibility = View.GONE
+        hideOverlayContainerIfEmpty()
+
+        (supportFragmentManager.findFragmentByTag(TAG_HOME) as? HomeFragment)
+            ?.selectDateFromExternal(targetDate)
+    }
+
+    fun openRouteTabWithSelectedRouteSchedule(schedule: RouteOnlyScheduleData) {
+        routeViewModel.selectRouteSchedule(schedule)
+        showRouteTab(resetIfNeeded = false)
+        (supportFragmentManager.findFragmentByTag(TAG_ROUTE) as? RouteFragment)
+            ?.showSelectedRouteSchedule(schedule)
+    }
+
+    fun hideOverlayContainerIfEmpty() {
+        binding.mainOverlayFcv.post {
+            val hasOverlayFragment = supportFragmentManager.fragments.any { fragment ->
+                fragment.id == R.id.main_overlay_fcv && fragment.isAdded && !fragment.isRemoving
+            }
+            if (!hasOverlayFragment) {
+                binding.mainOverlayFcv.visibility = View.GONE
+            }
+        }
     }
 
     private fun checkCalendarPermissions() {

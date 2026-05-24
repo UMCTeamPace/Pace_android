@@ -93,6 +93,12 @@ class RouteScheduleFragment : Fragment() {
         END_TIME
     }
 
+    private enum class ExpandedPicker {
+        NONE,
+        CALENDAR,
+        TIME
+    }
+
     // 바인딩
     private var _binding: FragmentRouteScheduleBinding? = null
     private val binding get() = _binding!!
@@ -128,6 +134,8 @@ class RouteScheduleFragment : Fragment() {
     // 날짜/시간
     private var isEditingStartTime: Boolean = true
     private var activeInput: ActiveInput? = null
+    private var expandedPicker: ExpandedPicker = ExpandedPicker.NONE
+    private var isSyncingTimePicker = false
     private var startDate: LocalDate? = null
     private var endDate: LocalDate? = null
     private val dateFormatter = DateTimeFormatter.ofPattern("M월 d일 (E)", Locale.KOREAN)
@@ -139,6 +147,8 @@ class RouteScheduleFragment : Fragment() {
     private var currentSelectedCalendarId: Long? = null
     private var currentSelectedCalendarName: String? = null
     private var currentSelectedCalendarColor: Int? = null
+    private var colorAdapter: ColorAdapter? = null
+    private var hasUserSelectedEventColor = false
     private var initialFormSnapshot: FormSnapshot? = null
     private var isKeyboardVisible = false
     private var isTouchingInputArea = false
@@ -248,17 +258,33 @@ class RouteScheduleFragment : Fragment() {
             }
             dialog.show()
         }
-        val today = LocalDate.now()
-        startDate = today
-        endDate = today
-        binding.tvStartDate.text = today.format(dateFormatter)
-        binding.tvEndDate.text = today.format(dateFormatter)
+        val initialStartDateTime = roundedCurrentDateTime()
+        val initialEndDateTime = initialStartDateTime.plusHours(1)
+        applyStartDateTime(initialStartDateTime)
+        applyEndDateTime(initialEndDateTime)
+        updateDateDisplay()
 
         val startName = arguments?.getString("START_NAME") ?: "미지정"
         val endName = arguments?.getString("END_NAME") ?: "미지정"
+        val startLatArg = arguments?.getDouble("START_LAT", Double.NaN) ?: Double.NaN
+        val startLngArg = arguments?.getDouble("START_LNG", Double.NaN) ?: Double.NaN
+        val endLatArg = arguments?.getDouble("END_LAT", Double.NaN) ?: Double.NaN
+        val endLngArg = arguments?.getDouble("END_LNG", Double.NaN) ?: Double.NaN
         val earlyTime = arguments?.getInt("EARLY_ARRIVE_TIME", 0)
         // 비어있을 때 문자열로 넣으면 에러남
         val routeDetail = arguments?.getString("ROUTE_DETAIL") // 뒤에 ?: "데이터 없음" 삭제
+        val fromRouteSearchResult = arguments?.getBoolean("FROM_ROUTE_SEARCH_RESULT", false) == true
+
+        if (!startLatArg.isNaN() && !startLngArg.isNaN()) {
+            lastStartName = startName
+            lastStartLat = startLatArg
+            lastStartLng = startLngArg
+        }
+        if (!endLatArg.isNaN() && !endLngArg.isNaN()) {
+            lastDestName = endName
+            lastDestLat = endLatArg
+            lastDestLng = endLngArg
+        }
 
         // routeDetail 파싱해 경로 동적 바인딩 + route의 값에 따라 UI 업데이트
         val gson = Gson()
@@ -271,6 +297,7 @@ class RouteScheduleFragment : Fragment() {
 
                 // 파싱된 route 객체로 UI 업데이트
                 updateRouteInfo(startName, endName, route)
+                applyRouteSearchResultDateTimeIfNeeded(route, fromRouteSearchResult)
 
                 // 경로가 확실히 있으므로 삭제 버튼 활성화
                 binding.deleteRouteIv.visibility = View.VISIBLE
@@ -354,7 +381,9 @@ class RouteScheduleFragment : Fragment() {
 
                 if (calendarColor != -1) {
                     currentSelectedCalendarColor = calendarColor
+                    hasUserSelectedEventColor = false
                     showColorDot(calendarColor)
+                    colorAdapter?.selectColor(colorIntToHex(calendarColor))
                 }
             }
         }
@@ -391,6 +420,13 @@ class RouteScheduleFragment : Fragment() {
                         true -> {
                             // 일정 저장 성공 시 알람 예약 실행
                             Toast.makeText(context, "일정이 저장되었습니다.", Toast.LENGTH_SHORT).show()
+                            requireActivity().setResult(
+                                Activity.RESULT_OK,
+                                Intent().putExtra(
+                                    "SAVED_SCHEDULE_DATE",
+                                    startDate?.toString() ?: LocalDate.now().toString()
+                                )
+                            )
                             viewModel.resetCreateEvent() // 이벤트 초기화
                             requireActivity().finish()   // 화면 종료
                         }
@@ -480,12 +516,14 @@ class RouteScheduleFragment : Fragment() {
 
         binding.btnConfirm.setOnClickListener {
             val scheduleName = binding.etScheduleName.text.toString().trim()
+            enforceValidTimeRange()
             val finalStartDate = startDate ?: LocalDate.now()
             val finalEndDate = endDate ?: finalStartDate
             val startTime = binding.tvStartTime.text.toString()
             val endTime = binding.tvEndTime.text.toString()
             val saveColorInt = getSaveColorInt()
-            val saveColorHex = colorIntToHex(saveColorInt)
+            val saveEventColorInt = getSelectedEventColorInt()
+            val saveColorHex = saveEventColorInt?.let(::colorIntToHex)
 
             // [디버깅] 현재 모드와 ID 확인 - 로그캣에서 "ConfirmMode"를 검색하세요.
             Log.d("ConfirmMode", "isEditMode: $isEditMode, scheduleId: $scheduleId, selectedColor: $selectedColorHex, calendarId: $currentSelectedCalendarId")
@@ -632,7 +670,7 @@ class RouteScheduleFragment : Fragment() {
                     )
                     // ViewModel의 createSchedule 호출
                     Log.d("ConfirmMode", "..., calendarId: $currentSelectedCalendarId")
-                    viewModel.createSchedule(createRequest, null, currentSelectedCalendarId, saveColorInt)
+                    viewModel.createSchedule(createRequest, null, currentSelectedCalendarId, saveEventColorInt)
                 }
 
                 // 서버 응답 여부와 관계없이 로컬 알람 예약 로직 즉시 실행
@@ -674,6 +712,12 @@ class RouteScheduleFragment : Fragment() {
             alarmFragment.arguments = bundle
 
             requireActivity().supportFragmentManager.beginTransaction()
+                .setCustomAnimations(
+                    android.R.anim.slide_in_left,
+                    android.R.anim.slide_out_right,
+                    android.R.anim.slide_in_left,
+                    android.R.anim.slide_out_right
+                )
                 .replace(android.R.id.content, alarmFragment)
                 .addToBackStack(null)
                 .commit()
@@ -714,6 +758,10 @@ class RouteScheduleFragment : Fragment() {
 
         binding.btnStartDate.setOnClickListener {
             dismissKeyboard()
+            if (expandedPicker == ExpandedPicker.CALENDAR && activeInput == ActiveInput.START_DATE) {
+                closeExpandedPicker()
+                return@setOnClickListener
+            }
             activeInput = ActiveInput.START_DATE
             updateDateDisplay()
             updateTimeVisibility()
@@ -721,6 +769,10 @@ class RouteScheduleFragment : Fragment() {
         }
         binding.tvStartTime.setOnClickListener {
             dismissKeyboard()
+            if (expandedPicker == ExpandedPicker.TIME && activeInput == ActiveInput.START_TIME) {
+                closeExpandedPicker()
+                return@setOnClickListener
+            }
             isEditingStartTime = true
             activeInput = ActiveInput.START_TIME
             updateDateDisplay()
@@ -731,6 +783,10 @@ class RouteScheduleFragment : Fragment() {
 
         binding.btnEndDate.setOnClickListener {
             dismissKeyboard()
+            if (expandedPicker == ExpandedPicker.CALENDAR && activeInput == ActiveInput.END_DATE) {
+                closeExpandedPicker()
+                return@setOnClickListener
+            }
             activeInput = ActiveInput.END_DATE
             updateDateDisplay()
             updateTimeVisibility()
@@ -738,6 +794,10 @@ class RouteScheduleFragment : Fragment() {
         }
         binding.tvEndTime.setOnClickListener {
             dismissKeyboard()
+            if (expandedPicker == ExpandedPicker.TIME && activeInput == ActiveInput.END_TIME) {
+                closeExpandedPicker()
+                return@setOnClickListener
+            }
             isEditingStartTime = false
             activeInput = ActiveInput.END_TIME
             updateDateDisplay()
@@ -757,20 +817,11 @@ class RouteScheduleFragment : Fragment() {
         }
         binding.etScheduleName.onFocusChangeListener = null
 
-        val colorList = listOf(
-            ColorItem(R.color.schedule_5, "#DC354B"),
-            ColorItem(R.color.route_line_3, "#D8643F"),
-            ColorItem(R.color.route_suin_bundang, "#FFBB00"),
-            ColorItem(R.color.route_branch_bus, "#53B332"),
-            ColorItem(R.color.schedule_14, "#51AEED"),
-            ColorItem(R.color.schedule_12, "#2A4ABF"),
-            ColorItem(R.color.schedule_8, "#5F46DD"),
-            ColorItem(R.color.route_line_8, "#F14C82"),
-            ColorItem(R.color.gray_600, "#666666")
-        )
+        val selectedColorForPalette = colorIntToHex(getSaveColorInt())
+        val colorList = buildColorItems(selectedColorForPalette)
 
 
-        val colorAdapter = ColorAdapter(requireContext(), colorList) { selectedColor ->
+        colorAdapter = ColorAdapter(requireContext(), colorList) { selectedColor ->
             changeSelectedColor(selectedColor)
         }
 
@@ -1057,6 +1108,8 @@ class RouteScheduleFragment : Fragment() {
 
         val color = colorStr.toColorInt()
         showColorDot(color)
+        colorAdapter?.selectColor(colorStr)
+        hasUserSelectedEventColor = true
         // 수동 색상 선택 시 캘린더 색상 우선순위 해제
         currentSelectedCalendarColor = null
 
@@ -1135,39 +1188,21 @@ class RouteScheduleFragment : Fragment() {
             wrapSelectorWheel = true
         }
 
-        val timeChangeListener = NumberPicker.OnValueChangeListener { _, _, _ ->
-            val hour = binding.pickerHour.value
-            // [수정] 실제 분 계산: 선택된 인덱스 * 5
-            val minute = binding.pickerMinute.value * 5
-            val formattedTime = String.format("%02d:%02d", hour, minute)
-
-            val isSameDay = startDate != null && endDate != null && startDate == endDate
-
-            if (isEditingStartTime) {
-                binding.tvStartTime.text = formattedTime
-                if (isSameDay) {
-                    val endTime = binding.tvEndTime.text.toString()
-                    if (isTimeAfter(formattedTime, endTime)) {
-                        // 시작 시간이 종료 시간보다 늦으면 종료 시간을 1시간 뒤로
-                        val newEndHour = if (hour < 23) hour + 1 else 23
-                        binding.tvEndTime.text = String.format("%02d:%02d", newEndHour, minute)
-                    }
-                }
-            } else {
-                binding.tvEndTime.text = formattedTime
-            }
-            updateTimeVisibility()
+        binding.pickerHour.setOnValueChangedListener { _, oldValue, newValue ->
+            if (isSyncingTimePicker) return@setOnValueChangedListener
+            applyTimePickerDelta(hourDelta(oldValue, newValue) * 60L)
         }
-
-        binding.pickerHour.setOnValueChangedListener(timeChangeListener)
-        binding.pickerMinute.setOnValueChangedListener(timeChangeListener)
+        binding.pickerMinute.setOnValueChangedListener { _, oldValue, newValue ->
+            if (isSyncingTimePicker) return@setOnValueChangedListener
+            applyTimePickerDelta(minuteDelta(oldValue, newValue).toLong())
+        }
     }
 
     private fun showCalendar() {
         animateLayoutChange()
+        expandedPicker = ExpandedPicker.CALENDAR
 
         // 1. 방해 요소 제거
-        binding.layoutColorSelector.visibility = View.GONE
         binding.timePickerContainer.visibility = View.GONE
 
         // 2. 컨테이너와 캘린더 본체를 모두 VISIBLE로
@@ -1193,9 +1228,9 @@ class RouteScheduleFragment : Fragment() {
 
         // 1. 레이아웃 가시성 조절
         animateLayoutChange()
+        expandedPicker = ExpandedPicker.TIME
         binding.timePickerContainer.visibility = View.VISIBLE
         binding.calendarContainer.visibility = View.GONE
-        binding.layoutColorSelector.visibility = View.GONE
 
         // 2. 현재 선택된 시간 텍스트를 파싱하여 피커 초기값 설정
         val timeText = if (isEditingStartTime) {
@@ -1209,20 +1244,26 @@ class RouteScheduleFragment : Fragment() {
             if (parts.size == 2) {
                 val h = parts[0].trim().toInt()
                 val m = parts[1].trim().toInt()
-
-                binding.pickerHour.value = h
-                // 5분 단위 인덱스 계산 (예: 15분 -> index 3)
-                binding.pickerMinute.value = (m / 5).coerceIn(0, 11)
+                syncTimePickerValues(h, (m / 5).coerceIn(0, 11))
             }
         } catch (e: Exception) {
-            binding.pickerHour.value = 10
-            binding.pickerMinute.value = 0
+            syncTimePickerValues(10, 0)
         }
 
         // 3. 스크롤을 시간 피커 위치로 이동
         binding.timePickerContainer.post {
             binding.nestedScrollView.smoothScrollTo(0, binding.timePickerContainer.top)
         }
+    }
+
+    private fun closeExpandedPicker() {
+        animateLayoutChange()
+        binding.calendarContainer.visibility = View.GONE
+        binding.timePickerContainer.visibility = View.GONE
+        expandedPicker = ExpandedPicker.NONE
+        activeInput = null
+        updateDateDisplay()
+        updateTimeVisibility()
     }
 
 
@@ -1419,6 +1460,32 @@ class RouteScheduleFragment : Fragment() {
         return runCatching { LocalDateTime.parse("${date}T$time") }.getOrNull()
     }
 
+    private fun applyRouteSearchResultDateTimeIfNeeded(routeObject: RouteResponse?, fromRouteSearchResult: Boolean) {
+        if (!fromRouteSearchResult || isEditMode) return
+
+        val routeArrival = parseRouteArrivalToKst(routeObject?.arrivalTime) ?: return
+        val newStart = roundToNearestFiveMinutes(routeArrival)
+        val currentEnd = parseDateTime(endDate ?: startDate, binding.tvEndTime.text)
+
+        applyStartDateTime(newStart)
+
+        val newEnd = if (currentEnd != null && currentEnd.isAfter(newStart)) {
+            currentEnd
+        } else {
+            newStart.plusHours(1)
+        }
+        applyEndDateTime(newEnd)
+        binding.calendarPicker.notifyCalendarChanged()
+        updateDateDisplay()
+    }
+
+    private fun roundToNearestFiveMinutes(dateTime: LocalDateTime): LocalDateTime {
+        val base = dateTime.withSecond(0).withNano(0)
+        val totalMinutes = base.hour * 60 + base.minute
+        val roundedMinutes = ((totalMinutes / 5) + 1) * 5
+        return base.toLocalDate().atStartOfDay().plusMinutes(roundedMinutes.toLong())
+    }
+
     private fun parseRouteArrivalToKst(raw: String?): LocalDateTime? {
         if (raw.isNullOrBlank()) return null
 
@@ -1463,6 +1530,7 @@ class RouteScheduleFragment : Fragment() {
     private fun openRouteSearch() {
         dismissKeyboard()
         Log.d("DEBUG_TAG", "openRouteSearch")
+        enforceValidTimeRange()
         val dateToPass = startDate?.toString() ?: LocalDate.now().toString()
         val rawTime = binding.tvStartTime.text.toString()
         val timeToPass = if (rawTime.length == 5) "$rawTime:00" else rawTime
@@ -1531,32 +1599,159 @@ class RouteScheduleFragment : Fragment() {
         return sMin > eMin
     }
 
-    private fun selectDate(date: LocalDate) {
-        // 1. 이미 범위 선택이 완료되었거나(start/end 둘 다 있음), 아예 없는 경우 -> 새로 시작
-        if (startDate != null && endDate != null) {
-            startDate = date
-            endDate = null // 종료일만 null로 비워서 다음 클릭을 기다림
-        }
-        // 2. 시작일만 있고 종료일은 없는 상태 -> 종료일 확정
-        else if (startDate != null && endDate == null) {
-            if (date.isBefore(startDate)) {
-                startDate = date // 시작일보다 이전이면 시작일을 변경
-            } else {
-                endDate = date
-                onDateSelectionComplete()
+    private fun applyTimePickerDelta(deltaMinutes: Long) {
+        when (activeInput) {
+            ActiveInput.START_TIME -> {
+                val start = parseDateTime(startDate, binding.tvStartTime.text) ?: return
+                applyStartDateTime(coerceRouteStartDateTime(start.plusMinutes(deltaMinutes)))
+                binding.calendarPicker.notifyCalendarChanged()
+                updateDateDisplay()
+                enforceValidTimeRange(ActiveInput.START_TIME)
             }
+            ActiveInput.END_TIME -> {
+                val end = parseDateTime(endDate ?: startDate, binding.tvEndTime.text) ?: return
+                applyEndDateTime(end.plusMinutes(deltaMinutes))
+                binding.calendarPicker.notifyCalendarChanged()
+                updateDateDisplay()
+                enforceValidTimeRange(ActiveInput.END_TIME)
+            }
+            else -> return
         }
-        // 3. 혹시나 둘 다 null인 경우 (방어 코드)
-        else {
-            startDate = date
-            endDate = null
+        syncPickerToActiveTime()
+        updateTimeVisibility()
+    }
+
+    private fun syncPickerToActiveTime() {
+        val timeText = when (activeInput) {
+            ActiveInput.START_TIME -> binding.tvStartTime.text
+            ActiveInput.END_TIME -> binding.tvEndTime.text
+            else -> return
+        }
+        val parts = timeText.toString().split(":")
+        if (parts.size != 2) return
+
+        val hour = parts[0].trim().toIntOrNull() ?: return
+        val minute = parts[1].trim().toIntOrNull() ?: return
+        syncTimePickerValues(hour, minute / 5)
+    }
+
+    private fun syncTimePickerValues(hour: Int, minuteIndex: Int) {
+        isSyncingTimePicker = true
+        binding.pickerHour.value = hour.coerceIn(0, 23)
+        binding.pickerMinute.value = minuteIndex.coerceIn(0, 11)
+        isSyncingTimePicker = false
+    }
+
+    private fun hourDelta(oldValue: Int, newValue: Int): Int {
+        return when {
+            oldValue == 23 && newValue == 0 -> 1
+            oldValue == 0 && newValue == 23 -> -1
+            else -> newValue - oldValue
+        }
+    }
+
+    private fun minuteDelta(oldValue: Int, newValue: Int): Int {
+        return when {
+            oldValue == 11 && newValue == 0 -> 5
+            oldValue == 0 && newValue == 11 -> -5
+            else -> (newValue - oldValue) * 5
+        }
+    }
+
+    private fun enforceValidTimeRange(changedInput: ActiveInput? = activeInput) {
+        var start = parseDateTime(startDate, binding.tvStartTime.text)
+        var end = parseDateTime(endDate ?: startDate, binding.tvEndTime.text)
+        if (start == null || end == null) return
+
+        val minimumStart = roundedCurrentDateTime()
+        if (start.isBefore(minimumStart)) {
+            start = minimumStart
+            applyStartDateTime(start)
+        }
+
+        if (start.isBefore(end)) {
+            binding.calendarPicker.notifyCalendarChanged()
+            updateDateDisplay()
+            return
+        }
+
+        if (changedInput == ActiveInput.END_TIME) {
+            val adjustedStart = end.minusHours(1)
+            if (adjustedStart.isBefore(minimumStart)) {
+                applyStartDateTime(minimumStart)
+                if (!minimumStart.isBefore(end)) {
+                    end = minimumStart.plusHours(1)
+                    applyEndDateTime(end)
+                }
+            } else {
+                endDate = end.toLocalDate()
+                applyStartDateTime(adjustedStart)
+            }
+        } else {
+            applyEndDateTime(start.plusHours(1))
         }
 
         binding.calendarPicker.notifyCalendarChanged()
         updateDateDisplay()
     }
 
+    private fun coerceRouteStartDateTime(dateTime: LocalDateTime): LocalDateTime {
+        val minimumStart = roundedCurrentDateTime()
+        return if (dateTime.isBefore(minimumStart)) minimumStart else dateTime
+    }
+
+    private fun roundedCurrentDateTime(): LocalDateTime {
+        val now = LocalDateTime.now()
+        val base = now.withSecond(0).withNano(0)
+        val remainder = base.minute % 5
+        val minutesToAdd = when {
+            remainder == 0 && now.second == 0 && now.nano == 0 -> 0
+            remainder == 0 -> 5
+            else -> 5 - remainder
+        }
+        return base.plusMinutes(minutesToAdd.toLong())
+    }
+
+    private fun parseDateTime(date: LocalDate?, timeText: CharSequence?): LocalDateTime? {
+        val targetDate = date ?: return null
+        val parts = timeText?.toString()?.split(":") ?: return null
+        if (parts.size != 2) return null
+
+        return runCatching {
+            targetDate.atTime(parts[0].trim().toInt(), parts[1].trim().toInt())
+        }.getOrNull()
+    }
+
+    private fun applyStartDateTime(dateTime: LocalDateTime) {
+        startDate = dateTime.toLocalDate()
+        binding.tvStartTime.text = dateTime.format(DateTimeFormatter.ofPattern("HH:mm"))
+    }
+
+    private fun applyEndDateTime(dateTime: LocalDateTime) {
+        endDate = dateTime.toLocalDate()
+        binding.tvEndTime.text = dateTime.format(DateTimeFormatter.ofPattern("HH:mm"))
+    }
+
+    private fun selectDate(date: LocalDate) {
+        if (activeInput == ActiveInput.END_DATE) {
+            endDate = date
+            if (startDate == null || startDate!!.isAfter(date)) {
+                startDate = date
+            }
+            binding.calendarPicker.notifyCalendarChanged()
+            onDateSelectionComplete()
+            return
+        }
+
+        startDate = date
+        endDate = null
+        activeInput = ActiveInput.END_DATE
+        binding.calendarPicker.notifyCalendarChanged()
+        updateDateDisplay()
+    }
+
     private fun onDateSelectionComplete() {
+        expandedPicker = ExpandedPicker.NONE
         animateLayoutChange()
 
         // 1. 캘린더는 닫고 시간 선택 모드로 전환
@@ -1843,7 +2038,9 @@ class RouteScheduleFragment : Fragment() {
         val color = viewModel.getCalendarColorById(calendarId) ?: return
         if (color == 0) return
         currentSelectedCalendarColor = color
+        hasUserSelectedEventColor = false
         showColorDot(color)
+        colorAdapter?.selectColor(colorIntToHex(color))
     }
 
     private fun resolveDefaultCalendarId(preferredId: Long): Long {
@@ -1878,7 +2075,31 @@ class RouteScheduleFragment : Fragment() {
     }
 
     private fun getSaveColorInt(): Int {
-        return currentSelectedCalendarColor ?: selectedColorHex.toColorInt()
+        return getSelectedEventColorInt()
+            ?: currentSelectedCalendarColor
+            ?: selectedColorHex.toColorInt()
+    }
+
+    private fun getSelectedEventColorInt(): Int? {
+        return if (hasUserSelectedEventColor) selectedColorHex.toColorInt() else null
+    }
+
+    private fun buildColorItems(selectedColorForPalette: String): List<ColorItem> {
+        val colors = mutableListOf(
+            ColorItem(R.color.schedule_5, "#DC354B", "#DC354B".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.route_line_3, "#D8643F", "#D8643F".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.route_suin_bundang, "#FFBB00", "#FFBB00".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.route_branch_bus, "#53B332", "#53B332".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.schedule_14, "#51AEED", "#51AEED".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.schedule_12, "#2A4ABF", "#2A4ABF".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.schedule_8, "#5F46DD", "#5F46DD".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.route_line_8, "#F14C82", "#F14C82".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.gray_600, "#666666", "#666666".equals(selectedColorForPalette, ignoreCase = true))
+        )
+        if (colors.none { it.isSelected }) {
+            colors.add(0, ColorItem(R.color.gray_600, selectedColorForPalette, true))
+        }
+        return colors
     }
 
     private fun colorIntToHex(color: Int): String {
@@ -1986,6 +2207,7 @@ class RouteScheduleFragment : Fragment() {
 
     // 일반 일정으로 저장
     private fun saveAsNormalSchedule(){
+        enforceValidTimeRange()
         viewModel.createScheduleWithDefaultSettings(
             title = binding.etScheduleName.text.toString(),
             memo = binding.etMemo.text?.toString(),
@@ -1998,7 +2220,7 @@ class RouteScheduleFragment : Fragment() {
             placeId = null,
             customAlarms = currentSelectedAlarms?.toList(),
             calendarId = currentSelectedCalendarId,
-            selectedColor = getSaveColorInt(),
+            selectedColor = getSelectedEventColorInt(),
             repeatInfo = null // 보정된 RepeatInfo 전달
         )
     }

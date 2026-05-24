@@ -22,6 +22,8 @@ class RouteResultFragment(
     var onChipSelected: ((String?) -> Unit)? = null
 
     private lateinit var adapter: RouteAdapter
+    private var isLoading = true
+    private var hasRoutes = false
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentRouteResultBinding.inflate(inflater, container, false)
@@ -37,6 +39,7 @@ class RouteResultFragment(
 
         binding.searchLocationRv.layoutManager = LinearLayoutManager(requireContext())
         binding.searchLocationRv.adapter = adapter
+        applyResultState()
     }
 
     private fun setupRecyclerView() {
@@ -77,6 +80,8 @@ class RouteResultFragment(
 
     fun updateRoutes(newItems: List<RouteResponse>, newDestination: String) {
         this.destination = newDestination
+        hasRoutes = newItems.isNotEmpty()
+        isLoading = false
 
         adapter = RouteAdapter(
             context = requireContext(),
@@ -86,6 +91,33 @@ class RouteResultFragment(
             onSelectClick = { (parentFragment as? RouteFragment)?.onRouteSelectedFinal(it) }
         )
         binding.searchLocationRv.adapter = adapter
+        applyResultState()
+    }
+
+    fun setLoading(loading: Boolean) {
+        isLoading = loading
+        if (loading) {
+            hasRoutes = false
+        }
+        applyResultState()
+    }
+
+    private fun applyResultState() {
+        val binding = _binding ?: return
+        when {
+            isLoading -> {
+                binding.searchLocationRv.visibility = View.GONE
+                binding.layoutEmptyRouteResult.visibility = View.GONE
+            }
+            hasRoutes -> {
+                binding.searchLocationRv.visibility = View.VISIBLE
+                binding.layoutEmptyRouteResult.visibility = View.GONE
+            }
+            else -> {
+                binding.searchLocationRv.visibility = View.GONE
+                binding.layoutEmptyRouteResult.visibility = View.VISIBLE
+            }
+        }
     }
 
     override fun onDestroyView() {

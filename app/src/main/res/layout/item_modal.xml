@@ -22,9 +22,12 @@
             android:src="@drawable/ic_schedule_category"/>
         <TextView
             android:id="@+id/schedule_title_tv"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginLeft="4dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
             android:text="일정 제목"
             android:textAppearance="@style/TextAppearance.App.HeadlineSm"
             style="@style/TextColor.Primary"
@@ -44,16 +47,19 @@
             android:src="@drawable/ic_time"/>
         <TextView
             android:id="@+id/modal_time_tv"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
             android:text="하루 종일"
             android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
             style="@style/TextColor.Secondary"
             android:layout_marginStart="4dp" />
         <View
-            android:layout_width="0dp"
+            android:layout_width="8dp"
             android:layout_height="0dp"
-            android:layout_weight="1"/>
+            android:layout_weight="0"/>
         <ImageView
             android:id="@+id/modal_repeat_iv"
             android:layout_width="16dp"
@@ -62,8 +68,11 @@
             android:layout_gravity="center"/>
         <TextView
             android:id="@+id/modal_repeat_tv"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
             android:text="매주 금요일"
             android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
             style="@style/TextColor.Secondary"
@@ -85,9 +94,12 @@
             android:src="@drawable/ic_route_unselected" />
         <TextView
             android:id="@+id/modal_normal_location_tv"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="4dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
             android:text="장소"
             android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
             style="@style/TextColor.Secondary"/>
@@ -107,7 +119,7 @@
 
         <LinearLayout
             android:id="@+id/modal_route_ll"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content">
             <ImageView
                 android:id="@+id/modal_route_location_iv"
@@ -116,9 +128,12 @@
                 android:src="@drawable/ic_route_schedule" />
             <TextView
                 android:id="@+id/modal_route_tv"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="4dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
                 android:text="장소1 --> 장소2"
                 android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
                 style="@style/TextColor.Primary"/>
@@ -177,7 +192,8 @@
     <TextView
         android:id="@+id/modal_memo_tv"
         android:layout_width="match_parent"
-        android:layout_height="42dp"
+        android:layout_height="wrap_content"
+        android:minHeight="42dp"
         android:text="메모"
         android:background="@drawable/box_modal_memo"
         style="@style/TextColor.Secondary"
@@ -200,7 +216,7 @@
         app:layout_constraintBottom_toBottomOf="parent">
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content">
             <ImageView
                 android:id="@+id/modal_schedule_reminder_iv"
@@ -220,16 +236,20 @@
                 android:layout_weight="1"/>
             <TextView
                 android:id="@+id/modal_schedule_reminder_tv"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_gravity="end"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textAlignment="textEnd"
                 android:text="10분 전, 1시간 전, ..."
                 android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
                 style="@style/TextColor.Primary"/>
         </LinearLayout>
         <LinearLayout
             android:id="@+id/modal_departure_reminder_ll"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:layout_gravity="center_vertical">
@@ -247,13 +267,17 @@
                 style="@style/TextColor.Secondary"/>
 
             <View
-                android:layout_width="208dp"
+                android:layout_width="0dp"
                 android:layout_height="4dp"
                 android:layout_weight="1" />
             <TextView
                 android:id="@+id/modal_departure_reminder_tv"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textAlignment="textEnd"
                 android:text="5분 전, 15분 전, ..."
                 android:textAppearance="@style/TextAppearance.App.CaptionLg.Regular"
                 style="@style/TextColor.Primary"/>

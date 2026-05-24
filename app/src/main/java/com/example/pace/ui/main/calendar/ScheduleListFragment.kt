@@ -21,6 +21,8 @@ import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.main.calendar.SearchFragment
 import com.example.pace.ui.main.home.DeleteRepeatScheduleDialog
 import com.example.pace.ui.main.home.DeleteScheduleDialog
+import com.example.pace.util.ScheduleSortUtils
+import com.example.pace.util.ScheduleUiRefreshTicker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -39,6 +41,14 @@ class ScheduleListFragment : Fragment() {
     private val viewModel: ScheduleViewModel by activityViewModels()
     private var hasScrolledToToday = false
     private var pendingResetToToday = false
+    private var editModeChromeInitialized = false
+    private val scheduleUiRefreshTicker = ScheduleUiRefreshTicker {
+        if (_binding != null) {
+            viewLifecycleOwner.lifecycleScope.launch {
+                processAndDisplaySchedules(viewModel.scheduleMap.value, scrollToToday = false)
+            }
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -82,28 +92,92 @@ class ScheduleListFragment : Fragment() {
             viewModel.isEditMode.collectLatest { isEditMode ->
                 val mainActivity = requireActivity() as MainActivity
                 val parent = parentFragment as? CalendarFragment
-                val currentMainFragment = requireActivity()
-                    .supportFragmentManager
-                    .findFragmentById(com.example.pace.R.id.main_fcv)
 
-                binding.layoutEditHeader.visibility = if (isEditMode) View.VISIBLE else View.GONE
-
-                if (isEditMode) {
-                    binding.layoutEditBar.visibility = View.VISIBLE
-                    mainActivity.binding.mainBnv.visibility = View.GONE
-                    mainActivity.binding.mainToolbar.visibility = View.GONE
-                    parent?.setTabVisibility(false)
-                } else {
-                    binding.layoutEditBar.visibility = View.GONE
-                    mainActivity.binding.mainBnv.visibility = View.VISIBLE
-                    if (currentMainFragment !is SearchFragment) {
-                        mainActivity.binding.mainToolbar.visibility = View.VISIBLE
-                    }
-                    parent?.setTabVisibility(true)
-                }
-
-                scheduleListAdapter.setEditMode(isEditMode)
+                updateEditModeChrome(isEditMode, mainActivity, parent)
             }
+        }
+    }
+
+    private fun updateEditModeChrome(
+        isEditMode: Boolean,
+        mainActivity: MainActivity,
+        parent: CalendarFragment?
+    ) {
+        if (!editModeChromeInitialized) {
+            editModeChromeInitialized = true
+            binding.layoutEditHeader.visibility = if (isEditMode) View.VISIBLE else View.GONE
+            binding.layoutEditBar.visibility = if (isEditMode) View.VISIBLE else View.GONE
+            mainActivity.binding.mainToolbar.visibility = if (isEditMode) View.GONE else View.VISIBLE
+            mainActivity.binding.mainBnv.visibility = if (isEditMode) View.GONE else View.VISIBLE
+            parent?.setTabVisibility(!isEditMode)
+            scheduleListAdapter.setEditMode(isEditMode)
+            return
+        }
+
+        if (isEditMode) {
+            fadeMainChrome(mainActivity, show = false)
+            fadeListModeChange {
+                parent?.setTabVisibility(false)
+                binding.layoutEditHeader.visibility = View.VISIBLE
+                binding.layoutEditBar.visibility = View.VISIBLE
+                scheduleListAdapter.setEditMode(true)
+            }
+        } else {
+            fadeListModeChange {
+                scheduleListAdapter.setEditMode(false)
+                binding.layoutEditHeader.visibility = View.GONE
+                binding.layoutEditBar.visibility = View.GONE
+                parent?.setTabVisibility(true)
+            }
+            fadeMainChrome(mainActivity, show = true) {
+                mainActivity.binding.mainToolbar.visibility = View.VISIBLE
+                mainActivity.binding.mainBnv.visibility = View.VISIBLE
+            }
+        }
+    }
+
+    private fun fadeListModeChange(applyState: () -> Unit) {
+        binding.root.animate().cancel()
+        binding.root.animate()
+            .alpha(0f)
+            .setDuration(90)
+            .withEndAction {
+                applyState()
+                binding.root.animate()
+                    .alpha(1f)
+                    .setDuration(140)
+                    .start()
+            }
+            .start()
+    }
+
+    private fun fadeMainChrome(
+        mainActivity: MainActivity,
+        show: Boolean,
+        endAction: (() -> Unit)? = null
+    ) {
+        val targets = listOf(mainActivity.binding.mainToolbar, mainActivity.binding.mainBnv)
+        var finishedCount = 0
+        targets.forEach { view ->
+            view.animate().cancel()
+            if (show) {
+                view.alpha = 0f
+                view.visibility = View.VISIBLE
+            }
+            view.animate()
+                .alpha(if (show) 1f else 0f)
+                .setDuration(140)
+                .withEndAction {
+                    if (!show) {
+                        view.visibility = View.GONE
+                        view.alpha = 1f
+                    }
+                    finishedCount += 1
+                    if (finishedCount == targets.size) {
+                        endAction?.invoke()
+                    }
+                }
+                .start()
         }
     }
 
@@ -243,7 +317,10 @@ class ScheduleListFragment : Fragment() {
         }
     }
 
-    private suspend fun processAndDisplaySchedules(groupedMap: Map<LocalDate, List<Schedule>>) {
+    private suspend fun processAndDisplaySchedules(
+        groupedMap: Map<LocalDate, List<Schedule>>,
+        scrollToToday: Boolean = true
+    ) {
         val items = mutableListOf<ScheduleListItem>()
         val today = LocalDate.now()
         var todayPosition: Int? = null
@@ -260,13 +337,7 @@ class ScheduleListFragment : Fragment() {
                     }
                     items.add(ScheduleListItem.DateHeader(formatDateToHeader(date)))
 
-                    val sortedList = scheduleList.sortedWith(
-                        compareBy(
-                            { !it.isPinned },
-                            { !it.isAllDay },
-                            { it.startTime }
-                        )
-                    )
+                    val sortedList = scheduleList.sortedWith(ScheduleSortUtils.displayComparator())
 
                     sortedList.forEach { schedule ->
                         items.add(ScheduleListItem.ScheduleItem(schedule))
@@ -275,8 +346,11 @@ class ScheduleListFragment : Fragment() {
             }
         }
 
-        scheduleListAdapter.updateData(items, viewModel.routeDetails.value)
-        scrollToTodayPositionIfNeeded(todayPosition)
+        scheduleListAdapter.updateDataAsync(items, viewModel.routeDetails.value)
+        scheduleUiRefreshTicker.schedule(groupedMap.values.flatten())
+        if (scrollToToday) {
+            scrollToTodayPositionIfNeeded(todayPosition)
+        }
     }
 
     private fun scrollToTodayPositionIfNeeded(todayPosition: Int?) {
@@ -357,6 +431,7 @@ class ScheduleListFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        scheduleUiRefreshTicker.cancel()
         hasScrolledToToday = false
         _binding = null
     }

@@ -51,7 +51,12 @@ class SettingsViewModel @Inject constructor(
     // 4. 기본 캘린더 변경
     fun updateDefaultCalendar(calendarId: Long) {
         userSettings.value?.let {
-            saveAndSync(it.copy(calendarId = calendarId))
+            saveAndSync(
+                it.copy(
+                    calendarId = calendarId,
+                    lastUpdated = System.currentTimeMillis()
+                )
+            )
         }
     }
 

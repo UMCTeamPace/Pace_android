@@ -28,15 +28,15 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/white"
+        android:clickable="true"
+        android:focusable="true"
         android:orientation="vertical">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:minHeight="48dp"
-            android:background="@color/white"
-            android:clickable="true"
-            android:focusable="true">
+            android:background="@color/white">
 
             <TextView
                 android:id="@+id/tv_route_start_text"

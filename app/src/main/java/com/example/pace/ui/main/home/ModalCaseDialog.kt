@@ -2,25 +2,20 @@ package com.example.pace.ui.main.home
 
 import android.app.Dialog
 import android.content.Context
-import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
-import android.util.Log
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
-import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.example.pace.data.model.Schedule
-import com.example.pace.data.model.response.ScheduleDetailResponse
+import com.example.pace.data.model.response.RouteOnlyScheduleData
 import com.example.pace.databinding.DialogModalCaseBinding
 import com.example.pace.data.viewmodel.ScheduleViewModel
-import com.example.pace.ui.add_schedule.AddScheduleActivity
+import com.example.pace.util.ScheduleSortUtils
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.TextStyle
@@ -32,10 +27,13 @@ class ModalCaseDialog(
     private val position: Int,
     private var date: LocalDate,
     private val viewModel: ScheduleViewModel,
-    private val lifecycleOwner: LifecycleOwner
+    private val lifecycleOwner: LifecycleOwner,
+    private val onRouteScheduleClick: (RouteOnlyScheduleData) -> Unit,
+    private val onScheduleEditClick: (Schedule) -> Unit
 ): Dialog(context) {
 
     lateinit var binding: DialogModalCaseBinding
+    private var observeJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,17 +41,18 @@ class ModalCaseDialog(
         setContentView(binding.root)
 
         lifecycleOwner.lifecycle.addObserver(object : DefaultLifecycleObserver {
-            override fun onStop(owner: LifecycleOwner) {
-                if (isShowing) dismiss()
-            }
-
             override fun onDestroy(owner: LifecycleOwner) {
                 if (isShowing) dismiss()
                 lifecycleOwner.lifecycle.removeObserver(this)
             }
         })
 
-        val adapter = ModalVPAdapter(context, scheduleList)
+        val adapter = ModalVPAdapter(
+            context = context,
+            scheduleList = scheduleList,
+            onRouteScheduleClick = { routeSchedule -> onRouteScheduleClick(routeSchedule) },
+            onScheduleEditClick = onScheduleEditClick
+        )
         binding.modalCaseTv.text = date.year.toString() + "년 " + date.monthValue.toString() + "월 " + date.dayOfMonth.toString() + "일 " + date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.KOREAN)
         binding.modalCaseVp.adapter = adapter
         binding.modalCaseVp.setCurrentItem(position, false)
@@ -61,16 +60,49 @@ class ModalCaseDialog(
 
 
         // 각 일정에 대한 상세 정보 호출
-        lifecycleOwner.lifecycleScope.launch {
+        observeJob = lifecycleOwner.lifecycleScope.launch {
             lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED){
-                scheduleList.forEach { schedule ->
-                    viewModel.getScheduleDetail(schedule.id)
+                launch {
+                    viewModel.scheduleMap.collect { map ->
+                        val updatedSchedules = map[date]
+                            ?.sortedWith(ScheduleSortUtils.displayComparator())
+                            ?: emptyList()
+
+                        if (updatedSchedules.isEmpty()) {
+                            dismiss()
+                            return@collect
+                        }
+
+                        val currentScheduleId = adapter.getScheduleIdAt(binding.modalCaseVp.currentItem)
+                        adapter.updateSchedules(updatedSchedules)
+
+                        updatedSchedules.filter { it.type == "ROUTE" }.forEach { schedule ->
+                            viewModel.getScheduleDetail(schedule.id)
+                        }
+
+                        val nextPosition = currentScheduleId
+                            ?.let { adapter.indexOfSchedule(it) }
+                            ?.takeIf { it != -1 }
+                            ?: binding.modalCaseVp.currentItem.coerceAtMost(updatedSchedules.lastIndex)
+
+                        binding.modalCaseVp.setCurrentItem(nextPosition, false)
+                        binding.modalCaseCi.setViewPager(binding.modalCaseVp)
+                    }
                 }
-                viewModel.scheduleDetailInfoMap.collect {
-                    adapter.getScheduleDetails(it)
+
+                launch {
+                    viewModel.scheduleDetailInfoMap.collect {
+                        adapter.getScheduleDetails(it)
+                    }
                 }
             }
         }
+    }
+
+    override fun dismiss() {
+        observeJob?.cancel()
+        observeJob = null
+        super.dismiss()
     }
 
     override fun onStart() {

@@ -12,6 +12,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.pace.PaceApplication
+import com.example.pace.data.model.RecentRoute
 import com.example.pace.data.viewmodel.SearchViewModel
 import com.example.pace.data.viewmodel.SearchViewModelFactory
 import com.example.pace.databinding.FragmentRecentRouteBinding
@@ -21,6 +22,10 @@ import kotlinx.coroutines.launch
 class RecentRouteFragment : Fragment() {
     private var _binding: FragmentRecentRouteBinding? = null
     private val binding get() = _binding!!
+    private var hasObservedRoutes = false
+    private var lastFirstRouteKey: String? = null
+    private var lastRouteSize = 0
+    private var isUserScrolling = false
     private val searchViewModel: SearchViewModel by viewModels {
         SearchViewModelFactory((requireActivity().application as PaceApplication).searchRepository)
     }
@@ -44,8 +49,9 @@ class RecentRouteFragment : Fragment() {
 
     private fun setupRecyclerView() {
         routeAdapter = RecentRouteAdapter(
-            onItemClick = { route ->
-                (parentFragment?.parentFragment as? RouteFragment)?.handleRecentRouteClick(route)
+            onItemClick = { item ->
+                (parentFragment?.parentFragment as? RouteFragment)
+                    ?.handleRecentRouteClick(item.route, item.startPlaceName, item.endPlaceName)
             },
             onDeleteClick = { route ->
                 searchViewModel.deleteRecentRoute(route)
@@ -61,8 +67,11 @@ class RecentRouteFragment : Fragment() {
         binding.rvRecentRoute.apply {
             adapter = routeAdapter
             layoutManager = LinearLayoutManager(context)
+            itemAnimator = null
             addOnScrollListener(object : RecyclerView.OnScrollListener() {
                 override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                    isUserScrolling = newState == RecyclerView.SCROLL_STATE_DRAGGING ||
+                        newState == RecyclerView.SCROLL_STATE_SETTLING
                     if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
                         (parentFragment?.parentFragment as? RouteFragment)?.dismissSearchInputFocus()
                     }
@@ -75,9 +84,42 @@ class RecentRouteFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 searchViewModel.recentRoutes.collect { routes ->
-                    routeAdapter.submitList(routes)
+                    val shouldScrollToTop = shouldScrollToTop(routes)
+                    val uiItems = resolveRouteUiItems(routes)
+                    routeAdapter.submitList(uiItems)
+                    updateRouteSnapshot(routes)
+                    if (shouldScrollToTop) {
+                        binding.rvRecentRoute.scrollToPosition(0)
+                    }
                 }
             }
+        }
+    }
+
+    private fun shouldScrollToTop(routes: List<com.example.pace.data.model.RecentRoute>): Boolean {
+        if (!hasObservedRoutes || isUserScrolling) return false
+        val newFirstKey = routes.firstOrNull()?.routeKey()
+        val isDeletion = routes.size < lastRouteSize
+        return !isDeletion && newFirstKey != null && newFirstKey != lastFirstRouteKey
+    }
+
+    private fun updateRouteSnapshot(routes: List<com.example.pace.data.model.RecentRoute>) {
+        hasObservedRoutes = true
+        lastFirstRouteKey = routes.firstOrNull()?.routeKey()
+        lastRouteSize = routes.size
+    }
+
+    private fun com.example.pace.data.model.RecentRoute.routeKey(): String {
+        return "$startPlaceId:$endPlaceId:$saveTime"
+    }
+
+    private fun resolveRouteUiItems(routes: List<RecentRoute>): List<RecentRouteUiItem> {
+        return routes.map { route ->
+            RecentRouteUiItem(
+                route = route,
+                startPlaceName = route.startPlaceName.ifBlank { route.startPlaceId },
+                endPlaceName = route.endPlaceName.ifBlank { route.endPlaceId }
+            )
         }
     }
 

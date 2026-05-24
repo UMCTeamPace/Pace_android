@@ -28,6 +28,9 @@ class RouteViewModel @Inject constructor(
     private val _routeOnlySchedule = MutableLiveData<RouteOnlyScheduleData?>()
     val routeOnlySchedule: LiveData<RouteOnlyScheduleData?> get() = _routeOnlySchedule
 
+    private val _selectedRouteSchedule = MutableLiveData<RouteOnlyScheduleData?>()
+    val selectedRouteSchedule: LiveData<RouteOnlyScheduleData?> get() = _selectedRouteSchedule
+
     private val _routeScheduleList = MutableLiveData<List<RouteOnlyScheduleData>>()
     val routeScheduleList: LiveData<List<RouteOnlyScheduleData>> get() = _routeScheduleList
 
@@ -76,6 +79,23 @@ class RouteViewModel @Inject constructor(
         _routeResult.value = emptyList()
     }
 
+    fun selectRouteSchedule(schedule: RouteOnlyScheduleData) {
+        _selectedRouteSchedule.value = schedule
+    }
+
+    fun removeRouteScheduleLocally(scheduleId: Long) {
+        if (_routeOnlySchedule.value?.scheduleId == scheduleId) {
+            _routeOnlySchedule.value = null
+        }
+
+        if (_selectedRouteSchedule.value?.scheduleId == scheduleId) {
+            _selectedRouteSchedule.value = null
+        }
+
+        _routeScheduleList.value = _routeScheduleList.value.orEmpty()
+            .filterNot { it.scheduleId == scheduleId }
+    }
+
     fun fetchRouteOnlySchedule() {
         viewModelScope.launch {
             try {
@@ -116,7 +136,7 @@ class RouteViewModel @Inject constructor(
         }
     }
 
-    fun fetchAllRouteSchedules() {
+    fun fetchAllRouteSchedules(onResult: ((List<RouteOnlyScheduleData>) -> Unit)? = null) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
@@ -124,6 +144,7 @@ class RouteViewModel @Inject constructor(
                 val fullToken = if (token.isNotEmpty() && !token.startsWith("Bearer ")) "Bearer $token" else token
                 if (fullToken.isEmpty()) {
                     _routeScheduleList.value = emptyList()
+                    onResult?.invoke(emptyList())
                     return@launch
                 }
                 val today = LocalDate.now().toString()
@@ -135,22 +156,25 @@ class RouteViewModel @Inject constructor(
                 )
 
                 if (response.isSuccess) {
-                    val serverSchedules = response.result?.filterNotNull() ?: emptyList()
-                    _routeScheduleList.value = if (serverSchedules.isNotEmpty()) {
-                        serverSchedules
-                    } else {
-                        scheduleRepository.getLocalRouteSchedules(
-                            startDate = today,
-                            endDate = today
-                        )
-                    }
+                    val schedules = response.result?.filterNotNull() ?: emptyList()
+                    _routeScheduleList.value = schedules
+                    refreshSelectedRouteSchedule(schedules)
+                    onResult?.invoke(schedules)
+                } else {
+                    onResult?.invoke(emptyList())
                 }
             } catch (e: Exception) {
                 Log.e("RouteViewModel", "Fetch all route schedules failed: ${e.message}", e)
+                onResult?.invoke(emptyList())
             } finally {
                 _isLoading.value = false
             }
         }
+    }
+
+    private fun refreshSelectedRouteSchedule(schedules: List<RouteOnlyScheduleData>) {
+        val selectedId = _selectedRouteSchedule.value?.scheduleId ?: return
+        _selectedRouteSchedule.value = schedules.firstOrNull { it.scheduleId == selectedId }
     }
 
     fun updateScheduleForAdapter(assembledResponse: RouteResponse) {

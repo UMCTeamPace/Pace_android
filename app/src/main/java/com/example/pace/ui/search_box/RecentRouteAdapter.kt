@@ -4,7 +4,6 @@ import android.view.LayoutInflater
 import android.os.Handler
 import android.os.Looper
 import android.view.ViewGroup
-import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.daimajia.swipe.SwipeLayout
 import com.daimajia.swipe.SimpleSwipeListener
@@ -14,37 +13,25 @@ import com.example.pace.R
 import com.example.pace.data.model.RecentRoute
 import com.example.pace.databinding.ItemRecentRouteBinding
 
+data class RecentRouteUiItem(
+    val route: RecentRoute,
+    val startPlaceName: String,
+    val endPlaceName: String
+)
+
 class RecentRouteAdapter(
-    private val onItemClick: (RecentRoute) -> Unit,
+    private val onItemClick: (RecentRouteUiItem) -> Unit,
     private val onDeleteClick: (RecentRoute) -> Unit,
     private val onSwipeStart: () -> Unit = {}
 ) : RecyclerSwipeAdapter<RecentRouteAdapter.ViewHolder>() {
 
     private val mainHandler = Handler(Looper.getMainLooper())
-    private var items: List<RecentRoute> = emptyList()
+    private var items: List<RecentRouteUiItem> = emptyList()
 
-    fun submitList(newItems: List<RecentRoute>) {
-        val diffResult = DiffUtil.calculateDiff(
-            object : DiffUtil.Callback() {
-                override fun getOldListSize(): Int = items.size
-
-                override fun getNewListSize(): Int = newItems.size
-
-                override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-                    val oldItem = items[oldItemPosition]
-                    val newItem = newItems[newItemPosition]
-                    return oldItem.startPlaceId == newItem.startPlaceId &&
-                        oldItem.endPlaceId == newItem.endPlaceId
-                }
-
-                override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-                    return items[oldItemPosition] == newItems[newItemPosition]
-                }
-            }
-        )
-
+    fun submitList(newItems: List<RecentRouteUiItem>) {
+        mItemManger.closeAllItems()
         items = newItems.toList()
-        diffResult.dispatchUpdatesTo(this)
+        notifyDataSetChanged()
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -60,9 +47,14 @@ class RecentRouteAdapter(
         setMode(Attributes.Mode.Single)
 
         holder.binding.ivDelete.setOnClickListener {
-            mItemManger.closeItem(position)
+            val currentPosition = holder.bindingAdapterPosition
+            if (currentPosition == RecyclerView.NO_POSITION) return@setOnClickListener
+
+            val currentItem = items[currentPosition]
+            mItemManger.closeItem(currentPosition)
             mainHandler.postDelayed({
-                onDeleteClick(item)
+                removeItem(currentItem)
+                onDeleteClick(currentItem.route)
             }, 150)
         }
 
@@ -79,6 +71,11 @@ class RecentRouteAdapter(
 
     override fun getSwipeLayoutResourceId(position: Int): Int = R.id.item_recent_route
 
+    private fun removeItem(item: RecentRouteUiItem) {
+        items = items.filterNot { it == item }
+        notifyDataSetChanged()
+    }
+
     inner class ViewHolder(val binding: ItemRecentRouteBinding) : RecyclerView.ViewHolder(binding.root) {
         init {
             binding.root.showMode = SwipeLayout.ShowMode.LayDown
@@ -90,7 +87,7 @@ class RecentRouteAdapter(
             })
         }
 
-        fun bind(item: RecentRoute) {
+        fun bind(item: RecentRouteUiItem) {
             binding.root.close(false)
             binding.tvRouteStartText.text = item.startPlaceName
             binding.tvRouteEndText.text = item.endPlaceName

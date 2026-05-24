@@ -10,6 +10,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -30,6 +31,7 @@ import com.example.pace.ui.add_schedule.AddScheduleActivity
 import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.main.home.DeleteRepeatScheduleDialog
 import com.example.pace.ui.main.home.DeleteScheduleDialog
+import com.example.pace.util.ScheduleDisplayTextUtils
 import com.google.gson.Gson
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -82,11 +84,22 @@ class ScheduleDetailFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        configureChrome()
         setupClicks()
+        setupOnBackPressed()
         observeScheduleUpdates()
         observeRouteDetail()
         loadSchedule()
+    }
+
+    private fun setupOnBackPressed() {
+        requireActivity().onBackPressedDispatcher.addCallback(
+            viewLifecycleOwner,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    closeDetailScreen()
+                }
+            }
+        )
     }
 
     override fun onResume() {
@@ -94,30 +107,9 @@ class ScheduleDetailFragment : Fragment() {
         if (_binding != null) loadSchedule()
     }
 
-    private fun configureChrome() {
-        val activity = requireActivity() as? MainActivity ?: return
-        activity.binding.mainToolbar.visibility = View.GONE
-        activity.binding.mainBnv.visibility = View.GONE
-    }
-
-    private fun restoreChrome() {
-        val activity = activity as? MainActivity ?: return
-        activity.binding.mainToolbar.visibility = View.VISIBLE
-        activity.binding.mainBnv.visibility = View.VISIBLE
-        activity.binding.mainLogoIv.visibility = View.GONE
-        activity.binding.mainSettingsIv.visibility = View.GONE
-        activity.binding.scheduleTitleTv.visibility = View.VISIBLE
-        activity.binding.scheduleActionContainer.visibility = View.VISIBLE
-        activity.binding.scheduleSearchIv.visibility = View.VISIBLE
-        activity.binding.scheduleAddIv.visibility = View.VISIBLE
-        activity.binding.scheduleEditIv.visibility = View.GONE
-        activity.binding.mainBackIv.visibility = View.GONE
-        activity.binding.mainSearchLl.visibility = View.GONE
-    }
-
     private fun setupClicks() {
         binding.btnBack.setOnClickListener {
-            requireActivity().supportFragmentManager.popBackStack()
+            closeDetailScreen()
         }
 
         binding.btnEdit.setOnClickListener {
@@ -193,7 +185,7 @@ class ScheduleDetailFragment : Fragment() {
             ?: schedule.calendarColor
             ?: requireContext().getColor(R.color.schedule_18)
         binding.viewScheduleColor.backgroundTintList = ColorStateList.valueOf(color)
-        binding.tvScheduleTitle.text = schedule.title ?: "제목 없음"
+        binding.tvScheduleTitle.text = ScheduleDisplayTextUtils.titleOrDefault(schedule.title)
 
         val displayStartDate = resolveDisplayStartDate(schedule)
         val displayEndDate = resolveDisplayEndDate(schedule, displayStartDate)
@@ -539,7 +531,7 @@ class ScheduleDetailFragment : Fragment() {
                 DeleteScheduleDialog(requireContext()).apply {
                     setOnConfirmListener {
                         viewModel.deleteSchedule(schedule.id, withRoute = true)
-                        requireActivity().supportFragmentManager.popBackStack()
+                        closeDetailScreen()
                     }
                 }.show()
             }
@@ -551,7 +543,7 @@ class ScheduleDetailFragment : Fragment() {
                             "ONLY_THIS" -> viewModel.deleteOnlyThisOccurrence(schedule, parseDate(currentOccurrenceDate))
                             "ALL" -> viewModel.deleteSchedule(schedule.id, withRoute = false)
                         }
-                        requireActivity().supportFragmentManager.popBackStack()
+                        closeDetailScreen()
                     }
                 }.show()
             }
@@ -560,16 +552,21 @@ class ScheduleDetailFragment : Fragment() {
                 DeleteScheduleDialog(requireContext()).apply {
                     setOnConfirmListener {
                         viewModel.deleteSchedule(schedule.id, withRoute = false)
-                        requireActivity().supportFragmentManager.popBackStack()
+                        closeDetailScreen()
                     }
                 }.show()
             }
         }
     }
 
+    private fun closeDetailScreen() {
+        parentFragmentManager.popBackStack()
+        (requireActivity() as MainActivity).hideOverlayContainerIfEmpty()
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
-        restoreChrome()
+        (requireActivity() as MainActivity).hideOverlayContainerIfEmpty()
         _binding = null
     }
 

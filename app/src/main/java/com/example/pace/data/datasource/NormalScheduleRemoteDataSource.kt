@@ -47,10 +47,9 @@ class NormalScheduleRemoteDataSource @Inject constructor(
             put(CalendarContract.Events.CALENDAR_ID, selectedCalendarId ?: 1L)
             put(CalendarContract.Events.EVENT_TIMEZONE, timing.timeZoneId)
 
-            // Color
-            val finalColor = if (selectedColor != null && selectedColor != 0) selectedColor
-            else android.graphics.Color.parseColor("#DC354B")
-            put(CalendarContract.Events.EVENT_COLOR, finalColor)
+            if (selectedColor != null && selectedColor != 0) {
+                put(CalendarContract.Events.EVENT_COLOR, selectedColor)
+            }
 
             // Repeating events should use DURATION instead of DTEND
             if (!generatedRrule.isNullOrEmpty()) {
@@ -203,7 +202,6 @@ class NormalScheduleRemoteDataSource @Inject constructor(
                     val calendarColor = it.getInt(calColorIdx)
 
                     val reminders = fetchReminders(id)
-
                     scheduleList.add(
                         Schedule(
                             id = id,
@@ -363,8 +361,10 @@ class NormalScheduleRemoteDataSource @Inject constructor(
 
             put(CalendarContract.Events.CALENDAR_ID, schedule.calendarId)
 
-            schedule.eventColor?.let {
-                put(CalendarContract.Events.EVENT_COLOR, it)
+            if (schedule.eventColor != null && schedule.eventColor != 0) {
+                put(CalendarContract.Events.EVENT_COLOR, schedule.eventColor)
+            } else {
+                putNull(CalendarContract.Events.EVENT_COLOR)
             }
 
             if (!schedule.repeatRule.isNullOrEmpty()) {

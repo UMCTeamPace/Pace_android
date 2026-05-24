@@ -9,6 +9,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
@@ -26,9 +27,12 @@ import com.example.pace.ui.main.MainActivity
 import com.example.pace.data.viewmodel.ScheduleViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.launch
 import androidx.fragment.app.activityViewModels // 추가 확인
 import com.example.pace.data.model.response.ScheduleDetailResponse
+import com.example.pace.util.ScheduleSortUtils
+import com.example.pace.util.ScheduleUiRefreshTicker
 import dagger.hilt.android.AndroidEntryPoint // 1. 추가
 
 @AndroidEntryPoint
@@ -42,6 +46,28 @@ class HomeFragment: Fragment() {
     private var pendingResetToToday = false
     private var lastRenderedScheduleDate: LocalDate? = null
     private var suppressNextScheduleAnimation = false
+    private var pendingModalEditDate: LocalDate? = null
+    private var calendarBaseDate: LocalDate? = null
+    private val scheduleUiRefreshTicker = ScheduleUiRefreshTicker {
+        if (isViewReady) {
+            filterAndDisplaySchedules()
+        }
+    }
+
+    private val scheduleActivityLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode != android.app.Activity.RESULT_OK) return@registerForActivityResult
+        val resultDate = extractScheduleResultDate(result.data) ?: return@registerForActivityResult
+        val modalDate = pendingModalEditDate
+        pendingModalEditDate = null
+
+        if (modalDate != null && modalDate != resultDate) {
+            modalCaseDialog?.dismiss()
+            modalCaseDialog = null
+        }
+        selectDateFromExternal(resultDate)
+    }
 
     // 선택한 날짜 저장 및 불러오기
     private lateinit var spf: SharedPreferences
@@ -65,7 +91,8 @@ class HomeFragment: Fragment() {
         setupObservers()
 
         binding.homeAddScheduleLl.setOnClickListener {
-            startActivity(Intent(context, AddScheduleActivity::class.java))
+            pendingModalEditDate = null
+            scheduleActivityLauncher.launch(Intent(context, AddScheduleActivity::class.java))
         }
 
         isViewReady = true
@@ -99,24 +126,23 @@ class HomeFragment: Fragment() {
                     position,
                     selectedDate,
                     viewModel,
-                    viewLifecycleOwner
+                    viewLifecycleOwner,
+                    onRouteScheduleClick = { routeSchedule ->
+                        (requireActivity() as MainActivity).openRouteTabWithSelectedRouteSchedule(routeSchedule)
+                        modalCaseDialog?.dismiss()
+                    },
+                    onScheduleEditClick = { schedule ->
+                        pendingModalEditDate = selectedDate
+                        launchScheduleEdit(schedule)
+                    }
                 ).also { dialog ->
                     dialog.setOnDismissListener { modalCaseDialog = null }
                     dialog.show()
                 }
             }
             override fun onEdit(schedule: Schedule) {
-                val intent = Intent(requireContext(), AddScheduleActivity::class.java).apply {
-                    putExtra("isEdit", true)
-                    putExtra("SCHEDULE_ID", schedule.id)
-                    putExtra("OCCURRENCE_DATE", schedule.startDate)
-                    putExtra("SCHEDULE_TYPE", schedule.type) // ⭐ 타입 명시 (ROUTE 또는 GENERAL)
-
-                    if (schedule.type == "ROUTE") {
-                        putExtra("OPEN_ROUTE_TAB", true)
-                    }
-                }
-                startActivity(intent)
+                pendingModalEditDate = null
+                launchScheduleEdit(schedule)
             }
 
             override fun onDelete(schedule: Schedule) {
@@ -156,10 +182,11 @@ class HomeFragment: Fragment() {
     private fun setupCalendar() {
         val calendarSize = 1000000
         val date: LocalDate = selectedDate
+        calendarBaseDate = date
         val layoutManager = binding.homeHorizontalCalendarRv.layoutManager as LinearLayoutManager
         val datePos = calendarSize / 2
         calendarCenterPosition = datePos
-        var calendarText = date.year.toString() + "년 " + date.monthValue.toString() + "월"
+        var calendarText = formatCalendarMonthText(date)
 
         horizontalCalendarAdapter = HorizontalCalendarRVAdapter(date)
         binding.homeHorizontalCalendarRv.adapter = horizontalCalendarAdapter
@@ -225,7 +252,7 @@ class HomeFragment: Fragment() {
                             date.minusDays(diff)
                         }
 
-                        calendarText = centerDate.year.toString() + "년 " + centerDate.monthValue.toString() + "월"
+                        calendarText = formatCalendarMonthText(centerDate)
                         binding.homeHorizontalCalendarTv.text = calendarText
                         
                         selectedDate = centerDate
@@ -234,7 +261,42 @@ class HomeFragment: Fragment() {
                     }
                 }
             }
+
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+
+                val centerPosition = findCenterCalendarPosition(recyclerView) ?: return
+                val centerDate = dateForCalendarPosition(centerPosition, date, datePos)
+                binding.homeHorizontalCalendarTv.text = formatCalendarMonthText(centerDate)
+            }
         })
+    }
+
+    private fun findCenterCalendarPosition(recyclerView: RecyclerView): Int? {
+        val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return null
+        val centerX = recyclerView.width / 2
+        var closestPosition: Int? = null
+        var closestDistance = Int.MAX_VALUE
+
+        for (index in 0 until layoutManager.childCount) {
+            val child = layoutManager.getChildAt(index) ?: continue
+            val childCenterX = (child.left + child.right) / 2
+            val distance = kotlin.math.abs(childCenterX - centerX)
+            if (distance < closestDistance) {
+                closestDistance = distance
+                closestPosition = recyclerView.getChildAdapterPosition(child)
+            }
+        }
+
+        return closestPosition?.takeIf { it != RecyclerView.NO_POSITION }
+    }
+
+    private fun dateForCalendarPosition(position: Int, baseDate: LocalDate, basePosition: Int): LocalDate {
+        return baseDate.plusDays((position - basePosition).toLong())
+    }
+
+    private fun formatCalendarMonthText(date: LocalDate): String {
+        return date.year.toString() + "년 " + date.monthValue.toString() + "월"
     }
 
     private fun setupObservers() {
@@ -276,14 +338,7 @@ class HomeFragment: Fragment() {
         val routeSchedules = filteredList.filter { it.type == "ROUTE" }
 
 
-        // 정렬 로직 추가 (필요 시: 고정 -> 시간순)
-        val sortedList = filteredList.sortedWith(
-            compareBy(
-                { !it.isPinned },
-                { !it.isAllDay },
-                { it.startTime }
-            )
-        )
+        val sortedList = filteredList.sortedWith(ScheduleSortUtils.displayComparator())
 
         val shouldSuppressAnimation =
             suppressNextScheduleAnimation ||
@@ -294,6 +349,7 @@ class HomeFragment: Fragment() {
         }
 
         scheduleAdapter.updateData(sortedList, viewModel.routeDetails.value)
+        scheduleUiRefreshTicker.schedule(sortedList)
         lastRenderedScheduleDate = selectedDate
 
         if (shouldSuppressAnimation) {
@@ -316,18 +372,61 @@ class HomeFragment: Fragment() {
         }
     }
 
-    override fun onStop() {
-        modalCaseDialog?.dismiss()
-        modalCaseDialog = null
-        super.onStop()
-    }
-
     fun resetToToday() {
         if (!isAdded || !isViewReady) {
             pendingResetToToday = true
             return
         }
         performResetToToday()
+    }
+
+    fun selectDateFromExternal(date: LocalDate) {
+        if (!isAdded || !isViewReady) {
+            spf.edit().putString("SELECTED_DATE", date.toString()).apply()
+            selectedDate = date
+            return
+        }
+
+        suppressNextScheduleAnimation = true
+        selectedDate = date
+        spf.edit().putString("SELECTED_DATE", selectedDate.toString()).apply()
+        viewModel.setSelectedDate(selectedDate)
+
+        if (::horizontalCalendarAdapter.isInitialized) {
+            val baseDate = calendarBaseDate ?: selectedDate
+            val targetPosition = calendarCenterPosition + ChronoUnit.DAYS.between(baseDate, selectedDate).toInt()
+            binding.homeHorizontalCalendarTv.text = formatCalendarMonthText(selectedDate)
+            horizontalCalendarAdapter.changeSelectedDate(targetPosition)
+            binding.homeHorizontalCalendarRv.post {
+                val layoutManager = binding.homeHorizontalCalendarRv.layoutManager as? LinearLayoutManager ?: return@post
+                val screenWidth = binding.homeHorizontalCalendarRv.width
+                val itemWidth = screenWidth / 7
+                val offset = (screenWidth / 2) - (itemWidth / 2)
+                layoutManager.scrollToPositionWithOffset(targetPosition, offset)
+            }
+        }
+
+        filterAndDisplaySchedules()
+    }
+
+    private fun launchScheduleEdit(schedule: Schedule) {
+        val intent = Intent(requireContext(), AddScheduleActivity::class.java).apply {
+            putExtra("isEdit", true)
+            putExtra("SCHEDULE_ID", schedule.id)
+            putExtra("OCCURRENCE_DATE", schedule.startDate)
+            putExtra("SCHEDULE_TYPE", schedule.type)
+            if (schedule.type == "ROUTE") {
+                putExtra("OPEN_ROUTE_TAB", true)
+            }
+        }
+        scheduleActivityLauncher.launch(intent)
+    }
+
+    private fun extractScheduleResultDate(data: Intent?): LocalDate? {
+        val dateText = data?.getStringExtra("SAVED_SCHEDULE_DATE")
+            ?: data?.getStringExtra("UPDATED_OCCURRENCE_DATE")
+            ?: return null
+        return runCatching { LocalDate.parse(dateText.take(10)) }.getOrNull()
     }
 
     private fun performResetToToday() {
@@ -362,6 +461,7 @@ class HomeFragment: Fragment() {
     override fun onDestroyView() {
         modalCaseDialog?.dismiss()
         modalCaseDialog = null
+        scheduleUiRefreshTicker.cancel()
         isViewReady = false
         super.onDestroyView()
     }

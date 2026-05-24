@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:clickable="true"
+    android:focusable="true"
+    android:visibility="visible">
+
+    <LinearLayout
+        android:id="@+id/btn_restore_bottom_sheet"
+        android:layout_width="95dp"
+        android:layout_height="40dp"
+        android:background="@drawable/bg_bottom_sheet_restore_chip"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingEnd="16dp"
+        android:paddingVertical="10dp">
+
+        <ImageView
+            android:id="@+id/iv_restore_bottom_sheet_arrow"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginVertical="2dp"
+            android:src="@drawable/ic_arrow_up"
+            app:tint="@color/gray_500" />
+
+        <TextView
+            android:id="@+id/tv_restore_bottom_sheet"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="2dp"
+            android:text="목록보기"
+            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+            android:textColor="@color/text_secondary" />
+
+    </LinearLayout>
+
+</FrameLayout>

@@ -4,9 +4,11 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
+import androidx.activity.OnBackPressedCallback
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
@@ -22,6 +24,8 @@ import com.example.pace.ui.add_schedule.AddScheduleActivity
 import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.main.home.DeleteRepeatScheduleDialog
 import com.example.pace.ui.main.home.DeleteScheduleDialog
+import com.example.pace.util.ScheduleSortUtils
+import com.example.pace.util.ScheduleUiRefreshTicker
 import com.example.pace.util.SearchTextMatcher
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
@@ -34,6 +38,13 @@ class SearchFragment : Fragment() {
 
     private lateinit var searchAdapter: SearchAdapter
     private var recyclerView: RecyclerView? = null
+    private var latestSearchResults: List<Schedule> = emptyList()
+    private val scheduleUiRefreshTicker = ScheduleUiRefreshTicker {
+        if (_binding != null && latestSearchResults.isNotEmpty()) {
+            showSearchResults(transformToSearchItems(latestSearchResults))
+            scheduleCurrentSearchRefresh()
+        }
+    }
 
     private val viewModel: ScheduleViewModel by lazy {
         (requireActivity() as MainActivity).getSharedViewModel()
@@ -54,15 +65,25 @@ class SearchFragment : Fragment() {
         setupRecyclerView()
         setupSearchInput()
         setupButtons()
+        setupOnBackPressed()
+        setupKeyboardDismissOnTouch()
         observeSearchResults()
 
         showInitialState()
 
         binding.etSearch.requestFocus()
         showKeyboard()
+    }
 
-        (requireActivity() as MainActivity).binding.mainToolbar.visibility = View.GONE
-        (requireActivity() as MainActivity).binding.mainBnv.visibility = View.GONE
+    private fun setupOnBackPressed() {
+        requireActivity().onBackPressedDispatcher.addCallback(
+            viewLifecycleOwner,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    closeSearchScreen()
+                }
+            }
+        )
     }
 
     private fun setupRecyclerView() {
@@ -91,6 +112,9 @@ class SearchFragment : Fragment() {
                 }
                 startActivity(intent)
             },
+            onItemClick = { schedule ->
+                openScheduleDetail(schedule)
+            },
             onEditSelect = { id ->
                 viewModel.toggleSelection(id)
             }
@@ -103,6 +127,13 @@ class SearchFragment : Fragment() {
             )
             layoutManager = LinearLayoutManager(context)
             adapter = searchAdapter
+            setOnTouchListener { _, event ->
+                if (event.action == MotionEvent.ACTION_DOWN) {
+                    binding.etSearch.clearFocus()
+                    hideKeyboard()
+                }
+                false
+            }
         }
     }
 
@@ -111,16 +142,19 @@ class SearchFragment : Fragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
                     viewModel.searchResults.collectLatest { results ->
+                        latestSearchResults = results
                         val query = binding.etSearch.text.toString().trim()
                         searchAdapter.updateQuery(query)
 
-                        if (query.isEmpty()) {
+                        val hasActiveCriteria = viewModel.hasActiveSearchCriteria()
+                        if (query.isEmpty() && !hasActiveCriteria) {
                             showInitialState()
                         } else if (results.isEmpty()) {
                             showEmptyState()
                         } else {
                             val uiItems = transformToSearchItems(results)
                             showSearchResults(uiItems)
+                            scheduleUiRefreshTicker.schedule(results)
 
                             results.filter { it.type == "ROUTE" }.forEach {
                                 viewModel.fetchRouteDetail(it.id)
@@ -147,7 +181,8 @@ class SearchFragment : Fragment() {
     private fun setupSearchInput() {
         binding.etSearch.addTextChangedListener { text ->
             val query = text?.toString()?.trim() ?: ""
-            if (query.isEmpty()) {
+            searchAdapter.updateQuery(query)
+            if (query.isEmpty() && !viewModel.hasActiveSearchCriteria()) {
                 viewModel.clearSearch()
                 showInitialState()
             } else {
@@ -158,8 +193,7 @@ class SearchFragment : Fragment() {
 
     private fun setupButtons() {
         binding.btnBack.setOnClickListener {
-            hideKeyboard()
-            parentFragmentManager.popBackStack()
+            closeSearchScreen()
         }
 
         binding.ivList.setOnClickListener {
@@ -167,7 +201,27 @@ class SearchFragment : Fragment() {
         }
     }
 
+    private fun setupKeyboardDismissOnTouch() {
+        binding.root.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                binding.etSearch.clearFocus()
+                hideKeyboard()
+            }
+            false
+        }
+
+        binding.searchResultContainer.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                binding.etSearch.clearFocus()
+                hideKeyboard()
+            }
+            false
+        }
+    }
+
     private fun showInitialState() {
+        latestSearchResults = emptyList()
+        scheduleUiRefreshTicker.cancel()
         binding.searchResultContainer.removeAllViews()
         binding.searchResultContainer.visibility = View.GONE
         searchAdapter.submitList(emptyList())
@@ -175,6 +229,7 @@ class SearchFragment : Fragment() {
     }
 
     private fun showEmptyState() {
+        scheduleUiRefreshTicker.cancel()
         binding.searchResultContainer.removeAllViews()
         binding.searchResultContainer.visibility = View.VISIBLE
         val emptyBinding = LayoutSearchEmptyBinding.inflate(layoutInflater, binding.searchResultContainer, true)
@@ -197,6 +252,10 @@ class SearchFragment : Fragment() {
         searchAdapter.submitList(items)
     }
 
+    private fun scheduleCurrentSearchRefresh() {
+        scheduleUiRefreshTicker.schedule(latestSearchResults)
+    }
+
     private fun showKeyboard() {
         binding.etSearch.postDelayed({
             val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
@@ -209,6 +268,35 @@ class SearchFragment : Fragment() {
         binding.etSearch.clearFocus()
         val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.hideSoftInputFromWindow(binding.etSearch.windowToken, 0)
+    }
+
+    private fun closeSearchScreen() {
+        hideKeyboard()
+        viewModel.resetSearchState()
+        parentFragmentManager.popBackStack()
+        (requireActivity() as MainActivity).hideOverlayContainerIfEmpty()
+    }
+
+    private fun openScheduleDetail(schedule: Schedule) {
+        hideKeyboard()
+        (requireActivity() as MainActivity).binding.mainOverlayFcv.visibility = View.VISIBLE
+        parentFragmentManager.beginTransaction()
+            .setCustomAnimations(
+                com.example.pace.R.anim.fade_in_fast,
+                com.example.pace.R.anim.fade_out_fast,
+                com.example.pace.R.anim.fade_in_fast,
+                com.example.pace.R.anim.fade_out_fast
+            )
+            .add(
+                com.example.pace.R.id.main_overlay_fcv,
+                ScheduleDetailFragment.newInstance(
+                    scheduleId = schedule.id,
+                    occurrenceDate = schedule.startDate,
+                    scheduleType = schedule.type
+                )
+            )
+            .addToBackStack(null)
+            .commit()
     }
 
     private fun showDeleteDialog(schedule: Schedule) {
@@ -250,13 +338,7 @@ class SearchFragment : Fragment() {
             resultList.add(ScheduleListItem.DateHeader(formatDateToHeader(date)))
 
             grouped[dateStr]?.let { daySchedules ->
-                val sortedList = daySchedules.sortedWith(
-                    compareBy(
-                        { !it.isPinned },
-                        { !it.isAllDay },
-                        { it.startTime }
-                    )
-                )
+                val sortedList = daySchedules.sortedWith(ScheduleSortUtils.displayComparator())
                 resultList.addAll(sortedList.map { ScheduleListItem.ScheduleItem(it) })
             }
         }
@@ -273,10 +355,10 @@ class SearchFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        scheduleUiRefreshTicker.cancel()
         hideKeyboard()
         super.onDestroyView()
-        (requireActivity() as MainActivity).binding.mainToolbar.visibility = View.VISIBLE
-        (requireActivity() as MainActivity).binding.mainBnv.visibility = View.VISIBLE
+        (requireActivity() as MainActivity).hideOverlayContainerIfEmpty()
         _binding = null
     }
 }

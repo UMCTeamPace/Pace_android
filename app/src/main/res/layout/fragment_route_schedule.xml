@@ -65,22 +65,14 @@
                     android:id="@+id/layout_color_selector"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginHorizontal="12dp"
-                    android:layout_marginTop="4dp"
-                    android:background="@drawable/box_schedule"
-                    android:gravity="start"
-                    android:orientation="horizontal"
-                    android:padding="4dp"
+                    android:layout_marginTop="12dp"
                     android:visibility="gone">
 
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/rvColors"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:clipToPadding="false"
-                        android:overScrollMode="never"
-                        android:paddingStart="4dp"
-                        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+                        android:overScrollMode="never" />
                 </LinearLayout>
             </LinearLayout>
 
@@ -321,9 +313,12 @@
 
                         <TextView
                             android:id="@+id/route_tv"
-                            android:layout_width="wrap_content"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="4dp"
+                            android:layout_weight="1"
+                            android:ellipsize="end"
+                            android:maxLines="1"
                             android:text="경로"
                             android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
                             android:textColor="@color/text_tertiary"/>
@@ -450,9 +445,12 @@
 
                     <TextView
                         android:id="@+id/tv_alarm_status"
-                        android:layout_width="wrap_content"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="4dp"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:maxLines="1"
                         android:text="일정 알림 안함"
                         android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
                         android:textColor="@color/text_tertiary" />
@@ -478,9 +476,12 @@
 
                     <TextView
                         android:id="@+id/tv_startalarm_status"
-                        android:layout_width="wrap_content"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="4dp"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:maxLines="1"
                         android:text="출발 알림 안함"
                         android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
                         android:textColor="@color/text_tertiary" />
@@ -530,7 +531,7 @@
 
                 <LinearLayout
                     android:id="@+id/btn_calendar"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
@@ -543,9 +544,12 @@
 
                     <TextView
                         android:id="@+id/tv_calendar_status"
-                        android:layout_width="wrap_content"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="4dp"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:maxLines="1"
                         android:text="캘린더"
                         android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
                         android:textColor="@color/text_tertiary" />

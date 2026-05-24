@@ -11,6 +11,7 @@ import com.example.pace.R
 import com.example.pace.data.model.response.RouteOnlyScheduleData
 import com.example.pace.databinding.ItemRouteScheduleHeaderBinding
 import com.example.pace.databinding.ItemScheduleBinding
+import com.example.pace.util.ScheduleDisplayTextUtils
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -67,7 +68,7 @@ class RouteScheduleListAdapter(
             val info = data.scheduleInfo
             val route = data.route
 
-            binding.scheduleTitleTv.text = info.title ?: "제목 없음"
+            binding.scheduleTitleTv.text = ScheduleDisplayTextUtils.titleOrDefault(info.title)
 
             val startTime = info.startTime?.take(5) ?: "00:00"
             val endTime = info.endTime?.take(5) ?: "00:00"

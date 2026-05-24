@@ -58,14 +58,22 @@
             android:clickable="true"
             android:focusable="true">
 
-            <ImageView
-                android:id="@+id/iv_home_icon"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:src="@drawable/ic_bookmark_home"
+            <FrameLayout
+                android:id="@+id/frame_home_icon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:background="@drawable/shape_circle_border_gray"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent" />
+                app:layout_constraintBottom_toBottomOf="parent">
+
+                <ImageView
+                    android:id="@+id/iv_home_icon"
+                    android:layout_width="11.68dp"
+                    android:layout_height="12.09dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_home_unselected" />
+            </FrameLayout>
 
             <TextView
                 android:id="@+id/tv_home_address"
@@ -78,7 +86,7 @@
                 android:textSize="14sp"
                 android:ellipsize="end"
                 android:maxLines="1"
-                app:layout_constraintStart_toEndOf="@id/iv_home_icon"
+                app:layout_constraintStart_toEndOf="@id/frame_home_icon"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent" />
@@ -140,14 +148,22 @@
             android:clickable="true"
             android:focusable="true">
 
-            <ImageView
-                android:id="@+id/iv_work_icon"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:src="@drawable/ic_bookmark_work"
+            <FrameLayout
+                android:id="@+id/frame_work_icon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:background="@drawable/shape_circle_border_gray"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent" />
+                app:layout_constraintBottom_toBottomOf="parent">
+
+                <ImageView
+                    android:id="@+id/iv_work_icon"
+                    android:layout_width="11.11dp"
+                    android:layout_height="12dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_work_unselected" />
+            </FrameLayout>
 
             <TextView
                 android:id="@+id/tv_work_name"
@@ -160,7 +176,7 @@
                 android:textSize="14sp"
                 android:ellipsize="end"
                 android:maxLines="1"
-                app:layout_constraintStart_toEndOf="@id/iv_work_icon"
+                app:layout_constraintStart_toEndOf="@id/frame_work_icon"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent" />

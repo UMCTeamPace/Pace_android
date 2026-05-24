@@ -81,6 +81,14 @@ interface ScheduleDao {
     """)
     suspend fun getServerRouteSchedulesInRange(startDate: String, endDate: String): List<Schedule>
 
+    @Query("""
+        SELECT id FROM schedules
+        WHERE source_type = 'SERVER'
+        AND type = 'ROUTE'
+        AND end_date < :cutoffDate
+    """)
+    suspend fun getExpiredServerRouteScheduleIds(cutoffDate: String): List<Long>
+
     @Query("DELETE FROM schedules WHERE id IN (:scheduleIds)")
     suspend fun deleteSchedulesByIds(scheduleIds: List<Long>)
 

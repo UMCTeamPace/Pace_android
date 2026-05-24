@@ -1,10 +1,12 @@
 package com.example.pace.ui.search_box
 
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.view.LayoutInflater
 import android.os.Handler
 import android.os.Looper
+import android.view.View
 import android.view.ViewGroup
-import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.daimajia.swipe.SwipeLayout
 import com.daimajia.swipe.adapters.RecyclerSwipeAdapter
@@ -22,29 +24,17 @@ class RecentHistoryAdapter(
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private var items: List<RecentHistoryItem> = emptyList()
+    private var savedStarColorsByPlaceId: Map<String, String> = emptyMap()
 
     fun submitList(newItems: List<RecentHistoryItem>) {
-        val diffResult = DiffUtil.calculateDiff(
-            object : DiffUtil.Callback() {
-                override fun getOldListSize(): Int = items.size
-
-                override fun getNewListSize(): Int = newItems.size
-
-                override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-                    val oldItem = items[oldItemPosition]
-                    val newItem = newItems[newItemPosition]
-                    return oldItem.mainText == newItem.mainText &&
-                        oldItem.timestamp == newItem.timestamp
-                }
-
-                override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-                    return items[oldItemPosition] == newItems[newItemPosition]
-                }
-            }
-        )
-
+        mItemManger.closeAllItems()
         items = newItems.toList()
-        diffResult.dispatchUpdatesTo(this)
+        notifyDataSetChanged()
+    }
+
+    fun updateSavedStarColors(colorsByPlaceId: Map<String, String>) {
+        savedStarColorsByPlaceId = colorsByPlaceId
+        notifyDataSetChanged()
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -60,9 +50,14 @@ class RecentHistoryAdapter(
         setMode(Attributes.Mode.Single)
 
         holder.binding.ivDelete.setOnClickListener {
-            mItemManger.closeItem(position)
+            val currentPosition = holder.bindingAdapterPosition
+            if (currentPosition == RecyclerView.NO_POSITION) return@setOnClickListener
+
+            val currentItem = items[currentPosition]
+            mItemManger.closeItem(currentPosition)
             mainHandler.postDelayed({
-                onDeleteClick(item)
+                removeItem(currentItem)
+                onDeleteClick(currentItem)
             }, 150)
         }
 
@@ -78,6 +73,11 @@ class RecentHistoryAdapter(
     override fun getItemCount(): Int = items.size
 
     override fun getSwipeLayoutResourceId(position: Int): Int = R.id.item_recent_history
+
+    private fun removeItem(item: RecentHistoryItem) {
+        items = items.filterNot { it == item }
+        notifyDataSetChanged()
+    }
 
     inner class ViewHolder(val binding: ItemRecentHistoryBinding) : RecyclerView.ViewHolder(binding.root) {
         private var suppressSwipeCallback = false
@@ -99,12 +99,40 @@ class RecentHistoryAdapter(
             binding.root.close(false)
             suppressSwipeCallback = false
             binding.tvHistoryText.text = item.mainText
-            val iconRes = if (item.type == RecentHistoryItem.TYPE_SEARCH_TEXT) {
-                R.drawable.ic_history_search
-            } else {
-                R.drawable.ic_history_place
+            bindHistoryIcon(item)
+        }
+
+        private fun bindHistoryIcon(item: RecentHistoryItem) {
+            binding.ivHistoryIcon.imageTintList = null
+            binding.ivSavedStarLine.imageTintList = null
+            binding.ivSavedStarBg.visibility = View.GONE
+            binding.ivSavedStarLine.visibility = View.GONE
+            binding.ivHistoryIcon.visibility = View.VISIBLE
+
+            if (item.type == RecentHistoryItem.TYPE_SEARCH_TEXT) {
+                binding.ivHistoryIcon.setImageResource(R.drawable.ic_history_search)
+                return
             }
-            binding.ivHistoryIcon.setImageResource(iconRes)
+
+            val placeId = item.placeEntity?.placeId
+            val groupColor = placeId?.let { savedStarColorsByPlaceId[it] }
+            if (groupColor.isNullOrBlank()) {
+                binding.ivHistoryIcon.setImageResource(R.drawable.ic_history_place)
+                return
+            }
+
+            try {
+                binding.ivHistoryIcon.visibility = View.GONE
+                binding.ivSavedStarBg.visibility = View.VISIBLE
+                binding.ivSavedStarLine.visibility = View.VISIBLE
+                binding.ivSavedStarLine.imageTintList = ColorStateList.valueOf(Color.parseColor(groupColor))
+            } catch (e: Exception) {
+                binding.ivSavedStarBg.visibility = View.GONE
+                binding.ivSavedStarLine.visibility = View.GONE
+                binding.ivSavedStarLine.imageTintList = null
+                binding.ivHistoryIcon.visibility = View.VISIBLE
+                binding.ivHistoryIcon.setImageResource(R.drawable.ic_history_place)
+            }
         }
     }
 }

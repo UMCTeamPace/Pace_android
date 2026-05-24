@@ -1,8 +1,6 @@
 package com.example.pace.ui.main.calendar
 
 import android.content.Context
-import android.content.res.ColorStateList
-import android.graphics.Color
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.ForegroundColorSpan
@@ -10,7 +8,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
-import androidx.core.content.res.ResourcesCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.daimajia.swipe.SwipeLayout
@@ -21,6 +18,9 @@ import com.example.pace.data.model.response.RouteInfo
 import com.example.pace.databinding.ItemDateHeaderBinding
 import com.example.pace.databinding.ItemScheduleBinding
 import com.example.pace.ui.RouteCalculator
+import com.example.pace.util.ScheduleDisplayTextUtils
+import com.example.pace.util.ScheduleItemStyleUtils
+import com.example.pace.util.ScheduleSortUtils
 import com.example.pace.util.SearchTextMatcher
 import com.google.gson.Gson
 import java.time.LocalDate
@@ -33,6 +33,7 @@ class SearchAdapter(
     private val onPinClick: (Schedule) -> Unit,
     private val onDeleteClick: (Schedule) -> Unit,
     private val onEditClick: (Schedule) -> Unit,
+    private val onItemClick: (Schedule) -> Unit,
     private val onEditSelect: (Long) -> Unit,
     private var routeInfoMap: Map<Long, RouteInfo> = emptyMap()
 ) : RecyclerSwipeAdapter<RecyclerView.ViewHolder>() {
@@ -66,15 +67,7 @@ class SearchAdapter(
             when (item) {
                 is ScheduleListItem.DateHeader -> {
                     if (tempDayItems.isNotEmpty()) {
-                        finalItems.addAll(
-                            tempDayItems.sortedWith(
-                                compareBy(
-                                    { !it.schedule.isPinned },
-                                    { !it.schedule.isAllDay },
-                                    { it.schedule.startTime }
-                                )
-                            )
-                        )
+                        finalItems.addAll(sortScheduleItems(tempDayItems))
                         tempDayItems.clear()
                     }
                     finalItems.add(item)
@@ -85,18 +78,14 @@ class SearchAdapter(
         }
 
         if (tempDayItems.isNotEmpty()) {
-            finalItems.addAll(
-                tempDayItems.sortedWith(
-                    compareBy(
-                        { !it.schedule.isPinned },
-                        { !it.schedule.isAllDay },
-                        { it.schedule.startTime }
-                    )
-                )
-            )
+            finalItems.addAll(sortScheduleItems(tempDayItems))
         }
 
         updateData(finalItems, routeInfoMap)
+    }
+
+    private fun sortScheduleItems(items: List<ScheduleListItem.ScheduleItem>): List<ScheduleListItem.ScheduleItem> {
+        return items.sortedWith(compareBy(ScheduleSortUtils.displayComparator()) { it.schedule })
     }
 
     fun updateSelectedIds(ids: Set<Long>) {
@@ -217,10 +206,30 @@ class SearchAdapter(
         RecyclerView.ViewHolder(binding.root) {
         fun bind(date: String) {
             binding.dateHeaderTv.text = date
-            if(LocalDate.parse(date, DateTimeFormatter.ofPattern("yyyy년 MM월 dd일(E)", Locale.KOREAN)) == LocalDate.now()){
-                binding.dateHeaderTv.typeface = ResourcesCompat.getFont(context, R.font.pretendard_semibold)
-                binding.dateHeaderTv.setTextColor(R.color.text_primary)
-            }
+            val isToday = parseHeaderDate(date) == LocalDate.now()
+
+            binding.dateHeaderTv.setTextAppearance(
+                if (isToday) R.style.TextAppearance_App_BodyMd_SemiBold
+                else R.style.TextAppearance_App_BodyMd_Medium
+            )
+
+            binding.dateHeaderTv.setTextColor(
+                ContextCompat.getColor(
+                    context,
+                    if (isToday) R.color.text_primary else R.color.text_tertiary
+                )
+            )
+        }
+
+        private fun parseHeaderDate(text: String): LocalDate? {
+            val match = Regex("""(\d{4}).*?(\d{2}).*?(\d{2})""").find(text) ?: return null
+            return runCatching {
+                LocalDate.of(
+                    match.groupValues[1].toInt(),
+                    match.groupValues[2].toInt(),
+                    match.groupValues[3].toInt()
+                )
+            }.getOrNull()
         }
     }
 
@@ -228,7 +237,7 @@ class SearchAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(schedule: Schedule, query: String) {
-            val title = schedule.title ?: "제목 없음"
+            val title = ScheduleDisplayTextUtils.titleOrDefault(schedule.title)
             if (query.isBlank()) {
                 binding.scheduleTitleTv.text = title
             } else {
@@ -253,8 +262,7 @@ class SearchAdapter(
                 }
             }
 
-            val colorResId = schedule.eventColor ?: schedule.calendarColor ?: Color.parseColor("#A2BD3B")
-            binding.scheduleCategoryIv.imageTintList = ColorStateList.valueOf(colorResId)
+            val colorResId = ScheduleItemStyleUtils.resolveScheduleColor(schedule)
             binding.scheduleTimeTv.text =
                 if (schedule.isAllDay) "하루 종일" else "${schedule.startTime} - ${schedule.endTime}"
 
@@ -288,6 +296,27 @@ class SearchAdapter(
             binding.schedulePinnedIv.visibility = if (schedule.isPinned) View.VISIBLE else View.GONE
             binding.scheduleCheckbox.visibility = View.INVISIBLE
 
+            ScheduleItemStyleUtils.applyScheduleColors(
+                context = context,
+                schedule = schedule,
+                scheduleColor = colorResId,
+                titleViews = listOf(binding.scheduleTitleTv, binding.scheduleRouteNameTv),
+                secondaryViews = listOf(
+                    binding.scheduleTimeTv,
+                    binding.scheduleRepeatTv,
+                    binding.scheduleNormalLocationTv,
+                    binding.scheduleRouteRangeTv,
+                    binding.scheduleRouteDurationTv
+                ),
+                accentViews = listOf(
+                    binding.scheduleRepeatIv,
+                    binding.scheduleNormalLocationIv,
+                    binding.scheduleRouteLocationIv
+                ),
+                categoryView = binding.scheduleCategoryIv,
+                pinnedView = binding.schedulePinnedIv
+            )
+
             binding.root.showMode = SwipeLayout.ShowMode.LayDown
             binding.root.addDrag(SwipeLayout.DragEdge.Left, binding.scheduleLeftBottomWrapper)
             binding.root.addDrag(SwipeLayout.DragEdge.Right, binding.scheduleRightBottomWrapper)
@@ -306,6 +335,10 @@ class SearchAdapter(
             binding.scheduleDeleteIv.setOnClickListener {
                 onDeleteClick(schedule)
                 mItemManger.closeItem(bindingAdapterPosition)
+            }
+
+            binding.scheduleViewTop.setOnClickListener {
+                onItemClick(schedule)
             }
         }
 

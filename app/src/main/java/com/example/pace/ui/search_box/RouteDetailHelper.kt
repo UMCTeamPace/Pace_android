@@ -39,7 +39,15 @@ data class RealtimeParam(
 )
 
 object RouteDetailHelper {
-    fun setupData(context: Context, bottomSheetView: View, item: RouteResponse, destination: String, startName: String, fragmentManager: FragmentManager): List<RealtimeParam> {
+    fun setupData(
+        context: Context,
+        bottomSheetView: View,
+        item: RouteResponse,
+        destination: String,
+        startName: String,
+        fragmentManager: FragmentManager,
+        onRoutePointClick: ((Double, Double) -> Unit)? = null
+    ): List<RealtimeParam> {
         Log.d("RouteResponse:item.totalTime", item.totalTime.toString())
         val realtimeParams = mutableListOf<RealtimeParam>()
         val binding = BottomSheetRouteDetailBinding.bind(bottomSheetView)
@@ -108,6 +116,9 @@ object RouteDetailHelper {
                         expandedWalkBinding.itemRouteDetailWalkStartTv.text = departureTime
                     }else{
                         expandedWalkBinding.itemRouteDetailWalkStartTv.visibility = View.INVISIBLE
+                    }
+                    expandedWalkBinding.itemRouteDetailWalkIv.setOnClickListener {
+                        onRoutePointClick?.invoke(data.startLat, data.startLng)
                     }
                     binding.routeDetailExpandedLl.addView(expandedWalkBinding.root)
                 }
@@ -185,6 +196,9 @@ object RouteDetailHelper {
                     // 상세 정보
                     expandedVehicleBinding.itemRouteDetailVehicleIv.setImageDrawable(layoutDrawable)
                     expandedVehicleBinding.itemRouteDetailVehicleView.setBackgroundColor(lineColor)
+                    expandedVehicleBinding.itemRouteDetailVehicleIv.setOnClickListener {
+                        onRoutePointClick?.invoke(data.startLat, data.startLng)
+                    }
 
                     if(data.sequence == 1){
                         expandedVehicleBinding.itemRouteDetailVehicleStartTv.visibility = View.VISIBLE
@@ -265,6 +279,11 @@ object RouteDetailHelper {
         val arrivalBinding = ItemRouteDetailArrivalBinding.inflate(LayoutInflater.from(context))
         arrivalBinding.itemRouteDetailArrivalTimeTv.text = arrivalTime
         arrivalBinding.itemRouteDetailArrivalTv.text = destination
+        item.routeDetails.lastOrNull()?.let { lastDetail ->
+            arrivalBinding.itemRouteDetailArrivalIv.setOnClickListener {
+                onRoutePointClick?.invoke(lastDetail.endLat, lastDetail.endLng)
+            }
+        }
         binding.routeDetailExpandedLl.addView(arrivalBinding.root)
 
         return realtimeParams

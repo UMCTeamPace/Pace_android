@@ -49,8 +49,13 @@ class AddScheduleActivity : AppCompatActivity() {
                     putString("SCHEDULE_TYPE", intent.getStringExtra("SCHEDULE_TYPE"))
                     putString("OCCURRENCE_DATE", intent.getStringExtra("OCCURRENCE_DATE"))
                     putString("START_NAME", intent.getStringExtra("START_NAME"))
+                    putDouble("START_LAT", intent.getDoubleExtra("START_LAT", Double.NaN))
+                    putDouble("START_LNG", intent.getDoubleExtra("START_LNG", Double.NaN))
                     putString("END_NAME", intent.getStringExtra("END_NAME"))
+                    putDouble("END_LAT", intent.getDoubleExtra("END_LAT", Double.NaN))
+                    putDouble("END_LNG", intent.getDoubleExtra("END_LNG", Double.NaN))
                     putString("ROUTE_DETAIL", intent.getStringExtra("ROUTE_DETAIL"))
+                    putBoolean("FROM_ROUTE_SEARCH_RESULT", intent.getBooleanExtra("FROM_ROUTE_SEARCH_RESULT", false))
                     putInt("EARLY_ARRIVE_TIME", intent.getIntExtra("EARLY_ARRIVE_TIME", 0))
                 }
 

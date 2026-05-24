@@ -33,6 +33,7 @@ import com.kizitonwose.calendar.view.MonthDayBinder
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import com.example.pace.data.model.request.PlaceRequest
@@ -74,6 +75,12 @@ class GeneralScheduleFragment : Fragment() {
         END_TIME
     }
 
+    private enum class ExpandedPicker {
+        NONE,
+        CALENDAR,
+        TIME
+    }
+
     private var _binding: FragmentGeneralScheduleBinding? = null
     private val binding get() = _binding!!
 
@@ -82,6 +89,8 @@ class GeneralScheduleFragment : Fragment() {
 
     private var isEditingStartTime: Boolean = true
     private var activeInput: ActiveInput? = null
+    private var expandedPicker: ExpandedPicker = ExpandedPicker.NONE
+    private var isSyncingTimePicker = false
 
     private var isAllDay = true
 
@@ -98,10 +107,13 @@ class GeneralScheduleFragment : Fragment() {
     private var currentSelectedCalendarId: Long? = null
     private var currentSelectedCalendarName: String? = null
     private var currentSelectedCalendarColor: Int? = null
+    private var colorAdapter: ColorAdapter? = null
+    private var hasUserSelectedEventColor = false
 
     private val dateFormatter = DateTimeFormatter.ofPattern("M월 d일 (E)", Locale.KOREAN)
     val colorInt = android.graphics.Color.parseColor(selectedColorHex)
     private var currentRepeatInfo: RepeatInfo? = null
+    private var isRepeatChanged: Boolean = false
 
     private val settingsViewModel: SettingsViewModel by viewModels()
 
@@ -249,17 +261,15 @@ class GeneralScheduleFragment : Fragment() {
         binding.btnConfirm.setOnClickListener {
             val scheduleName = binding.etScheduleName.text.toString().trim()
 
-            // 1. 필수 유효성 체크 (일정명 및 시작일)
-            if (scheduleName.isEmpty()) {
-                Toast.makeText(context, "일정명을 입력해 주세요.", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
+            // 1. 필수 유효성 체크 (시작일)
             if (startDate == null) {
                 Toast.makeText(context, "시작 날짜를 선택해 주세요.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
             // 날짜 문자열 확정 (null 방지)
+            enforceValidTimeRange()
+
             val finalStartDateStr = startDate.toString()
             val finalEndDateStr = (endDate ?: startDate).toString()
 
@@ -284,7 +294,7 @@ class GeneralScheduleFragment : Fragment() {
             }
 
             // 색상 String -> Int 변환
-            val saveColorInt = getSaveColorInt()
+            val saveEventColorInt = getSelectedEventColorInt()
 
             if (isEditMode && scheduleIdForEdit != -1L) {
                 // A. 수정 모드
@@ -302,16 +312,16 @@ class GeneralScheduleFragment : Fragment() {
                             endTime = if (isAllDay) "23:59" else binding.tvEndTime.text.toString(),
                             isAllDay = isAllDay,
                             calendarId = currentSelectedCalendarId ?: existing.calendarId,
-                            eventColor = saveColorInt,
+                            eventColor = saveEventColorInt,
+                            calendarColor = currentSelectedCalendarColor ?: existing.calendarColor,
                             placeJson = placeRequest?.let { com.google.gson.Gson().toJson(it) },
                             reminders = currentSelectedAlarms?.toList() ?: existing.reminders,
 
                             // 💡 [핵심] 반복 정보 업데이트 (수정 시 repeatInfo를 RRULE로 변환하여 넣어줘야 함)
-                            repeatRule = if (currentRepeatInfo != null) {
-                                // ViewModel에 rrule 생성 함수가 있다면 활용
-                                viewModel.buildRRuleString(currentRepeatInfo)
-                            } else {
-                                existing.repeatRule // 변경 없으면 기존 값 유지
+                            repeatRule = when {
+                                currentRepeatInfo != null -> viewModel.buildRRuleString(currentRepeatInfo)
+                                isRepeatChanged -> null
+                                else -> existing.repeatRule
                             }
                         )
 
@@ -351,7 +361,7 @@ class GeneralScheduleFragment : Fragment() {
                     placeId = selectedPlaceId,
                     customAlarms = currentSelectedAlarms?.toList(),
                     calendarId = currentSelectedCalendarId,
-                    selectedColor = saveColorInt,
+                    selectedColor = saveEventColorInt,
                     repeatInfo = currentRepeatInfo // 보정된 RepeatInfo 전달
                 )
             }
@@ -392,17 +402,12 @@ class GeneralScheduleFragment : Fragment() {
                 .addToBackStack(null)
                 .commit()
         }
-
-        val dateClickAction = View.OnClickListener {
-            // 하루종일 여부와 상관없이 날짜는 항상 수정 가능해야 하므로 캘린더를 엽니다.
-            // 단, 캘린더가 열릴 때 시간 피커는 확실히 닫습니다.
-            showCalendar()
-        }
-
-        binding.btnStartDate.setOnClickListener(dateClickAction)
-        binding.btnEndDate.setOnClickListener(dateClickAction)
         binding.btnStartDate.setOnClickListener {
             dismissKeyboard()
+            if (expandedPicker == ExpandedPicker.CALENDAR && activeInput == ActiveInput.START_DATE) {
+                closeExpandedPicker()
+                return@setOnClickListener
+            }
             activeInput = ActiveInput.START_DATE
             updateDateDisplay()
             updateTimeVisibility()
@@ -410,6 +415,10 @@ class GeneralScheduleFragment : Fragment() {
         }
         binding.btnEndDate.setOnClickListener {
             dismissKeyboard()
+            if (expandedPicker == ExpandedPicker.CALENDAR && activeInput == ActiveInput.END_DATE) {
+                closeExpandedPicker()
+                return@setOnClickListener
+            }
             activeInput = ActiveInput.END_DATE
             updateDateDisplay()
             updateTimeVisibility()
@@ -421,23 +430,29 @@ class GeneralScheduleFragment : Fragment() {
         binding.tvStartTime.setOnClickListener {
             dismissKeyboard()
             if (isAllDay) return@setOnClickListener
+            if (expandedPicker == ExpandedPicker.TIME && activeInput == ActiveInput.START_TIME) {
+                closeExpandedPicker()
+                return@setOnClickListener
+            }
             isEditingStartTime = true
             activeInput = ActiveInput.START_TIME
             updateDateDisplay()
             updateTimeVisibility() // [수정] 피커를 보여주기 전에 색상부터 즉시 변경
             showTimePicker()
-            binding.calendarContainer.visibility = View.GONE
         }
 
         binding.tvEndTime.setOnClickListener {
             dismissKeyboard()
             if (isAllDay) return@setOnClickListener
+            if (expandedPicker == ExpandedPicker.TIME && activeInput == ActiveInput.END_TIME) {
+                closeExpandedPicker()
+                return@setOnClickListener
+            }
             isEditingStartTime = false
             activeInput = ActiveInput.END_TIME
             updateDateDisplay()
             updateTimeVisibility() // [수정] 즉시 초록색 불 켜기
             showTimePicker()
-            binding.calendarContainer.visibility = View.GONE
         }
 
 
@@ -453,20 +468,12 @@ class GeneralScheduleFragment : Fragment() {
         binding.etScheduleName.onFocusChangeListener = null
         installInputProtection()
 
-        val colorList = listOf(
-            ColorItem(R.color.schedule_5, "#DC354B"),
-            ColorItem(R.color.route_line_3, "#D8643F"),
-            ColorItem(R.color.route_suin_bundang, "#FFBB00"),
-            ColorItem(R.color.route_branch_bus, "#53B332"),
-            ColorItem(R.color.schedule_14, "#51AEED"),
-            ColorItem(R.color.schedule_12, "#2A4ABF"),
-            ColorItem(R.color.schedule_8, "#5F46DD"),
-            ColorItem(R.color.route_line_8, "#F14C82"),
-            ColorItem(R.color.gray_600, "#666666")
-        )
+        binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(getSaveColorInt())
+        val selectedColorForPalette = colorIntToHex(getSaveColorInt())
+        val colorList = buildColorItems(selectedColorForPalette)
 
 
-        val colorAdapter = ColorAdapter(requireContext(), colorList) { selectedColor ->
+        colorAdapter = ColorAdapter(requireContext(), colorList) { selectedColor ->
             changeSelectedColor(selectedColor)
         }
 
@@ -504,6 +511,7 @@ class GeneralScheduleFragment : Fragment() {
                 // 하루종일 켜지면 피커들을 다 닫음
                 binding.calendarContainer.visibility = View.GONE
                 binding.timePickerContainer.visibility = View.GONE
+                expandedPicker = ExpandedPicker.NONE
                 if (activeInput == ActiveInput.START_TIME || activeInput == ActiveInput.END_TIME) {
                     activeInput = null
                 }
@@ -697,7 +705,9 @@ class GeneralScheduleFragment : Fragment() {
 
                 if (calendarColor != -1) {
                     currentSelectedCalendarColor = calendarColor
+                    hasUserSelectedEventColor = false
                     binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(calendarColor)
+                    colorAdapter?.selectColor(colorIntToHex(calendarColor))
                 }
             }
         }
@@ -714,6 +724,7 @@ class GeneralScheduleFragment : Fragment() {
                 @Suppress("DEPRECATION")
                 bundle.getSerializable("repeatInfo") as? RepeatInfo
             }
+            isRepeatChanged = true
         }
 
     }
@@ -724,6 +735,8 @@ class GeneralScheduleFragment : Fragment() {
 
         val color = Color.parseColor(colorStr)
         binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(color)
+        colorAdapter?.selectColor(colorStr)
+        hasUserSelectedEventColor = true
         // 수동 색상 선택 시 캘린더 색상 우선순위 해제
         currentSelectedCalendarColor = null
 
@@ -798,39 +811,21 @@ class GeneralScheduleFragment : Fragment() {
             wrapSelectorWheel = true
         }
 
-        val timeChangeListener = NumberPicker.OnValueChangeListener { _, _, _ ->
-            val hour = binding.pickerHour.value
-            // [수정] 실제 분 계산: 선택된 인덱스 * 5
-            val minute = binding.pickerMinute.value * 5
-            val formattedTime = String.format("%02d:%02d", hour, minute)
-
-            val isSameDay = startDate != null && endDate != null && startDate == endDate
-
-            if (activeInput == ActiveInput.START_TIME) {
-                binding.tvStartTime.text = formattedTime
-                if (isSameDay) {
-                    val endTime = binding.tvEndTime.text.toString()
-                    if (isTimeAfter(formattedTime, endTime)) {
-                        // 시작 시간이 종료 시간보다 늦으면 종료 시간을 1시간 뒤로
-                        val newEndHour = if (hour < 23) hour + 1 else 23
-                        binding.tvEndTime.text = String.format("%02d:%02d", newEndHour, minute)
-                    }
-                }
-            } else if (activeInput == ActiveInput.END_TIME) {
-                binding.tvEndTime.text = formattedTime
-            }
-            updateTimeVisibility()
+        binding.pickerHour.setOnValueChangedListener { _, oldValue, newValue ->
+            if (isSyncingTimePicker) return@setOnValueChangedListener
+            applyTimePickerDelta(hourDelta(oldValue, newValue) * 60L)
         }
-
-        binding.pickerHour.setOnValueChangedListener(timeChangeListener)
-        binding.pickerMinute.setOnValueChangedListener(timeChangeListener)
+        binding.pickerMinute.setOnValueChangedListener { _, oldValue, newValue ->
+            if (isSyncingTimePicker) return@setOnValueChangedListener
+            applyTimePickerDelta(minuteDelta(oldValue, newValue).toLong())
+        }
     }
 
     private fun showCalendar() {
         animateLayoutChange()
+        expandedPicker = ExpandedPicker.CALENDAR
 
         // 1. 방해 요소 제거
-        binding.layoutColorSelector.visibility = View.GONE
         binding.timePickerContainer.visibility = View.GONE
 
         // 2. 컨테이너와 캘린더 본체를 모두 VISIBLE로
@@ -856,9 +851,9 @@ class GeneralScheduleFragment : Fragment() {
 
         // 1. 레이아웃 가시성 조절
         animateLayoutChange()
+        expandedPicker = ExpandedPicker.TIME
         binding.timePickerContainer.visibility = View.VISIBLE
         binding.calendarContainer.visibility = View.GONE
-        binding.layoutColorSelector.visibility = View.GONE
 
         // 2. 현재 선택된 시간 텍스트를 파싱하여 피커 초기값 설정
         val timeText = if (isEditingStartTime) {
@@ -872,14 +867,10 @@ class GeneralScheduleFragment : Fragment() {
             if (parts.size == 2) {
                 val h = parts[0].trim().toInt()
                 val m = parts[1].trim().toInt()
-
-                binding.pickerHour.value = h
-                // 5분 단위 인덱스 계산 (예: 15분 -> index 3)
-                binding.pickerMinute.value = (m / 5).coerceIn(0, 11)
+                syncTimePickerValues(h, (m / 5).coerceIn(0, 11))
             }
         } catch (e: Exception) {
-            binding.pickerHour.value = 10
-            binding.pickerMinute.value = 0
+            syncTimePickerValues(10, 0)
         }
 
         // 3. 스크롤을 시간 피커 위치로 이동
@@ -888,12 +879,25 @@ class GeneralScheduleFragment : Fragment() {
         }
     }
 
+    private fun closeExpandedPicker() {
+        animateLayoutChange()
+        binding.calendarContainer.visibility = View.GONE
+        binding.timePickerContainer.visibility = View.GONE
+        expandedPicker = ExpandedPicker.NONE
+        activeInput = null
+        updateDateDisplay()
+        updateTimeVisibility()
+    }
+
 
     private fun updateTimeVisibility() {
         if (isAllDay) {
             binding.tvStartTime.visibility = View.GONE
             binding.tvEndTime.visibility = View.GONE
             binding.timePickerContainer.visibility = View.GONE
+            if (expandedPicker == ExpandedPicker.TIME) {
+                expandedPicker = ExpandedPicker.NONE
+            }
         } else {
             binding.tvStartTime.visibility = View.VISIBLE
             binding.tvEndTime.visibility = View.VISIBLE
@@ -1005,6 +1009,103 @@ class GeneralScheduleFragment : Fragment() {
         return android.os.SystemClock.uptimeMillis() < suppressKeyboardDismissUntil
     }
 
+    private fun applyTimePickerDelta(deltaMinutes: Long) {
+        when (activeInput) {
+            ActiveInput.START_TIME -> {
+                val start = parseDateTime(startDate, binding.tvStartTime.text) ?: return
+                applyStartDateTime(start.plusMinutes(deltaMinutes))
+                binding.calendarPicker.notifyCalendarChanged()
+                updateDateDisplay()
+                enforceValidTimeRange(ActiveInput.START_TIME)
+            }
+            ActiveInput.END_TIME -> {
+                val end = parseDateTime(endDate ?: startDate, binding.tvEndTime.text) ?: return
+                applyEndDateTime(end.plusMinutes(deltaMinutes))
+                binding.calendarPicker.notifyCalendarChanged()
+                updateDateDisplay()
+                enforceValidTimeRange(ActiveInput.END_TIME)
+            }
+            else -> return
+        }
+        syncPickerToActiveTime()
+        updateTimeVisibility()
+    }
+
+    private fun syncPickerToActiveTime() {
+        val timeText = when (activeInput) {
+            ActiveInput.START_TIME -> binding.tvStartTime.text
+            ActiveInput.END_TIME -> binding.tvEndTime.text
+            else -> return
+        }
+        val parts = timeText.toString().split(":")
+        if (parts.size != 2) return
+
+        val hour = parts[0].trim().toIntOrNull() ?: return
+        val minute = parts[1].trim().toIntOrNull() ?: return
+        syncTimePickerValues(hour, minute / 5)
+    }
+
+    private fun syncTimePickerValues(hour: Int, minuteIndex: Int) {
+        isSyncingTimePicker = true
+        binding.pickerHour.value = hour.coerceIn(0, 23)
+        binding.pickerMinute.value = minuteIndex.coerceIn(0, 11)
+        isSyncingTimePicker = false
+    }
+
+    private fun hourDelta(oldValue: Int, newValue: Int): Int {
+        return when {
+            oldValue == 23 && newValue == 0 -> 1
+            oldValue == 0 && newValue == 23 -> -1
+            else -> newValue - oldValue
+        }
+    }
+
+    private fun minuteDelta(oldValue: Int, newValue: Int): Int {
+        return when {
+            oldValue == 11 && newValue == 0 -> 5
+            oldValue == 0 && newValue == 11 -> -5
+            else -> (newValue - oldValue) * 5
+        }
+    }
+
+    private fun enforceValidTimeRange(changedInput: ActiveInput? = activeInput) {
+        if (isAllDay) return
+
+        val start = parseDateTime(startDate, binding.tvStartTime.text)
+        val end = parseDateTime(endDate ?: startDate, binding.tvEndTime.text)
+        if (start == null || end == null || start.isBefore(end)) return
+
+        if (changedInput == ActiveInput.END_TIME) {
+            endDate = end.toLocalDate()
+            applyStartDateTime(end.minusHours(1))
+        } else {
+            applyEndDateTime(start.plusHours(1))
+        }
+
+        binding.calendarPicker.notifyCalendarChanged()
+        updateDateDisplay()
+    }
+
+    private fun parseDateTime(date: LocalDate?, timeText: CharSequence?): LocalDateTime? {
+        val targetDate = date ?: return null
+        val parts = timeText?.toString()?.split(":") ?: return null
+        if (parts.size != 2) return null
+
+        return runCatching {
+            targetDate.atTime(parts[0].trim().toInt(), parts[1].trim().toInt())
+        }.getOrNull()
+    }
+
+    private fun applyStartDateTime(dateTime: LocalDateTime) {
+        startDate = dateTime.toLocalDate()
+        binding.tvStartTime.text = dateTime.format(DateTimeFormatter.ofPattern("HH:mm"))
+    }
+
+    private fun applyEndDateTime(dateTime: LocalDateTime) {
+        endDate = dateTime.toLocalDate()
+        binding.tvEndTime.text = dateTime.format(DateTimeFormatter.ofPattern("HH:mm"))
+    }
+
     private fun isTimeAfter(t1: String, t2: String): Boolean {
         val s = t1.split(":").map { it.trim().toInt() }
         val e = t2.split(":").map { it.trim().toInt() }
@@ -1016,26 +1117,19 @@ class GeneralScheduleFragment : Fragment() {
     }
 
     private fun selectDate(date: LocalDate) {
-        // 1. 이미 범위 선택이 완료되었거나(start/end 둘 다 있음), 아예 없는 경우 -> 새로 시작
-        if (startDate != null && endDate != null) {
-            startDate = date
-            endDate = null // 종료일만 null로 비워서 다음 클릭을 기다림
-        }
-        // 2. 시작일만 있고 종료일은 없는 상태 -> 종료일 확정
-        else if (startDate != null && endDate == null) {
-            if (date.isBefore(startDate)) {
-                startDate = date // 시작일보다 이전이면 시작일을 변경
-            } else {
-                endDate = date
-                onDateSelectionComplete()
+        if (activeInput == ActiveInput.END_DATE) {
+            endDate = date
+            if (startDate == null || startDate!!.isAfter(date)) {
+                startDate = date
             }
-        }
-        // 3. 혹시나 둘 다 null인 경우 (방어 코드)
-        else {
-            startDate = date
-            endDate = null
+            binding.calendarPicker.notifyCalendarChanged()
+            onDateSelectionComplete()
+            return
         }
 
+        startDate = date
+        endDate = null
+        activeInput = ActiveInput.END_DATE
         binding.calendarPicker.notifyCalendarChanged()
         updateDateDisplay()
     }
@@ -1043,6 +1137,7 @@ class GeneralScheduleFragment : Fragment() {
         animateLayoutChange()
         if (isAllDay) {
             binding.calendarContainer.visibility = View.GONE
+            expandedPicker = ExpandedPicker.NONE
             activeInput = null
         } else {
             binding.calendarContainer.visibility = View.GONE
@@ -1219,6 +1314,13 @@ class GeneralScheduleFragment : Fragment() {
                 when (isSuccess) {
                     true -> {
                         Toast.makeText(context, "일정이 성공적으로 저장되었습니다.", Toast.LENGTH_SHORT).show()
+                        requireActivity().setResult(
+                            Activity.RESULT_OK,
+                            Intent().putExtra(
+                                "SAVED_SCHEDULE_DATE",
+                                startDate?.toString() ?: LocalDate.now().toString()
+                            )
+                        )
                         viewModel.resetCreateEvent()
                         requireActivity().finish()
                     }
@@ -1274,7 +1376,9 @@ class GeneralScheduleFragment : Fragment() {
         val color = viewModel.getCalendarColorById(calendarId) ?: return
         if (color == 0) return
         currentSelectedCalendarColor = color
+        hasUserSelectedEventColor = false
         binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(color)
+        colorAdapter?.selectColor(colorIntToHex(color))
     }
 
     private fun resolveDefaultCalendarId(preferredId: Long): Long {
@@ -1304,7 +1408,35 @@ class GeneralScheduleFragment : Fragment() {
     }
 
     private fun getSaveColorInt(): Int {
-        return currentSelectedCalendarColor ?: Color.parseColor(selectedColorHex)
+        return getSelectedEventColorInt()
+            ?: currentSelectedCalendarColor
+            ?: Color.parseColor(selectedColorHex)
+    }
+
+    private fun getSelectedEventColorInt(): Int? {
+        return if (hasUserSelectedEventColor) Color.parseColor(selectedColorHex) else null
+    }
+
+    private fun buildColorItems(selectedColorForPalette: String): List<ColorItem> {
+        val colors = mutableListOf(
+            ColorItem(R.color.schedule_5, "#DC354B", "#DC354B".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.route_line_3, "#D8643F", "#D8643F".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.route_suin_bundang, "#FFBB00", "#FFBB00".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.route_branch_bus, "#53B332", "#53B332".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.schedule_14, "#51AEED", "#51AEED".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.schedule_12, "#2A4ABF", "#2A4ABF".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.schedule_8, "#5F46DD", "#5F46DD".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.route_line_8, "#F14C82", "#F14C82".equals(selectedColorForPalette, ignoreCase = true)),
+            ColorItem(R.color.gray_600, "#666666", "#666666".equals(selectedColorForPalette, ignoreCase = true))
+        )
+        if (colors.none { it.isSelected }) {
+            colors.add(0, ColorItem(R.color.gray_600, selectedColorForPalette, true))
+        }
+        return colors
+    }
+
+    private fun colorIntToHex(color: Int): String {
+        return String.format("#%06X", 0xFFFFFF and color)
     }
     private fun minutesToText(minutes: Int): String {
         return when (minutes) {
@@ -1451,7 +1583,9 @@ class GeneralScheduleFragment : Fragment() {
                         selectedColorHex = hexColor
                     } else {
                         currentSelectedCalendarColor = effectiveColor
+                        hasUserSelectedEventColor = false
                         binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(effectiveColor)
+                        colorAdapter?.selectColor(colorIntToHex(effectiveColor))
                     }
                 } else {
                     applyCalendarColor(s.calendarId)

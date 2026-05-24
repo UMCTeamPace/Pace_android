@@ -6,15 +6,21 @@
     android:background="@drawable/dialog_rounded_bg"
     android:paddingBottom="24dp">
 
-    <View
-        android:id="@+id/view_handle"
-        android:layout_width="60dp"
-        android:layout_height="4dp"
-        android:layout_marginTop="12dp"
-        android:background="@color/gray_400"
+    <FrameLayout
+        android:id="@+id/layout_drag_handle_area"
+        android:layout_width="match_parent"
+        android:layout_height="32dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent">
+
+        <View
+            android:id="@+id/view_handle"
+            android:layout_width="60dp"
+            android:layout_height="5dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_bottom_sheet_handle_large" />
+    </FrameLayout>
 
     <TextView
         android:id="@+id/tv_group_title"
@@ -27,7 +33,7 @@
         android:textSize="18sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/view_handle" />
+        app:layout_constraintTop_toBottomOf="@id/layout_drag_handle_area" />
 
     <LinearLayout
         android:id="@+id/layout_filter"

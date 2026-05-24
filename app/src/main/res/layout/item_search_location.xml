@@ -20,14 +20,27 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <ImageView
-        android:id="@+id/iv_favorite"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:src="@drawable/ic_favorites"
+    <FrameLayout
+        android:id="@+id/layout_favorite"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="@id/tv_place_name"
-        app:layout_constraintBottom_toBottomOf="@id/tv_place_name" />
+        app:layout_constraintBottom_toBottomOf="@id/tv_place_name">
+
+        <ImageView
+            android:id="@+id/iv_favorite_bg"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_bookmark_background" />
+
+        <ImageView
+            android:id="@+id/iv_favorite_line"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_favorite_line_outline" />
+
+    </FrameLayout>
 
     <LinearLayout
         android:id="@+id/layout_meta"

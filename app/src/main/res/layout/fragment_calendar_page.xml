@@ -111,21 +111,24 @@
         android:alpha="0"
         android:background="@drawable/bg_return_to_today"
         android:clickable="true"
-        android:elevation="8dp"
         android:focusable="true"
         android:gravity="center"
         android:orientation="horizontal"
-        android:paddingHorizontal="16dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="16dp"
         android:paddingVertical="10dp"
         android:visibility="gone">
 
         <ImageView
-            android:layout_width="14dp"
-            android:layout_height="14dp"
+            android:id="@+id/iv_return_to_today_arrow"
+            android:layout_marginVertical="2dp"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
             android:src="@drawable/ic_arrow_opened"
-            app:tint="@color/text_primary" />
+            app:tint="@color/text_secondary" />
 
         <TextView
+            android:id="@+id/tv_return_to_today"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="오늘로 돌아가기"

@@ -1,15 +1,23 @@
 package com.example.pace.ui.search_box.group
 
 import android.content.Intent
+import android.graphics.Typeface
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
+import androidx.core.os.bundleOf
+import androidx.fragment.app.setFragmentResult
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.pace.R
@@ -32,6 +40,12 @@ class GroupDetailBottomSheet(
     private val binding get() = _binding!!
     private val groupViewModel: GroupViewModel by viewModels()
     private lateinit var placeAdapter: GroupPlaceAdapter
+    private var shouldRefreshOnResume = false
+
+    companion object {
+        const val SAVED_PLACES_CHANGED_REQUEST_KEY = "savedPlacesChanged"
+        const val SAVED_PLACES_CHANGED_GROUP_ID_KEY = "groupId"
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = BottomSheetGroupDetailBinding.inflate(inflater, container, false)
@@ -45,8 +59,6 @@ class GroupDetailBottomSheet(
 
         binding.tvFilterText.text = "최신 등록순"
 
-        groupViewModel.getSavedPlaces(groupItem.groupId)
-
         setupRecyclerView()
         observeViewModel()
         setupListeners()
@@ -57,7 +69,14 @@ class GroupDetailBottomSheet(
 
     override fun onResume() {
         super.onResume()
-        groupViewModel.getSavedPlaces(groupItem.groupId, groupViewModel.currentSortType)
+        if (shouldRefreshOnResume) {
+            shouldRefreshOnResume = false
+            groupViewModel.getSavedPlaces(groupItem.groupId, groupViewModel.currentSortType)
+            setFragmentResult(
+                SAVED_PLACES_CHANGED_REQUEST_KEY,
+                bundleOf(SAVED_PLACES_CHANGED_GROUP_ID_KEY to groupItem.groupId)
+            )
+        }
     }
 
     private fun observeViewModel() {
@@ -80,20 +99,20 @@ class GroupDetailBottomSheet(
         val bottomSheet = dialog?.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
 
         bottomSheet?.let { sheet ->
+            val displayMetrics = resources.displayMetrics
+            val sheetHeight = (displayMetrics.heightPixels * 663f / 800f).toInt()
             val layoutParams = sheet.layoutParams
-            layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT
+            layoutParams.height = sheetHeight
             sheet.layoutParams = layoutParams
 
             val behavior = BottomSheetBehavior.from(sheet)
 
-            behavior.isHideable = false
-
-            val displayMetrics = resources.displayMetrics
-            behavior.peekHeight = (displayMetrics.heightPixels * 0.6).toInt()
-
-            behavior.state = BottomSheetBehavior.STATE_COLLAPSED
-
-            behavior.isDraggable = true
+            behavior.isHideable = true
+            behavior.skipCollapsed = true
+            behavior.peekHeight = sheetHeight
+            behavior.state = BottomSheetBehavior.STATE_EXPANDED
+            behavior.isDraggable = false
+            setupHandleSwipe(behavior)
         }
     }
 
@@ -117,6 +136,7 @@ class GroupDetailBottomSheet(
         // [편집 버튼]
         binding.tvEditMode.setOnClickListener {
             val currentList = groupViewModel.savedPlaces.value ?: emptyList()
+            shouldRefreshOnResume = true
 
             val intent = Intent(requireContext(), GroupEditActivity::class.java).apply {
                 putExtra("GROUP_ID", groupItem.groupId)
@@ -128,6 +148,36 @@ class GroupDetailBottomSheet(
 
         binding.layoutFilter.setOnClickListener {
             showFilterDialog() //todo
+        }
+    }
+
+    private fun setupHandleSwipe(behavior: BottomSheetBehavior<View>) {
+        val closeThreshold = ViewConfiguration.get(requireContext()).scaledTouchSlop * 2
+        var downY = 0f
+        var isClosing = false
+
+        binding.layoutDragHandleArea.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    downY = event.rawY
+                    isClosing = false
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val deltaY = event.rawY - downY
+                    if (!isClosing && deltaY > closeThreshold) {
+                        isClosing = true
+                        behavior.state = BottomSheetBehavior.STATE_HIDDEN
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP,
+                MotionEvent.ACTION_CANCEL -> {
+                    isClosing = false
+                    true
+                }
+                else -> true
+            }
         }
     }
 
@@ -148,6 +198,11 @@ class GroupDetailBottomSheet(
             "OLDEST" -> rgSortOptions.check(R.id.rb_oldest)
             "NAME" -> rgSortOptions.check(R.id.rb_name)
             else -> rgSortOptions.check(R.id.rb_latest)
+        }
+        updateSortOptionStyles(dialogView, rgSortOptions.checkedRadioButtonId)
+
+        rgSortOptions.setOnCheckedChangeListener { _, checkedId ->
+            updateSortOptionStyles(dialogView, checkedId)
         }
 
         btnCancel.setOnClickListener { dialog.dismiss() }
@@ -174,6 +229,24 @@ class GroupDetailBottomSheet(
         val displayMetrics = resources.displayMetrics
         val width = (displayMetrics.widthPixels * 0.90).toInt()
         dialog.window?.setLayout(width, WindowManager.LayoutParams.WRAP_CONTENT)
+    }
+
+    private fun updateSortOptionStyles(dialogView: View, checkedId: Int) {
+        val selectedTypeface = ResourcesCompat.getFont(requireContext(), R.font.pretendard_semibold)
+        val defaultTypeface = ResourcesCompat.getFont(requireContext(), R.font.pretendard_regular)
+        val selectedColor = ContextCompat.getColor(requireContext(), R.color.text_primary)
+        val defaultColor = ContextCompat.getColor(requireContext(), R.color.text_tertiary)
+
+        listOf(R.id.rb_latest, R.id.rb_oldest, R.id.rb_name).forEach { id ->
+            val radioButton = dialogView.findViewById<RadioButton>(id)
+            val isSelected = id == checkedId
+            radioButton.typeface = if (isSelected) {
+                selectedTypeface ?: Typeface.DEFAULT_BOLD
+            } else {
+                defaultTypeface ?: Typeface.DEFAULT
+            }
+            radioButton.setTextColor(if (isSelected) selectedColor else defaultColor)
+        }
     }
 
 

@@ -41,6 +41,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -64,6 +65,10 @@ class ScheduleViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
+    private companion object {
+        const val SEARCH_RANGE_YEARS = 3L
+    }
+
     private var searchJob: Job? = null
 
     private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
@@ -73,8 +78,8 @@ class ScheduleViewModel @Inject constructor(
     private var lastQuery: String = ""
 
     // Search date range state
-    private var searchStartDate = LocalDate.now().minusYears(1)
-    private var searchEndDate = LocalDate.now().plusYears(1)
+    private var searchStartDate = LocalDate.now().minusYears(SEARCH_RANGE_YEARS)
+    private var searchEndDate = LocalDate.now().plusYears(SEARCH_RANGE_YEARS)
 
     // UI search range label
     private val _searchRangeText = MutableStateFlow("")
@@ -149,6 +154,10 @@ class ScheduleViewModel @Inject constructor(
         val current = _selectedOccurrenceKeys.value.toMutableSet()
         if (current.contains(key)) current.remove(key) else current.add(key)
         _selectedOccurrenceKeys.value = current
+    }
+
+    fun clearOccurrenceSelection() {
+        _selectedOccurrenceKeys.value = emptySet()
     }
 
     fun buildOccurrenceSelectionKey(scheduleId: Long, occurrenceDate: String): String {
@@ -239,8 +248,10 @@ class ScheduleViewModel @Inject constructor(
 
         Log.d("SearchFlow", "색상 필터 변경: ${_filterColors.value}")
 
-        if (lastQuery.isNotBlank()) {
+        if (hasActiveSearchCriteria()) {
             searchSchedules(lastQuery)
+        } else {
+            clearSearch()
         }
     }
 
@@ -248,7 +259,7 @@ class ScheduleViewModel @Inject constructor(
         val trimmedQuery = query.trim()
         lastQuery = trimmedQuery
 
-        if (trimmedQuery.isBlank()) {
+        if (!hasActiveSearchCriteria()) {
             searchJob?.cancel()
             _searchResults.value = emptyList()
             return
@@ -276,22 +287,30 @@ class ScheduleViewModel @Inject constructor(
 
     fun setFilterColor(color: String?) {
         _filterColor.value = color
-        if (lastQuery.isNotBlank()) {
+        if (hasActiveSearchCriteria()) {
             searchSchedules(lastQuery)
+        } else {
+            clearSearch()
         }
     }
 
     fun setIncludeRouteFilter(include: Boolean) {
         _filterIncludeRoute.value = include
-        if (lastQuery.isNotBlank()) {
+        if (hasActiveSearchCriteria()) {
             searchSchedules(lastQuery)
+        } else {
+            clearSearch()
         }
     }
 
     private fun refreshSearchResultsIfNeeded() {
-        if (lastQuery.isNotBlank()) {
+        if (hasActiveSearchCriteria()) {
             searchSchedules(lastQuery)
         }
+    }
+
+    fun hasActiveSearchCriteria(): Boolean {
+        return lastQuery.isNotBlank() || _filterColors.value.isNotEmpty() || !_filterIncludeRoute.value
     }
 
 //    private fun refreshSearchResultsIfNeeded() {
@@ -384,13 +403,19 @@ class ScheduleViewModel @Inject constructor(
                         scheduleId = targetScheduleId,
                         request = request,
                         calendarId = schedule.calendarId,
-                        selectedColor = schedule.eventColor ?: 0
+                        selectedColor = schedule.eventColor
                     )
 
                     if (response.isSuccess) {
                         replaceRouteScheduleRuntime(
                             previousSchedule = existingSchedule,
                             scheduleId = targetScheduleId
+                        )
+                        waitForScheduleId(targetScheduleId)
+                        _lastEditResult.value = ScheduleEditResult(
+                            scheduleId = targetScheduleId,
+                            occurrenceDate = schedule.startDate,
+                            scheduleType = schedule.type
                         )
                         _updateScheduleEvent.value = true
                         Log.d("ScheduleViewModel", "경로 일정 서버 수정 성공")
@@ -401,6 +426,10 @@ class ScheduleViewModel @Inject constructor(
                 } else {
                     // Normal schedules are updated in the provider and local Room DB
                     repository.updateSchedule(schedule)
+                    if (!schedule.repeatRule.isNullOrEmpty()) {
+                        repository.refreshSchedules()
+                    }
+                    waitForScheduleSnapshot(schedule)
                     _lastEditResult.value = ScheduleEditResult(
                         scheduleId = schedule.id,
                         occurrenceDate = schedule.startDate,
@@ -412,11 +441,6 @@ class ScheduleViewModel @Inject constructor(
                     }
                 }
 
-                // Reload after update so calendar UI reflects changes immediately
-                if (schedule.type != "ROUTE") {
-                    refreshSchedules()
-                }
-
             } catch (e: Exception) {
                 Log.e("ScheduleViewModel", "일정 수정 실패: ${e.message}")
                 _updateScheduleEvent.value = false
@@ -424,6 +448,29 @@ class ScheduleViewModel @Inject constructor(
         }
     }
 
+    private suspend fun waitForScheduleSnapshot(schedule: Schedule) {
+        withTimeoutOrNull(1000L) {
+            repository.allSchedules.firstOrNull { schedules ->
+                schedules.any { item ->
+                    item.id == schedule.id &&
+                        item.startDate == schedule.startDate &&
+                        item.endDate == schedule.endDate &&
+                        item.startTime == schedule.startTime &&
+                        item.endTime == schedule.endTime &&
+                        item.title == schedule.title &&
+                        item.memo == schedule.memo
+                }
+            }
+        }
+    }
+
+    private suspend fun waitForScheduleId(scheduleId: Long) {
+        withTimeoutOrNull(1000L) {
+            repository.allSchedules.firstOrNull { schedules ->
+                schedules.any { it.id == scheduleId || it.serverId == scheduleId }
+            }
+        }
+    }
 
     private fun mapScheduleToRequest(schedule: Schedule): CreateScheduleRequest {
         val placeRequest = schedule.placeJson?.let {
@@ -433,7 +480,7 @@ class ScheduleViewModel @Inject constructor(
         // Convert color int to hex
         val colorHex = schedule.eventColor?.let {
             String.format("#%06X", (0xFFFFFF and it))
-        } ?: "#DC354B"
+        }
 
         return CreateScheduleRequest(
             title = schedule.title ?: "",
@@ -457,7 +504,7 @@ class ScheduleViewModel @Inject constructor(
         scheduleId: Long,
         request: CreateScheduleRequest,
         calendarId: Long?,
-        selectedColor: Int
+        selectedColor: Int?
     ) {
         viewModelScope.launch {
             try {
@@ -486,6 +533,7 @@ class ScheduleViewModel @Inject constructor(
                             scheduleId = scheduleId
                         )
                     }
+                    waitForScheduleId(scheduleId)
                     _lastEditResult.value = ScheduleEditResult(
                         scheduleId = scheduleId,
                         occurrenceDate = request.startDate,
@@ -505,6 +553,8 @@ class ScheduleViewModel @Inject constructor(
     }
 
     fun clearSearch() {
+        searchJob?.cancel()
+
         // Clear last query
         lastQuery = ""
 
@@ -512,6 +562,18 @@ class ScheduleViewModel @Inject constructor(
         _searchResults.value = emptyList()
 
         Log.d("SearchFlow", "ScheduleViewModel: 검색어와 결과 초기화 완료")
+    }
+
+    fun resetSearchState() {
+        searchJob?.cancel()
+        lastQuery = ""
+        searchStartDate = LocalDate.now().minusYears(SEARCH_RANGE_YEARS)
+        searchEndDate = LocalDate.now().plusYears(SEARCH_RANGE_YEARS)
+        updateRangeText()
+        _filterColor.value = null
+        _filterColors.value = emptySet()
+        _filterIncludeRoute.value = true
+        _searchResults.value = emptyList()
     }
 
     fun createSchedule(
@@ -570,7 +632,7 @@ class ScheduleViewModel @Inject constructor(
         placeId: String? = null,
         customAlarms: List<Int>? = null,
         calendarId: Long? = null,
-        selectedColor: Int
+        selectedColor: Int?
     ) {
         val settings = userSettings.value
         val reminders = mutableListOf<ReminderRequest>()
@@ -596,7 +658,7 @@ class ScheduleViewModel @Inject constructor(
         }
 
         // Convert color int to hex string
-        val colorHex = String.format("#%06X", (0xFFFFFF and selectedColor))
+        val colorHex = selectedColor?.let { String.format("#%06X", (0xFFFFFF and it)) }
 
         // Build create request
         val request = CreateScheduleRequest(
@@ -646,21 +708,78 @@ class ScheduleViewModel @Inject constructor(
     fun getRepeatDescription(info: RepeatInfo?): String {
         if (info == null || info.repeatType.uppercase() == "NONE") return "반복 안 함"
 
-        val typeStr = when(info.repeatType.uppercase()) {
-            "DAILY" -> "매일"
-            "WEEKLY" -> "매주"
-            "MONTHLY" -> "매월"
-            "YEARLY" -> "매년"
+        val intervalText = when (info.repeatType.uppercase()) {
+            "DAILY" -> if (info.repeatInterval == 1) "매일" else "${info.repeatInterval}일마다"
+            "WEEKLY" -> if (info.repeatInterval == 1) "매주" else "${info.repeatInterval}주마다"
+            "MONTHLY" -> if (info.repeatInterval == 1) "매월" else "${info.repeatInterval}개월마다"
+            "YEARLY" -> if (info.repeatInterval == 1) "매년" else "${info.repeatInterval}년마다"
             else -> ""
         }
 
-        val endStr = when(info.endType.uppercase()) {
-            "COUNT" -> ", ${info.endCount}회 반복"
-            "DATE" -> ", ${info.repeatEndDate}까지"
+        val detailInfo = when (info.repeatType.uppercase()) {
+            "WEEKLY" -> formatWeeklyRepeatDays(info.daysOfWeek)
+            "MONTHLY" -> if (info.monthlyOption == "SPECIFIC_DATE") {
+                info.monthlyDays
+                    ?.split(",")
+                    ?.mapNotNull { it.trim().toIntOrNull() }
+                    ?.sorted()
+                    ?.joinToString(", ")
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { "${it}일" }
+                    .orEmpty()
+            } else {
+                ""
+            }
+            "YEARLY" -> if (info.yearlyOption == "SPECIFIC_DATE") {
+                info.yearlyMonths
+                    ?.split(",")
+                    ?.mapNotNull { it.trim().toIntOrNull() }
+                    ?.sorted()
+                    ?.joinToString(", ") { "${it}월" }
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { "$it 반복" }
+                    .orEmpty()
+            } else {
+                ""
+            }
             else -> ""
         }
 
-        return "$typeStr 반복$endStr"
+        val endText = when (info.endType.uppercase()) {
+            "COUNT" -> "${info.endCount ?: 1}회 반복됩니다"
+            "DATE" -> formatRepeatEndDate(info.repeatEndDate)
+                .takeIf { it.isNotBlank() }
+                ?.let { "${it}까지 반복됩니다" }
+                ?: "반복됩니다"
+            else -> "반복됩니다"
+        }
+
+        return "$intervalText $detailInfo $endText".replace("\\s+".toRegex(), " ").trim()
+    }
+
+    private fun formatWeeklyRepeatDays(daysOfWeek: String?): String {
+        val dayNames = mapOf(
+            "SU" to "일",
+            "MO" to "월",
+            "TU" to "화",
+            "WE" to "수",
+            "TH" to "목",
+            "FR" to "금",
+            "SA" to "토"
+        )
+        val selectedDays = daysOfWeek
+            ?.split(",")
+            ?.mapNotNull { dayNames[it.trim().takeLast(2).uppercase()] }
+            .orEmpty()
+
+        return if (selectedDays.isEmpty()) "" else "${selectedDays.joinToString(", ")}요일"
+    }
+
+    private fun formatRepeatEndDate(repeatEndDate: String?): String {
+        if (repeatEndDate.isNullOrBlank()) return ""
+        return runCatching {
+            LocalDate.parse(repeatEndDate).format(DateTimeFormatter.ofPattern("yyyy.MM.dd(E)", Locale.KOREAN))
+        }.getOrElse { repeatEndDate }
     }
 
     // Reset create event after it is consumed
@@ -812,6 +931,7 @@ class ScheduleViewModel @Inject constructor(
                         scheduleId = scheduleId,
                         arrivalTimeOverride = arrival
                     )
+                    waitForScheduleId(scheduleId)
                     _lastEditResult.value = ScheduleEditResult(
                         scheduleId = scheduleId,
                         occurrenceDate = generalRequest.startDate,
@@ -874,11 +994,42 @@ class ScheduleViewModel @Inject constructor(
         WorkManager.getInstance(context).cancelUniqueWork("finalize_${schedule.id}")
     }
 
+    private fun parseRouteInfo(schedule: Schedule): RouteInfo? {
+        return sequenceOf(schedule.routeJson, schedule.placeJson)
+            .filterNotNull()
+            .filter { it.isNotBlank() }
+            .mapNotNull { json ->
+                runCatching { Gson().fromJson(json, RouteInfo::class.java) }.getOrNull()
+            }
+            .firstOrNull { route ->
+                !route.departureTime.isNullOrBlank() || !route.arrivalTime.isNullOrBlank()
+            }
+    }
+
+    private fun parseRouteTimeMillis(startDate: String, time: String?): Long? {
+        if (time.isNullOrBlank()) return null
+
+        return runCatching {
+            if (time.contains("T")) {
+                val cleanTime = time.replace("T", " ").substring(0, 16)
+                SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.KOREA).apply {
+                    this.timeZone = TimeZone.getTimeZone("UTC")
+                }.parse(cleanTime)?.time
+            } else {
+                SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+                    .parse("$startDate ${time.take(5)}")
+                    ?.time
+            }
+        }.getOrNull()
+    }
+
     private fun scheduleRouteAlarms(schedule: Schedule) {
-        val scheduleTimeMillis = runCatching {
-            val dateTimeText = "${schedule.startDate} ${schedule.startTime}"
-            SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).parse(dateTimeText)?.time
-        }.getOrNull() ?: return
+        val scheduleTimeMillis = parseRouteTimeMillis(schedule.startDate, schedule.startTime) ?: return
+        val departureTime = parseRouteInfo(schedule)?.departureTime
+        val departureTimeMillis = parseRouteTimeMillis(
+            startDate = schedule.startDate,
+            time = departureTime
+        )
 
         schedule.reminders.forEach { minutes ->
             AlarmScheduler.schedulePaceAlarm(
@@ -890,42 +1041,41 @@ class ScheduleViewModel @Inject constructor(
             )
         }
 
+        if (departureTimeMillis == null) {
+            if (schedule.departureReminders.isNotEmpty()) {
+                Log.w("PaceAlarm", "Departure alarm skipped: invalid departureTime=$departureTime, scheduleId=${schedule.id}")
+            }
+            return
+        }
+
         schedule.departureReminders.forEach { minutes ->
             AlarmScheduler.schedulePaceAlarm(
                 context = context,
                 scheduleId = schedule.id,
                 alarmType = "DEPARTURE",
-                scheduleTimeMillis = scheduleTimeMillis,
+                scheduleTimeMillis = departureTimeMillis,
                 leadMinutes = minutes
             )
         }
     }
 
     private fun scheduleFinalize(schedule: Schedule, arrivalTimeOverride: String? = null) {
-        val arrivalTime = arrivalTimeOverride ?: schedule.routeJson?.let {
-            runCatching { Gson().fromJson(it, RouteInfo::class.java).arrivalTime }.getOrNull()
-        }
-        if (!arrivalTime.isNullOrBlank()) {
-            scheduleFinalizeWorker(schedule.id, schedule.startDate, arrivalTime)
+        val arrivalTime = arrivalTimeOverride ?: parseRouteInfo(schedule)?.arrivalTime
+        val arrivalTimeMillis = parseRouteTimeMillis(schedule.startDate, arrivalTime)
+        if (arrivalTimeMillis != null) {
+            scheduleFinalizeWorker(schedule.id, arrivalTimeMillis)
+        } else if (!arrivalTime.isNullOrBlank()) {
+            Log.w("WorkManager", "Route finalize skipped: invalid arrivalTime=$arrivalTime, scheduleId=${schedule.id}")
         }
     }
 
-    private fun scheduleFinalizeWorker(scheduleId: Long, startDate: String, arrivalTime: String) {
+    private fun scheduleFinalizeWorker(scheduleId: Long, arrivalTimeMillis: Long) {
         try {
-            // Normalize incoming arrival time
-            val cleanArrival = if (arrivalTime.contains("T")) {
-                arrivalTime.replace("T", " ").substring(0, 16)
-            } else {
-                "$startDate $arrivalTime"
-            }
-
-            val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.KOREA)
-            sdf.timeZone = TimeZone.getTimeZone("UTC")
-
-            val arrivalDate = sdf.parse(cleanArrival)
             val currentTime = System.currentTimeMillis()
+            val arrivalDate = Date(arrivalTimeMillis)
+            val cleanArrival = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.KOREA).format(arrivalDate)
 
-            val delay = (arrivalDate?.time ?: 0) - currentTime
+            val delay = arrivalTimeMillis - currentTime
 
             Log.d("WorkManagerTest", """
             [타임존 체크]
@@ -1009,9 +1159,7 @@ class ScheduleViewModel @Inject constructor(
                 val placeRequest = updatedSchedule.placeJson?.let {
                     runCatching { Gson().fromJson(it, PlaceRequest::class.java) }.getOrNull()
                 }
-                val colorInt = updatedSchedule.eventColor
-                    ?: updatedSchedule.calendarColor
-                    ?: Color.parseColor("#DC354B")
+                val eventColorInt = updatedSchedule.eventColor
                 val reminders = updatedSchedule.reminders.map {
                     ReminderRequest(reminderType = "SCHEDULE", minutesBefore = it)
                 }
@@ -1031,7 +1179,7 @@ class ScheduleViewModel @Inject constructor(
                     reminders = reminders,
                     route = null,
                     calendarId = updatedSchedule.calendarId.toString(),
-                    color = String.format("#%06X", (0xFFFFFF and colorInt))
+                    color = eventColorInt?.let { String.format("#%06X", (0xFFFFFF and it)) }
                 )
 
                 val token = authDataStore.getAccessToken() ?: ""
@@ -1046,7 +1194,7 @@ class ScheduleViewModel @Inject constructor(
                     request = request,
                     placeId = null,
                     calendarId = updatedSchedule.calendarId,
-                    selectedColor = colorInt
+                    selectedColor = eventColorInt
                 )
 
                 repository.refreshSchedules()

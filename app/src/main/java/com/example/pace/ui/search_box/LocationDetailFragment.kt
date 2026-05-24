@@ -1,6 +1,8 @@
 package com.example.pace.ui.search_box
 
+import android.content.res.ColorStateList
 import android.graphics.Bitmap
+import android.graphics.Color
 import android.location.Location
 import android.os.Bundle
 import android.util.Log
@@ -11,13 +13,13 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
-import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import com.example.pace.databinding.FragmentLocationDetailBinding
 import com.example.pace.R
+import com.example.pace.data.viewmodel.PlaceSavedGroupState
 import com.example.pace.data.viewmodel.GroupViewModel
 import com.example.pace.ui.main.route.RouteFragment
-import com.example.pace.ui.search_box.group.GroupSelectBottomSheet
+import com.example.pace.ui.search_box.group.SavePlaceGroupSelectBottomSheet
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.Place
@@ -34,6 +36,8 @@ class LocationDetailFragment : Fragment() {
     private val groupViewModel: GroupViewModel by activityViewModels()
     private lateinit var placesClient: PlacesClient
     private var hasPhotoSection = false
+    private var currentPlaceId: String = ""
+    private var hasRequestedSavedState = false
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -54,6 +58,7 @@ class LocationDetailFragment : Fragment() {
         val address = arguments?.getString("address") ?: ""
         val defaultDistance = arguments?.getString("distance") ?: ""
         val placeId = arguments?.getString("placeId") ?: ""
+        currentPlaceId = placeId
         val openStatus = arguments?.getString("openStatus") ?: ""
         val isScheduleMode = arguments?.getBoolean("isScheduleMode") ?: false
         val isBookmarkMode = arguments?.getBoolean("isBookmarkMode") ?: false
@@ -89,8 +94,10 @@ class LocationDetailFragment : Fragment() {
         updateMetaInfoText(category, displayDistance, address)
 
         if (placeId.isNotEmpty()) {
+            requestSavedStateIfPossible(placeId)
             fetchPlacePhotos(placeId)
         } else {
+            updateStarState(emptyList())
             hasPhotoSection = false
             binding.svPhotos.visibility = View.GONE
         }
@@ -128,22 +135,16 @@ class LocationDetailFragment : Fragment() {
             parent?.onScheduleLocationSelected(name, placeId)
         }
 
-        binding.icStar.setOnClickListener {
+        binding.layoutStar.setOnClickListener {
             val currentPlaceId = arguments?.getString("placeId") ?: ""
             val originalName = binding.tvTitle.text.toString()
 
-            val bottomSheet = GroupSelectBottomSheet(
-                mode = GroupSelectBottomSheet.Mode.SAVE,
-                placeName = originalName
-            ) { selectedGroupId, userTypedName ->
-                groupViewModel.savePlace(
-                    groupId = selectedGroupId,
-                    placeId = currentPlaceId,
-                    placeName = userTypedName ?: originalName
-                )
-            }
+            val bottomSheet = SavePlaceGroupSelectBottomSheet(
+                placeName = originalName,
+                placeId = currentPlaceId
+            )
 
-            bottomSheet.show(parentFragmentManager, "GroupSelectBottomSheet")
+            bottomSheet.show(parentFragmentManager, "SavePlaceGroupSelectBottomSheet")
         }
     }
 
@@ -160,6 +161,55 @@ class LocationDetailFragment : Fragment() {
         groupViewModel.isOperationSuccess.observe(viewLifecycleOwner, Observer { isSuccess ->
             if (isSuccess) { }
         })
+
+        groupViewModel.groupList.observe(viewLifecycleOwner) { groups ->
+            if (currentPlaceId.isNotEmpty() && !hasRequestedSavedState && groups.isNotEmpty()) {
+                hasRequestedSavedState = true
+                groupViewModel.fetchSavedGroupsForPlace(currentPlaceId, groups)
+            }
+        }
+
+        groupViewModel.placeSavedStatesByPlaceId.observe(viewLifecycleOwner) { statesByPlaceId ->
+            if (currentPlaceId.isEmpty()) return@observe
+            if (!statesByPlaceId.containsKey(currentPlaceId) && hasRequestedSavedState) {
+                val groups = groupViewModel.groupList.value
+                if (!groups.isNullOrEmpty()) {
+                    groupViewModel.fetchSavedGroupsForPlace(currentPlaceId, groups, forceRefresh = true)
+                }
+                return@observe
+            }
+            updateStarState(statesByPlaceId[currentPlaceId].orEmpty())
+        }
+    }
+
+    private fun requestSavedStateIfPossible(placeId: String) {
+        updateStarState(emptyList())
+        val groups = groupViewModel.groupList.value
+        if (!groups.isNullOrEmpty()) {
+            hasRequestedSavedState = true
+            groupViewModel.fetchSavedGroupsForPlace(placeId, groups)
+        } else {
+            hasRequestedSavedState = false
+            groupViewModel.fetchGroupList()
+        }
+    }
+
+    private fun updateStarState(savedStates: List<PlaceSavedGroupState>) {
+        val latestState = savedStates.maxByOrNull { it.createdAt }
+        if (latestState == null) {
+            binding.ivStarLine.imageTintList = null
+            binding.ivStarLine.setImageResource(R.drawable.ic_star_line_outline)
+            return
+        }
+
+        try {
+            val color = Color.parseColor(latestState.groupColor)
+            binding.ivStarLine.setImageResource(R.drawable.ic_star_line_filled)
+            binding.ivStarLine.imageTintList = ColorStateList.valueOf(color)
+        } catch (e: Exception) {
+            binding.ivStarLine.imageTintList = null
+            binding.ivStarLine.setImageResource(R.drawable.ic_star_line_outline)
+        }
     }
 
     private fun updateMetaInfoText(category: String, distance: String, address: String) {
@@ -192,11 +242,9 @@ class LocationDetailFragment : Fragment() {
             if (metadataList.isNullOrEmpty()) {
                 hasPhotoSection = false
                 binding.svPhotos.visibility = View.GONE
-                (parentFragment as? RouteFragment)?.setBottomSheetFixed(true)
             }else {
                 hasPhotoSection = true
                 binding.svPhotos.visibility = View.VISIBLE
-                (parentFragment as? RouteFragment)?.setBottomSheetFixed(false)
                 binding.photoContainer.removeAllViews()
 
                 val count = minOf(metadataList.size, 3)
@@ -223,7 +271,6 @@ class LocationDetailFragment : Fragment() {
             Log.e("PlacePhoto", "Location detail metadata fetch failed: placeId=$placeId", error)
             hasPhotoSection = false
             binding.svPhotos.visibility = View.GONE
-            (parentFragment as? RouteFragment)?.setBottomSheetFixed(true)
         }
     }
 
@@ -270,6 +317,10 @@ class LocationDetailFragment : Fragment() {
 
     private fun dpToPx(dp: Int): Int {
         return (dp * resources.displayMetrics.density).toInt()
+    }
+
+    fun setDragHandleTouchListener(listener: View.OnTouchListener?) {
+        _binding?.viewDragHandle?.setOnTouchListener(listener)
     }
 
     override fun onDestroyView() {

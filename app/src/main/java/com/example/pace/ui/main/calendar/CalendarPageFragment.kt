@@ -23,6 +23,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.NumberPicker
 import android.widget.TextView
+import androidx.core.view.updateLayoutParams
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
 import androidx.core.content.ContextCompat
@@ -48,6 +49,8 @@ import com.example.pace.data.viewmodel.ScheduleViewModel
 import com.example.pace.databinding.ItemMonthViewMultipleDaysBinding
 import com.example.pace.databinding.ItemMonthViewSingleDayBinding
 import com.example.pace.databinding.ItemWeekViewBinding
+import com.example.pace.util.ScheduleDisplayTextUtils
+import com.example.pace.util.ScheduleUiRefreshTicker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlin.math.roundToInt
 
@@ -85,6 +88,13 @@ class CalendarPageFragment: Fragment() {
     private var isInitialDataReady = false
     private var hasShownInitialContent = false
     private var pendingResetToTodayState = false
+    private val scheduleUiRefreshTicker = ScheduleUiRefreshTicker {
+        if (_binding != null && ::dailyPageAdapter.isInitialized) {
+            val targetDate = selectedDate ?: today
+            dailyPageAdapter.refreshDate(targetDate)
+            scheduleCurrentDateRefresh()
+        }
+    }
 
 
     override fun onCreateView(
@@ -323,6 +333,7 @@ class CalendarPageFragment: Fragment() {
 
                 if (::dailyPageAdapter.isInitialized) {
                     dailyPageAdapter.updateEvents(events, viewModel.routeDetails.value)
+                    scheduleCurrentDateRefresh()
                 }
 
                 binding.calendarView.notifyCalendarChanged()
@@ -338,6 +349,7 @@ class CalendarPageFragment: Fragment() {
                     // 캘린더 전체를 새로고침(notifyCalendarChanged)할 필요 없이
                     // 어댑터 데이터만 갱신해서 "경로를 불러오는 중..."을 실제 데이터로 바꿉니다.
                     dailyPageAdapter.updateEvents(events, routeMap)
+                    scheduleCurrentDateRefresh()
                 }
             }
         }
@@ -506,6 +518,7 @@ class CalendarPageFragment: Fragment() {
         val btn = binding.btnReturnToToday
 
         if (show) {
+            updateTodayButtonDirection(selectedDate ?: today)
             if (btn.visibility != View.VISIBLE) {
                 btn.visibility = View.VISIBLE
                 btn.animate()
@@ -525,6 +538,43 @@ class CalendarPageFragment: Fragment() {
                     .start()
             }
         }
+    }
+
+    private fun updateTodayButtonDirection(date: LocalDate) {
+        val arrow = binding.ivReturnToTodayArrow
+        val text = binding.tvReturnToToday
+        val button = binding.btnReturnToToday
+        val arrowSidePadding = dpToPx(12)
+        val textSidePadding = dpToPx(16)
+        val innerGap = dpToPx(2)
+
+        if (date.isBefore(today)) {
+            button.removeView(arrow)
+            button.removeView(text)
+            button.addView(text)
+            button.addView(arrow)
+            button.setPadding(textSidePadding, button.paddingTop, arrowSidePadding, button.paddingBottom)
+            arrow.updateLayoutParams<LinearLayout.LayoutParams> {
+                marginStart = innerGap
+                marginEnd = 0
+            }
+            arrow.setImageResource(R.drawable.ic_arrow_closed)
+        } else {
+            button.removeView(arrow)
+            button.removeView(text)
+            button.addView(arrow)
+            button.addView(text)
+            button.setPadding(arrowSidePadding, button.paddingTop, textSidePadding, button.paddingBottom)
+            arrow.updateLayoutParams<LinearLayout.LayoutParams> {
+                marginStart = 0
+                marginEnd = innerGap
+            }
+            arrow.setImageResource(R.drawable.ic_arrow_opened)
+        }
+    }
+
+    private fun dpToPx(dp: Int): Int {
+        return (dp * resources.displayMetrics.density).roundToInt()
     }
 
     private fun crossfade(fadeInView: View, fadeOutView: View, durationMs: Long = 350) {
@@ -603,6 +653,7 @@ class CalendarPageFragment: Fragment() {
 
             updateSelectedDateText(date)
             toggleTodayButton(date != today)
+            scheduleCurrentDateRefresh()
 
 
             // 날짜 갱신 알림
@@ -616,7 +667,7 @@ class CalendarPageFragment: Fragment() {
 
                 val position = dailyPageAdapter.getPosition(date)
                 binding.root.findViewById<ViewPager2>(R.id.vp_daily_schedule)
-                    .setCurrentItem(position, true)
+                    .setCurrentItem(position, false)
 
                 if (!fromScroll) {
                     // 이 안에서 scrollToMonth 등이 호출될 때 리스너가 동작하지 않도록 보장
@@ -781,8 +832,14 @@ class CalendarPageFragment: Fragment() {
         )
     }
 
+    private fun scheduleCurrentDateRefresh() {
+        val schedules = events[selectedDate ?: today].orEmpty()
+        scheduleUiRefreshTicker.schedule(schedules)
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
+        scheduleUiRefreshTicker.cancel()
         isInitialLayoutReady = false
         isInitialDataReady = false
         hasShownInitialContent = false
@@ -830,7 +887,7 @@ class CalendarPageFragment: Fragment() {
                             val binding = ItemMonthViewSingleDayBinding.inflate(layoutInflater)
                             val icon = binding.itemMonthViewSingleColor
                             icon.backgroundTintList = setBackgroundTintByScheduleColor(schedule)
-                            binding.itemMonthViewSingleTv.text = schedule.title
+                            binding.itemMonthViewSingleTv.text = ScheduleDisplayTextUtils.titleOrDefault(schedule.title)
                             binding.root.layoutParams = params
                             eventContainer.addView(binding.root)
                         }
@@ -845,7 +902,7 @@ class CalendarPageFragment: Fragment() {
                                 else -> R.drawable.bg_item_month_view_middle
                             })
                             binding.itemMonthViewMultipleDays.text = when{
-                                isStart -> schedule.title
+                                isStart -> ScheduleDisplayTextUtils.titleOrDefault(schedule.title)
                                 else -> ""
                             }
 
@@ -942,7 +999,7 @@ class CalendarPageFragment: Fragment() {
         }.thenBy { schedule ->
             schedule.startTime
         }.thenBy { schedule ->
-            schedule.title.orEmpty()
+            ScheduleDisplayTextUtils.titleOrDefault(schedule.title)
         }.thenBy { schedule ->
             schedule.startDate
         }.thenBy { schedule ->
@@ -1018,7 +1075,7 @@ class CalendarPageFragment: Fragment() {
                         start = dates.first(),
                         end = dates.last(),
                         priority = priority,
-                        title = representative.title.orEmpty(),
+                        title = ScheduleDisplayTextUtils.titleOrDefault(representative.title),
                         id = representative.id
                     )
                 }

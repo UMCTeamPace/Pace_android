@@ -4,18 +4,13 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.activity.enableEdgeToEdge
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.example.pace.R
 import com.example.pace.data.model.CalendarAccount
 import com.example.pace.data.viewmodel.SettingsViewModel
 import com.example.pace.databinding.FragmentDefaultCalendarBinding
-import com.example.pace.databinding.FragmentSettingDepartureBinding
-import com.example.pace.databinding.FragmentSettingReminderBinding
-import com.example.pace.databinding.FragmentSyncWithCalendarBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
@@ -23,8 +18,9 @@ import kotlinx.coroutines.launch
 class DefaultCalendarFragment : Fragment() {
     private var _binding: FragmentDefaultCalendarBinding? = null
     private val binding get() = _binding!!
-    private val viewModel: SettingsViewModel by viewModels()
+    private val viewModel: SettingsViewModel by activityViewModels()
     private lateinit var calendarAdapter: CalendarAdapter
+    private var calendarAccounts: List<CalendarAccount> = emptyList()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentDefaultCalendarBinding.inflate(inflater, container, false)
@@ -40,6 +36,7 @@ class DefaultCalendarFragment : Fragment() {
 
     private fun setupRecyclerView() {
         calendarAdapter = CalendarAdapter { selectedId ->
+            calendarAdapter.submitList(calendarAccounts, selectedId)
             viewModel.updateDefaultCalendar(selectedId)
         }
         binding.rvCalendarList.apply { // XML에서 RadioGroup 대신 RecyclerView(id: rv_calendar_list) 추가 필요
@@ -50,14 +47,14 @@ class DefaultCalendarFragment : Fragment() {
 
     private fun observeData() {
         // 시스템 캘린더 가져오기
-        val allCalendars = fetchCalendarAccounts()
+        calendarAccounts = fetchCalendarAccounts()
 
         // DB 설정값 관찰하여 리스트 갱신
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.userSettings.collect { settings ->
-                val currentId = settings?.calendarId ?: -1L
-                val effectiveId = resolveDefaultCalendarId(currentId, allCalendars)
-                calendarAdapter.submitList(allCalendars, effectiveId)
+                val currentId = settings?.calendarId ?: return@collect
+                val effectiveId = resolveDefaultCalendarId(currentId, calendarAccounts)
+                calendarAdapter.submitList(calendarAccounts, effectiveId)
             }
         }
     }

@@ -37,7 +37,7 @@ data class CreateScheduleRequest(
     @SerializedName("startTime") val startTime: String?,
     @SerializedName("endTime") val endTime: String?,
     @SerializedName("calendarId") val calendarId: String?, // 💡 명세에 맞춰 String으로 변경
-    @SerializedName("color") val color: String? = "#DC354B",
+    @SerializedName("color") val color: String? = null,
     @SerializedName("memo") val memo: String?,
     @SerializedName("isPathIncluded") val isPathIncluded: Boolean,
     @SerializedName("isRepeat") val isRepeat: Boolean,
@@ -54,7 +54,7 @@ data class CreateRouteScheduleRequest(
     @SerializedName("startTime") val startTime: String?,
     @SerializedName("endTime") val endTime: String?,
     @SerializedName("calendarId") val calendarId: String?,
-    @SerializedName("color") val color: String? = "#DC354B",
+    @SerializedName("color") val color: String? = null,
     @SerializedName("memo") val memo: String?,
     @SerializedName("isPathIncluded") val isPathIncluded: Boolean,
     @SerializedName("place") val place: PlaceRequest?,
