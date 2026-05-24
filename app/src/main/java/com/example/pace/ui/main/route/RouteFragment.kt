@@ -1421,7 +1421,7 @@ class RouteFragment : Fragment() {
         showKeyBoard()
     }
 
-    private fun exitSearchMode() {
+    private fun exitSearchMode(restoreMainNavigation: Boolean = true) {
         exitPoiMode()
         isPlaceDetailSheetLocked = false
         hideSearchThisAreaButton()
@@ -1475,7 +1475,7 @@ class RouteFragment : Fragment() {
         mapFrag?.setMapPadding(0)
         mapFrag?.updateButtonTranslation(0f)
         clearHiddenPlaceBottomSheetState(clearMode = true)
-        if (currentEntryMode == EntryMode.MAIN) {
+        if (restoreMainNavigation && currentEntryMode == EntryMode.MAIN) {
             mainBinding?.mainBnv?.visibility = View.VISIBLE
         }
 
@@ -1705,7 +1705,7 @@ class RouteFragment : Fragment() {
 
                     return@addOnCompleteListener
                 }
-                exitSearchMode()
+                exitSearchMode(restoreMainNavigation = false)
                 isDetailFromRecommend = true
                 showLocationDetail(item)
 
@@ -1876,7 +1876,7 @@ class RouteFragment : Fragment() {
             return
         }
 
-        exitSearchMode()
+        exitSearchMode(restoreMainNavigation = false)
 
         isDetailFromRecommend = true
 
@@ -2059,7 +2059,7 @@ class RouteFragment : Fragment() {
                 fetchRecentPlaceItem(placeId) { searchItem ->
                     hideKeyboard()
                     mainBinding?.searchEt?.clearFocus()
-                    exitSearchMode()
+                    exitSearchMode(restoreMainNavigation = false)
                     isDetailFromRecommend = true
                     showLocationDetail(searchItem)
                     mainBinding?.mainBackIv?.visibility = View.VISIBLE
@@ -4011,7 +4011,7 @@ class RouteFragment : Fragment() {
                     }
                     else -> {
                         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
-                        exitSearchMode()
+                        exitSearchMode(restoreMainNavigation = false)
                         isDetailFromRecommend = true
                         showLocationDetail(searchItem)
                         mapFrag?.clearMarkers()
