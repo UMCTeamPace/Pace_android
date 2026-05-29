@@ -11,6 +11,7 @@ object ScheduleSortUtils {
     ): Comparator<Schedule> {
         return compareBy<Schedule>(
             { !it.isPinned },
+            { if (it.type == "ROUTE") 0 else 1 },
             { if (!it.isPinned && isEndedTimedToday(it, today, now)) 1 else 0 },
             { if (it.isAllDay) 0 else 1 },
             { parseTimeOrEnd(it.startTime) }

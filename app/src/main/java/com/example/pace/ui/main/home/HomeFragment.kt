@@ -31,6 +31,7 @@ import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.launch
 import androidx.fragment.app.activityViewModels // 추가 확인
 import com.example.pace.data.model.response.ScheduleDetailResponse
+import com.example.pace.util.ScheduleRefreshReason
 import com.example.pace.util.ScheduleSortUtils
 import com.example.pace.util.ScheduleUiRefreshTicker
 import dagger.hilt.android.AndroidEntryPoint // 1. 추가
@@ -48,9 +49,16 @@ class HomeFragment: Fragment() {
     private var suppressNextScheduleAnimation = false
     private var pendingModalEditDate: LocalDate? = null
     private var calendarBaseDate: LocalDate? = null
-    private val scheduleUiRefreshTicker = ScheduleUiRefreshTicker {
+    private val scheduleUiRefreshTicker = ScheduleUiRefreshTicker { reason ->
         if (isViewReady) {
-            filterAndDisplaySchedules()
+            when (reason) {
+                ScheduleRefreshReason.COUNTDOWN -> {
+                    if (::scheduleAdapter.isInitialized) {
+                        refreshCountdownAlerts()
+                    }
+                }
+                ScheduleRefreshReason.PAST_STATUS -> filterAndDisplaySchedules()
+            }
         }
     }
 
@@ -349,7 +357,7 @@ class HomeFragment: Fragment() {
         }
 
         scheduleAdapter.updateData(sortedList, viewModel.routeDetails.value)
-        scheduleUiRefreshTicker.schedule(sortedList)
+        scheduleUiRefreshTicker.schedule(sortedList, viewModel.routeDetails.value)
         lastRenderedScheduleDate = selectedDate
 
         if (shouldSuppressAnimation) {
@@ -370,6 +378,14 @@ class HomeFragment: Fragment() {
             binding.homeNoSchedule.visibility = View.GONE
             binding.homeScheduleRv.visibility = View.VISIBLE
         }
+    }
+
+    private fun refreshCountdownAlerts() {
+        scheduleAdapter.refreshCountdownAlerts()
+        scheduleUiRefreshTicker.schedule(
+            scheduleAdapter.currentSchedules(),
+            viewModel.routeDetails.value
+        )
     }
 
     fun resetToToday() {

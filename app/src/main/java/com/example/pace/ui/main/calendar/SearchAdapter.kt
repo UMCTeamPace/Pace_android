@@ -293,6 +293,8 @@ class SearchAdapter(
                 binding.scheduleNormalLocationTv.text = schedule.location ?: ""
             }
 
+            binding.scheduleAlertTv.visibility = View.GONE
+
             binding.schedulePinnedIv.visibility = if (schedule.isPinned) View.VISIBLE else View.GONE
             binding.scheduleCheckbox.visibility = View.INVISIBLE
 

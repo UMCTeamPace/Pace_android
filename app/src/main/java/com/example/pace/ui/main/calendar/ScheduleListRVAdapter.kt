@@ -266,6 +266,8 @@ class ScheduleListRVAdapter(
                 }
             }
 
+            binding.scheduleAlertTv.visibility = View.GONE
+
             binding.schedulePinIv.setOnClickListener {
                 onPinClick(schedule)
                 mItemManger.closeItem(bindingAdapterPosition)

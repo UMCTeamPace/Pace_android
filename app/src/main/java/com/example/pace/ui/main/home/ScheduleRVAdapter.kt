@@ -14,8 +14,10 @@ import com.example.pace.data.model.Schedule
 import com.example.pace.data.model.response.RouteInfo
 import com.example.pace.databinding.ItemScheduleBinding
 import com.example.pace.ui.RouteCalculator
+import com.example.pace.util.ScheduleCountdownUtils
 import com.example.pace.util.ScheduleDisplayTextUtils
 import com.example.pace.util.ScheduleItemStyleUtils
+import com.example.pace.util.SchedulePayloads
 import com.google.gson.Gson
 
 class ScheduleRVAdapter(
@@ -53,6 +55,14 @@ class ScheduleRVAdapter(
         routeInfoMap = newRouteMap
         scheduleList = newSchedules.toList()
         diffResult.dispatchUpdatesTo(this)
+    }
+
+    fun currentSchedules(): List<Schedule> = scheduleList.toList()
+
+    fun refreshCountdownAlerts() {
+        scheduleList.indices.forEach { position ->
+            notifyItemChanged(position, SchedulePayloads.COUNTDOWN_ALERT)
+        }
     }
 
     private fun resetSwipeState() {
@@ -102,6 +112,14 @@ class ScheduleRVAdapter(
         }
     }
 
+    override fun onBindViewHolder(holder: ViewHolder, position: Int, payloads: MutableList<Any>) {
+        if (payloads.contains(SchedulePayloads.COUNTDOWN_ALERT)) {
+            holder.bindCountdownAlertOnly(scheduleList[position])
+            return
+        }
+        onBindViewHolder(holder, position)
+    }
+
     override fun getItemCount(): Int = scheduleList.size
 
     override fun getSwipeLayoutResourceId(position: Int): Int = R.id.item_schedule
@@ -132,6 +150,18 @@ class ScheduleRVAdapter(
     }
 
     inner class ViewHolder(val binding: ItemScheduleBinding) : RecyclerView.ViewHolder(binding.root) {
+        fun bindCountdownAlertOnly(schedule: Schedule) {
+            val serverRouteInfo = routeInfoMap[schedule.id]
+            val localRouteInfo = schedule.routeJson?.let {
+                runCatching { gson.fromJson(it, RouteInfo::class.java) }.getOrNull()
+            }
+            ScheduleCountdownUtils.applyAlert(
+                alertView = binding.scheduleAlertTv,
+                schedule = schedule,
+                routeInfo = serverRouteInfo ?: localRouteInfo
+            )
+        }
+
         fun bind(schedule: Schedule) {
             binding.root.close(false)
             binding.scheduleCheckbox.visibility = View.GONE
@@ -172,6 +202,8 @@ class ScheduleRVAdapter(
                     binding.scheduleNormalLocationLl.visibility = View.GONE
                 }
             }
+
+            bindCountdownAlertOnly(schedule)
 
             ScheduleItemStyleUtils.applyScheduleColors(
                 context = context,

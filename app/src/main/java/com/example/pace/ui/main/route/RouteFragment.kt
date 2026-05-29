@@ -9,6 +9,8 @@ import android.content.res.ColorStateList
 import android.graphics.Color
 import android.location.Location
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.text.Editable
 import android.text.TextWatcher
@@ -65,6 +67,7 @@ import com.example.pace.ui.NetworkErrorDialog
 import com.example.pace.ui.add_schedule.AddScheduleActivity
 import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.search_box.*
+import com.example.pace.util.ScheduleCountdownUtils
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.libraries.places.api.net.SearchNearbyRequest
@@ -189,12 +192,28 @@ class RouteFragment : Fragment() {
     private var isPlaceDetailCompact = false
     private var isBottomSheetHiddenByHandle = false
     private var currentPlaceBottomSheetMode = PlaceBottomSheetMode.NONE
+    private var lastSearchResultItems: List<SearchItem> = emptyList()
 
     private enum class PlaceBottomSheetMode {
         NONE,
         SEARCH_RESULTS,
         PLACE_DETAIL
     }
+
+    private enum class HistoryRouteReturnFlow {
+        RECENT_SEARCH,
+        RECENT_PLACE,
+        RECENT_ROUTE
+    }
+
+    private data class HistoryRouteReturnState(
+        val flow: HistoryRouteReturnFlow,
+        var placeDetailItem: SearchItem? = null,
+        var restoredPlaceDetail: Boolean = false
+    )
+
+    private var historyRouteReturnState: HistoryRouteReturnState? = null
+    private var currentPlaceDetailItem: SearchItem? = null
 
     private enum class RouteDetailSheetMode {
         MAIN_ROUTE,
@@ -842,6 +861,7 @@ class RouteFragment : Fragment() {
         exitPoiMode()
         isPlaceDetailSheetLocked = false
         isPlaceDetailCompact = false
+        rememberPlaceDetailForHistoryRouteReturn()
         if (currentEntryMode == EntryMode.SCHEDULE_ROUTE) {
             isScheduleRouteInitialSearch = false
         }
@@ -1150,6 +1170,20 @@ class RouteFragment : Fragment() {
             showDefaultScheduleOverlay(selectedData)
             dialog.dismiss()
         }
+        val countdownHandler = Handler(Looper.getMainLooper())
+        lateinit var countdownRunnable: Runnable
+        countdownRunnable = Runnable {
+            adapter.refreshCountdownAlerts()
+            ScheduleCountdownUtils.nextRouteScheduleCountdownRefreshDelayMillis(sortedList)?.let { delayMillis ->
+                countdownHandler.postDelayed(countdownRunnable, delayMillis)
+            }
+        }
+        ScheduleCountdownUtils.nextRouteScheduleCountdownRefreshDelayMillis(sortedList)?.let { delayMillis ->
+            countdownHandler.postDelayed(countdownRunnable, delayMillis)
+        }
+        dialog.setOnDismissListener {
+            countdownHandler.removeCallbacks(countdownRunnable)
+        }
 
         sheetBinding.rvSavedRoutes.apply {
             layoutManager = androidx.recyclerview.widget.LinearLayoutManager(context)
@@ -1422,6 +1456,7 @@ class RouteFragment : Fragment() {
     }
 
     private fun exitSearchMode(restoreMainNavigation: Boolean = true) {
+        clearHistoryRouteReturnState()
         exitPoiMode()
         isPlaceDetailSheetLocked = false
         hideSearchThisAreaButton()
@@ -1484,6 +1519,179 @@ class RouteFragment : Fragment() {
             bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
             setBottomSheetContainerHeight(null)
         }
+    }
+
+    private fun canTrackHistoryRouteReturn(): Boolean {
+        return !isBookmarkSearchMode &&
+            (currentEntryMode == EntryMode.MAIN || currentEntryMode == EntryMode.ROUTE_PLAN)
+    }
+
+    private fun beginHistoryRouteReturn(flow: HistoryRouteReturnFlow) {
+        if (!canTrackHistoryRouteReturn()) return
+        if (historyRouteReturnState != null) return
+        historyRouteReturnState = HistoryRouteReturnState(flow)
+    }
+
+    private fun rememberPlaceDetailForHistoryRouteReturn() {
+        val state = historyRouteReturnState ?: return
+        if (state.flow == HistoryRouteReturnFlow.RECENT_ROUTE) return
+        if (state.placeDetailItem != null) return
+        state.placeDetailItem = currentPlaceDetailItem
+    }
+
+    private fun clearHistoryRouteReturnState() {
+        historyRouteReturnState = null
+    }
+
+    private fun clearRouteSelectionForHistoryReturn() {
+        selectedStartPlace = null
+        selectedEndPlace = null
+        startLatLng = null
+        endLatLng = null
+        selectedOnMapPlace = null
+        binding.layoutRouteInputHeader.tvRouteStart.setText("")
+        binding.layoutRouteInputHeader.tvRouteEnd.setText("")
+        updateClearButtonVisibility()
+        if (currentEntryMode == EntryMode.ROUTE_PLAN) {
+            currentEntryMode = EntryMode.MAIN
+        }
+    }
+
+    private fun hideRouteResultFragment() {
+        val routeResultFrag = childFragmentManager.findFragmentByTag("ROUTE_RESULT") ?: return
+        childFragmentManager.beginTransaction()
+            .hide(routeResultFrag)
+            .commitAllowingStateLoss()
+    }
+
+    private fun showHistorySearchScreenForReturn(flow: HistoryRouteReturnFlow) {
+        clearRouteSelectionForHistoryReturn()
+        hideRouteResultFragment()
+        clearHiddenPlaceBottomSheetState(clearMode = true)
+        hideKeyboard()
+        mainBinding?.searchEt?.clearFocus()
+        mainBinding?.searchEt?.setText("")
+
+        binding.layoutRouteDetailOverlay.root.visibility = View.GONE
+        binding.layoutRouteInputHeader.layoutFilterOptions.visibility = View.GONE
+        binding.layoutRouteInputHeader.root.visibility = View.GONE
+        binding.routeSearchFcv.visibility = View.VISIBLE
+        binding.routeSearchFcv.bringToFront()
+
+        mainBinding?.mainSearchLl?.visibility = View.VISIBLE
+        mainBinding?.mainToolbar?.visibility = View.VISIBLE
+        mainBinding?.mainBackIv?.visibility = View.VISIBLE
+        mainBinding?.mainBnv?.visibility = View.GONE
+
+        showSearchFragment(historyFragment)
+        historyFragment.setRouteOptionsVisible(false)
+        historyFragment.updateChipsForScheduleMode(isRouteHeaderVisible = false, isScheduleMode = false)
+        when (flow) {
+            HistoryRouteReturnFlow.RECENT_SEARCH -> historyFragment.selectRecentSearchForRestore()
+            HistoryRouteReturnFlow.RECENT_PLACE -> historyFragment.selectRecentPlaceForRestore()
+            HistoryRouteReturnFlow.RECENT_ROUTE -> historyFragment.selectRecentRouteForRestore()
+        }
+        clearHistoryRouteReturnState()
+    }
+
+    private fun showSearchResultListForReturn(): Boolean {
+        if (lastSearchResultItems.isEmpty()) return false
+
+        clearRouteSelectionForHistoryReturn()
+        hideRouteResultFragment()
+        hideKeyboard()
+        mainBinding?.searchEt?.clearFocus()
+        mainBinding?.searchEt?.setText("")
+
+        binding.layoutRouteDetailOverlay.root.visibility = View.GONE
+        binding.layoutRouteInputHeader.layoutFilterOptions.visibility = View.GONE
+        binding.layoutRouteInputHeader.root.visibility = View.GONE
+        binding.routeSearchFcv.visibility = View.GONE
+        binding.bottomSheetContainer.visibility = View.VISIBLE
+
+        mainBinding?.mainSearchLl?.visibility = View.VISIBLE
+        mainBinding?.mainToolbar?.visibility = View.VISIBLE
+        mainBinding?.mainBackIv?.visibility = View.VISIBLE
+        mainBinding?.mainBnv?.visibility = View.GONE
+
+        isDetailFromRecommend = false
+        showBottomSheet(lastSearchResultItems)
+
+        val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+        mapFrag?.showMultipleMarkers(lastSearchResultItems, moveCamera = false) { clickedItem ->
+            isDetailFromRecommend = false
+            showLocationDetail(clickedItem)
+        }
+        setMapPaddingToBottomSheetHeight()
+        return true
+    }
+
+    private fun showPlaceDetailForReturn(item: SearchItem, state: HistoryRouteReturnState) {
+        hideRouteResultFragment()
+        hideKeyboard()
+        mainBinding?.searchEt?.clearFocus()
+        mainBinding?.searchEt?.setText("")
+
+        binding.layoutRouteDetailOverlay.root.visibility = View.GONE
+        binding.layoutRouteInputHeader.layoutFilterOptions.visibility = View.GONE
+        binding.layoutRouteInputHeader.root.visibility = View.GONE
+        binding.routeSearchFcv.visibility = View.GONE
+        binding.bottomSheetContainer.visibility = View.VISIBLE
+
+        mainBinding?.mainSearchLl?.visibility = View.VISIBLE
+        mainBinding?.mainToolbar?.visibility = View.VISIBLE
+        mainBinding?.mainBackIv?.visibility = View.VISIBLE
+        mainBinding?.mainBnv?.visibility = View.GONE
+
+        isDetailFromRecommend = state.flow != HistoryRouteReturnFlow.RECENT_SEARCH
+        state.restoredPlaceDetail = true
+        showLocationDetail(item)
+    }
+
+    private fun handleHistoryRouteReturnBack(): Boolean {
+        val state = historyRouteReturnState ?: return false
+        if (currentEntryMode != EntryMode.ROUTE_PLAN && currentEntryMode != EntryMode.MAIN) return false
+
+        val detailFrag = childFragmentManager.findFragmentByTag("DETAIL")
+        if (detailFrag != null && detailFrag.isVisible && state.restoredPlaceDetail) {
+            isPlaceDetailSheetLocked = false
+            childFragmentManager.popBackStackImmediate("DETAIL", androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
+            return if (state.flow == HistoryRouteReturnFlow.RECENT_SEARCH) {
+                if (showSearchResultListForReturn()) {
+                    state.restoredPlaceDetail = false
+                    state.placeDetailItem = null
+                    true
+                } else {
+                    showHistorySearchScreenForReturn(HistoryRouteReturnFlow.RECENT_SEARCH)
+                    true
+                }
+            } else {
+                showHistorySearchScreenForReturn(state.flow)
+                true
+            }
+        }
+
+        if (state.flow == HistoryRouteReturnFlow.RECENT_SEARCH &&
+            currentPlaceBottomSheetMode == PlaceBottomSheetMode.SEARCH_RESULTS &&
+            binding.bottomSheetContainer.visibility == View.VISIBLE
+        ) {
+            showHistorySearchScreenForReturn(HistoryRouteReturnFlow.RECENT_SEARCH)
+            return true
+        }
+
+        if (binding.layoutRouteInputHeader.root.visibility == View.VISIBLE) {
+            if (state.flow == HistoryRouteReturnFlow.RECENT_ROUTE) {
+                showHistorySearchScreenForReturn(HistoryRouteReturnFlow.RECENT_ROUTE)
+                return true
+            }
+            val item = state.placeDetailItem ?: currentPlaceDetailItem
+            if (item != null) {
+                showPlaceDetailForReturn(item, state)
+                return true
+            }
+        }
+
+        return false
     }
 
     private fun showSearchFragment(fragment: Fragment) {
@@ -1905,6 +2113,7 @@ class RouteFragment : Fragment() {
     }
 
     fun handleRecentRouteClick(route: RecentRoute, startPlaceName: String, endPlaceName: String){
+        beginHistoryRouteReturn(HistoryRouteReturnFlow.RECENT_ROUTE)
         selectedStartPlace = Pair(startPlaceName, route.startPlaceId)
         selectedEndPlace = Pair(endPlaceName, route.endPlaceId)
 
@@ -2334,6 +2543,9 @@ class RouteFragment : Fragment() {
         }
         if (isBottomSheetHiddenByHandle) {
             clearHiddenPlaceBottomSheetState(clearMode = false)
+        }
+        if (handleHistoryRouteReturnBack()) {
+            return
         }
         if (isPoiMode) {
             val transaction = childFragmentManager.beginTransaction()
@@ -3008,6 +3220,7 @@ class RouteFragment : Fragment() {
 
     private fun showBottomSheet(items: List<SearchItem>) {
         isPlaceDetailSheetLocked = false
+        lastSearchResultItems = items
         binding.bottomSheetContainer.visibility = View.VISIBLE
         var sheetFragment = childFragmentManager.findFragmentByTag(LocationBottomSheetFragment.TAG) as? LocationBottomSheetFragment
         val currentBottomSheetFragment = childFragmentManager.findFragmentById(R.id.bottom_sheet_container)
@@ -3892,6 +4105,7 @@ class RouteFragment : Fragment() {
     }
 
     private fun showResolvedLocationDetail(item: SearchItem, hasPhotos: Boolean) {
+        currentPlaceDetailItem = item
         binding.bottomSheetContainer.visibility = View.VISIBLE
         isPlaceDetailCompact = !hasPhotos
         val isSchedule = currentEntryMode == EntryMode.SCHEDULE
@@ -3959,6 +4173,7 @@ class RouteFragment : Fragment() {
     fun handleHistoryItemClick(item: RecentHistoryItem){
         when (item.type) {
             RecentHistoryItem.TYPE_SEARCH_TEXT -> {
+                beginHistoryRouteReturn(HistoryRouteReturnFlow.RECENT_SEARCH)
                 mainBinding?.searchEt?.setText(item.mainText)
                 hideKeyboard()
                 mainBinding?.searchEt?.clearFocus()
@@ -3969,6 +4184,7 @@ class RouteFragment : Fragment() {
 
             RecentHistoryItem.TYPE_PLACE -> {
                 val place = item.placeEntity ?: return
+                beginHistoryRouteReturn(HistoryRouteReturnFlow.RECENT_PLACE)
                 fetchRecentPlaceItem(place.placeId) { searchItem ->
 
                 if (isBookmarkSearchMode) {

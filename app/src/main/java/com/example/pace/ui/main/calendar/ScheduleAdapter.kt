@@ -16,8 +16,10 @@ import com.example.pace.databinding.ItemScheduleBinding
 import com.example.pace.ui.RouteCalculator
 import com.example.pace.ui.main.home.DeleteScheduleDialog
 import com.example.pace.ui.main.home.ScheduleTouchHelper
+import com.example.pace.util.ScheduleCountdownUtils
 import com.example.pace.util.ScheduleDisplayTextUtils
 import com.example.pace.util.ScheduleItemStyleUtils
+import com.example.pace.util.SchedulePayloads
 import com.google.gson.Gson
 
 class ScheduleAdapter(
@@ -92,6 +94,15 @@ class ScheduleAdapter(
         }
     }
 
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int, payloads: MutableList<Any>) {
+        if (payloads.contains(SchedulePayloads.COUNTDOWN_ALERT)) {
+            val item = items[position] as? ScheduleListItem.ScheduleItem ?: return
+            (holder as? ScheduleItemViewHolder)?.bindCountdownAlertOnly(item.schedule)
+            return
+        }
+        onBindViewHolder(holder, position)
+    }
+
     override fun getItemCount(): Int = items.size
 
     fun updateRouteInfo(newRouteMap: Map<Long, RouteInfo>) {
@@ -107,6 +118,14 @@ class ScheduleAdapter(
         diffResult.dispatchUpdatesTo(this)
     }
 
+    fun refreshCountdownAlerts() {
+        items.forEachIndexed { index, item ->
+            if (item is ScheduleListItem.ScheduleItem) {
+                notifyItemChanged(index, SchedulePayloads.COUNTDOWN_ALERT)
+            }
+        }
+    }
+
     inner class DateHeaderViewHolder(private val binding: ItemDateHeaderBinding) :
         RecyclerView.ViewHolder(binding.root) {
         fun bind(header: ScheduleListItem.DateHeader) {
@@ -116,6 +135,19 @@ class ScheduleAdapter(
 
     inner class ScheduleItemViewHolder(private val binding: ItemScheduleBinding) :
         RecyclerView.ViewHolder(binding.root) {
+
+        fun bindCountdownAlertOnly(schedule: Schedule) {
+            val serverRouteInfo = routeInfoMap[schedule.id]
+            val localRouteInfo = schedule.routeJson?.let {
+                runCatching { gson.fromJson(it, RouteInfo::class.java) }.getOrNull()
+            }
+            ScheduleCountdownUtils.applyAlert(
+                alertView = binding.scheduleAlertTv,
+                schedule = schedule,
+                routeInfo = serverRouteInfo ?: localRouteInfo,
+                enabled = !isEditMode
+            )
+        }
 
         fun bind(item: ScheduleListItem.ScheduleItem, holder: RecyclerView.ViewHolder) {
             val schedule = item.schedule
@@ -185,6 +217,8 @@ class ScheduleAdapter(
                     binding.scheduleNormalLocationLl.visibility = View.GONE
                 }
             }
+
+            bindCountdownAlertOnly(schedule)
 
             ScheduleItemStyleUtils.applyScheduleColors(
                 context = context,

@@ -302,6 +302,37 @@ class SearchHistoryFragment : Fragment() {
         showChildFragment(recentSearchFragment, "RECENT_SEARCH")
     }
 
+    fun selectRecentSearchForRestore() {
+        if (_binding == null) {
+            pendingResetToRecentSearch = true
+            return
+        }
+        binding.chipRecentSearch.visibility = View.VISIBLE
+        selectRecentSearchChip()
+    }
+
+    fun selectRecentPlaceForRestore() {
+        if (_binding == null) {
+            pendingForcePlaceFilter = true
+            return
+        }
+        lastCheckedChipId = View.NO_ID
+        binding.chipGroup.clearCheck()
+        binding.chipGroup.check(R.id.chip_recent_place)
+        binding.chipRecentPlace.isChecked = true
+        showChildFragment(recentPlaceFragment, "RECENT_PLACE")
+    }
+
+    fun selectRecentRouteForRestore() {
+        if (_binding == null) return
+        lastCheckedChipId = View.NO_ID
+        binding.chipRecentRoute.visibility = View.VISIBLE
+        binding.chipGroup.clearCheck()
+        binding.chipGroup.check(R.id.chip_recent_route)
+        binding.chipRecentRoute.isChecked = true
+        showChildFragment(recentRouteFragment, "RECENT_ROUTE")
+    }
+
     fun updateChipsForScheduleMode(isRouteHeaderVisible: Boolean, isScheduleMode: Boolean = false) {
         this.lastRouteHeaderState = isRouteHeaderVisible
         this.lastIsScheduleMode = isScheduleMode

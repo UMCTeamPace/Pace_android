@@ -11,7 +11,9 @@ import com.example.pace.R
 import com.example.pace.data.model.response.RouteOnlyScheduleData
 import com.example.pace.databinding.ItemRouteScheduleHeaderBinding
 import com.example.pace.databinding.ItemScheduleBinding
+import com.example.pace.util.ScheduleCountdownUtils
 import com.example.pace.util.ScheduleDisplayTextUtils
+import com.example.pace.util.SchedulePayloads
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -53,7 +55,24 @@ class RouteScheduleListAdapter(
         }
     }
 
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int, payloads: MutableList<Any>) {
+        if (payloads.contains(SchedulePayloads.COUNTDOWN_ALERT)) {
+            val item = items[position] as? RouteScheduleItem.ScheduleContent ?: return
+            (holder as? ContentViewHolder)?.bindCountdownAlertOnly(item.data)
+            return
+        }
+        onBindViewHolder(holder, position)
+    }
+
     override fun getItemCount(): Int = items.size
+
+    fun refreshCountdownAlerts() {
+        items.forEachIndexed { index, item ->
+            if (item is RouteScheduleItem.ScheduleContent) {
+                notifyItemChanged(index, SchedulePayloads.COUNTDOWN_ALERT)
+            }
+        }
+    }
 
     // 헤더 뷰홀더
     inner class HeaderViewHolder(private val binding: ItemRouteScheduleHeaderBinding) : RecyclerView.ViewHolder(binding.root) {
@@ -64,6 +83,18 @@ class RouteScheduleListAdapter(
 
     // 일정 내용 뷰홀더
     inner class ContentViewHolder(private val binding: ItemScheduleBinding) : RecyclerView.ViewHolder(binding.root) {
+        fun bindCountdownAlertOnly(data: RouteOnlyScheduleData) {
+            val info = data.scheduleInfo
+            ScheduleCountdownUtils.applyAlert(
+                alertView = binding.scheduleAlertTv,
+                isAllDay = info.isAllDay,
+                type = "ROUTE",
+                startDate = info.startDate,
+                startTime = info.startTime,
+                routeInfo = data.route
+            )
+        }
+
         fun bind(data: RouteOnlyScheduleData) {
             val info = data.scheduleInfo
             val route = data.route
@@ -100,6 +131,8 @@ class RouteScheduleListAdapter(
             durationTv?.text = if(hours > 0) "${hours}시간 ${mins}분" else "${mins}분"
 
             // 4. 색상 설정
+            bindCountdownAlertOnly(data)
+
             try {
                 val color = Color.parseColor(info.color ?: "#DC354B")
                 binding.scheduleCategoryIv.imageTintList = ColorStateList.valueOf(color)

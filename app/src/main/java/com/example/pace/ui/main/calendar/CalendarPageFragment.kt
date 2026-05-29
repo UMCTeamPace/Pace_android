@@ -50,6 +50,7 @@ import com.example.pace.databinding.ItemMonthViewMultipleDaysBinding
 import com.example.pace.databinding.ItemMonthViewSingleDayBinding
 import com.example.pace.databinding.ItemWeekViewBinding
 import com.example.pace.util.ScheduleDisplayTextUtils
+import com.example.pace.util.ScheduleRefreshReason
 import com.example.pace.util.ScheduleUiRefreshTicker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlin.math.roundToInt
@@ -88,10 +89,13 @@ class CalendarPageFragment: Fragment() {
     private var isInitialDataReady = false
     private var hasShownInitialContent = false
     private var pendingResetToTodayState = false
-    private val scheduleUiRefreshTicker = ScheduleUiRefreshTicker {
+    private val scheduleUiRefreshTicker = ScheduleUiRefreshTicker { reason ->
         if (_binding != null && ::dailyPageAdapter.isInitialized) {
             val targetDate = selectedDate ?: today
-            dailyPageAdapter.refreshDate(targetDate)
+            when (reason) {
+                ScheduleRefreshReason.COUNTDOWN -> dailyPageAdapter.refreshCountdownAlerts(targetDate)
+                ScheduleRefreshReason.PAST_STATUS -> dailyPageAdapter.refreshDate(targetDate)
+            }
             scheduleCurrentDateRefresh()
         }
     }
@@ -834,7 +838,7 @@ class CalendarPageFragment: Fragment() {
 
     private fun scheduleCurrentDateRefresh() {
         val schedules = events[selectedDate ?: today].orEmpty()
-        scheduleUiRefreshTicker.schedule(schedules)
+        scheduleUiRefreshTicker.schedule(schedules, viewModel.routeDetails.value)
     }
 
     override fun onDestroyView() {

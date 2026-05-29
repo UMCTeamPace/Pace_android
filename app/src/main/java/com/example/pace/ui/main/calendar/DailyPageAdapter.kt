@@ -11,6 +11,7 @@ import com.example.pace.data.model.response.RouteInfo
 import com.example.pace.databinding.ItemSchedulePageBinding
 import com.example.pace.ui.main.calendar.ScheduleAdapter
 import com.example.pace.ui.main.calendar.ScheduleListItem
+import com.example.pace.util.SchedulePayloads
 import com.example.pace.util.ScheduleSortUtils
 import java.time.LocalDate
 import kotlin.collections.sortedWith
@@ -77,6 +78,10 @@ class DailyPageAdapter(
         notifyItemChanged(getPosition(date))
     }
 
+    fun refreshCountdownAlerts(date: LocalDate) {
+        notifyItemChanged(getPosition(date), SchedulePayloads.COUNTDOWN_ALERT)
+    }
+
     inner class PageViewHolder(val binding: ItemSchedulePageBinding) : RecyclerView.ViewHolder(binding.root) {
         private val scheduleAdapter = ScheduleAdapter(
             context = context,
@@ -114,6 +119,10 @@ class DailyPageAdapter(
                 binding.rvDailyScheduleItem.visibility = View.VISIBLE
             }
         }
+
+        fun refreshCountdownAlerts() {
+            scheduleAdapter.refreshCountdownAlerts()
+        }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PageViewHolder {
@@ -122,6 +131,14 @@ class DailyPageAdapter(
 
     override fun onBindViewHolder(holder: PageViewHolder, position: Int) {
         holder.bind(getDate(position))
+    }
+
+    override fun onBindViewHolder(holder: PageViewHolder, position: Int, payloads: MutableList<Any>) {
+        if (payloads.contains(SchedulePayloads.COUNTDOWN_ALERT)) {
+            holder.refreshCountdownAlerts()
+            return
+        }
+        onBindViewHolder(holder, position)
     }
 
     override fun getItemCount(): Int = Int.MAX_VALUE

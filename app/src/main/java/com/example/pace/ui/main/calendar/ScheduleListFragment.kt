@@ -21,6 +21,7 @@ import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.main.calendar.SearchFragment
 import com.example.pace.ui.main.home.DeleteRepeatScheduleDialog
 import com.example.pace.ui.main.home.DeleteScheduleDialog
+import com.example.pace.util.ScheduleRefreshReason
 import com.example.pace.util.ScheduleSortUtils
 import com.example.pace.util.ScheduleUiRefreshTicker
 import dagger.hilt.android.AndroidEntryPoint
@@ -42,8 +43,8 @@ class ScheduleListFragment : Fragment() {
     private var hasScrolledToToday = false
     private var pendingResetToToday = false
     private var editModeChromeInitialized = false
-    private val scheduleUiRefreshTicker = ScheduleUiRefreshTicker {
-        if (_binding != null) {
+    private val scheduleUiRefreshTicker = ScheduleUiRefreshTicker { reason ->
+        if (_binding != null && reason == ScheduleRefreshReason.PAST_STATUS) {
             viewLifecycleOwner.lifecycleScope.launch {
                 processAndDisplaySchedules(viewModel.scheduleMap.value, scrollToToday = false)
             }
@@ -301,6 +302,11 @@ class ScheduleListFragment : Fragment() {
                 launch {
                     viewModel.routeDetails.collectLatest {
                         scheduleListAdapter.updateRouteMap(it)
+                        scheduleUiRefreshTicker.schedule(
+                            schedules = viewModel.scheduleMap.value.values.flatten(),
+                            routeInfoMap = it,
+                            includeCountdown = false
+                        )
                     }
                 }
 
@@ -347,7 +353,11 @@ class ScheduleListFragment : Fragment() {
         }
 
         scheduleListAdapter.updateDataAsync(items, viewModel.routeDetails.value)
-        scheduleUiRefreshTicker.schedule(groupedMap.values.flatten())
+        scheduleUiRefreshTicker.schedule(
+            schedules = groupedMap.values.flatten(),
+            routeInfoMap = viewModel.routeDetails.value,
+            includeCountdown = false
+        )
         if (scrollToToday) {
             scrollToTodayPositionIfNeeded(todayPosition)
         }
