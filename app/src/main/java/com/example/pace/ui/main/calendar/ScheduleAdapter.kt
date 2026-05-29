@@ -233,6 +233,7 @@ class ScheduleAdapter(
                     binding.scheduleRouteDurationTv
                 ),
                 accentViews = listOf(
+                    binding.scheduleTimeIv,
                     binding.scheduleRepeatIv,
                     binding.scheduleNormalLocationIv,
                     binding.scheduleRouteLocationIv

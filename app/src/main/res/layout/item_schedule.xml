@@ -10,6 +10,7 @@
         android:id="@+id/schedule_left_bottom_wrapper"
         android:layout_width="80dp"
         android:layout_height="match_parent"
+        android:layout_marginTop="8dp"
         android:padding="12dp"
         android:background="@drawable/box_left_schedule">
         <ImageView
@@ -58,7 +59,7 @@
         android:layout_marginTop="8dp"
         android:clickable="true"
         android:padding="12dp"
-        android:background="@drawable/box_schedule">
+        android:background="@drawable/box_schedule_item">
         <LinearLayout
             android:id="@+id/schedule_title_ll"
             android:layout_width="match_parent"
@@ -79,11 +80,10 @@
             <TextView
                 android:id="@+id/schedule_title_tv"
                 style="@style/TextColor.Primary"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="4dp"
                 android:layout_marginLeft="4dp"
-                android:layout_weight="1"
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:text="일정 제목"
@@ -106,10 +106,10 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:background="@drawable/box_schedule_alarm"
-                android:paddingTop="8dp"
+                android:paddingTop="4dp"
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp"
-                android:paddingBottom="8dp"
+                android:paddingBottom="4dp"
                 android:text="일정 1시간 전"
                 android:textAppearance="@style/TextAppearance.App.CaptionLg.Semibold"
                 style="@style/TextColor.White"/>
@@ -130,6 +130,7 @@
             app:layout_constraintTop_toBottomOf="@id/schedule_title_ll"
             app:layout_constraintStart_toStartOf="parent">
             <ImageView
+                android:id="@+id/schedule_time_iv"
                 android:layout_width="16dp"
                 android:layout_height="16dp"
                 android:src="@drawable/ic_time" />

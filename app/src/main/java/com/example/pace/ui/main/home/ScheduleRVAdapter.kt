@@ -18,6 +18,7 @@ import com.example.pace.util.ScheduleCountdownUtils
 import com.example.pace.util.ScheduleDisplayTextUtils
 import com.example.pace.util.ScheduleItemStyleUtils
 import com.example.pace.util.SchedulePayloads
+import com.example.pace.util.ScheduleSwipeStyleHelper
 import com.google.gson.Gson
 
 class ScheduleRVAdapter(
@@ -150,6 +151,10 @@ class ScheduleRVAdapter(
     }
 
     inner class ViewHolder(val binding: ItemScheduleBinding) : RecyclerView.ViewHolder(binding.root) {
+        init {
+            ScheduleSwipeStyleHelper.attach(binding.root, binding.scheduleViewTop)
+        }
+
         fun bindCountdownAlertOnly(schedule: Schedule) {
             val serverRouteInfo = routeInfoMap[schedule.id]
             val localRouteInfo = schedule.routeJson?.let {
@@ -164,6 +169,7 @@ class ScheduleRVAdapter(
 
         fun bind(schedule: Schedule) {
             binding.root.close(false)
+            ScheduleSwipeStyleHelper.reset(binding.scheduleViewTop)
             binding.scheduleCheckbox.visibility = View.GONE
             binding.scheduleTitleTv.text = ScheduleDisplayTextUtils.titleOrDefault(schedule.title)
 
@@ -217,7 +223,12 @@ class ScheduleRVAdapter(
                     binding.scheduleRouteRangeTv,
                     binding.scheduleRouteDurationTv
                 ),
-                accentViews = listOf(binding.scheduleRepeatIv, binding.scheduleNormalLocationIv),
+                accentViews = listOf(
+                    binding.scheduleTimeIv,
+                    binding.scheduleRepeatIv,
+                    binding.scheduleNormalLocationIv,
+                    binding.scheduleRouteLocationIv
+                ),
                 categoryView = binding.scheduleCategoryIv,
                 pinnedView = binding.schedulePinnedIv
             )

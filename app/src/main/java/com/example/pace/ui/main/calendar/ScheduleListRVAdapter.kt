@@ -19,6 +19,7 @@ import com.example.pace.databinding.ItemScheduleBinding
 import com.example.pace.ui.RouteCalculator
 import com.example.pace.util.ScheduleDisplayTextUtils
 import com.example.pace.util.ScheduleItemStyleUtils
+import com.example.pace.util.ScheduleSwipeStyleHelper
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -213,9 +214,13 @@ class ScheduleListRVAdapter(
 
     inner class ItemViewHolder(private val binding: ItemScheduleBinding) :
         RecyclerView.ViewHolder(binding.root) {
+        init {
+            ScheduleSwipeStyleHelper.attach(binding.root, binding.scheduleViewTop)
+        }
 
         fun bind(schedule: Schedule) {
             binding.root.close(false)
+            ScheduleSwipeStyleHelper.reset(binding.scheduleViewTop)
             binding.scheduleViewTop.translationX = 0f
             binding.root.setSwipeEnabled(!isEditMode)
 
@@ -314,6 +319,7 @@ class ScheduleListRVAdapter(
                     binding.scheduleRouteDurationTv
                 ),
                 accentViews = listOf(
+                    binding.scheduleTimeIv,
                     binding.scheduleRepeatIv,
                     binding.scheduleNormalLocationIv,
                     binding.scheduleRouteLocationIv
