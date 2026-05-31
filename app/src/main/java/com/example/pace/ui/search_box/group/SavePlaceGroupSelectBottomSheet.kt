@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
-import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
@@ -257,8 +256,10 @@ class SavePlaceGroupSelectBottomSheet(
 
         bottomSheet?.let { sheet ->
             val screenHeight = resources.displayMetrics.heightPixels
+            val sheetHeight = (screenHeight * (626f / 800f)).toInt()
+            sheet.translationY = 0f
             val layoutParams = sheet.layoutParams
-            layoutParams.height = (screenHeight * (626f / 800f)).toInt()
+            layoutParams.height = sheetHeight
             sheet.layoutParams = layoutParams
 
             val behavior = BottomSheetBehavior.from(sheet)
@@ -266,34 +267,51 @@ class SavePlaceGroupSelectBottomSheet(
             behavior.isHideable = true
             behavior.skipCollapsed = true
             behavior.isDraggable = false
-            setupHandleSwipe(behavior)
+            setupHandleDrag(sheet, behavior, sheetHeight)
         }
     }
 
-    private fun setupHandleSwipe(behavior: BottomSheetBehavior<View>) {
-        val closeThreshold = ViewConfiguration.get(requireContext()).scaledTouchSlop * 2
+    private fun setupHandleDrag(
+        sheet: View,
+        behavior: BottomSheetBehavior<View>,
+        sheetHeight: Int
+    ) {
         var downY = 0f
-        var isClosing = false
+        var startTranslationY = 0f
 
         binding.viewHandle.setOnTouchListener { _, event ->
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
+                    sheet.animate().cancel()
                     hideKeyboardAndClearFocus()
                     downY = event.rawY
-                    isClosing = false
+                    startTranslationY = sheet.translationY
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    val deltaY = event.rawY - downY
-                    if (!isClosing && deltaY > closeThreshold) {
-                        isClosing = true
-                        behavior.state = BottomSheetBehavior.STATE_HIDDEN
-                    }
+                    val dragOffset = (startTranslationY + event.rawY - downY).coerceAtLeast(0f)
+                    sheet.translationY = dragOffset
                     true
                 }
                 MotionEvent.ACTION_UP,
                 MotionEvent.ACTION_CANCEL -> {
-                    isClosing = false
+                    val measuredSheetHeight = sheet.height.takeIf { it > 0 } ?: sheetHeight
+                    val closeThreshold = measuredSheetHeight * 0.1f
+                    val shouldClose = sheet.translationY >= closeThreshold
+                    if (shouldClose) {
+                        sheet.animate()
+                            .translationY(sheet.height.toFloat())
+                            .setDuration(180L)
+                            .withEndAction {
+                                behavior.state = BottomSheetBehavior.STATE_HIDDEN
+                            }
+                            .start()
+                    } else {
+                        sheet.animate()
+                            .translationY(0f)
+                            .setDuration(180L)
+                            .start()
+                    }
                     true
                 }
                 else -> true

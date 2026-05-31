@@ -15,7 +15,7 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:gravity="center"
-        android:textColor="@android:color/black"
+        android:textColor="@color/semantic_error_delete"
         tools:text="Sun" />
 
     <TextView
@@ -23,7 +23,7 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:gravity="center"
-        android:textColor="@android:color/black"
+        android:textColor="@color/gray_900"
         tools:text="Mon" />
 
     <TextView
@@ -31,7 +31,7 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:gravity="center"
-        android:textColor="@android:color/black"
+        android:textColor="@color/gray_900"
         tools:text="Tue" />
 
     <TextView
@@ -39,7 +39,7 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:gravity="center"
-        android:textColor="@android:color/black"
+        android:textColor="@color/gray_900"
         tools:text="Wed" />
 
     <TextView
@@ -47,7 +47,7 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:gravity="center"
-        android:textColor="@android:color/black"
+        android:textColor="@color/gray_900"
         tools:text="Thu" />
 
     <TextView
@@ -55,7 +55,7 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:gravity="center"
-        android:textColor="@android:color/black"
+        android:textColor="@color/gray_900"
         tools:text="Fri" />
 
     <TextView
@@ -63,7 +63,7 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:gravity="center"
-        android:textColor="@android:color/black"
+        android:textColor="@color/semantic_success"
         tools:text="Sat" />
 
 </LinearLayout>
