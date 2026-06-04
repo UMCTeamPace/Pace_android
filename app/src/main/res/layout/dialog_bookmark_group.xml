@@ -46,11 +46,10 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:fontFamily="@font/pretendard_medium"
+        android:textAppearance="@style/TextAppearance.App.ModalSm.Regular"
         android:gravity="center"
         android:text="*이미 존재하는 폴더명입니다."
         android:textColor="@color/semantic_error_delete"
-        android:textSize="12sp"
         android:visibility="gone" />
 
     <LinearLayout

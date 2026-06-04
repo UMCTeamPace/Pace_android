@@ -236,7 +236,7 @@
 
                     <include
                         android:id="@+id/legendLayout"
-                        layout="@layout/layout_calendar_day_legend" />
+                        layout="@layout/layout_calendar_day_legend_add_schedule" />
 
                     <com.kizitonwose.calendar.view.CalendarView
                         android:id="@+id/calendarPicker"

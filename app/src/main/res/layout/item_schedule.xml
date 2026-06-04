@@ -79,15 +79,13 @@
 
             <TextView
                 android:id="@+id/schedule_title_tv"
-                style="@style/TextColor.Primary"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="4dp"
-                android:layout_marginLeft="4dp"
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:text="일정 제목"
-                android:textAppearance="@style/TextAppearance.App.HeadlineSm" />
+                android:textAppearance="@style/TextAppearance.App.BodyMd.SemiBold" />
 
             <ImageView
                 android:visibility="gone"
@@ -133,7 +131,8 @@
                 android:id="@+id/schedule_time_iv"
                 android:layout_width="16dp"
                 android:layout_height="16dp"
-                android:src="@drawable/ic_time" />
+                android:src="@drawable/ic_time"
+                style="@style/TextColor.Secondary" />
             <TextView
                 android:id="@+id/schedule_time_tv"
                 android:layout_width="wrap_content"

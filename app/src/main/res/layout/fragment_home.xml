@@ -82,16 +82,17 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="2026년 2월"
+            android:paddingTop="10dp"
             android:textAppearance="@style/TextAppearance.App.Num.HeadlineSm.Semibold"
-            android:textColor="@color/gray_900"
+            android:textColor="@color/text_primary"
             android:gravity="center"
-            style="@style/TextColor.Primary"/>
+            />
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/home_horizontal_calendar_rv"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="10dp"
             android:clipChildren="false"
             android:orientation="horizontal"
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"

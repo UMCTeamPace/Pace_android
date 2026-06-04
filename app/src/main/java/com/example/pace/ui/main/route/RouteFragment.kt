@@ -465,7 +465,7 @@ class RouteFragment : Fragment() {
         }
 
         routeViewModel.routeOnlySchedule.observe(viewLifecycleOwner) { data ->
-            if (currentEntryMode != EntryMode.MAIN) return@observe
+            if (!canShowMainEntryOverlay()) return@observe
             showMainEntryOverlay(currentMainEntryRouteSchedule() ?: data)
             return@observe
             // Single source of truth is routeViewModel.routeOnlySchedule.
@@ -496,7 +496,7 @@ class RouteFragment : Fragment() {
         }
 
         routeViewModel.selectedRouteSchedule.observe(viewLifecycleOwner) { data ->
-            if (currentEntryMode != EntryMode.MAIN || data == null) return@observe
+            if (!canShowMainEntryOverlay() || data == null) return@observe
             showMainEntryOverlay(data)
         }
     }
@@ -2300,8 +2300,6 @@ class RouteFragment : Fragment() {
         mainBinding?.mainToolbar?.visibility = View.GONE
         binding.layoutRouteInputHeader.root.visibility = View.GONE
 
-        binding.layoutBookmarkHeader.root.visibility = View.VISIBLE
-
         val selectedTabPosition = binding.layoutBookmarkHeader.tabLayoutBookmark.selectedTabPosition
         val targetFragment = when (selectedTabPosition) {
             0 -> BookmarkHomeWorkFragment()
@@ -2310,10 +2308,13 @@ class RouteFragment : Fragment() {
         } as Fragment
         val tag: String? = if (selectedTabPosition == 0) "BOOKMARK_HOME" else "BOOKMARK_PLACE"
 
-        val transaction = childFragmentManager.beginTransaction()
+        childFragmentManager.beginTransaction()
+            .setReorderingAllowed(true)
+            .replace(R.id.route_search_fcv, targetFragment, tag)
+            .commitNowAllowingStateLoss()
 
-        transaction.replace(R.id.route_search_fcv, targetFragment, tag)
-        transaction.commitAllowingStateLoss()
+        binding.layoutBookmarkHeader.tabLayoutBookmark.visibility = View.VISIBLE
+        binding.layoutBookmarkHeader.root.visibility = View.VISIBLE
     }
 
     private fun exitBookmarkSearchMode() {
@@ -4375,8 +4376,25 @@ class RouteFragment : Fragment() {
         return routeViewModel.selectedRouteSchedule.value ?: routeViewModel.routeOnlySchedule.value
     }
 
+    private fun isRouteSearchSurfaceVisible(): Boolean {
+        if (_binding == null) return false
+
+        return binding.routeSearchFcv.visibility == View.VISIBLE ||
+            binding.bottomSheetContainer.visibility == View.VISIBLE ||
+            binding.layoutRouteInputHeader.root.visibility == View.VISIBLE ||
+            binding.layoutBookmarkHeader.root.visibility == View.VISIBLE ||
+            binding.layoutMapSelectOverlay.root.visibility == View.VISIBLE
+    }
+
+    private fun canShowMainEntryOverlay(): Boolean {
+        return _binding != null &&
+            isAdded &&
+            currentEntryMode == EntryMode.MAIN &&
+            !isRouteSearchSurfaceVisible()
+    }
+
     private fun fetchRouteOnlyScheduleForMainEntry(force: Boolean = false) {
-        if (_binding == null || !isAdded || currentEntryMode != EntryMode.MAIN) return
+        if (!canShowMainEntryOverlay()) return
 
         val now = SystemClock.uptimeMillis()
         if (!force && now - lastRouteOnlyScheduleFetchAt < ROUTE_ONLY_SCHEDULE_FETCH_THROTTLE_MS) {
@@ -4405,7 +4423,7 @@ class RouteFragment : Fragment() {
     }
 
     private fun showMainEntryOverlay(data: RouteOnlyScheduleData?) {
-        if (_binding == null || !isAdded || currentEntryMode != EntryMode.MAIN) return
+        if (!canShowMainEntryOverlay()) return
 
         if (data != null) {
             hasSchedule = true

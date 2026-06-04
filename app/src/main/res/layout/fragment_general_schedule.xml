@@ -171,7 +171,8 @@
                     </RelativeLayout>
 
                     <include
-                        android:id="@+id/legendLayout"  layout="@layout/layout_calendar_day_legend" />
+                        android:id="@+id/legendLayout"
+                        layout="@layout/layout_calendar_day_legend_add_schedule" />
                     <com.kizitonwose.calendar.view.CalendarView
                         android:id="@+id/calendarPicker"
                         android:layout_width="match_parent"
