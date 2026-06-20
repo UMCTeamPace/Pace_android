@@ -1,7 +1,5 @@
 package com.example.pace.ui.add_schedule
 
-import android.content.res.ColorStateList
-import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -31,25 +29,11 @@ class CalendarSelectAdapter(
 
         fun bind(item: CalendarAccount, isSelected: Boolean) {
             tvName.text = item.displayName
-            tvAccount.text = item.accountName
+            tvAccount.text = "(${item.accountName})"
 
             // 1. 라디오 버튼 체크 상태 설정
             rbSelect.isChecked = isSelected
 
-            // 2. 디자인 요구사항: 체크 상태에 따른 색상 설정 (#98BD0B)
-            val colorStateList = ColorStateList(
-                arrayOf(
-                    intArrayOf(android.R.attr.state_checked),  // 체크된 상태
-                    intArrayOf(-android.R.attr.state_checked) // 체크되지 않은 상태
-                ),
-                intArrayOf(
-                    Color.parseColor("#98BD0B"), // 체크 시 색상 (primary_500)
-                    Color.parseColor("#D1D1D1")  // 미체크 시 테두리 색상
-                )
-            )
-            rbSelect.buttonTintList = colorStateList
-
-            // 3. 아이템 전체 클릭 리스너
             itemView.setOnClickListener {
                 val itemId = item.id.toLongOrNull() ?: -1L
                 if (selectedId != itemId) {

@@ -5,10 +5,23 @@
     android:layout_height="wrap_content"
     android:background="@drawable/bg_bottom_sheet_rounded"
     android:orientation="vertical"
-    android:paddingTop="24dp"
     android:paddingBottom="24dp"
     android:paddingStart="24dp"
     android:paddingEnd="24dp">
+
+    <FrameLayout
+        android:id="@+id/view_handle"
+        android:layout_width="match_parent"
+        android:layout_height="39dp">
+
+        <View
+            android:id="@+id/view_handle_dot"
+            android:layout_width="60dp"
+            android:layout_height="5dp"
+            android:layout_gravity="top|center_horizontal"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/bg_bottom_sheet_handle_large" />
+    </FrameLayout>
 
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/tl_time_mode_route_plan_filter"

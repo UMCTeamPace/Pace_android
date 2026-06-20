@@ -15,6 +15,7 @@ import com.example.pace.data.model.response.RouteInfo
 import com.example.pace.databinding.ItemDateHeaderBinding
 import com.example.pace.databinding.ItemScheduleBinding
 import com.example.pace.ui.RouteCalculator
+import com.example.pace.util.ScheduleCountdownUtils
 import com.example.pace.util.ScheduleDisplayTextUtils
 import com.example.pace.util.ScheduleItemStyleUtils
 import com.example.pace.util.ScheduleSwipeStyleHelper
@@ -31,7 +32,8 @@ class ScheduleListRVAdapter(
     private val onDeleteClick: (Schedule) -> Unit,
     private val onEditClick: (Schedule) -> Unit,
     private val onSelectionToggle: (Schedule) -> Unit,
-    private val onItemClick: (Schedule) -> Unit
+    private val onItemClick: (Schedule) -> Unit,
+    private val showCountdownAlert: Boolean = false
 ) : RecyclerSwipeAdapter<RecyclerView.ViewHolder>() {
 
     private val gson = Gson()
@@ -96,6 +98,15 @@ class ScheduleListRVAdapter(
         items.forEachIndexed { index, item ->
             val scheduleItem = item as? ScheduleListItem.ScheduleItem ?: return@forEachIndexed
             if (scheduleItem.schedule.type == "ROUTE") {
+                notifyItemChanged(index)
+            }
+        }
+    }
+
+    fun refreshCountdownAlerts() {
+        if (!showCountdownAlert) return
+        items.forEachIndexed { index, item ->
+            if (item is ScheduleListItem.ScheduleItem) {
                 notifyItemChanged(index)
             }
         }
@@ -269,7 +280,15 @@ class ScheduleListRVAdapter(
                 }
             }
 
-            binding.scheduleAlertTv.visibility = View.GONE
+            if (showCountdownAlert) {
+                ScheduleCountdownUtils.applyAlert(
+                    alertView = binding.scheduleAlertTv,
+                    schedule = schedule,
+                    routeInfo = routeInfoMap[schedule.id]
+                )
+            } else {
+                binding.scheduleAlertTv.visibility = View.GONE
+            }
 
             binding.schedulePinIv.setOnClickListener {
                 onPinClick(schedule)

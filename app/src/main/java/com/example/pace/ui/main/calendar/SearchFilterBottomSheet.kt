@@ -4,6 +4,7 @@ import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -13,6 +14,8 @@ import com.example.pace.R
 import com.example.pace.data.viewmodel.ScheduleViewModel
 import com.example.pace.databinding.BottomSheetSearchFilterBinding
 import com.example.pace.ui.main.MainActivity
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
@@ -51,6 +54,68 @@ class SearchFilterBottomSheet : BottomSheetDialogFragment() {
     }
 
     // SearchFilterBottomSheet.kt 수정 제안
+
+    override fun onStart() {
+        super.onStart()
+
+        val dialog = dialog as? BottomSheetDialog
+        val bottomSheet = dialog?.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+
+        bottomSheet?.let { sheet ->
+            sheet.translationY = 0f
+            val behavior = BottomSheetBehavior.from(sheet)
+            behavior.state = BottomSheetBehavior.STATE_EXPANDED
+            behavior.skipCollapsed = true
+            behavior.isDraggable = false
+            setupHandleDrag(sheet, behavior)
+        }
+    }
+
+    private fun setupHandleDrag(
+        sheet: View,
+        behavior: BottomSheetBehavior<View>
+    ) {
+        var downY = 0f
+        var startTranslationY = 0f
+
+        binding.layoutDragHandleArea.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    sheet.animate().cancel()
+                    downY = event.rawY
+                    startTranslationY = sheet.translationY
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dragOffset = (startTranslationY + event.rawY - downY).coerceAtLeast(0f)
+                    sheet.translationY = dragOffset
+                    true
+                }
+                MotionEvent.ACTION_UP,
+                MotionEvent.ACTION_CANCEL -> {
+                    val measuredSheetHeight = sheet.height.takeIf { it > 0 } ?: binding.root.height
+                    val closeThreshold = measuredSheetHeight * 0.1f
+                    val shouldClose = sheet.translationY >= closeThreshold
+                    if (shouldClose) {
+                        sheet.animate()
+                            .translationY(sheet.height.toFloat())
+                            .setDuration(180L)
+                            .withEndAction {
+                                behavior.state = BottomSheetBehavior.STATE_HIDDEN
+                            }
+                            .start()
+                    } else {
+                        sheet.animate()
+                            .translationY(0f)
+                            .setDuration(180L)
+                            .start()
+                    }
+                    true
+                }
+                else -> true
+            }
+        }
+    }
 
     private fun setupColorPalette() {
         viewLifecycleOwner.lifecycleScope.launch {

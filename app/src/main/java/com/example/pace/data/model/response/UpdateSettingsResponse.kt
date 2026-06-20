@@ -25,8 +25,8 @@ data class SettingsResult(
     @SerializedName("earlyArrivalTime")
     val earlyArrivalTime: Int,
 
-    @SerializedName("calendarType")
-    val calendarType: String,
+    @SerializedName(value = "calendarId", alternate = ["calendarType"])
+    val calendarId: String,
 
     @SerializedName("alarms")
     val alarms: List<AlarmSettingResponse>

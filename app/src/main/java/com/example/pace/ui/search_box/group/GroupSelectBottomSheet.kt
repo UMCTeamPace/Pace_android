@@ -2,6 +2,7 @@ package com.example.pace.ui.search_box.group
 
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
@@ -196,7 +197,9 @@ class GroupSelectBottomSheet(
 
             // 바텀시트 높이를 화면의 80%로 고정
             val layoutParams = sheet.layoutParams
-            layoutParams.height = (screenHeight * 0.6).toInt()
+            val sheetHeight = (screenHeight * 0.6).toInt()
+            sheet.translationY = 0f
+            layoutParams.height = sheetHeight
             sheet.layoutParams = layoutParams
 
             // 동작 설정
@@ -209,6 +212,55 @@ class GroupSelectBottomSheet(
             // 드래그해서 접는 기능 끄기 (선택사항)
             // true로 하면 '반만 접히는' 단계 없이 닫히거나/열리거나 둘 중 하나가 됩니다.
             behavior.skipCollapsed = true
+            behavior.isDraggable = false
+            setupHandleDrag(sheet, behavior, sheetHeight)
+        }
+    }
+
+    private fun setupHandleDrag(
+        sheet: View,
+        behavior: BottomSheetBehavior<View>,
+        sheetHeight: Int
+    ) {
+        var downY = 0f
+        var startTranslationY = 0f
+
+        binding.viewHandle.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    sheet.animate().cancel()
+                    downY = event.rawY
+                    startTranslationY = sheet.translationY
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dragOffset = (startTranslationY + event.rawY - downY).coerceAtLeast(0f)
+                    sheet.translationY = dragOffset
+                    true
+                }
+                MotionEvent.ACTION_UP,
+                MotionEvent.ACTION_CANCEL -> {
+                    val measuredSheetHeight = sheet.height.takeIf { it > 0 } ?: sheetHeight
+                    val closeThreshold = measuredSheetHeight * 0.1f
+                    val shouldClose = sheet.translationY >= closeThreshold
+                    if (shouldClose) {
+                        sheet.animate()
+                            .translationY(sheet.height.toFloat())
+                            .setDuration(180L)
+                            .withEndAction {
+                                behavior.state = BottomSheetBehavior.STATE_HIDDEN
+                            }
+                            .start()
+                    } else {
+                        sheet.animate()
+                            .translationY(0f)
+                            .setDuration(180L)
+                            .start()
+                    }
+                    true
+                }
+                else -> true
+            }
         }
     }
 

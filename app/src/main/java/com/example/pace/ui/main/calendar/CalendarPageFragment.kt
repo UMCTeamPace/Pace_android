@@ -89,6 +89,13 @@ class CalendarPageFragment: Fragment() {
     private var isInitialDataReady = false
     private var hasShownInitialContent = false
     private var pendingResetToTodayState = false
+
+    private data class MonthEventRowLimit(
+        val capacity: Int,
+        val visibleScheduleRows: Int,
+        val hiddenCount: Int
+    )
+
     private val scheduleUiRefreshTicker = ScheduleUiRefreshTicker { reason ->
         if (_binding != null && ::dailyPageAdapter.isInitialized) {
             val targetDate = selectedDate ?: today
@@ -146,27 +153,18 @@ class CalendarPageFragment: Fragment() {
                 container.date = day.date
                 // 현재 달의 날짜(MonthDate)일 때만 활성화 하기
                 val isCurrentMonth = day.position == DayPosition.MonthDate
+                val displayMonth = getDisplayMonth(day.date, day.position)
                 updateDayUI(container.textView, container.rootLayout, day.date, isCurrentMonth)
                 if (!isCurrentMonth && bottomSheetBehavior.state == BottomSheetBehavior.STATE_HIDDEN) {
                     container.eventContainer.removeAllViews()
                     return
                 }
                 // 요일에 따라 색상 작성
-                when(day.date.dayOfWeek){
-                    DayOfWeek.SATURDAY -> {
-                        container.textView.setTextColor(ContextCompat.getColor(requireContext(),R.color.semantic_success))
-                    }
-                    DayOfWeek.SUNDAY -> {
-                        container.textView.setTextColor(ContextCompat.getColor(requireContext(),R.color.semantic_error))
-                    }
-                    else -> {
-                        container.textView.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_primary))
-                    }
-                }
+                applyNormalDayOfWeekTextColor(container.textView, day.date, isCurrentMonth)
                 // 바텀 시트 여부에 따라 다른 UI 적용
                 when(bottomSheetBehavior.state){
                     BottomSheetBehavior.STATE_HIDDEN -> {
-                        setMonthCalendarWithoutBottomSheetUI(container.eventContainer, day.date)
+                        setMonthCalendarWithoutBottomSheetUI(container.eventContainer, day.date, displayMonth)
                     }
                     else -> {
                         setWeekAndMonthCalendarUI(container.eventContainer, day.date)
@@ -181,6 +179,7 @@ class CalendarPageFragment: Fragment() {
             override fun bind(container: DayViewContainer, day: WeekDay) {
                 container.date = day.date
                 updateDayUI(container.textView,container.rootLayout, day.date, true)
+                applyNormalDayOfWeekTextColor(container.textView, day.date, true)
                 setWeekAndMonthCalendarUI(container.eventContainer, day.date)
             }
         }
@@ -313,7 +312,7 @@ class CalendarPageFragment: Fragment() {
             when (daysOfWeek[index]) {
                 DayOfWeek.SUNDAY -> tv.setTextColor(ContextCompat.getColor(requireContext(), R.color.semantic_error))
                 DayOfWeek.SATURDAY -> tv.setTextColor(ContextCompat.getColor(requireContext(), R.color.semantic_success))
-                else -> tv.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_primary))
+                else -> tv.setTextColor(ContextCompat.getColor(requireContext(), R.color.gray_900))
             }
         }
     }
@@ -401,7 +400,7 @@ class CalendarPageFragment: Fragment() {
 
                 val availableHeight = containerHeight - headerHeight
                 if (availableHeight > 0) {
-                    weekViewHeight = availableHeight / 5
+                    weekViewHeight = availableHeight / 6
                     binding.weekCalendarView.layoutParams.height = weekViewHeight
                 }
                 bottomSheetBehavior.expandedOffset = headerHeight + weekViewHeight
@@ -749,7 +748,7 @@ class CalendarPageFragment: Fragment() {
                 textView.setBackgroundResource(R.drawable.drawable_circle_green)
             } else {
                 root.setBackgroundResource(R.drawable.bg_selected_day_outline)
-                textView.setTextColor(ContextCompat.getColor(requireContext(), R.color.schedule_18))
+                textView.setTextColor(ContextCompat.getColor(requireContext(), R.color.semantic_info))
                 textView.setBackgroundResource(R.drawable.drawable_circle_white)
             }
         } else if (date == today) {
@@ -766,10 +765,21 @@ class CalendarPageFragment: Fragment() {
             root.background = null
             textView.background = null
             textView.setTextColor(
-                if (isActive) ContextCompat.getColor(requireContext(), R.color.text_primary)
+                if (isActive) ContextCompat.getColor(requireContext(), R.color.gray_900)
                 else ContextCompat.getColor(requireContext(), R.color.gray_400)
             )
         }
+    }
+
+    private fun applyNormalDayOfWeekTextColor(textView: TextView, date: LocalDate, isActive: Boolean) {
+        if (!isActive || date == selectedDate || date == today) return
+
+        val colorRes = when (date.dayOfWeek) {
+            DayOfWeek.SUNDAY -> R.color.semantic_error
+            DayOfWeek.SATURDAY -> R.color.semantic_success
+            else -> R.color.gray_900
+        }
+        textView.setTextColor(ContextCompat.getColor(requireContext(), colorRes))
     }
 
     private fun setupViewPager() {
@@ -851,7 +861,11 @@ class CalendarPageFragment: Fragment() {
     }
 
     // 바텀 시트 없는 월간 바인더 UI
-    private fun setMonthCalendarWithoutBottomSheetUI(eventContainer: LinearLayout, date: LocalDate) {
+    private fun setMonthCalendarWithoutBottomSheetUI(
+        eventContainer: LinearLayout,
+        date: LocalDate,
+        displayMonth: YearMonth
+    ) {
         // 이전 바인딩 지우기
         eventContainer.removeAllViews()
 
@@ -860,12 +874,13 @@ class CalendarPageFragment: Fragment() {
             var row = 0
 
             if(sortedEvents.isNotEmpty()){
-                val maxVisibleRows = setPageItemNumber(sortedEvents)
+                val rowLimit = resolveMonthEventRowLimit(sortedEvents, displayMonth)
+                val itemParams = LinearLayout.LayoutParams(MATCH_PARENT, dpToPx(16))
                 for(schedule in sortedEvents) {
                     val allDatesForThisSchedule = getDisplayDatesForSchedule(schedule)
                     if(allDatesForThisSchedule.isNotEmpty()){
                         val scheduleRow = getAssignedRow(schedule)
-                        if (scheduleRow >= maxVisibleRows) {
+                        if (scheduleRow >= rowLimit.visibleScheduleRows) {
                             break
                         }
 
@@ -873,14 +888,13 @@ class CalendarPageFragment: Fragment() {
                         val lastDate = LocalDate.parse(allDatesForThisSchedule.last())
                         val isStart = date.isEqual(firstDate)
                         val isEnd = date.isEqual(lastDate)
-                        val params = LinearLayout.LayoutParams(MATCH_PARENT, (16 * resources.displayMetrics.density).roundToInt())
 
                         if (row < scheduleRow) {
                             val spaceCount = scheduleRow - row
                             repeat(spaceCount) {
                                 val binding = ItemMonthViewMultipleDaysBinding.inflate(layoutInflater, eventContainer, false)
                                 binding.root.visibility = View.INVISIBLE
-                                binding.root.layoutParams = params
+                                binding.root.layoutParams = itemParams
                                 eventContainer.addView(binding.root)
                             }
                             row = scheduleRow
@@ -892,7 +906,7 @@ class CalendarPageFragment: Fragment() {
                             val icon = binding.itemMonthViewSingleColor
                             icon.backgroundTintList = setBackgroundTintByScheduleColor(schedule)
                             binding.itemMonthViewSingleTv.text = ScheduleDisplayTextUtils.titleOrDefault(schedule.title)
-                            binding.root.layoutParams = params
+                            binding.root.layoutParams = itemParams
                             eventContainer.addView(binding.root)
                         }
                         // 장기 일정
@@ -910,17 +924,25 @@ class CalendarPageFragment: Fragment() {
                                 else -> ""
                             }
 
-                            binding.root.layoutParams = params
+                            binding.root.layoutParams = itemParams
                             eventContainer.addView(binding.root)
                         }
                     }
                     row++
                 }
-                val hiddenCount = sortedEvents.count { getAssignedRow(it) >= maxVisibleRows }
-                if(maxVisibleRows == 3 && hiddenCount > 0){
+                if(rowLimit.hiddenCount > 0 && rowLimit.capacity > 0){
+                    if (row < rowLimit.visibleScheduleRows) {
+                        repeat(rowLimit.visibleScheduleRows - row) {
+                            val spacer = ItemMonthViewMultipleDaysBinding.inflate(layoutInflater, eventContainer, false)
+                            spacer.root.visibility = View.INVISIBLE
+                            spacer.root.layoutParams = itemParams
+                            eventContainer.addView(spacer.root)
+                        }
+                    }
                     val binding = ItemMonthViewMultipleDaysBinding.inflate(layoutInflater)
                     binding.itemMonthViewMultipleDays.backgroundTintList = ColorStateList.valueOf(resources.getColor(R.color.transparent))
-                    binding.itemMonthViewMultipleDays.text = "+$hiddenCount"
+                    binding.itemMonthViewMultipleDays.text = "+${rowLimit.hiddenCount}"
+                    binding.root.layoutParams = itemParams
                     eventContainer.addView(binding.root)
                 }
             }
@@ -992,6 +1014,63 @@ class CalendarPageFragment: Fragment() {
     }
 
     // date의 일정을 장기 -> 하루 일정 순으로 정렬
+    private fun resolveMonthEventRowLimit(
+        sortedEvents: List<Schedule>,
+        displayMonth: YearMonth
+    ): MonthEventRowLimit {
+        val weekRowCount = getMonthWeekRowCount(displayMonth)
+        val calendarHeight = binding.calendarView.height.takeIf { it > 0 }
+            ?: binding.calendarView.layoutParams.height.takeIf { it > 0 }
+            ?: 0
+
+        val capacity = if (calendarHeight > 0) {
+            val cellHeight = calendarHeight / weekRowCount
+            val dateAreaHeight = dpToPx(26)
+            val bottomPadding = dpToPx(4)
+            val eventAreaHeight = cellHeight - dateAreaHeight - bottomPadding
+            (eventAreaHeight / dpToPx(16)).coerceAtLeast(0)
+        } else {
+            3
+        }
+
+        if (capacity <= 0) {
+            return MonthEventRowLimit(
+                capacity = 0,
+                visibleScheduleRows = 0,
+                hiddenCount = sortedEvents.size
+            )
+        }
+
+        val hiddenWithoutReservedRow = sortedEvents.count { getAssignedRow(it) >= capacity }
+        val visibleScheduleRows = if (hiddenWithoutReservedRow > 0) {
+            (capacity - 1).coerceAtLeast(0)
+        } else {
+            capacity
+        }
+        val hiddenCount = sortedEvents.count { getAssignedRow(it) >= visibleScheduleRows }
+
+        return MonthEventRowLimit(
+            capacity = capacity,
+            visibleScheduleRows = visibleScheduleRows,
+            hiddenCount = hiddenCount
+        )
+    }
+
+    private fun getDisplayMonth(date: LocalDate, position: DayPosition): YearMonth {
+        return when (position) {
+            DayPosition.MonthDate -> YearMonth.from(date)
+            DayPosition.InDate -> YearMonth.from(date.plusMonths(1))
+            DayPosition.OutDate -> YearMonth.from(date.minusMonths(1))
+        }
+    }
+
+    private fun getMonthWeekRowCount(month: YearMonth): Int {
+        val firstDay = month.atDay(1)
+        val leadingDays = firstDay.dayOfWeek.value % 7
+        val totalCells = leadingDays + month.lengthOfMonth()
+        return ((totalCells + 6) / 7).coerceIn(4, 6)
+    }
+
     private fun getSortedScheduleListOfDate(date: LocalDate): List<Schedule>{
         return events[date]?.sortedWith(compareBy<Schedule> { schedule ->
             getAssignedRow(schedule)

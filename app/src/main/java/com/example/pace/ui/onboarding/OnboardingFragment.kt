@@ -134,7 +134,6 @@ class OnboardingFragment : Fragment() {
             if (error != null) {
                 Log.e("KakaoLogin", "로그인 실패", error)
             } else if (token != null) {
-                Log.d("KakaoLogin", "kakaoAccessToken=${token.accessToken}")
                 Log.d("KakaoLogin", "SDK hasToken after login=${AuthApiClient.instance.hasToken()}")
                 handleKakaoToken(token.accessToken)
             }
@@ -146,7 +145,6 @@ class OnboardingFragment : Fragment() {
                     if (error is ClientError && error.reason == ClientErrorCause.Cancelled) return@loginWithKakaoTalk
                     UserApiClient.instance.loginWithKakaoAccount(requireContext(), callback = callback)
                 } else if (token != null) {
-                    Log.d("KakaoLogin", "kakaoAccessToken=${token.accessToken}")
                     Log.d("KakaoLogin", "SDK hasToken after login=${AuthApiClient.instance.hasToken()}")
                     handleKakaoToken(token.accessToken)
                 }

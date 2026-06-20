@@ -1406,8 +1406,7 @@ class RouteScheduleFragment : Fragment() {
     }
 
     private fun updateCalendarFieldColor() {
-        val color = ContextCompat.getColor(requireContext(), R.color.text_primary)
-        binding.ivCalendar.setColorFilter(color)
+        val color = ContextCompat.getColor(requireContext(), R.color.black)
         binding.tvCalendarStatus.setTextColor(color)
     }
 
@@ -1829,6 +1828,9 @@ class RouteScheduleFragment : Fragment() {
         val firstDayOfWeek = java.time.DayOfWeek.SUNDAY
 
         // [수정] 시작월을 이번달(currentMonth)로, 종료월을 계산된 endMonth로 설정
+        val titleFormatter = DateTimeFormatter.ofPattern("yyyy년 M월", Locale.KOREAN)
+        binding.tvCurrentMonth.text = currentMonth.format(titleFormatter)
+
         binding.calendarPicker.setup(currentMonth, endMonth, firstDayOfWeek)
 
         // 이번 달로 초기 스크롤
@@ -1836,7 +1838,6 @@ class RouteScheduleFragment : Fragment() {
 
         // 스크롤 시 상단 텍스트(2026년 2월) 업데이트
         binding.calendarPicker.monthScrollListener = { month ->
-            val titleFormatter = DateTimeFormatter.ofPattern("yyyy년 M월", Locale.KOREAN)
             binding.tvCurrentMonth.text = month.yearMonth.format(titleFormatter)
         }
     }

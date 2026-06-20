@@ -2,13 +2,16 @@ package com.example.pace.ui.main.calendar
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.viewpager2.widget.ViewPager2
 import com.example.pace.databinding.FragmentCalendarBinding
 import com.example.pace.ui.main.MainActivity
+import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import com.example.pace.ui.main.calendar.SearchFragment
 import com.example.pace.R
@@ -88,6 +91,7 @@ class CalendarFragment: Fragment() {
         TabLayoutMediator(binding.calendarTabLayout, binding.calendarVp) { tab, position ->
             tab.text = tabTitles[position]
         }.attach()
+        setupCalendarTabs(tabTitles)
 
         binding.calendarVp.isUserInputEnabled = false
 
@@ -95,6 +99,7 @@ class CalendarFragment: Fragment() {
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
                 currentTabIndex = position
+                updateCalendarTabStyles(position)
                 updateHeaderForTab(position)
             }
         })
@@ -167,6 +172,53 @@ class CalendarFragment: Fragment() {
                 activity.binding.scheduleSearchIv.visibility = View.VISIBLE
                 activity.binding.scheduleAddIv.visibility = View.VISIBLE
             }
+        }
+    }
+
+    private fun setupCalendarTabs(tabTitles: List<String>) {
+        tabTitles.forEachIndexed { index, title ->
+            binding.calendarTabLayout.getTabAt(index)?.customView =
+                createCalendarTabText(title, index == currentTabIndex)
+        }
+        updateCalendarTabStyles(currentTabIndex)
+
+        binding.calendarTabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab) {
+                updateCalendarTabStyles(tab.position)
+            }
+
+            override fun onTabUnselected(tab: TabLayout.Tab) = Unit
+            override fun onTabReselected(tab: TabLayout.Tab) = Unit
+        })
+    }
+
+    private fun createCalendarTabText(title: String, isSelected: Boolean): TextView {
+        return TextView(requireContext()).apply {
+            text = title
+            gravity = Gravity.CENTER
+            includeFontPadding = false
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            applyCalendarTabTextStyle(isSelected)
+        }
+    }
+
+    private fun updateCalendarTabStyles(selectedPosition: Int) {
+        for (index in 0 until binding.calendarTabLayout.tabCount) {
+            val textView = binding.calendarTabLayout.getTabAt(index)?.customView as? TextView
+            textView?.applyCalendarTabTextStyle(index == selectedPosition)
+        }
+    }
+
+    private fun TextView.applyCalendarTabTextStyle(isSelected: Boolean) {
+        if (isSelected) {
+            setTextAppearance(R.style.TextAppearance_App_BodySm_Semibold)
+            setTextColor(requireContext().getColor(R.color.primary_500))
+        } else {
+            setTextAppearance(R.style.TextAppearance_App_BodySm_Regular)
+            setTextColor(requireContext().getColor(R.color.gray_500))
         }
     }
 

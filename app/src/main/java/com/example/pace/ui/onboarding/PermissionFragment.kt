@@ -7,6 +7,10 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.graphics.Typeface
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.StyleSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -65,6 +69,8 @@ class PermissionFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        setupGuideTitle()
+
         binding.btnNext.setOnClickListener {
             if (allPermissionsGranted()) {
                 moveToNextStep()
@@ -72,6 +78,18 @@ class PermissionFragment : Fragment() {
                 // 권한이 없는 상태에서 버튼 클릭 시 권한 흐름 시작
                 handlePermissionFlow()
             }
+        }
+    }
+
+    private fun setupGuideTitle() {
+        val title = "PACE 이용을 위해\n아래 권한을 허용해주세요."
+        binding.tvGuideTitle.text = SpannableString(title).apply {
+            setSpan(
+                StyleSpan(Typeface.BOLD),
+                0,
+                "PACE".length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
         }
     }
 

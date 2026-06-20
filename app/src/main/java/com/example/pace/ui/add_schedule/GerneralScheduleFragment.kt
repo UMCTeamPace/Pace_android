@@ -1194,12 +1194,14 @@ class GeneralScheduleFragment : Fragment() {
         val endMonth = currentMonth.plusMonths(12)   // 1년 후 (총 2년)
         val firstDayOfWeek = java.time.DayOfWeek.SUNDAY
 
+        val titleFormatter = DateTimeFormatter.ofPattern("yyyy년 M월", Locale.KOREAN)
+        binding.tvCurrentMonth.text = currentMonth.format(titleFormatter)
+
         binding.calendarPicker.setup(startMonth, endMonth, firstDayOfWeek)
         binding.calendarPicker.scrollToMonth(currentMonth)
 
         // 스크롤 시 상단 텍스트(2026년 2월) 업데이트
         binding.calendarPicker.monthScrollListener = { month ->
-            val titleFormatter = DateTimeFormatter.ofPattern("yyyy년 M월", Locale.KOREAN)
             binding.tvCurrentMonth.text = month.yearMonth.format(titleFormatter)
         }
     }

@@ -88,9 +88,8 @@
                         android:text="안함"
                         android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
                         android:button="@null"
-                        android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                        android:drawableEnd="@drawable/selector_calendar_select_radio_24"
                         android:textColor="@color/text_primary"
-                        android:drawableTint="@color/selector_radio_button"
                         android:background="@null"
                         android:checked="true"/>
 
@@ -107,9 +106,8 @@
                         android:text="일간"
                         android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
                         android:button="@null"
-                        android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                        android:drawableEnd="@drawable/selector_calendar_select_radio_24"
                         android:textColor="@color/text_primary"
-                        android:drawableTint="@color/selector_radio_button"
                         android:background="@null" />
 
                     <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginTop="16dp" android:background="#F1F3F5" />
@@ -125,9 +123,8 @@
                         android:minHeight="24dp"
                         android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
                         android:button="@null"
-                        android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                        android:drawableEnd="@drawable/selector_calendar_select_radio_24"
                         android:textColor="@color/text_primary"
-                        android:drawableTint="@color/selector_radio_button"
                         android:background="@null" />
 
                     <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginTop="16dp" android:background="#F1F3F5" />
@@ -143,9 +140,8 @@
                         android:minHeight="24dp"
                         android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
                         android:button="@null"
-                        android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                        android:drawableEnd="@drawable/selector_calendar_select_radio_24"
                         android:textColor="@color/text_primary"
-                        android:drawableTint="@color/selector_radio_button"
                         android:background="@null" />
 
                     <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginTop="16dp" android:background="#F1F3F5" />
@@ -161,9 +157,8 @@
                         android:minHeight="24dp"
                         android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
                         android:button="@null"
-                        android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                        android:drawableEnd="@drawable/selector_calendar_select_radio_24"
                         android:textColor="@color/text_primary"
-                        android:drawableTint="@color/selector_radio_button"
                         android:background="@null" />
                 </RadioGroup>
             </androidx.cardview.widget.CardView>
@@ -221,9 +216,8 @@
                                 android:text="계속 진행"
                                 android:button="@null"
                                 android:gravity="center_vertical"
-                                android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                                android:drawableEnd="@drawable/selector_calendar_select_radio_24"
                                 android:textColor="@color/text_primary"
-                                android:drawableTint="@color/selector_radio_button"
                                 android:background="@null"
                                 android:checked="true"/>
 
@@ -241,9 +235,8 @@
                                 android:text="횟수 지정"
                                 android:button="@null"
                                 android:gravity="center_vertical"
-                                android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                                android:drawableEnd="@drawable/selector_calendar_select_radio_24"
                                 android:textColor="@color/text_primary"
-                                android:drawableTint="@color/selector_radio_button"
                                 android:background="@null" />
 
                             <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginTop="16dp" android:background="#F1F3F5" />
@@ -260,9 +253,8 @@
                                 android:text="종료 날짜"
                                 android:button="@null"
                                 android:gravity="center_vertical"
-                                android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
+                                android:drawableEnd="@drawable/selector_calendar_select_radio_24"
                                 android:textColor="@color/text_primary"
-                                android:drawableTint="@color/selector_radio_button"
                                 android:background="@null" />
                         </RadioGroup>
 

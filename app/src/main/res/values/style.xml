@@ -319,4 +319,9 @@
         <item name="android:textColorPrimary">@color/text_primary</item>  <!-- 숫자 색상 -->
     </style>
 
+    <style name="ShapeAppearanceOverlay_App_PermissionLogo">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">16dp</item>
+    </style>
+
 </resources>

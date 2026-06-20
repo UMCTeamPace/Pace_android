@@ -2,9 +2,12 @@ package com.example.pace.ui.search_box
 
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import com.example.pace.databinding.DialogRoutePlanFilterBinding
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import java.text.SimpleDateFormat
 import java.util.*
@@ -17,6 +20,24 @@ class RoutePlanFilterBottomSheet(
 
     private var _binding: DialogRoutePlanFilterBinding? = null
     private val binding get() = _binding!!
+
+    override fun onStart() {
+        super.onStart()
+
+        val dialog = dialog as? BottomSheetDialog
+        val bottomSheet = dialog?.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+
+        bottomSheet?.let { sheet ->
+            sheet.translationY = 0f
+
+            val behavior = BottomSheetBehavior.from(sheet)
+            behavior.state = BottomSheetBehavior.STATE_EXPANDED
+            behavior.skipCollapsed = true
+            behavior.isDraggable = false
+
+            setupHandleDrag(sheet, behavior)
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -139,6 +160,51 @@ class RoutePlanFilterBottomSheet(
                 if (binding.npMinuteRoutePlanFilter.value < currentMinute) {
                     binding.npMinuteRoutePlanFilter.value = currentMinute
                 }
+            }
+        }
+    }
+
+    private fun setupHandleDrag(
+        sheet: View,
+        behavior: BottomSheetBehavior<View>
+    ) {
+        var downY = 0f
+        var startTranslationY = 0f
+
+        binding.viewHandle.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    sheet.animate().cancel()
+                    downY = event.rawY
+                    startTranslationY = sheet.translationY
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dragOffset = (startTranslationY + event.rawY - downY).coerceAtLeast(0f)
+                    sheet.translationY = dragOffset
+                    true
+                }
+                MotionEvent.ACTION_UP,
+                MotionEvent.ACTION_CANCEL -> {
+                    val closeThreshold = sheet.height * 0.1f
+                    val shouldClose = sheet.translationY >= closeThreshold
+                    if (shouldClose) {
+                        sheet.animate()
+                            .translationY(sheet.height.toFloat())
+                            .setDuration(180L)
+                            .withEndAction {
+                                behavior.state = BottomSheetBehavior.STATE_HIDDEN
+                            }
+                            .start()
+                    } else {
+                        sheet.animate()
+                            .translationY(0f)
+                            .setDuration(180L)
+                            .start()
+                    }
+                    true
+                }
+                else -> true
             }
         }
     }

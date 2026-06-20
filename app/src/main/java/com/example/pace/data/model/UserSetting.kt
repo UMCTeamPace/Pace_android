@@ -30,7 +30,7 @@ fun UserSettingsEntity.toUpdateRequest(): UpdateSettingsRequest {
     return UpdateSettingsRequest(
         isReminderActive = this.isReminderActive,
         earlyArrivalTime = this.earlyArrivalTime,
-        calendarType = this.calendarId.toString(), // 👈 Long을 String으로 변환
+        calendarId = this.calendarId.toString(), // 👈 Long을 String으로 변환
         alarms = alarmList,
 
 //        // 서버 DTO의 나머지 필드들 (필요에 따라 매핑)
