@@ -21,6 +21,7 @@ import com.example.pace.ui.RouteCalculator
 import com.example.pace.util.ScheduleDisplayTextUtils
 import com.example.pace.util.ScheduleItemStyleUtils
 import com.example.pace.util.ScheduleSortUtils
+import com.example.pace.util.ScheduleSwipeStyleHelper
 import com.example.pace.util.SearchTextMatcher
 import com.google.gson.Gson
 import java.time.LocalDate
@@ -235,8 +236,12 @@ class SearchAdapter(
 
     inner class SearchItemViewHolder(private val binding: ItemScheduleBinding) :
         RecyclerView.ViewHolder(binding.root) {
+        init {
+            ScheduleSwipeStyleHelper.attach(binding.root, binding.scheduleViewTop)
+        }
 
         fun bind(schedule: Schedule, query: String) {
+            ScheduleSwipeStyleHelper.reset(binding.scheduleViewTop)
             val title = ScheduleDisplayTextUtils.titleOrDefault(schedule.title)
             if (query.isBlank()) {
                 binding.scheduleTitleTv.text = title
@@ -293,6 +298,8 @@ class SearchAdapter(
                 binding.scheduleNormalLocationTv.text = schedule.location ?: ""
             }
 
+            binding.scheduleAlertTv.visibility = View.GONE
+
             binding.schedulePinnedIv.visibility = if (schedule.isPinned) View.VISIBLE else View.GONE
             binding.scheduleCheckbox.visibility = View.INVISIBLE
 
@@ -309,6 +316,7 @@ class SearchAdapter(
                     binding.scheduleRouteDurationTv
                 ),
                 accentViews = listOf(
+                    binding.scheduleTimeIv,
                     binding.scheduleRepeatIv,
                     binding.scheduleNormalLocationIv,
                     binding.scheduleRouteLocationIv

@@ -4,47 +4,51 @@
     android:fitsSystemWindows="true"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:padding="24dp">
+    xmlns:tools="http://schemas.android.com/tools">
 
     <View
         android:id="@+id/centerLine"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="4dp"
-        android:background="#D4E157"
+        android:background="@color/primary_400"
         app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_bias="0.5" />
 
-    <LinearLayout
+    <ImageView
+        android:id="@+id/ic_clock"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:layout_marginRight="12dp"
+        android:layout_marginBottom="-9.5dp"
+        android:src="@drawable/ic_onboarding_clock"
         app:layout_constraintBottom_toTopOf="@+id/centerLine"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        app:layout_constraintEnd_toStartOf="@+id/ic_map"
+        app:layout_constraintHorizontal_chainStyle="packed"
+        app:layout_constraintStart_toStartOf="parent" />
 
-        <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginRight="12dp"
-            android:src="@drawable/ic_onboarding_clock"
-            android:layout_marginBottom="-8dp"/>
+    <ImageView
+        android:id="@+id/ic_map"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginRight="12dp"
+        android:layout_marginBottom="-9.5dp"
+        android:src="@drawable/ic_onboarding_map_pin"
+        app:layout_constraintBottom_toTopOf="@+id/centerLine"
+        app:layout_constraintEnd_toStartOf="@+id/ic_calendar"
+        app:layout_constraintStart_toEndOf="@+id/ic_clock" />
 
-        <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginRight="12dp"
-            android:src="@drawable/ic_onboarding_map_pin"
-            android:layout_marginBottom="-8dp"/>
-
-        <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:src="@drawable/ic_onboarding_calendar"
-            android:layout_marginBottom="-8dp"/>
-
-    </LinearLayout>
+    <ImageView
+        android:id="@+id/ic_calendar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="-9.5dp"
+        android:src="@drawable/ic_onboarding_calendar"
+        app:layout_constraintBottom_toTopOf="@+id/centerLine"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/ic_map" />
     <TextView
         android:id="@+id/tvDescription"
         android:layout_width="wrap_content"

@@ -21,8 +21,12 @@ suspend fun syncMemberSettingsIfNeeded(
     }
 
     val current = settingsRepository.getUserSettings().firstOrNull()
+    if (current?.isSynced == false) {
+        Log.d("SETTINGS_SYNC", "[$source] Local settings are pending sync; skip server pull.")
+        return
+    }
+
     val isStale = current == null ||
-        !current.isSynced ||
         System.currentTimeMillis() - current.lastUpdated > SETTINGS_SYNC_STALE_MS
 
     if (!force && !isStale) {

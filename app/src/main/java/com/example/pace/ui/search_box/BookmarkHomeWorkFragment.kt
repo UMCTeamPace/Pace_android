@@ -86,7 +86,7 @@ class BookmarkHomeWorkFragment : Fragment() {
     private fun updateHomeUI(place: MyPlace?) {
         resetHomeSwipe()
 
-        if (place != null) {
+        if (place?.placeId?.isNotBlank() == true) {
             binding.ivHomeIcon.setImageResource(R.drawable.ic_home)
             binding.tvHomeAddress.text = place.name
             binding.tvHomeAddress.setTextColor(Color.BLACK)
@@ -112,7 +112,7 @@ class BookmarkHomeWorkFragment : Fragment() {
     }
 
     private fun updateWorkUI(place: MyPlace?) {
-        if (place != null) {
+        if (place?.placeId?.isNotBlank() == true) {
             binding.ivWorkIcon.setImageResource(R.drawable.ic_work_selected)
             binding.tvWorkName.text = place.name
             binding.tvWorkName.setTextColor(Color.BLACK)

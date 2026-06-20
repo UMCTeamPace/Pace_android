@@ -58,7 +58,7 @@
                 android:paddingVertical="16dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:background="?attr/selectableItemBackground">
+                android:background="@null">
 
                 <TextView
                 android:id="@+id/tv_none"
@@ -74,7 +74,7 @@
                     android:layout_width="18dp"
                     android:layout_height="18dp"
                     android:button="@null"
-                    android:background="@drawable/selector_circle_checkbox"
+                    android:background="@drawable/selector_circle_checkbox_18"
                     android:clickable="false"
                     android:focusable="false" />
             </LinearLayout>
@@ -91,7 +91,7 @@
                 android:orientation="horizontal"
                 android:paddingHorizontal="24dp"
                 android:paddingVertical="16dp"
-                android:background="?attr/selectableItemBackground">
+                android:background="@null">
 
                 <TextView
                     android:id="@+id/tv_starttime"
@@ -107,7 +107,7 @@
                     android:layout_width="18dp"
                     android:layout_height="18dp"
                     android:button="@null"
-                    android:background="@drawable/selector_circle_checkbox"
+                    android:background="@drawable/selector_circle_checkbox_18"
                     android:clickable="false"
                     android:focusable="false" />
             </LinearLayout>
@@ -124,7 +124,7 @@
                 android:orientation="horizontal"
                 android:paddingHorizontal="24dp"
                 android:paddingVertical="16dp"
-                android:background="?attr/selectableItemBackground">
+                android:background="@null">
 
                 <TextView
                     android:id="@+id/tv_start5mago"
@@ -140,7 +140,7 @@
                     android:layout_width="18dp"
                     android:layout_height="18dp"
                     android:button="@null"
-                    android:background="@drawable/selector_circle_checkbox"
+                    android:background="@drawable/selector_circle_checkbox_18"
                     android:clickable="false"
                     android:focusable="false" />
             </LinearLayout>
@@ -157,7 +157,7 @@
                 android:orientation="horizontal"
                 android:paddingHorizontal="24dp"
                 android:paddingVertical="16dp"
-                android:background="?attr/selectableItemBackground">
+                android:background="@null">
 
                 <TextView
                     android:id="@+id/tv_start10mago"
@@ -173,7 +173,7 @@
                     android:layout_width="18dp"
                     android:layout_height="18dp"
                     android:button="@null"
-                    android:background="@drawable/selector_circle_checkbox"
+                    android:background="@drawable/selector_circle_checkbox_18"
                     android:clickable="false"
                     android:focusable="false" />
             </LinearLayout>
@@ -190,7 +190,7 @@
                 android:orientation="horizontal"
                 android:paddingHorizontal="24dp"
                 android:paddingVertical="16dp"
-                android:background="?attr/selectableItemBackground">
+                android:background="@null">
 
                 <TextView
                     android:id="@+id/tv_start15mago"
@@ -206,7 +206,7 @@
                     android:layout_width="18dp"
                     android:layout_height="18dp"
                     android:button="@null"
-                    android:background="@drawable/selector_circle_checkbox"
+                    android:background="@drawable/selector_circle_checkbox_18"
                     android:clickable="false"
                     android:focusable="false" />
             </LinearLayout>
@@ -223,7 +223,7 @@
                 android:orientation="horizontal"
                 android:paddingHorizontal="24dp"
                 android:layout_marginVertical="16dp"
-                android:background="?attr/selectableItemBackground">
+                android:background="@null">
 
                 <TextView
                     android:id="@+id/tv_start30mago"
@@ -239,7 +239,7 @@
                     android:layout_width="18dp"
                     android:layout_height="18dp"
                     android:button="@null"
-                    android:background="@drawable/selector_circle_checkbox"
+                    android:background="@drawable/selector_circle_checkbox_18"
                     android:clickable="false"
                     android:focusable="false" />
             </LinearLayout>
@@ -256,7 +256,7 @@
                 android:orientation="horizontal"
                 android:paddingHorizontal="24dp"
                 android:paddingVertical="16dp"
-                android:background="?attr/selectableItemBackground">
+                android:background="@null">
 
                 <TextView
                     android:id="@+id/tv_start1hago"
@@ -272,7 +272,7 @@
                     android:layout_width="18dp"
                     android:layout_height="18dp"
                     android:button="@null"
-                    android:background="@drawable/selector_circle_checkbox"
+                    android:background="@drawable/selector_circle_checkbox_18"
                     android:clickable="false"
                     android:focusable="false" />
             </LinearLayout>
@@ -289,7 +289,7 @@
                 android:orientation="horizontal"
                 android:paddingHorizontal="24dp"
                 android:paddingVertical="16dp"
-                android:background="?attr/selectableItemBackground">
+                android:background="@null">
 
                 <TextView
                     android:id="@+id/tv_start2hago"
@@ -305,7 +305,7 @@
                     android:layout_width="18dp"
                     android:layout_height="18dp"
                     android:button="@null"
-                    android:background="@drawable/selector_circle_checkbox"
+                    android:background="@drawable/selector_circle_checkbox_18"
                     android:clickable="false"
                     android:focusable="false" />
             </LinearLayout>
@@ -322,7 +322,7 @@
                 android:orientation="horizontal"
                 android:paddingHorizontal="24dp"
                 android:paddingVertical="16dp"
-                android:background="?attr/selectableItemBackground">
+                android:background="@null">
 
                 <TextView
                     android:id="@+id/tv_start1dago"
@@ -338,7 +338,7 @@
                     android:layout_width="18dp"
                     android:layout_height="18dp"
                     android:button="@null"
-                    android:background="@drawable/selector_circle_checkbox"
+                    android:background="@drawable/selector_circle_checkbox_18"
                     android:clickable="false"
                     android:focusable="false" />
             </LinearLayout>
@@ -355,7 +355,7 @@
                 android:orientation="horizontal"
                 android:paddingHorizontal="24dp"
                 android:layout_marginVertical="16dp"
-                android:background="?attr/selectableItemBackground">
+                android:background="@null">
 
                 <TextView
                     android:id="@+id/tv_start2dago"
@@ -371,7 +371,7 @@
                     android:layout_width="18dp"
                     android:layout_height="18dp"
                     android:button="@null"
-                    android:background="@drawable/selector_circle_checkbox"
+                    android:background="@drawable/selector_circle_checkbox_18"
                     android:clickable="false"
                     android:focusable="false" />
             </LinearLayout>
@@ -388,7 +388,7 @@
                 android:orientation="horizontal"
                 android:paddingHorizontal="24dp"
                 android:paddingVertical="16dp"
-                android:background="?attr/selectableItemBackground">
+                android:background="@null">
 
                 <TextView
                     android:id="@+id/tv_start1wago"
@@ -404,7 +404,7 @@
                     android:layout_width="18dp"
                     android:layout_height="18dp"
                     android:button="@null"
-                    android:background="@drawable/selector_circle_checkbox"
+                    android:background="@drawable/selector_circle_checkbox_18"
                     android:clickable="false"
                     android:focusable="false" />
             </LinearLayout>

@@ -2,9 +2,9 @@ package com.example.pace.ui.search_box
 
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
@@ -32,6 +32,8 @@ class TimetableBottomSheet(
 ): BottomSheetDialogFragment(){
     companion object {
         const val tag = "SubwayTimetable"
+        private const val EXPANDED_HEIGHT_NUMERATOR = 702f
+        private const val EXPANDED_HEIGHT_DENOMINATOR = 769f
     }
 
     lateinit var binding: BottomSheetSubwayTimetableBinding
@@ -51,11 +53,20 @@ class TimetableBottomSheet(
         super.onStart()
 
         val bottomSheet = dialog?.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-        bottomSheet.let{
-            val behavior = BottomSheetBehavior.from(it as View)
-            behavior.state = BottomSheetBehavior.STATE_EXPANDED
+        bottomSheet?.let{
+            val behavior = BottomSheetBehavior.from(it)
+            val sheetHeight = (resources.displayMetrics.heightPixels *
+                (EXPANDED_HEIGHT_NUMERATOR / EXPANDED_HEIGHT_DENOMINATOR)).toInt()
 
-            it.layoutParams.height = WindowManager.LayoutParams.MATCH_PARENT
+            it.translationY = 0f
+            it.layoutParams.height = sheetHeight
+            it.layoutParams = it.layoutParams
+            behavior.state = BottomSheetBehavior.STATE_EXPANDED
+            behavior.skipCollapsed = true
+            behavior.isHideable = true
+            behavior.isDraggable = false
+
+            setupHandleDrag(it, behavior, sheetHeight)
         }
     }
 
@@ -159,6 +170,53 @@ class TimetableBottomSheet(
     }
 
     // 시간표 작성 함수
+    private fun setupHandleDrag(
+        sheet: View,
+        behavior: BottomSheetBehavior<View>,
+        sheetHeight: Int
+    ) {
+        var downY = 0f
+        var startTranslationY = 0f
+
+        binding.bottomSheetSubwayTimetableView.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    sheet.animate().cancel()
+                    downY = event.rawY
+                    startTranslationY = sheet.translationY
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dragOffset = (startTranslationY + event.rawY - downY).coerceAtLeast(0f)
+                    sheet.translationY = dragOffset
+                    true
+                }
+                MotionEvent.ACTION_UP,
+                MotionEvent.ACTION_CANCEL -> {
+                    val measuredSheetHeight = sheet.height.takeIf { it > 0 } ?: sheetHeight
+                    val closeThreshold = measuredSheetHeight * 0.1f
+                    val shouldClose = sheet.translationY >= closeThreshold
+                    if (shouldClose) {
+                        sheet.animate()
+                            .translationY(measuredSheetHeight.toFloat())
+                            .setDuration(180L)
+                            .withEndAction {
+                                behavior.state = BottomSheetBehavior.STATE_HIDDEN
+                            }
+                            .start()
+                    } else {
+                        sheet.animate()
+                            .translationY(0f)
+                            .setDuration(180L)
+                            .start()
+                    }
+                    true
+                }
+                else -> true
+            }
+        }
+    }
+
     fun updateTimetableUI(list: List<StationTimetableItem?>, isFirst: Boolean, isUp: Boolean){
         val parentLayout = if(isFirst && isUp)              // 상행/내선순환 첫차
             binding.bottomSheetSubwayTimetableFirstUpLl

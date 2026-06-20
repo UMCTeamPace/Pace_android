@@ -10,10 +10,13 @@
 
 <View
     android:id="@+id/centerLine"
-    android:layout_width="match_parent"
+    android:layout_width="0dp"
     android:layout_height="4dp"
-    android:background="#D4E157"
+    android:layout_marginStart="4dp"
+    android:background="@color/primary_400"
     app:layout_constraintBottom_toBottomOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintStart_toStartOf="@+id/startDot"
     app:layout_constraintTop_toTopOf="parent"
     app:layout_constraintVertical_bias="0.5" />
 
@@ -26,6 +29,16 @@
     app:layout_constraintEnd_toEndOf="parent"
     app:layout_constraintStart_toStartOf="parent"
     android:layout_marginBottom="13dp"/>
+
+<View
+    android:id="@+id/startDot"
+    android:layout_width="8dp"
+    android:layout_height="8dp"
+    android:background="@drawable/bg_onboarding_dot"
+    app:layout_constraintBottom_toBottomOf="@+id/centerLine"
+    app:layout_constraintStart_toStartOf="@+id/ivLargeLogo"
+    app:layout_constraintTop_toTopOf="@+id/centerLine"
+    android:layout_marginStart="72dp" />
 
 <TextView
     android:id="@+id/tvDescription"

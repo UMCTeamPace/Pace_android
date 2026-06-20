@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/legendLayout"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingVertical="10dp"
+    android:weightSum="7">
+
+    <TextView
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:fontFamily="@font/pretendard_semibold"
+        android:gravity="center"
+        android:letterSpacing="-0.005"
+        android:lineHeight="10sp"
+        android:textColor="@color/semantic_error_delete"
+        android:textSize="8sp"
+        tools:text="Sun" />
+
+    <TextView
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:fontFamily="@font/pretendard_semibold"
+        android:gravity="center"
+        android:letterSpacing="-0.005"
+        android:lineHeight="10sp"
+        android:textColor="@color/gray_900"
+        android:textSize="8sp"
+        tools:text="Mon" />
+
+    <TextView
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:fontFamily="@font/pretendard_semibold"
+        android:gravity="center"
+        android:letterSpacing="-0.005"
+        android:lineHeight="10sp"
+        android:textColor="@color/gray_900"
+        android:textSize="8sp"
+        tools:text="Tue" />
+
+    <TextView
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:fontFamily="@font/pretendard_semibold"
+        android:gravity="center"
+        android:letterSpacing="-0.005"
+        android:lineHeight="10sp"
+        android:textColor="@color/gray_900"
+        android:textSize="8sp"
+        tools:text="Wed" />
+
+    <TextView
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:fontFamily="@font/pretendard_semibold"
+        android:gravity="center"
+        android:letterSpacing="-0.005"
+        android:lineHeight="10sp"
+        android:textColor="@color/gray_900"
+        android:textSize="8sp"
+        tools:text="Thu" />
+
+    <TextView
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:fontFamily="@font/pretendard_semibold"
+        android:gravity="center"
+        android:letterSpacing="-0.005"
+        android:lineHeight="10sp"
+        android:textColor="@color/gray_900"
+        android:textSize="8sp"
+        tools:text="Fri" />
+
+    <TextView
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:fontFamily="@font/pretendard_semibold"
+        android:gravity="center"
+        android:letterSpacing="-0.005"
+        android:lineHeight="10sp"
+        android:textColor="@color/semantic_success"
+        android:textSize="8sp"
+        tools:text="Sat" />
+
+</LinearLayout>

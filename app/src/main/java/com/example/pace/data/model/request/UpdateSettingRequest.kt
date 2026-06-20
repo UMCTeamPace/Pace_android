@@ -9,8 +9,8 @@ data class UpdateSettingsRequest(
     @SerializedName("earlyArrivalTime")
     val earlyArrivalTime: Int,
 
-    @SerializedName("calendarType") // 대소문자 주의 (스웨거 기준 소문자 c)
-    val calendarType: String,
+    @SerializedName("calendarId")
+    val calendarId: String,
 
     @SerializedName("alarms")
     val alarms: List<AlarmSettingRequest>

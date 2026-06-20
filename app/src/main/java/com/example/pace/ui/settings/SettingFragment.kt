@@ -10,6 +10,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.net.toUri
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResultListener
@@ -51,7 +52,7 @@ class SettingFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         val title = activity?.findViewById<TextView>(R.id.settings_tv)
-        title?.text = "설정"
+        setToolbarTitle(title, "설정", alignToBackButton = false)
 
         observeRoomData()
         setupFragmentResultListeners()
@@ -59,7 +60,11 @@ class SettingFragment : Fragment() {
 
         parentFragmentManager.addOnBackStackChangedListener {
             if (parentFragmentManager.backStackEntryCount == 0) {
-                activity?.findViewById<TextView>(R.id.settings_tv)?.text = "설정"
+                setToolbarTitle(
+                    activity?.findViewById(R.id.settings_tv),
+                    "설정",
+                    alignToBackButton = false
+                )
             }
         }
     }
@@ -106,7 +111,7 @@ class SettingFragment : Fragment() {
             val fragment = SettingEarlyarrivedFragment().apply {
                 arguments = Bundle().apply { putInt("currentMinutes", currentMinutes) }
             }
-            navigateTo(fragment, "미리 알림", title)
+            navigateTo(fragment, "미리 도착", title)
         }
 
         binding.settingsDepartureAlarmLl.setOnClickListener {
@@ -203,7 +208,7 @@ class SettingFragment : Fragment() {
     }
 
     private fun navigateTo(fragment: Fragment, titleText: String, titleView: TextView?) {
-        titleView?.text = titleText
+        setToolbarTitle(titleView, titleText, alignToBackButton = true)
         parentFragmentManager.beginTransaction()
             .setCustomAnimations(
                 android.R.anim.slide_in_left,
@@ -214,6 +219,38 @@ class SettingFragment : Fragment() {
             .replace(R.id.settings_fcv, fragment)
             .addToBackStack(null)
             .commit()
+    }
+
+    private fun setToolbarTitle(
+        titleView: TextView?,
+        titleText: String,
+        alignToBackButton: Boolean
+    ) {
+        titleView?.text = titleText
+        alignToolbarTitle(alignToBackButton)
+    }
+
+    private fun alignToolbarTitle(alignToBackButton: Boolean) {
+        val holder = activity?.findViewById<View>(R.id.settings_title_holder) ?: return
+        val params = holder.layoutParams as? ConstraintLayout.LayoutParams ?: return
+
+        if (alignToBackButton) {
+            params.startToStart = ConstraintLayout.LayoutParams.UNSET
+            params.endToEnd = ConstraintLayout.LayoutParams.UNSET
+            params.startToEnd = R.id.settings_back_iv
+            params.topToTop = R.id.settings_back_iv
+            params.bottomToBottom = R.id.settings_back_iv
+            params.marginStart = (12 * resources.displayMetrics.density).toInt()
+        } else {
+            params.startToEnd = ConstraintLayout.LayoutParams.UNSET
+            params.startToStart = ConstraintLayout.LayoutParams.PARENT_ID
+            params.endToEnd = ConstraintLayout.LayoutParams.PARENT_ID
+            params.topToTop = ConstraintLayout.LayoutParams.PARENT_ID
+            params.bottomToBottom = ConstraintLayout.LayoutParams.PARENT_ID
+            params.marginStart = 0
+        }
+
+        holder.layoutParams = params
     }
 
     private fun observeRoomData() {

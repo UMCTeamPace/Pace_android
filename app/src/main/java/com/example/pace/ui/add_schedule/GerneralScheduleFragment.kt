@@ -640,7 +640,7 @@ class GeneralScheduleFragment : Fragment() {
                         }
 
                         else -> {
-                            textView.setTextColor(Color.BLACK)
+                            textView.setTextColor(getCalendarDateTextColor(date))
                             textView.background = null
                             root.background = null
                         }
@@ -1181,8 +1181,8 @@ class GeneralScheduleFragment : Fragment() {
             (legendLayout.getChildAt(i) as? TextView)?.apply {
                 text = daysOfWeek[i]
                 // 가이드에 따른 주말 색상 처리 (선택)
-                if (i == 0) setTextColor(Color.RED)
-                else if (i == 6) setTextColor(Color.BLUE)
+                if (i == 0) setTextColor(ContextCompat.getColor(requireContext(), R.color.semantic_error))
+                else if (i == 6) setTextColor(ContextCompat.getColor(requireContext(), R.color.semantic_success))
             }
         }
     }
@@ -1194,12 +1194,14 @@ class GeneralScheduleFragment : Fragment() {
         val endMonth = currentMonth.plusMonths(12)   // 1년 후 (총 2년)
         val firstDayOfWeek = java.time.DayOfWeek.SUNDAY
 
+        val titleFormatter = DateTimeFormatter.ofPattern("yyyy년 M월", Locale.KOREAN)
+        binding.tvCurrentMonth.text = currentMonth.format(titleFormatter)
+
         binding.calendarPicker.setup(startMonth, endMonth, firstDayOfWeek)
         binding.calendarPicker.scrollToMonth(currentMonth)
 
         // 스크롤 시 상단 텍스트(2026년 2월) 업데이트
         binding.calendarPicker.monthScrollListener = { month ->
-            val titleFormatter = DateTimeFormatter.ofPattern("yyyy년 M월", Locale.KOREAN)
             binding.tvCurrentMonth.text = month.yearMonth.format(titleFormatter)
         }
     }
@@ -1256,25 +1258,34 @@ class GeneralScheduleFragment : Fragment() {
                             }
                         }
                     }
-                    textView.setTextColor(Color.BLACK)
+                    textView.setTextColor(getCalendarDateTextColor(date))
                 }
 
                 // [CASE 2] 시작일만 선택되었거나, 시작일과 종료일이 같은 날짜일 때 (원만 표시)
                 date == startDate || date == endDate -> {
-                    textView.setTextColor(Color.BLACK)
+                    textView.setTextColor(getCalendarDateTextColor(date))
                     textView.setBackgroundResource(R.drawable.drawable_circle_green)
                     textView.backgroundTintList = ColorStateList.valueOf(colorPrimary300)
                     root.background = null // 막대 제거
                 }
 
                 else -> {
-                    textView.setTextColor(Color.BLACK)
+                    textView.setTextColor(getCalendarDateTextColor(date))
                 }
             }
         }
     }
 
     // 마진을 조절하여 배경 높이를 깎는 보조 함수
+    private fun getCalendarDateTextColor(date: LocalDate): Int {
+        val colorRes = when (date.dayOfWeek) {
+            DayOfWeek.SUNDAY -> R.color.semantic_error
+            DayOfWeek.SATURDAY -> R.color.semantic_success
+            else -> R.color.text_primary
+        }
+        return ContextCompat.getColor(requireContext(), colorRes)
+    }
+
     private fun applySelectionMargin(view: View, isFullHeight: Boolean) {
         val params = view.layoutParams as ViewGroup.MarginLayoutParams
         if (isFullHeight) {

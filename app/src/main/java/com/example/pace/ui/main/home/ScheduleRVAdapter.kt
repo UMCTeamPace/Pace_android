@@ -14,8 +14,11 @@ import com.example.pace.data.model.Schedule
 import com.example.pace.data.model.response.RouteInfo
 import com.example.pace.databinding.ItemScheduleBinding
 import com.example.pace.ui.RouteCalculator
+import com.example.pace.util.ScheduleCountdownUtils
 import com.example.pace.util.ScheduleDisplayTextUtils
 import com.example.pace.util.ScheduleItemStyleUtils
+import com.example.pace.util.SchedulePayloads
+import com.example.pace.util.ScheduleSwipeStyleHelper
 import com.google.gson.Gson
 
 class ScheduleRVAdapter(
@@ -53,6 +56,14 @@ class ScheduleRVAdapter(
         routeInfoMap = newRouteMap
         scheduleList = newSchedules.toList()
         diffResult.dispatchUpdatesTo(this)
+    }
+
+    fun currentSchedules(): List<Schedule> = scheduleList.toList()
+
+    fun refreshCountdownAlerts() {
+        scheduleList.indices.forEach { position ->
+            notifyItemChanged(position, SchedulePayloads.COUNTDOWN_ALERT)
+        }
     }
 
     private fun resetSwipeState() {
@@ -102,6 +113,14 @@ class ScheduleRVAdapter(
         }
     }
 
+    override fun onBindViewHolder(holder: ViewHolder, position: Int, payloads: MutableList<Any>) {
+        if (payloads.contains(SchedulePayloads.COUNTDOWN_ALERT)) {
+            holder.bindCountdownAlertOnly(scheduleList[position])
+            return
+        }
+        onBindViewHolder(holder, position)
+    }
+
     override fun getItemCount(): Int = scheduleList.size
 
     override fun getSwipeLayoutResourceId(position: Int): Int = R.id.item_schedule
@@ -132,8 +151,25 @@ class ScheduleRVAdapter(
     }
 
     inner class ViewHolder(val binding: ItemScheduleBinding) : RecyclerView.ViewHolder(binding.root) {
+        init {
+            ScheduleSwipeStyleHelper.attach(binding.root, binding.scheduleViewTop)
+        }
+
+        fun bindCountdownAlertOnly(schedule: Schedule) {
+            val serverRouteInfo = routeInfoMap[schedule.id]
+            val localRouteInfo = schedule.routeJson?.let {
+                runCatching { gson.fromJson(it, RouteInfo::class.java) }.getOrNull()
+            }
+            ScheduleCountdownUtils.applyAlert(
+                alertView = binding.scheduleAlertTv,
+                schedule = schedule,
+                routeInfo = serverRouteInfo ?: localRouteInfo
+            )
+        }
+
         fun bind(schedule: Schedule) {
             binding.root.close(false)
+            ScheduleSwipeStyleHelper.reset(binding.scheduleViewTop)
             binding.scheduleCheckbox.visibility = View.GONE
             binding.scheduleTitleTv.text = ScheduleDisplayTextUtils.titleOrDefault(schedule.title)
 
@@ -173,6 +209,8 @@ class ScheduleRVAdapter(
                 }
             }
 
+            bindCountdownAlertOnly(schedule)
+
             ScheduleItemStyleUtils.applyScheduleColors(
                 context = context,
                 schedule = schedule,
@@ -185,7 +223,12 @@ class ScheduleRVAdapter(
                     binding.scheduleRouteRangeTv,
                     binding.scheduleRouteDurationTv
                 ),
-                accentViews = listOf(binding.scheduleRepeatIv, binding.scheduleNormalLocationIv),
+                accentViews = listOf(
+                    binding.scheduleTimeIv,
+                    binding.scheduleRepeatIv,
+                    binding.scheduleNormalLocationIv,
+                    binding.scheduleRouteLocationIv
+                ),
                 categoryView = binding.scheduleCategoryIv,
                 pinnedView = binding.schedulePinnedIv
             )

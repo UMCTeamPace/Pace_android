@@ -94,7 +94,7 @@ class BookmarkPlaceFragment : Fragment() {
                 dialog.show(parentFragmentManager, "EditGroupDialog")
             },
             onDeleteClick = { groupItem ->
-                val message = "저장된 그룹 내 장소를/모두 삭제하시겠습니까?"
+                val message = "저장된 그룹 내 장소를 \n 모두 삭제하시겠습니까?"
                 val dialog = DeleteConfirmDialogFragment(message) {
                     groupViewModel.deleteGroup(groupItem.groupId)
                 }

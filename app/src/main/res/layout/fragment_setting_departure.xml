@@ -39,7 +39,7 @@
                         android:layout_marginStart="24dp"
                         android:text="안함"
                         android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
+                        android:drawableEnd="@drawable/selector_circle_checkbox_18"
                         android:paddingEnd="16dp"
                         android:background="@null" />
 
@@ -54,7 +54,7 @@
                         android:layout_marginStart="24dp"
                         android:text="출발 시각"
                         android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
+                        android:drawableEnd="@drawable/selector_circle_checkbox_18"
                         android:paddingEnd="16dp"
                         android:background="@null" />
 
@@ -69,7 +69,7 @@
                         android:layout_marginStart="24dp"
                         android:text="출발 5분 전"
                         android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
+                        android:drawableEnd="@drawable/selector_circle_checkbox_18"
                         android:paddingEnd="16dp"
                         android:background="@null" />
 
@@ -84,7 +84,7 @@
                         android:layout_marginStart="24dp"
                         android:text="출발 10분 전"
                         android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
+                        android:drawableEnd="@drawable/selector_circle_checkbox_18"
                         android:paddingEnd="16dp"
                         android:background="@null" />
 
@@ -99,7 +99,7 @@
                         android:layout_marginStart="24dp"
                         android:text="출발 15분 전"
                         android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
+                        android:drawableEnd="@drawable/selector_circle_checkbox_18"
                         android:paddingEnd="16dp"
                         android:background="@null" />
 
@@ -114,7 +114,7 @@
                         android:layout_marginStart="24dp"
                         android:text="출발 20분 전"
                         android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
+                        android:drawableEnd="@drawable/selector_circle_checkbox_18"
                         android:paddingEnd="16dp"
                         android:background="@null" />
 
@@ -129,7 +129,7 @@
                         android:layout_marginStart="24dp"
                         android:text="출발 25분 전"
                         android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
+                        android:drawableEnd="@drawable/selector_circle_checkbox_18"
                         android:paddingEnd="16dp"
                         android:background="@null" />
 
@@ -144,7 +144,7 @@
                         android:layout_marginStart="24dp"
                         android:text="출발 30분 전"
                         android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
+                        android:drawableEnd="@drawable/selector_circle_checkbox_18"
                         android:paddingEnd="16dp"
                         android:background="@null" />
 
@@ -159,7 +159,7 @@
                         android:layout_marginStart="24dp"
                         android:text="출발 35분 전"
                         android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
+                        android:drawableEnd="@drawable/selector_circle_checkbox_18"
                         android:paddingEnd="16dp"
                         android:background="@null" />
 
@@ -170,7 +170,7 @@
                         android:layout_marginStart="24dp"
                         android:text="출발 40분 전"
                         android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
+                        android:drawableEnd="@drawable/selector_circle_checkbox_18"
                         android:paddingEnd="16dp"
                         android:background="@null" />
 
@@ -185,7 +185,7 @@
                         android:layout_marginStart="24dp"
                         android:text="출발 45분 전"
                         android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
+                        android:drawableEnd="@drawable/selector_circle_checkbox_18"
                         android:paddingEnd="16dp"
                         android:background="@null" />
 
@@ -200,7 +200,7 @@
                         android:layout_marginStart="24dp"
                         android:text="출발 50분 전"
                         android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
+                        android:drawableEnd="@drawable/selector_circle_checkbox_18"
                         android:paddingEnd="16dp"
                         android:background="@null" />
 
@@ -215,7 +215,7 @@
                         android:layout_marginStart="24dp"
                         android:text="출발 55분 전"
                         android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
+                        android:drawableEnd="@drawable/selector_circle_checkbox_18"
                         android:paddingEnd="16dp"
                         android:background="@null" />
 
@@ -230,7 +230,7 @@
                         android:layout_marginStart="24dp"
                         android:text="출발 1시간 전"
                         android:button="@null"
-                        android:drawableEnd="@drawable/selector_circle_checkbox"
+                        android:drawableEnd="@drawable/selector_circle_checkbox_18"
                         android:paddingEnd="16dp"
                         android:background="@null" />
 

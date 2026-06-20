@@ -47,12 +47,13 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toTopOf="@id/cv_map_address_card" />
 
-    <androidx.cardview.widget.CardView
+    <LinearLayout
         android:id="@+id/cv_map_address_card"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        app:cardCornerRadius="20dp"
-        app:cardElevation="20dp"
+        android:background="@drawable/bg_bottom_sheet_rounded"
+        android:elevation="20dp"
+        android:orientation="vertical"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -61,8 +62,22 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="20dp"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
             android:paddingBottom="34dp">
+
+            <FrameLayout
+                android:id="@+id/layout_drag_handle_area"
+                android:layout_width="match_parent"
+                android:layout_height="32dp">
+
+                <View
+                    android:id="@+id/view_handle"
+                    android:layout_width="60dp"
+                    android:layout_height="5dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_bottom_sheet_handle_large" />
+            </FrameLayout>
 
             <TextView
                 android:id="@+id/tv_map_select_name"
@@ -86,19 +101,22 @@
                 android:textAppearance="@style/TextAppearance.App.CaptionLg.Medium"
                 android:textSize="12sp" />
 
-            <Button
+            <TextView
                 android:id="@+id/btn_map_select_confirm"
                 android:layout_width="match_parent"
                 android:layout_height="40dp"
                 android:layout_marginTop="24dp"
-                app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.SmallComponent"
-                app:cornerRadius="8dp"
+                android:background="@drawable/bg_map_select_confirm_button"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
                 android:text="확인"
                 android:backgroundTint="@color/primary_500"
-                android:textColor="@color/white"
-                android:textSize="16sp"
-                android:fontFamily="@font/pretendard_semibold" />
+                android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                android:textColor="@color/white" />
         </LinearLayout>
-    </androidx.cardview.widget.CardView>
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

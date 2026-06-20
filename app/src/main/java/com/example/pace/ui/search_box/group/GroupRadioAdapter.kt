@@ -69,7 +69,9 @@ class GroupRadioAdapter(
                     val previousPos = selectedPosition
                     selectedPosition = currentPos
 
-                    notifyItemChanged(previousPos)
+                    if (previousPos != RecyclerView.NO_POSITION) {
+                        notifyItemChanged(previousPos)
+                    }
                     notifyItemChanged(selectedPosition)
 
                     onItemClick()
@@ -77,6 +79,7 @@ class GroupRadioAdapter(
             }
 
             binding.root.setOnClickListener { listener() }
+            binding.layoutGroupRow.setOnClickListener { listener() }
             binding.ivSelect.setOnClickListener { listener() }
         }
     }

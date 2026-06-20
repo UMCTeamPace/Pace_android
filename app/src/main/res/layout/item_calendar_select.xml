@@ -1,61 +1,55 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@android:color/white"
     android:foreground="?attr/selectableItemBackground"
-    android:paddingHorizontal="20dp"
-    android:paddingVertical="12dp"
     android:orientation="vertical">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/rb_calendar_select"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="24dp"
+        android:paddingVertical="18dp">
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:layout_weight="1"
+            android:orientation="vertical">
 
             <TextView
                 android:id="@+id/tv_calendar_item_name"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
+                android:layout_marginVertical="2dp"
                 android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
                 android:textColor="@color/text_primary"
                 tools:text="Calendar" />
 
-            <RadioButton
-                android:id="@+id/rb_calendar_select"
+            <TextView
+                android:id="@+id/tv_calendar_item_account"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:minWidth="18dp"
-                android:minHeight="18dp"
-                android:clickable="false"
-                android:focusable="false"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
-
+                android:textAppearance="@style/TextAppearance.App.CaptionMd.Regular"
+                android:textColor="@color/text_tertiary"
+                tools:text="(example@gmail.com)" />
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/tv_calendar_item_account"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="1dp"
-            android:textAppearance="@style/TextAppearance.App.CaptionMd.Regular"
-            android:textColor="@color/text_tertiary"
-            tools:text="example@gmail.com" />
-
+        <RadioButton
+            android:id="@+id/rb_calendar_select"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:background="@drawable/selector_calendar_select_radio_24"
+            android:button="@null"
+            android:clickable="false"
+            android:focusable="false"
+            android:minWidth="24dp"
+            android:minHeight="24dp"
+            android:padding="0dp" />
     </LinearLayout>
 
     <View
@@ -63,5 +57,4 @@
         android:layout_height="1dp"
         android:layout_marginHorizontal="20dp"
         android:background="@color/gray_200" />
-
 </LinearLayout>

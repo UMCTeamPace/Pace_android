@@ -104,7 +104,7 @@ class AddGroupDialogFragment(
     }
 
     fun showDuplicateError() {
-        binding.tvGroupErrorMessage.text = "이미 존재하는 그룹 이름입니다."
+        binding.tvGroupErrorMessage.text = "*이미 존재하는 폴더명입니다."
         binding.tvGroupErrorMessage.visibility = View.VISIBLE
     }
 

@@ -4,12 +4,16 @@ import android.content.Context.MODE_PRIVATE
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.TypefaceSpan
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.res.ResourcesCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
@@ -20,6 +24,7 @@ import androidx.recyclerview.widget.LinearSmoothScroller
 import androidx.recyclerview.widget.LinearSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.SimpleItemAnimator
+import com.example.pace.R
 import com.example.pace.data.model.Schedule
 import com.example.pace.databinding.FragmentHomeBinding
 import com.example.pace.ui.add_schedule.AddScheduleActivity
@@ -31,6 +36,7 @@ import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.launch
 import androidx.fragment.app.activityViewModels // 추가 확인
 import com.example.pace.data.model.response.ScheduleDetailResponse
+import com.example.pace.util.ScheduleRefreshReason
 import com.example.pace.util.ScheduleSortUtils
 import com.example.pace.util.ScheduleUiRefreshTicker
 import dagger.hilt.android.AndroidEntryPoint // 1. 추가
@@ -48,9 +54,16 @@ class HomeFragment: Fragment() {
     private var suppressNextScheduleAnimation = false
     private var pendingModalEditDate: LocalDate? = null
     private var calendarBaseDate: LocalDate? = null
-    private val scheduleUiRefreshTicker = ScheduleUiRefreshTicker {
+    private val scheduleUiRefreshTicker = ScheduleUiRefreshTicker { reason ->
         if (isViewReady) {
-            filterAndDisplaySchedules()
+            when (reason) {
+                ScheduleRefreshReason.COUNTDOWN -> {
+                    if (::scheduleAdapter.isInitialized) {
+                        refreshCountdownAlerts()
+                    }
+                }
+                ScheduleRefreshReason.PAST_STATUS -> filterAndDisplaySchedules()
+            }
         }
     }
 
@@ -295,8 +308,35 @@ class HomeFragment: Fragment() {
         return baseDate.plusDays((position - basePosition).toLong())
     }
 
-    private fun formatCalendarMonthText(date: LocalDate): String {
-        return date.year.toString() + "년 " + date.monthValue.toString() + "월"
+    private fun formatCalendarMonthText(date: LocalDate): CharSequence {
+        val text = "${date.year}년 ${date.monthValue}월"
+        val spannable = SpannableString(text)
+        val numberTypeface = ResourcesCompat.getFont(requireContext(), R.font.roboto_semibold)
+        val koreanTypeface = ResourcesCompat.getFont(requireContext(), R.font.pretendard_semibold)
+
+        numberTypeface?.let { typeface ->
+            Regex("\\d+").findAll(text).forEach { match ->
+                spannable.setSpan(
+                    TypefaceSpan(typeface),
+                    match.range.first,
+                    match.range.last + 1,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+            }
+        }
+
+        koreanTypeface?.let { typeface ->
+            Regex("[년월]").findAll(text).forEach { match ->
+                spannable.setSpan(
+                    TypefaceSpan(typeface),
+                    match.range.first,
+                    match.range.last + 1,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+            }
+        }
+
+        return spannable
     }
 
     private fun setupObservers() {
@@ -349,7 +389,7 @@ class HomeFragment: Fragment() {
         }
 
         scheduleAdapter.updateData(sortedList, viewModel.routeDetails.value)
-        scheduleUiRefreshTicker.schedule(sortedList)
+        scheduleUiRefreshTicker.schedule(sortedList, viewModel.routeDetails.value)
         lastRenderedScheduleDate = selectedDate
 
         if (shouldSuppressAnimation) {
@@ -370,6 +410,14 @@ class HomeFragment: Fragment() {
             binding.homeNoSchedule.visibility = View.GONE
             binding.homeScheduleRv.visibility = View.VISIBLE
         }
+    }
+
+    private fun refreshCountdownAlerts() {
+        scheduleAdapter.refreshCountdownAlerts()
+        scheduleUiRefreshTicker.schedule(
+            scheduleAdapter.currentSchedules(),
+            viewModel.routeDetails.value
+        )
     }
 
     fun resetToToday() {
@@ -437,8 +485,7 @@ class HomeFragment: Fragment() {
 
         if (::horizontalCalendarAdapter.isInitialized) {
             val layoutManager = binding.homeHorizontalCalendarRv.layoutManager as? LinearLayoutManager
-            binding.homeHorizontalCalendarTv.text =
-                selectedDate.year.toString() + "년 " + selectedDate.monthValue.toString() + "월"
+            binding.homeHorizontalCalendarTv.text = formatCalendarMonthText(selectedDate)
             horizontalCalendarAdapter.changeSelectedDate(calendarCenterPosition)
             binding.homeHorizontalCalendarRv.post {
                 val recyclerLayoutManager = layoutManager ?: return@post

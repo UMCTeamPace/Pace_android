@@ -5,16 +5,16 @@
     android:id="@+id/root_layout"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingTop="4dp"
     android:paddingBottom="4dp">
 
     <TextView
         android:id="@+id/calendarDayText"
-        android:layout_width="28dp"
-        android:layout_height="28dp"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:layout_marginTop="6dp"
         android:gravity="center"
         android:textSize="11sp"
-        android:textAppearance="@style/TextAppearance.App.Num.CaptionMd.Medium"
+        android:textAppearance="@style/TextAppearance.App.Num.CaptionMd.Bold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"

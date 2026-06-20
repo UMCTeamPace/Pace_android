@@ -106,8 +106,7 @@
                 android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
                 android:text="20일 마다 선택"
                 android:button="@null"
-                android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
-                android:drawableTint="@color/selector_radio_button"
+                android:drawableEnd="@drawable/selector_calendar_select_radio_24"
                 android:background="@null"
                 android:backgroundTint="@android:color/transparent"
                 android:drawableTintMode="src_in" />
@@ -125,8 +124,7 @@
                 android:layout_marginTop="16dp"
                 android:text="세번째 금요일 마다 선택"
                 android:button="@null"
-                android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
-                android:drawableTint="@color/selector_radio_button"
+                android:drawableEnd="@drawable/selector_calendar_select_radio_24"
                 android:background="@null"
                 android:backgroundTint="@android:color/transparent"
                 android:drawableTintMode="src_in" />
@@ -144,8 +142,7 @@
                 android:layout_marginTop="16dp"
                 android:text="반복 날짜 선택"
                 android:button="@null"
-                android:drawableEnd="?android:attr/listChoiceIndicatorSingle"
-                android:drawableTint="@color/selector_radio_button"
+                android:drawableEnd="@drawable/selector_calendar_select_radio_24"
                 android:background="@null"
                 android:backgroundTint="@android:color/transparent"
                 android:drawableTintMode="src_in" />

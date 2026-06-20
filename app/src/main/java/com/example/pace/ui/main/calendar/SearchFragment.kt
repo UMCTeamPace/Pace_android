@@ -24,6 +24,7 @@ import com.example.pace.ui.add_schedule.AddScheduleActivity
 import com.example.pace.ui.main.MainActivity
 import com.example.pace.ui.main.home.DeleteRepeatScheduleDialog
 import com.example.pace.ui.main.home.DeleteScheduleDialog
+import com.example.pace.util.ScheduleRefreshReason
 import com.example.pace.util.ScheduleSortUtils
 import com.example.pace.util.ScheduleUiRefreshTicker
 import com.example.pace.util.SearchTextMatcher
@@ -39,8 +40,8 @@ class SearchFragment : Fragment() {
     private lateinit var searchAdapter: SearchAdapter
     private var recyclerView: RecyclerView? = null
     private var latestSearchResults: List<Schedule> = emptyList()
-    private val scheduleUiRefreshTicker = ScheduleUiRefreshTicker {
-        if (_binding != null && latestSearchResults.isNotEmpty()) {
+    private val scheduleUiRefreshTicker = ScheduleUiRefreshTicker { reason ->
+        if (_binding != null && latestSearchResults.isNotEmpty() && reason == ScheduleRefreshReason.PAST_STATUS) {
             showSearchResults(transformToSearchItems(latestSearchResults))
             scheduleCurrentSearchRefresh()
         }
@@ -154,7 +155,11 @@ class SearchFragment : Fragment() {
                         } else {
                             val uiItems = transformToSearchItems(results)
                             showSearchResults(uiItems)
-                            scheduleUiRefreshTicker.schedule(results)
+                            scheduleUiRefreshTicker.schedule(
+                                schedules = results,
+                                routeInfoMap = viewModel.routeDetails.value,
+                                includeCountdown = false
+                            )
 
                             results.filter { it.type == "ROUTE" }.forEach {
                                 viewModel.fetchRouteDetail(it.id)
@@ -172,6 +177,7 @@ class SearchFragment : Fragment() {
                 launch {
                     viewModel.routeDetails.collectLatest { routeMap ->
                         searchAdapter.updateRouteInfo(routeMap)
+                        scheduleCurrentSearchRefresh()
                     }
                 }
             }
@@ -253,7 +259,11 @@ class SearchFragment : Fragment() {
     }
 
     private fun scheduleCurrentSearchRefresh() {
-        scheduleUiRefreshTicker.schedule(latestSearchResults)
+        scheduleUiRefreshTicker.schedule(
+            schedules = latestSearchResults,
+            routeInfoMap = viewModel.routeDetails.value,
+            includeCountdown = false
+        )
     }
 
     private fun showKeyboard() {

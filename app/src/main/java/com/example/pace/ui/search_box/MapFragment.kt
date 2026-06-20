@@ -112,6 +112,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     fun clearRoute() {
         googleMap?.clear()
         setMapPadding(0)
+        updateButtonTranslation(0f)
     }
 
     fun drawRouteOnMap(routeItem: RouteResponse, finalStart: LatLng?, finalEnd: LatLng?) {
@@ -385,6 +386,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         clearMarkers()
 
         setMapPadding(0)
+        updateButtonTranslation(0f)
 
         checkLocationPermission(isAnimate = true)
     }

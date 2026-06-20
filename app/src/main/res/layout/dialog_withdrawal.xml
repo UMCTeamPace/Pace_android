@@ -23,7 +23,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="24dp"
         android:gravity="center"
-        android:text="정말 탈퇴하시겠습니까?"
+        android:text="*모든 데이터는 삭제됩니다."
         android:textColor="@color/text_tertiary"
         android:textAppearance="@style/TextAppearance.App.ModalSm.Regular" />
 

@@ -113,7 +113,7 @@ class GroupEditActivity : AppCompatActivity() {
             binding.tvEditTitle.text = when {
                 selectedCount == 0 -> "편집"
                 selectedCount == placeList.size -> "전체 선택"
-                else -> "${selectedCount}개 선택"
+                else -> "${selectedCount}개 선택됨"
             }
 
             val isEnabled = selectedCount > 0

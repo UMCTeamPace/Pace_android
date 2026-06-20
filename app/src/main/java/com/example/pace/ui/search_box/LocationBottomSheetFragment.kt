@@ -11,6 +11,7 @@ import android.widget.Button
 import android.widget.RadioGroup
 import android.widget.Toast
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -36,6 +37,8 @@ class LocationBottomSheetFragment : Fragment() {
 
     private var currentItems: List<SearchItem> = emptyList()
     private var currentSortPreference: SearchByTextRequest.RankPreference = SearchByTextRequest.RankPreference.RELEVANCE
+    private var systemBottomInset = 0
+    private var searchResultExtraBottomInset = 0
 
     var onItemClick: ((SearchItem) -> Unit)? = null
     var onSortTypeSelected: ((SearchByTextRequest.RankPreference) -> Unit)? = null
@@ -62,6 +65,7 @@ class LocationBottomSheetFragment : Fragment() {
         }
 
         setupRecyclerView()
+        setupSystemBarInsets()
         setupFilterListeners()
         observeViewModel()
 
@@ -118,6 +122,23 @@ class LocationBottomSheetFragment : Fragment() {
             layoutManager = LinearLayoutManager(context)
             ViewCompat.setNestedScrollingEnabled(this, false)
             this.adapter = this@LocationBottomSheetFragment.adapter
+        }
+    }
+
+    private fun setupSystemBarInsets() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
+            systemBottomInset = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
+            setSearchResultBottomInset(searchResultExtraBottomInset)
+            insets
+        }
+        ViewCompat.requestApplyInsets(binding.root)
+        binding.root.post {
+            val rootInsets = ViewCompat.getRootWindowInsets(requireActivity().window.decorView)
+            systemBottomInset = rootInsets
+                ?.getInsets(WindowInsetsCompat.Type.systemBars())
+                ?.bottom
+                ?: 0
+            setSearchResultBottomInset(searchResultExtraBottomInset)
         }
     }
 
@@ -217,8 +238,9 @@ class LocationBottomSheetFragment : Fragment() {
 
     fun setSearchResultBottomInset(extraBottomInsetPx: Int) {
         val binding = _binding ?: return
+        searchResultExtraBottomInset = extraBottomInsetPx
         val baseBottomPadding = (20 * resources.displayMetrics.density).toInt()
-        val bottomPadding = baseBottomPadding + extraBottomInsetPx.coerceAtLeast(0)
+        val bottomPadding = baseBottomPadding + extraBottomInsetPx.coerceAtLeast(0) + systemBottomInset
         binding.rvSearchResults.setPadding(
             binding.rvSearchResults.paddingLeft,
             binding.rvSearchResults.paddingTop,

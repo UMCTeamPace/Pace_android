@@ -10,20 +10,23 @@ import com.example.pace.R
 import com.example.pace.data.model.Schedule
 import java.time.Duration
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 
 object ScheduleItemStyleUtils {
     fun isPastTimedSchedule(
         schedule: Schedule,
-        today: LocalDate = LocalDate.now(),
-        now: LocalTime = LocalTime.now()
+        now: LocalDateTime = LocalDateTime.now()
     ): Boolean {
+        if (schedule.type == "ROUTE") return false
         if (schedule.isAllDay) return false
-        val scheduleDate = runCatching { LocalDate.parse(schedule.startDate.take(10)) }.getOrNull()
-        if (scheduleDate != today) return false
 
-        val endTime = runCatching { LocalTime.parse(schedule.endTime) }.getOrNull() ?: return false
-        return endTime.isBefore(now)
+        val startDate = runCatching { LocalDate.parse(schedule.startDate.take(10)) }.getOrNull()
+            ?: return false
+        if (startDate != now.toLocalDate()) return false
+
+        val endDateTime = parseScheduleEndDateTime(schedule) ?: return false
+        return endDateTime.isBefore(now)
     }
 
     fun applyScheduleColors(
@@ -68,21 +71,30 @@ object ScheduleItemStyleUtils {
 
     fun nextPastTimedRefreshDelayMillis(
         schedules: List<Schedule>,
-        today: LocalDate = LocalDate.now(),
-        now: LocalTime = LocalTime.now()
+        now: LocalDateTime = LocalDateTime.now()
     ): Long? {
-        val nextEndTime = schedules
+        val nextEndDateTime = schedules
             .asSequence()
+            .filterNot { it.type == "ROUTE" }
             .filterNot { it.isAllDay }
-            .filter {
-                runCatching { LocalDate.parse(it.startDate.take(10)) }.getOrNull() == today
-            }
-            .mapNotNull { runCatching { LocalTime.parse(it.endTime) }.getOrNull() }
+            .mapNotNull(::parseScheduleEndDateTime)
             .filter { !it.isBefore(now) }
             .minOrNull()
 
-        return nextEndTime?.let {
+        return nextEndDateTime?.let {
             Duration.between(now, it).toMillis().coerceAtLeast(0L) + 1000L
         }
+    }
+
+    private fun parseScheduleEndDateTime(schedule: Schedule): LocalDateTime? {
+        val endDate = runCatching { LocalDate.parse(schedule.endDate.take(10)) }.getOrNull()
+            ?: return null
+        val endTime = parseTime(schedule.endTime) ?: return null
+        return LocalDateTime.of(endDate, endTime)
+    }
+
+    private fun parseTime(value: String): LocalTime? {
+        return runCatching { LocalTime.parse(value.take(8)) }.getOrNull()
+            ?: runCatching { LocalTime.parse(value.take(5)) }.getOrNull()
     }
 }

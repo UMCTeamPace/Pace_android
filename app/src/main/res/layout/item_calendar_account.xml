@@ -33,7 +33,7 @@
                 android:id="@+id/rb_calendar_select"
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:background="@drawable/selector_repeat_option_radio_24"
+                android:background="@drawable/selector_calendar_select_radio_24"
                 android:button="@null"
                 android:clickable="false"
                 android:focusable="false"

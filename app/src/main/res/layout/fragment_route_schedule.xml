@@ -43,7 +43,7 @@
                         android:layout_width="16dp"
                         android:layout_height="16dp"
                         android:background="@drawable/circle_schedulecolor"
-                        android:backgroundTint="@color/route_branch_bus"
+                        android:backgroundTint="@color/schedule_5"
                         android:padding="8dp" />
 
                     <EditText
@@ -102,8 +102,7 @@
                             android:id="@+id/btn_all_day"
                             android:layout_width="20dp"
                             android:layout_height="20dp"
-                            android:src="@drawable/ic_time"
-                            app:tint="@color/black" />
+                            android:src="@drawable/ic_time" />
 
                         <TextView
                             android:layout_width="match_parent"
@@ -155,9 +154,9 @@
                     </LinearLayout>
 
                     <ImageView
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
-                        android:src="@drawable/ic_arrow_indicate_selected" />
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_right_arrow" />
 
                     <LinearLayout
                         android:id="@+id/btn_end_date"
@@ -196,7 +195,6 @@
                     android:id="@+id/calendarContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
                     android:orientation="vertical"
                     android:visibility="gone">
 
@@ -210,8 +208,8 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="2026년 2월"
-                            android:textColor="@color/black"
-                            android:textSize="16sp" />
+                            android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
+                            android:textColor="@color/text_primary" />
 
                         <LinearLayout
                             android:layout_width="wrap_content"
@@ -236,7 +234,7 @@
 
                     <include
                         android:id="@+id/legendLayout"
-                        layout="@layout/layout_calendar_day_legend" />
+                        layout="@layout/layout_calendar_day_legend_add_schedule" />
 
                     <com.kizitonwose.calendar.view.CalendarView
                         android:id="@+id/calendarPicker"
