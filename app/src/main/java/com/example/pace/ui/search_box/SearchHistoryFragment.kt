@@ -12,6 +12,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.example.pace.PaceApplication
 import com.example.pace.R
+import com.example.pace.data.model.MyPlace
 import com.example.pace.data.model.RecentHistoryItem
 import com.example.pace.data.viewmodel.SearchViewModel
 import com.example.pace.data.viewmodel.SearchViewModelFactory
@@ -33,6 +34,8 @@ class SearchHistoryFragment : Fragment() {
     private val recentRouteFragment = RecentRouteFragment()
     private val bookmarkPlaceFragment = BookmarkPlaceFragment()
     private var lastRouteHeaderState: Boolean = false
+
+    private fun MyPlace?.hasValidPlaceId(): Boolean = this?.placeId?.isNotBlank() == true
     private var lastIsScheduleMode: Boolean = false
     private var pendingChipsVisible: Boolean = true
     private var pendingRouteOptionsVisible: Boolean = false
@@ -120,20 +123,20 @@ class SearchHistoryFragment : Fragment() {
         binding.chipHome.setOnClickListener {
             parent?.dismissSearchInputFocus()
             val homePlace = viewModel.homePlace.value
-            if (homePlace == null) {
+            if (!homePlace.hasValidPlaceId()) {
                 parent?.enterBookmarkMode()
             } else {
-                parent?.handleMyPlaceClick(homePlace)
+                homePlace?.let { parent?.handleMyPlaceClick(it) }
             }
         }
 
         binding.chipWork.setOnClickListener {
             parent?.dismissSearchInputFocus()
             val workPlace = viewModel.workPlace.value
-            if (workPlace == null) {
+            if (!workPlace.hasValidPlaceId()) {
                 parent?.enterBookmarkMode()
             } else {
-                parent?.handleMyPlaceClick(workPlace)
+                workPlace?.let { parent?.handleMyPlaceClick(it) }
             }
         }
 
@@ -165,7 +168,7 @@ class SearchHistoryFragment : Fragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
                     viewModel.homePlace.collect { home ->
-                        if (home != null) {
+                        if (home.hasValidPlaceId()) {
                             binding.chipHome.setChipIconResource(R.drawable.ic_home)
                         } else {
                             binding.chipHome.setChipIconResource(R.drawable.ic_home_unselected)
@@ -174,7 +177,7 @@ class SearchHistoryFragment : Fragment() {
                 }
                 launch {
                     viewModel.workPlace.collect { work ->
-                        if (work != null) {
+                        if (work.hasValidPlaceId()) {
                             binding.chipWork.setChipIconResource(R.drawable.ic_work_selected)
                         } else {
                             binding.chipWork.setChipIconResource(R.drawable.ic_work_unselected)

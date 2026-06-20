@@ -118,6 +118,7 @@ import kotlin.math.abs
 private const val ROUTE_ONLY_SCHEDULE_FETCH_THROTTLE_MS = 1000L
 private const val ROUTE_SCHEDULE_LIST_HEIGHT_NUMERATOR = 500f
 private const val ROUTE_SCHEDULE_LIST_HEIGHT_DENOMINATOR = 800f
+private const val PLACE_DETAIL_HALF_EXPANDED_RATIO = 0.54f
 
 @AndroidEntryPoint
 class RouteFragment : Fragment() {
@@ -456,6 +457,10 @@ class RouteFragment : Fragment() {
         // 결과 데이터 관찰
         routeViewModel.routeResult.observe(viewLifecycleOwner) { routes ->
             val fragment = childFragmentManager.findFragmentByTag("ROUTE_RESULT") as? RouteResultFragment
+            Log.d(
+                "RouteHomeWorkTrace",
+                "routeResult observed count=${routes?.size ?: 0} fragmentAttached=${fragment != null} selectedStart=${selectedStartPlace?.first} selectedEnd=${selectedEndPlace?.first}"
+            )
             Log.d("RouteDebug", "데이터 수신: ${routes?.size}개")
             if (routes.isNullOrEmpty()) {
                 binding.layoutNoSearchResult.visibility = View.GONE
@@ -470,6 +475,7 @@ class RouteFragment : Fragment() {
         }
 
         routeViewModel.isLoading.observe(viewLifecycleOwner) { loading ->
+            Log.d("RouteHomeWorkTrace", "route loading=$loading")
             val fragment = childFragmentManager.findFragmentByTag("ROUTE_RESULT") as? RouteResultFragment
             fragment?.setLoading(loading == true)
             if (loading == true) {
@@ -627,7 +633,12 @@ class RouteFragment : Fragment() {
     }
 
     private fun FinalfetchRouteData(){
+        Log.d(
+            "RouteHomeWorkTrace",
+            "FinalfetchRouteData enter mode=$currentEntryMode selectedStart=$selectedStartPlace selectedEnd=$selectedEndPlace startLatLng=$startLatLng endLatLng=$endLatLng isStart=$isStart requestTime=$requestSearchTime transit=$currentTransitType sort=${currentSortOption.apiValue}"
+        )
         if (!isNetworkAvailable()) {
+            Log.w("RouteHomeWorkTrace", "FinalfetchRouteData blocked: network unavailable")
             NetworkErrorDialog(requireContext()) {
                 FinalfetchRouteData()
             }.show()
@@ -654,15 +665,29 @@ class RouteFragment : Fragment() {
             }
             // 출발지 좌표가 없다면 ID로 조회
             if (startLatLng == null && selectedStartPlace != null) {
+                Log.d(
+                    "RouteHomeWorkTrace",
+                    "startLatLng missing. fetching by placeId=${selectedStartPlace!!.second} name=${selectedStartPlace!!.first}"
+                )
                 startLatLng = fetchLatLngFromPlaceId(selectedStartPlace!!.second)
+                Log.d("RouteHomeWorkTrace", "startLatLng fetch result=$startLatLng")
             }
 
             // 도착지 좌표가 없다면 ID로 조회
             if (endLatLng == null && selectedEndPlace != null) {
+                Log.d(
+                    "RouteHomeWorkTrace",
+                    "endLatLng missing. fetching by placeId=${selectedEndPlace!!.second} name=${selectedEndPlace!!.first}"
+                )
                 endLatLng = fetchLatLngFromPlaceId(selectedEndPlace!!.second)
+                Log.d("RouteHomeWorkTrace", "endLatLng fetch result=$endLatLng")
             }
 
             // 좌표 확보 후 API 호출
+            Log.d(
+                "RouteHomeWorkTrace",
+                "FinalfetchRouteData before fetchRouteData selectedStart=$selectedStartPlace selectedEnd=$selectedEndPlace startLatLng=$startLatLng endLatLng=$endLatLng"
+            )
             Log.d("Route", "66${selectedStartPlace.toString()}--${selectedEndPlace.toString()} +${startLatLng.toString()}--${endLatLng.toString()} ")
             fetchRouteData()
         }
@@ -709,6 +734,10 @@ class RouteFragment : Fragment() {
         val end = endLatLng
 
         if (start == null || end == null) {
+            Log.w(
+                "RouteHomeWorkTrace",
+                "fetchRouteData aborted: start=$start end=$end selectedStart=$selectedStartPlace selectedEnd=$selectedEndPlace"
+            )
             return
         }
 
@@ -716,6 +745,7 @@ class RouteFragment : Fragment() {
             val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
             sdf.timeZone = TimeZone.getTimeZone("UTC")
             requestSearchTime = sdf.format(Date())
+            Log.d("RouteHomeWorkTrace", "requestSearchTime was empty. fallback now=$requestSearchTime")
         }
 
         val request = RouteSearchRequest(
@@ -744,23 +774,33 @@ class RouteFragment : Fragment() {
         } else {
             accessToken
         }
-        if (token.isEmpty()) return
+        if (token.isEmpty()) {
+            Log.w("RouteHomeWorkTrace", "fetchRouteData aborted: empty access token")
+            return
+        }
 
+        Log.d(
+            "RouteHomeWorkTrace",
+            "fetchRouteData request ready start=$start end=$end departure=${request.departureTime} arrival=${request.arrivalTime} transit=${request.transitType} searchWay=${request.searchWay}"
+        )
         routeViewModel.searchRoutes(token, request)
     }
 
     private suspend fun fetchLatLngFromPlaceId(placeId: String): LatLng? = suspendCancellableCoroutine { continuation ->
         if (placeId.isEmpty()) {
+            Log.w("RouteHomeWorkTrace", "fetchLatLngFromPlaceId skipped: blank placeId")
             continuation.resume(null, null)
             return@suspendCancellableCoroutine
         }
         if (!::placesClient.isInitialized) {
             Log.e("PlaceApi", "PlacesClient not initialized")
+            Log.e("RouteHomeWorkTrace", "fetchLatLngFromPlaceId failed: placesClient not initialized placeId=$placeId")
             continuation.resume(null, null)
             return@suspendCancellableCoroutine
         }
 
         // 위도/경도 정보만 요청
+        Log.d("RouteHomeWorkTrace", "fetchLatLngFromPlaceId request placeId=$placeId")
         val placeFields = listOf(Place.Field.LAT_LNG)
         val request = FetchPlaceRequest.newInstance(placeId, placeFields)
 
@@ -769,14 +809,17 @@ class RouteFragment : Fragment() {
                 val latLng = response.place.latLng
                 if (latLng != null) {
                     Log.d("PlaceApi", "Success fetch LatLng: $latLng for ID: $placeId")
+                    Log.d("RouteHomeWorkTrace", "fetchLatLngFromPlaceId success placeId=$placeId latLng=$latLng")
                     continuation.resume(latLng, null)
                 } else {
                     Log.e("PlaceApi", "LatLng is null for ID: $placeId")
+                    Log.e("RouteHomeWorkTrace", "fetchLatLngFromPlaceId null latLng placeId=$placeId")
                     continuation.resume(null, null)
                 }
             }
             .addOnFailureListener { exception ->
                 Log.e("PlaceApi", "Failed to fetch place: ${exception.message}")
+                Log.e("RouteHomeWorkTrace", "fetchLatLngFromPlaceId failure placeId=$placeId message=${exception.message}", exception)
                 continuation.resume(null, null)
             }
     }
@@ -880,6 +923,10 @@ class RouteFragment : Fragment() {
 
     // 출발/도착 눌렀을 때 (디테일에서)
     fun onLocationSelected(itemName: String, placeId: String, isStart: Boolean) {
+        Log.d(
+            "RouteHomeWorkTrace",
+            "onLocationSelected enter itemName=$itemName placeId=$placeId isStart=$isStart beforeStart=$selectedStartPlace beforeEnd=$selectedEndPlace startLatLng=$startLatLng endLatLng=$endLatLng mode=$currentEntryMode"
+        )
         exitPoiMode()
         isPlaceDetailSheetLocked = false
         isPlaceDetailCompact = false
@@ -904,7 +951,9 @@ class RouteFragment : Fragment() {
             Log.d("Route", "onLocationSelected 출발지로!")
             selectedStartPlace = Pair(itemName, placeId)
             lifecycleScope.launch {
+                Log.d("RouteHomeWorkTrace", "onLocationSelected start fetch launch placeId=$placeId")
                 startLatLng = fetchLatLngFromPlaceId(selectedStartPlace!!.second)
+                Log.d("RouteHomeWorkTrace", "onLocationSelected start fetch done startLatLng=$startLatLng selectedStart=$selectedStartPlace")
             }
             Log.d("Route", "${selectedStartPlace.toString()}--${selectedEndPlace.toString()}  ")
 
@@ -916,7 +965,9 @@ class RouteFragment : Fragment() {
             }
             selectedEndPlace = Pair(itemName, placeId)
             lifecycleScope.launch {
+                Log.d("RouteHomeWorkTrace", "onLocationSelected end fetch launch placeId=$placeId")
                 endLatLng = fetchLatLngFromPlaceId(selectedEndPlace!!.second)
+                Log.d("RouteHomeWorkTrace", "onLocationSelected end fetch done endLatLng=$endLatLng selectedEnd=$selectedEndPlace")
             }
             binding.layoutRouteInputHeader.tvRouteEnd.setText(itemName)
             updateClearButtonVisibility()
@@ -936,6 +987,10 @@ class RouteFragment : Fragment() {
         mainBinding?.searchEt?.setText("")
 
         showSearchRouteFragment()
+        Log.d(
+            "RouteHomeWorkTrace",
+            "onLocationSelected exit selectedStart=$selectedStartPlace selectedEnd=$selectedEndPlace startLatLng=$startLatLng endLatLng=$endLatLng"
+        )
     }
 
     fun onScheduleLocationSelected(name: String, placeId: String) {
@@ -983,6 +1038,10 @@ class RouteFragment : Fragment() {
     }
 
     private fun handleBookmarkSingleRegistration(name: String, placeId: String) {
+        if (placeId.isBlank()) {
+            Log.w("RouteHomeWorkTrace", "handleBookmarkSingleRegistration blocked: blank placeId name=$name target=$bookmarkTarget")
+            return
+        }
         lifecycleScope.launch(Dispatchers.IO) {
             if (selectedGroupId != null) {
                 // todo 일반 장소 저장 로직 -> 다시 생각해보니 필요없어 보이긴함; 무슨 생각이 있긴 했겠지?
@@ -2372,6 +2431,10 @@ class RouteFragment : Fragment() {
     }
 
     private fun showSearchRouteFragment() {
+        Log.d(
+            "RouteHomeWorkTrace",
+            "showSearchRouteFragment enter mode=$currentEntryMode selectedStart=$selectedStartPlace selectedEnd=$selectedEndPlace startLatLng=$startLatLng endLatLng=$endLatLng"
+        )
         exitPoiMode()
         if(currentEntryMode == EntryMode.MAIN){
             currentEntryMode = EntryMode.ROUTE_PLAN
@@ -2392,6 +2455,7 @@ class RouteFragment : Fragment() {
         val existingRouteFrag = childFragmentManager.findFragmentByTag("ROUTE_RESULT") as? RouteResultFragment
         Log.d("Route", "22${selectedStartPlace.toString()}--${selectedEndPlace.toString()} +${startLatLng.toString()}--${endLatLng.toString()} ")
         if ((selectedStartPlace != null && selectedEndPlace != null) || (startLatLng != null && endLatLng != null)) {
+            Log.d("RouteHomeWorkTrace", "showSearchRouteFragment route-result branch entered existingRouteFrag=${existingRouteFrag != null}")
             saveCurrentRoute()
             if (historyFragment.isAdded) transaction.hide(historyFragment)
             if (recommendFragment.isAdded) transaction.hide(recommendFragment)
@@ -2437,6 +2501,10 @@ class RouteFragment : Fragment() {
             FinalfetchRouteData()
 
         } else {
+            Log.w(
+                "RouteHomeWorkTrace",
+                "showSearchRouteFragment no route-result branch: selectedStart=$selectedStartPlace selectedEnd=$selectedEndPlace startLatLng=$startLatLng endLatLng=$endLatLng"
+            )
             binding.layoutRouteInputHeader.layoutFilterOptions.visibility = View.GONE
 
 //            val existingRouteFrag = childFragmentManager.findFragmentByTag("ROUTE_RESULT")
@@ -2497,9 +2565,19 @@ class RouteFragment : Fragment() {
     fun handleMyPlaceClick(myPlace: MyPlace) {
         val name = myPlace.name
         val placeId = myPlace.placeId
+        if (placeId.isBlank()) {
+            Log.w("RouteHomeWorkTrace", "handleMyPlaceClick blocked: blank placeId type=${myPlace.type} name=$name")
+            startBookmarkSearch(if (myPlace.type == "HOME") BookmarkTarget.HOME else BookmarkTarget.WORK)
+            return
+        }
+        Log.d(
+            "RouteHomeWorkTrace",
+            "handleMyPlaceClick type=${myPlace.type} name=$name placeId=$placeId mode=$currentEntryMode selectedStart=$selectedStartPlace selectedEnd=$selectedEndPlace isSelectingStart=$isSelectingStart startLatLng=$startLatLng endLatLng=$endLatLng"
+        )
         Log.d("Route", "시작${selectedStartPlace.toString()}--${selectedEndPlace.toString()} +${startLatLng.toString()}--${endLatLng.toString()} ")
         when {
             currentEntryMode == EntryMode.SCHEDULE -> {
+                Log.d("RouteHomeWorkTrace", "handleMyPlaceClick branch=SCHEDULE fetch detail first")
                 fetchRecentPlaceItem(placeId) { searchItem ->
                     hideKeyboard()
                     mainBinding?.searchEt?.clearFocus()
@@ -2512,11 +2590,16 @@ class RouteFragment : Fragment() {
 
             currentEntryMode == EntryMode.MAIN -> {
                 isSelectingStart = true
+                Log.d("RouteHomeWorkTrace", "handleMyPlaceClick branch=MAIN force start")
                 Log.d("Route", "메인${selectedStartPlace.toString()}--${selectedEndPlace.toString()} +${startLatLng.toString()}--${endLatLng.toString()} ")
                 onLocationSelected(name, placeId, isStart = true)
             }
 
             else -> {
+                Log.d(
+                    "RouteHomeWorkTrace",
+                    "handleMyPlaceClick branch=ELSE target=${if (selectedStartPlace == null) "start" else "end"}"
+                )
                 if (selectedStartPlace == null) {
                     onLocationSelected(name, placeId, isStart = true)
                 } else {
@@ -3237,7 +3320,6 @@ class RouteFragment : Fragment() {
 
             setupSimpleDialogHandleDrag(view, sheet, behavior)
         }
-
         val tvStartTime = view.findViewById<android.widget.TextView>(R.id.tv_schedule_time_info)
 
         if (scheduleTime.isNotEmpty()) {
@@ -4121,7 +4203,7 @@ class RouteFragment : Fragment() {
                 val normalTop = if (isPlaceDetailCompact) {
                     parentHeight - getLocationDetailCompactPeekHeight()
                 } else {
-                    (parentHeight * 0.5f).toInt()
+                    (parentHeight * (1f - PLACE_DETAIL_HALF_EXPANDED_RATIO)).toInt()
                 }
                 val closeThreshold = normalTop + ((parentHeight - normalTop) * 0.2f)
                 if (currentTop >= closeThreshold) {
@@ -4697,8 +4779,8 @@ class RouteFragment : Fragment() {
                 state = BottomSheetBehavior.STATE_COLLAPSED
             } else {
                 peekHeight = getLocationDetailPeekHeight()
-                halfExpandedRatio = 0.5f
-                expandedOffset = getScreenHeightPercentage(0.5f)
+                halfExpandedRatio = PLACE_DETAIL_HALF_EXPANDED_RATIO
+                expandedOffset = getScreenHeightPercentage(1f - PLACE_DETAIL_HALF_EXPANDED_RATIO)
                 state = BottomSheetBehavior.STATE_HALF_EXPANDED
             }
         }
