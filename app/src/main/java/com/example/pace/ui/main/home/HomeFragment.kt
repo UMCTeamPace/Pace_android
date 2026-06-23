@@ -12,6 +12,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.res.ResourcesCompat
 import androidx.fragment.app.Fragment
@@ -36,6 +37,7 @@ import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.launch
 import androidx.fragment.app.activityViewModels // 추가 확인
 import com.example.pace.data.model.response.ScheduleDetailResponse
+import com.example.pace.data.util.AlarmScheduler
 import com.example.pace.util.ScheduleRefreshReason
 import com.example.pace.util.ScheduleSortUtils
 import com.example.pace.util.ScheduleUiRefreshTicker
@@ -106,6 +108,16 @@ class HomeFragment: Fragment() {
         binding.homeAddScheduleLl.setOnClickListener {
             pendingModalEditDate = null
             scheduleActivityLauncher.launch(Intent(context, AddScheduleActivity::class.java))
+        }
+        binding.homeAlarmTestLl.setOnClickListener {
+            AlarmScheduler.schedulePaceAlarm(
+                context = requireContext(),
+                scheduleId = -1L,
+                alarmType = "TEST",
+                scheduleTimeMillis = System.currentTimeMillis() + 10_000L,
+                leadMinutes = 0
+            )
+            Toast.makeText(requireContext(), "10초 뒤 테스트 알람이 울립니다.", Toast.LENGTH_SHORT).show()
         }
 
         isViewReady = true

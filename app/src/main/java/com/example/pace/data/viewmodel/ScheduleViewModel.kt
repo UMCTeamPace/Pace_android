@@ -388,6 +388,7 @@ class ScheduleViewModel @Inject constructor(
 
     fun updateSchedule(schedule: Schedule) {
         viewModelScope.launch(Dispatchers.IO) {
+            var normalScheduleToRestore: Schedule? = null
             try {
                 if (schedule.type == "ROUTE") {
                     // Route schedules are updated through the server API
@@ -425,10 +426,14 @@ class ScheduleViewModel @Inject constructor(
 
                 } else {
                     // Normal schedules are updated in the provider and local Room DB
+                    val existingSchedule = repository.getScheduleById(schedule.id)
+                    normalScheduleToRestore = existingSchedule
+                    existingSchedule?.let { cancelNormalScheduleRuntime(it) }
                     repository.updateSchedule(schedule)
                     if (!schedule.repeatRule.isNullOrEmpty()) {
                         repository.refreshSchedules()
                     }
+                    scheduleNormalAlarms(schedule)
                     waitForScheduleSnapshot(schedule)
                     _lastEditResult.value = ScheduleEditResult(
                         scheduleId = schedule.id,
@@ -439,9 +444,11 @@ class ScheduleViewModel @Inject constructor(
                     withContext(Dispatchers.Main) {
                         _updateScheduleEvent.value = true
                     }
+                    normalScheduleToRestore = null
                 }
 
             } catch (e: Exception) {
+                normalScheduleToRestore?.let { scheduleNormalAlarms(it) }
                 Log.e("ScheduleViewModel", "일정 수정 실패: ${e.message}")
                 _updateScheduleEvent.value = false
             }
@@ -696,6 +703,9 @@ class ScheduleViewModel @Inject constructor(
                 if (response.isSuccess) {
                     withContext(Dispatchers.IO) {
                         repository.refreshSchedules()
+                        response.result?.scheduleId
+                            ?.let { repository.getScheduleById(it) }
+                            ?.let { scheduleNormalAlarms(it) }
                     }
                     _createScheduleEvent.value = true
                 }
@@ -843,8 +853,10 @@ class ScheduleViewModel @Inject constructor(
     // Delete normal schedule from device calendar and local DB
     private suspend fun deleteNormalSchedule(id: Long) {
         Log.d("DeleteLog", "일반 일정 삭제 시도: ID = $id")
+        val existingSchedule = repository.getScheduleById(id)
         val response = repository.deleteNormalSchedule(id)
         if (response.isSuccess) {
+            existingSchedule?.let { cancelNormalScheduleRuntime(it) }
             Log.d("DeleteLog", "일반 일정 삭제 성공")
         } else {
             Log.e("DeleteLog", "일반 일정 삭제 실패: ${response.message}")
@@ -969,6 +981,32 @@ class ScheduleViewModel @Inject constructor(
     private fun syncRouteScheduleRuntime(schedule: Schedule, arrivalTimeOverride: String? = null) {
         scheduleRouteAlarms(schedule)
         scheduleFinalize(schedule, arrivalTimeOverride)
+    }
+
+    private fun scheduleNormalAlarms(schedule: Schedule) {
+        if (schedule.type == "ROUTE" || schedule.reminders.isEmpty()) return
+
+        val scheduleTimeMillis = parseRouteTimeMillis(schedule.startDate, schedule.startTime) ?: return
+        schedule.reminders.forEach { minutes ->
+            AlarmScheduler.schedulePaceAlarm(
+                context = context,
+                scheduleId = schedule.id,
+                alarmType = "EVENT",
+                scheduleTimeMillis = scheduleTimeMillis,
+                leadMinutes = minutes
+            )
+        }
+    }
+
+    private fun cancelNormalScheduleRuntime(schedule: Schedule) {
+        if (schedule.type == "ROUTE" || schedule.reminders.isEmpty()) return
+
+        AlarmScheduler.cancelPaceAlarms(
+            context = context,
+            scheduleId = schedule.id,
+            eventReminders = schedule.reminders,
+            departureReminders = emptyList()
+        )
     }
 
     private suspend fun replaceRouteScheduleRuntime(
@@ -1199,6 +1237,9 @@ class ScheduleViewModel @Inject constructor(
 
                 repository.refreshSchedules()
                 if (response.isSuccess) {
+                    response.result?.scheduleId
+                        ?.let { repository.getScheduleById(it) }
+                        ?.let { scheduleNormalAlarms(it) }
                     _lastEditResult.value = ScheduleEditResult(
                         scheduleId = response.result?.scheduleId ?: updatedSchedule.id,
                         occurrenceDate = updatedSchedule.startDate,

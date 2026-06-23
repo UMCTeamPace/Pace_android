@@ -25,6 +25,7 @@ import com.example.pace.data.model.request.*
 import com.example.pace.data.model.response.*
 import com.example.pace.data.repeat.RepeatRuleHelper
 import com.example.pace.data.repository.repository.ScheduleRepository
+import com.example.pace.data.util.AlarmScheduler
 import com.example.pace.util.SearchTextMatcher
 import com.example.pace.data.util.safeApiCall
 import com.google.gson.Gson
@@ -1436,6 +1437,12 @@ class ScheduleRepositoryImpl @Inject constructor(
 
                     Log.d("CONVERT_DEBUG", "변환 생성 결과: ${response.isSuccess}, message: ${response.message}")
 
+                    if (response.isSuccess) {
+                        response.result?.scheduleId
+                            ?.let { scheduleDao.getScheduleById(it) }
+                            ?.let { scheduleConvertedNormalAlarms(it) }
+                    }
+
                     response.isSuccess
                 } else {
                     Log.e("CONVERT_DEBUG", "서버 경로 일정 삭제 실패로 변환 중단")
@@ -1446,6 +1453,29 @@ class ScheduleRepositoryImpl @Inject constructor(
                 false
             }
         }
+    }
+
+    private fun scheduleConvertedNormalAlarms(schedule: Schedule) {
+        if (schedule.type == "ROUTE" || schedule.reminders.isEmpty()) return
+
+        val scheduleTimeMillis = parseNormalScheduleTimeMillis(schedule) ?: return
+        schedule.reminders.forEach { minutes ->
+            AlarmScheduler.schedulePaceAlarm(
+                context = context,
+                scheduleId = schedule.id,
+                alarmType = "EVENT",
+                scheduleTimeMillis = scheduleTimeMillis,
+                leadMinutes = minutes
+            )
+        }
+    }
+
+    private fun parseNormalScheduleTimeMillis(schedule: Schedule): Long? {
+        return runCatching {
+            SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+                .parse("${schedule.startDate} ${schedule.startTime.take(5)}")
+                ?.time
+        }.getOrNull()
     }
 
     override suspend fun updatePinStatus(id: Long, isPinned: Boolean) {

@@ -1,6 +1,7 @@
 package com.example.pace
 
 import android.annotation.SuppressLint
+import android.app.KeyguardManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -9,32 +10,55 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 
 class AlarmReceiver : BroadcastReceiver() {
+    companion object {
+        const val NOTIFICATION_ID = 100
+        const val CHANNEL_ID = "pace_alert_channel_vibrate"
+    }
+
     @SuppressLint("FullScreenIntentPolicy")
     override fun onReceive(context: Context, intent: Intent) {
         // 아이디 하나로 통일!
-        val channelId = "pace_alert_channel"
+        val channelId = CHANNEL_ID
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         val minutesLeft = intent.getIntExtra("MINUTES_LEFT", 0)
         Log.d("PaceAlarm", "리시버에서 받은 시간: $minutesLeft")
+        val keyguardManager = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+        val canUseFullScreenIntent = if (Build.VERSION.SDK_INT >= 34) {
+            notificationManager.canUseFullScreenIntent()
+        } else {
+            true
+        }
+        Log.d(
+            "PaceAlarm",
+            "AlarmReceiver state: action=${intent.action}, isInteractive=${powerManager.isInteractive}, " +
+                "isKeyguardLocked=${keyguardManager.isKeyguardLocked}, " +
+                "isDeviceSecure=${keyguardManager.isDeviceSecure}, " +
+                "canUseFullScreenIntent=$canUseFullScreenIntent"
+        )
 
         // 1. 채널 생성 (아이디 일치 확인: pace_alert_channel)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(channelId, "Pace 알람", NotificationManager.IMPORTANCE_HIGH).apply {
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                 setSound(null, null)
-                enableVibration(false)
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 800, 250, 800)
                 description = "외출 준비 알람 전용 채널입니다."
             }
             notificationManager.createNotificationChannel(channel)
         }
 
         val fullScreenIntent = Intent(context, AlertActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra("MINUTES_LEFT", minutesLeft)
         }
 
@@ -53,9 +77,10 @@ class AlarmReceiver : BroadcastReceiver() {
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setFullScreenIntent(fullScreenPendingIntent, true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setVibrate(longArrayOf(0, 800, 250, 800))
             .setAutoCancel(true)
 
         // 알림 전송
-        notificationManager.notify(100, builder.build())
+        notificationManager.notify(NOTIFICATION_ID, builder.build())
     }
 }

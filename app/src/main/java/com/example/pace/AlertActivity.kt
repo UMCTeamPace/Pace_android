@@ -1,6 +1,7 @@
 package com.example.pace
 
 import android.app.KeyguardManager
+import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
 import android.os.Bundle
@@ -23,18 +24,17 @@ class AlertActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
-            val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
-            keyguardManager.requestDismissKeyguard(this, null)
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         } else {
             window.addFlags(
-                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
-                        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
                         WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
                         WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
             )
         }
 
         setupLockScreenFlags()
+        logLockState("before-super")
 
         super.onCreate(savedInstanceState)
         binding = ActivityAlertBinding.inflate(layoutInflater)
@@ -44,6 +44,8 @@ class AlertActivity : AppCompatActivity() {
         viewModel = ViewModelProvider(this).get(AlertViewModel::class.java)
 
         val minutes = intent.getIntExtra("MINUTES_LEFT", 0)
+        Log.d("PaceAlarm", "AlertActivity onCreate: minutes=$minutes, sdk=${Build.VERSION.SDK_INT}")
+        logLockState("after-content-view")
 
         // 2. 관찰자(Observers) 설정
         setupObservers()
@@ -59,8 +61,8 @@ class AlertActivity : AppCompatActivity() {
         viewModel.initAlarmData(minutesLeft)
 
         // 4. 버튼 이벤트 설정 (온라인/오프라인 공통)
-        binding.btnClose.setOnClickListener { finish() }
-        binding.btnOfflineClose.setOnClickListener { finish() }
+        binding.btnClose.setOnClickListener { dismissAlarm() }
+        binding.btnOfflineClose.setOnClickListener { dismissAlarm() }
     }
 
     private fun setupObservers() {
@@ -106,19 +108,38 @@ class AlertActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        logLockState("onResume")
+    }
+
     private fun setupLockScreenFlags() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
-            val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
-            keyguardManager.requestDismissKeyguard(this, null)
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         } else {
             window.addFlags(
-                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
-                        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
                         WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
                         WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
             )
         }
+        Log.d("PaceAlarm", "AlertActivity lock-screen flags applied")
+    }
+
+    private fun logLockState(stage: String) {
+        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+        Log.d(
+            "PaceAlarm",
+            "AlertActivity $stage: isKeyguardLocked=${keyguardManager.isKeyguardLocked}, " +
+                "isDeviceSecure=${keyguardManager.isDeviceSecure}, hasWindowFocus=${hasWindowFocus()}"
+        )
+    }
+
+    private fun dismissAlarm() {
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.cancel(AlarmReceiver.NOTIFICATION_ID)
+        finish()
     }
 }
