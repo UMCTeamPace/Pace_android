@@ -3,9 +3,12 @@ package com.example.pace.ui.search_box
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import com.example.pace.R
@@ -26,6 +29,7 @@ class LocationDetailCompactFragment : Fragment() {
 
     private var currentPlaceId: String = ""
     private var hasRequestedSavedState = false
+    private var baseContentPaddingBottom = 0
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -38,6 +42,8 @@ class LocationDetailCompactFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        baseContentPaddingBottom = binding.layoutDetailContent.paddingBottom
+        setupSystemBarInsets()
 
         observeViewModel()
 
@@ -109,6 +115,34 @@ class LocationDetailCompactFragment : Fragment() {
         }
     }
 
+    private fun setupSystemBarInsets() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
+            val systemBottom = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
+            applyContentBottomPadding(systemBottom)
+            refreshParentSheetHeight()
+            insets
+        }
+        ViewCompat.requestApplyInsets(binding.root)
+        binding.root.post {
+            val systemBottom = ViewCompat.getRootWindowInsets(requireActivity().window.decorView)
+                ?.getInsets(WindowInsetsCompat.Type.systemBars())
+                ?.bottom
+                ?: 0
+            applyContentBottomPadding(systemBottom)
+            refreshParentSheetHeight()
+        }
+    }
+
+    private fun applyContentBottomPadding(systemBottom: Int) {
+        binding.layoutDetailContent.setPadding(
+            binding.layoutDetailContent.paddingLeft,
+            binding.layoutDetailContent.paddingTop,
+            binding.layoutDetailContent.paddingRight,
+            baseContentPaddingBottom + systemBottom
+        )
+        logRequiredSheetHeight("padding systemBottom=$systemBottom")
+    }
+
     private fun observeViewModel() {
         groupViewModel.groupList.observe(viewLifecycleOwner) { groups ->
             if (currentPlaceId.isNotEmpty() && !hasRequestedSavedState && groups.isNotEmpty()) {
@@ -172,6 +206,40 @@ class LocationDetailCompactFragment : Fragment() {
 
     fun setDragHandleTouchListener(listener: View.OnTouchListener?) {
         _binding?.viewDragHandle?.setOnTouchListener(listener)
+    }
+
+    fun getRequiredSheetHeight(): Int {
+        val binding = _binding ?: return 0
+        val density = resources.displayMetrics.density
+        val handleHeight = binding.viewDragHandle.height.takeIf { it > 0 } ?: (39 * density).toInt()
+        val actionBottom = binding.layoutDetailActions.bottom.takeIf { it > 0 }
+            ?: (binding.layoutDetailHeader.height + (20 * density).toInt() + binding.layoutDetailActions.height)
+        return handleHeight + actionBottom + baseContentPaddingBottom
+    }
+
+    private fun logRequiredSheetHeight(source: String) {
+        val binding = _binding ?: return
+        binding.root.post {
+            val density = resources.displayMetrics.density
+            val handleHeight = binding.viewDragHandle.height.takeIf { it > 0 } ?: (39 * density).toInt()
+            val actionBottom = binding.layoutDetailActions.bottom.takeIf { it > 0 }
+                ?: (binding.layoutDetailHeader.height + (20 * density).toInt() + binding.layoutDetailActions.height)
+            val requiredHeight = handleHeight + actionBottom + baseContentPaddingBottom
+            Log.d(
+                "PlaceDetailHeightTrace",
+                "compact source=$source rootH=${binding.root.height} " +
+                    "contentH=${binding.layoutDetailContent.height} contentPaddingBottom=${binding.layoutDetailContent.paddingBottom} " +
+                    "baseBottom=$baseContentPaddingBottom handleH=$handleHeight headerH=${binding.layoutDetailHeader.height} " +
+                    "actionsH=${binding.layoutDetailActions.height} actionsBottom=${binding.layoutDetailActions.bottom} " +
+                    "requiredH=$requiredHeight"
+            )
+        }
+    }
+
+    private fun refreshParentSheetHeight() {
+        binding.root.post {
+            (parentFragment as? RouteFragment)?.refreshPlaceDetailSheetHeight()
+        }
     }
 
     override fun onDestroyView() {

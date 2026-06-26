@@ -43,6 +43,30 @@ class AlertViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun initTestAlarmData(
+        weatherStatusName: String,
+        temp: Double,
+        weatherDesc: String,
+        location: String,
+        minutesLeft: Int
+    ) {
+        val step = getPreparationStep(minutesLeft)
+        val weatherStatus = runCatching {
+            WeatherStatus.valueOf(weatherStatusName)
+        }.getOrDefault(WeatherStatus.SUNNY)
+
+        isOffline.value = false
+        isLoading.value = false
+        _alertTheme.value = getAlertTheme(
+            step = step,
+            weather = weatherStatus,
+            location = location,
+            temp = temp,
+            weatherDesc = weatherDesc,
+            minutesLeft = minutesLeft
+        )
+    }
+
     /**
      * 실시간 날씨 로드 및 테마 업데이트
      */

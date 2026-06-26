@@ -895,12 +895,8 @@ class ScheduleRepositoryImpl @Inject constructor(
             }
             // Multi-day non-recurring schedule
             else if (startLocalDate.isBefore(endLocalDate)) {
-                var current = startLocalDate
-                while (!current.isAfter(endLocalDate)) {
-                    if (!current.isBefore(rangeStartLocalDate) && current.isBefore(rangeEndLocalDate)) {
-                        expandedList.add(schedule.copy(startDate = current.format(dateFormatter), endDate = current.format(dateFormatter)))
-                    }
-                    current = current.plusDays(1)
+                if (!endLocalDate.isBefore(rangeStartLocalDate) && startLocalDate.isBefore(rangeEndLocalDate)) {
+                    expandedList.add(schedule)
                 }
             }
             else {
@@ -1381,6 +1377,8 @@ class ScheduleRepositoryImpl @Inject constructor(
                 val deleteResult = deleteRouteSchedule(scheduleId)
 
                 if (deleteResult.isSuccess) {
+                    cancelRouteRuntime(oldSchedule)
+
                     val gson = Gson()
                     val placeRequest = try {
                         val routeData = gson.fromJson(oldSchedule.placeJson, RouteRequest::class.java)
@@ -1437,12 +1435,6 @@ class ScheduleRepositoryImpl @Inject constructor(
 
                     Log.d("CONVERT_DEBUG", "변환 생성 결과: ${response.isSuccess}, message: ${response.message}")
 
-                    if (response.isSuccess) {
-                        response.result?.scheduleId
-                            ?.let { scheduleDao.getScheduleById(it) }
-                            ?.let { scheduleConvertedNormalAlarms(it) }
-                    }
-
                     response.isSuccess
                 } else {
                     Log.e("CONVERT_DEBUG", "서버 경로 일정 삭제 실패로 변환 중단")
@@ -1455,27 +1447,14 @@ class ScheduleRepositoryImpl @Inject constructor(
         }
     }
 
-    private fun scheduleConvertedNormalAlarms(schedule: Schedule) {
-        if (schedule.type == "ROUTE" || schedule.reminders.isEmpty()) return
-
-        val scheduleTimeMillis = parseNormalScheduleTimeMillis(schedule) ?: return
-        schedule.reminders.forEach { minutes ->
-            AlarmScheduler.schedulePaceAlarm(
-                context = context,
-                scheduleId = schedule.id,
-                alarmType = "EVENT",
-                scheduleTimeMillis = scheduleTimeMillis,
-                leadMinutes = minutes
-            )
-        }
-    }
-
-    private fun parseNormalScheduleTimeMillis(schedule: Schedule): Long? {
-        return runCatching {
-            SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-                .parse("${schedule.startDate} ${schedule.startTime.take(5)}")
-                ?.time
-        }.getOrNull()
+    private fun cancelRouteRuntime(schedule: Schedule) {
+        AlarmScheduler.cancelPaceAlarms(
+            context = context,
+            scheduleId = schedule.id,
+            eventReminders = schedule.reminders,
+            departureReminders = schedule.departureReminders
+        )
+        WorkManager.getInstance(context).cancelUniqueWork("finalize_${schedule.id}")
     }
 
     override suspend fun updatePinStatus(id: Long, isPinned: Boolean) {
@@ -1488,7 +1467,7 @@ class ScheduleRepositoryImpl @Inject constructor(
 
     override suspend fun removeLocalRouteSchedule(scheduleId: Long) {
         withContext(Dispatchers.IO) {
-            WorkManager.getInstance(context).cancelUniqueWork("finalize_$scheduleId")
+            scheduleDao.getScheduleById(scheduleId)?.let { cancelRouteRuntime(it) }
             scheduleDao.deleteScheduleById(scheduleId)
             Log.d("ScheduleRepository", "404 응답으로 경로 일정 로컬 정리: $scheduleId")
         }
@@ -1505,17 +1484,14 @@ class ScheduleRepositoryImpl @Inject constructor(
             .toSet()
 
         val localRouteSchedules = scheduleDao.getServerRouteSchedulesInRange(startDate, endDate)
-        val staleRouteIds = localRouteSchedules
-            .map { it.id }
-            .filterNot { it in serverRouteIds }
+        val staleRouteSchedules = localRouteSchedules
+            .filterNot { it.id in serverRouteIds }
 
-        if (staleRouteIds.isEmpty()) return
+        if (staleRouteSchedules.isEmpty()) return
 
-        val workManager = WorkManager.getInstance(context)
-        staleRouteIds.forEach { scheduleId ->
-            workManager.cancelUniqueWork("finalize_$scheduleId")
-        }
+        staleRouteSchedules.forEach { schedule -> cancelRouteRuntime(schedule) }
 
+        val staleRouteIds = staleRouteSchedules.map { it.id }
         scheduleDao.deleteSchedulesByIds(staleRouteIds)
         Log.d("ScheduleRepository", "서버에서 삭제된 경로 일정 정리 완료: ${staleRouteIds.joinToString()}")
     }
@@ -1525,10 +1501,9 @@ class ScheduleRepositoryImpl @Inject constructor(
         val expiredRouteIds = scheduleDao.getExpiredServerRouteScheduleIds(cutoffDate)
         if (expiredRouteIds.isEmpty()) return
 
-        val workManager = WorkManager.getInstance(context)
-        expiredRouteIds.forEach { scheduleId ->
-            workManager.cancelUniqueWork("finalize_$scheduleId")
-        }
+        expiredRouteIds
+            .mapNotNull { scheduleId -> scheduleDao.getScheduleById(scheduleId) }
+            .forEach { schedule -> cancelRouteRuntime(schedule) }
 
         scheduleDao.deleteSchedulesByIds(expiredRouteIds)
         Log.d("ScheduleRepository", "Expired route schedules removed: ${expiredRouteIds.joinToString()}")

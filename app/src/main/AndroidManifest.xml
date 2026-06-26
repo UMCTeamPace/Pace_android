@@ -97,6 +97,9 @@
         <activity android:name=".ui.search_box.group.GroupEditActivity"
             android:exported="true"
             android:screenOrientation="portrait"/>
+        <activity android:name=".ui.alarm.AlarmTestActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"/>
 
         <activity
             android:name=".AlertActivity"

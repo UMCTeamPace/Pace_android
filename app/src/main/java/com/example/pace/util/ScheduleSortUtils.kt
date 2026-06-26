@@ -2,6 +2,7 @@ package com.example.pace.util
 
 import com.example.pace.data.model.Schedule
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 
 object ScheduleSortUtils {
@@ -21,16 +22,16 @@ object ScheduleSortUtils {
     }
 
     private fun isEndedTimedToday(schedule: Schedule, today: LocalDate, now: LocalTime): Boolean {
-        if (schedule.isAllDay) return false
-        val scheduleDate = runCatching { LocalDate.parse(schedule.startDate.take(10)) }.getOrNull()
-        if (scheduleDate != today) return false
-
-        val endTime = runCatching { LocalTime.parse(schedule.endTime) }.getOrNull() ?: return false
-        return endTime.isBefore(now)
+        return ScheduleItemStyleUtils.isPastTimedSchedule(
+            schedule = schedule,
+            now = LocalDateTime.of(today, now)
+        )
     }
 
     private fun parseTimeOrEnd(value: String?): LocalTime {
-        return runCatching { LocalTime.parse(value) }.getOrDefault(LocalTime.MAX)
+        if (value == null) return LocalTime.MAX
+        return runCatching { LocalTime.parse(value.take(8)) }.getOrNull()
+            ?: runCatching { LocalTime.parse(value.take(5)) }.getOrDefault(LocalTime.MAX)
     }
 
     private fun compareCreationOrder(leftId: Long, rightId: Long): Int {

@@ -11,6 +11,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Observer
@@ -38,6 +40,7 @@ class LocationDetailFragment : Fragment() {
     private var hasPhotoSection = false
     private var currentPlaceId: String = ""
     private var hasRequestedSavedState = false
+    private var baseContentPaddingBottom = 0
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -50,6 +53,8 @@ class LocationDetailFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         placesClient = Places.createClient(requireContext())
+        baseContentPaddingBottom = binding.layoutDetailContent.paddingBottom
+        setupSystemBarInsets()
 
         observeViewModel()
 
@@ -100,6 +105,8 @@ class LocationDetailFragment : Fragment() {
             updateStarState(emptyList())
             hasPhotoSection = false
             binding.svPhotos.visibility = View.GONE
+            logRequiredSheetHeight("noPlaceId")
+            refreshParentSheetHeight()
         }
 
         when {
@@ -146,6 +153,34 @@ class LocationDetailFragment : Fragment() {
 
             bottomSheet.show(parentFragmentManager, "SavePlaceGroupSelectBottomSheet")
         }
+    }
+
+    private fun setupSystemBarInsets() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
+            val systemBottom = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
+            applyContentBottomPadding(systemBottom)
+            refreshParentSheetHeight()
+            insets
+        }
+        ViewCompat.requestApplyInsets(binding.root)
+        binding.root.post {
+            val systemBottom = ViewCompat.getRootWindowInsets(requireActivity().window.decorView)
+                ?.getInsets(WindowInsetsCompat.Type.systemBars())
+                ?.bottom
+                ?: 0
+            applyContentBottomPadding(systemBottom)
+            refreshParentSheetHeight()
+        }
+    }
+
+    private fun applyContentBottomPadding(systemBottom: Int) {
+        binding.layoutDetailContent.setPadding(
+            binding.layoutDetailContent.paddingLeft,
+            binding.layoutDetailContent.paddingTop,
+            binding.layoutDetailContent.paddingRight,
+            baseContentPaddingBottom + systemBottom
+        )
+        logRequiredSheetHeight("padding systemBottom=$systemBottom")
     }
 
     private fun observeViewModel() {
@@ -242,10 +277,14 @@ class LocationDetailFragment : Fragment() {
             if (metadataList.isNullOrEmpty()) {
                 hasPhotoSection = false
                 binding.svPhotos.visibility = View.GONE
+                logRequiredSheetHeight("metadata noPhoto")
+                refreshParentSheetHeight()
             }else {
                 hasPhotoSection = true
                 binding.svPhotos.visibility = View.VISIBLE
                 binding.photoContainer.removeAllViews()
+                logRequiredSheetHeight("metadata photo count=${metadataList.size}")
+                refreshParentSheetHeight()
 
                 val count = minOf(metadataList.size, 3)
 
@@ -260,6 +299,8 @@ class LocationDetailFragment : Fragment() {
                         if (_binding == null) return@addOnSuccessListener
 
                         addDynamicPhotoView(photoResponse.bitmap)
+                        logRequiredSheetHeight("photoAdded")
+                        refreshParentSheetHeight()
                     }.addOnFailureListener { error ->
                         Log.e("PlacePhoto", "Location detail photo fetch failed: placeId=$placeId, index=$i", error)
                     }
@@ -271,6 +312,8 @@ class LocationDetailFragment : Fragment() {
             Log.e("PlacePhoto", "Location detail metadata fetch failed: placeId=$placeId", error)
             hasPhotoSection = false
             binding.svPhotos.visibility = View.GONE
+            logRequiredSheetHeight("metadata failure")
+            refreshParentSheetHeight()
         }
     }
 
@@ -321,6 +364,38 @@ class LocationDetailFragment : Fragment() {
 
     fun setDragHandleTouchListener(listener: View.OnTouchListener?) {
         _binding?.viewDragHandle?.setOnTouchListener(listener)
+    }
+
+    fun getRequiredSheetHeight(): Int {
+        val binding = _binding ?: return 0
+        val handleHeight = binding.viewDragHandle.height.takeIf { it > 0 } ?: dpToPx(39)
+        val actionBottom = binding.layoutDetailActions.bottom.takeIf { it > 0 }
+            ?: (binding.layoutDetailHeader.height + dpToPx(20) + binding.layoutDetailActions.height)
+        return handleHeight + actionBottom + baseContentPaddingBottom
+    }
+
+    private fun logRequiredSheetHeight(source: String) {
+        val binding = _binding ?: return
+        binding.root.post {
+            val handleHeight = binding.viewDragHandle.height.takeIf { it > 0 } ?: dpToPx(39)
+            val actionBottom = binding.layoutDetailActions.bottom.takeIf { it > 0 }
+                ?: (binding.layoutDetailHeader.height + dpToPx(20) + binding.layoutDetailActions.height)
+            val requiredHeight = handleHeight + actionBottom + baseContentPaddingBottom
+            Log.d(
+                "PlaceDetailHeightTrace",
+                "detail source=$source hasPhoto=$hasPhotoSection rootH=${binding.root.height} " +
+                    "contentH=${binding.layoutDetailContent.height} contentPaddingBottom=${binding.layoutDetailContent.paddingBottom} " +
+                    "baseBottom=$baseContentPaddingBottom handleH=$handleHeight headerH=${binding.layoutDetailHeader.height} photoVis=${binding.svPhotos.visibility} " +
+                    "photoH=${binding.svPhotos.height} actionsH=${binding.layoutDetailActions.height} " +
+                    "actionsBottom=${binding.layoutDetailActions.bottom} requiredH=$requiredHeight"
+            )
+        }
+    }
+
+    private fun refreshParentSheetHeight() {
+        binding.root.post {
+            (parentFragment as? RouteFragment)?.refreshPlaceDetailSheetHeight()
+        }
     }
 
     override fun onDestroyView() {
