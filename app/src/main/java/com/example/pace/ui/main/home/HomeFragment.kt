@@ -36,6 +36,7 @@ import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.launch
 import androidx.fragment.app.activityViewModels // 추가 확인
 import com.example.pace.data.model.response.ScheduleDetailResponse
+import com.example.pace.ui.alarm.AlarmTestActivity
 import com.example.pace.util.ScheduleRefreshReason
 import com.example.pace.util.ScheduleSortUtils
 import com.example.pace.util.ScheduleUiRefreshTicker
@@ -106,6 +107,9 @@ class HomeFragment: Fragment() {
         binding.homeAddScheduleLl.setOnClickListener {
             pendingModalEditDate = null
             scheduleActivityLauncher.launch(Intent(context, AddScheduleActivity::class.java))
+        }
+        binding.homeAlarmTestLl.setOnClickListener {
+            startActivity(Intent(requireContext(), AlarmTestActivity::class.java))
         }
 
         isViewReady = true

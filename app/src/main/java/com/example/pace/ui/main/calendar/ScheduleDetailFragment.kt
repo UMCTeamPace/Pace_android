@@ -148,13 +148,14 @@ class ScheduleDetailFragment : Fragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.allSchedules.collect { schedules ->
                     val updatedSchedule = schedules.firstOrNull { it.id == currentScheduleId } ?: return@collect
-                    currentSchedule = updatedSchedule
-                    val cachedDetail = if (updatedSchedule.type == "ROUTE" || currentScheduleType == "ROUTE") {
-                        viewModel.scheduleDetailInfoMap.value[updatedSchedule.id]
+                    val originalSchedule = viewModel.getScheduleById(currentScheduleId) ?: updatedSchedule
+                    currentSchedule = originalSchedule
+                    val cachedDetail = if (originalSchedule.type == "ROUTE" || currentScheduleType == "ROUTE") {
+                        viewModel.scheduleDetailInfoMap.value[originalSchedule.id]
                     } else {
                         null
                     }
-                    bindSchedule(updatedSchedule, cachedDetail)
+                    bindSchedule(originalSchedule, cachedDetail)
                 }
             }
         }

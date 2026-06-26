@@ -30,6 +30,7 @@ import android.widget.NumberPicker
 import android.widget.RadioGroup
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -180,12 +181,9 @@ class RouteFragment : Fragment() {
     private var earlyArriveTime: Int = -1
     private var currentSortOption: RouteSortOption = RouteSortOption.BEST
     private var routeDetailBottomSheetCallback: BottomSheetBehavior.BottomSheetCallback? = null
-    private var pendingRouteDetailScrollRatio: Float? = null
     private var isRouteDetailMinimized = false
     private var currentRouteDetailSheetMode = RouteDetailSheetMode.MAIN_ROUTE
-    private var routeDetailPeekHeightAnimator: ValueAnimator? = null
-    private var routeDetailSyncTarget: RouteDetailDragTarget? = null
-    private var routeDetailSyncTargetTop: Int? = null
+    private var lastValidRouteDetailOverlayTop: Int? = null
 
     private var isDetailFromRecommend = false
     private var isSelectingStart = true
@@ -237,12 +235,6 @@ class RouteFragment : Fragment() {
         SEARCH_RESULT
     }
 
-    private enum class RouteDetailDragTarget {
-        EXPANDED,
-        NORMAL,
-        MINIMIZED
-    }
-
     //백엔드 경로 탐색을 위해 여기다가 placeId를 좌표로 api 검색해서 주기
     private var startLatLng: LatLng? = null
     private var endLatLng: LatLng? = null
@@ -262,6 +254,8 @@ class RouteFragment : Fragment() {
     private var pendingResetToCurrentLocationState = false
     private var pendingActionModeExtras: Bundle? = null
     private var lastRouteOnlyScheduleFetchAt = 0L
+    private var routeScheduleMapOverlayHeight = 0
+    private var routeScheduleMapOverlayAnimator: ValueAnimator? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -404,14 +398,7 @@ class RouteFragment : Fragment() {
             // 7. 바텀시트(상세 경로 리스트) 설정
             val bottomSheetView = binding.layoutRouteDetailOverlay.root.findViewById<View>(R.id.sheet_route_detail)
             val behavior = BottomSheetBehavior.from(bottomSheetView)
-
-            behavior.isHideable = false
-            behavior.isDraggable = false
-            behavior.isFitToContents = false
-            behavior.state = BottomSheetBehavior.STATE_COLLAPSED
-//            behavior.peekHeight = (250 * resources.displayMetrics.density).toInt()
-            behavior.peekHeight = getRouteDetailPeekHeight()
-            setupRouteDetailHandle(bottomSheetView, behavior)
+            initializeRouteDetailBottomSheet(bottomSheetView, behavior, RouteDetailSheetMode.MAIN_ROUTE, "initial:main")
 
             routeViewModel.updateScheduleForAdapter(assembledRouteResponse)
             // 헬퍼를 이용해 리사이클러뷰 데이터 채우기
@@ -1214,6 +1201,8 @@ class RouteFragment : Fragment() {
         val sheetBinding = com.example.pace.databinding.BottomSheetRouteScheduleListBinding.inflate(layoutInflater)
         dialog.setContentView(sheetBinding.root)
         var resetMapOverlayOnDismiss = true
+        var isBackDismissAnimating = false
+        var routeScheduleBackCallback: OnBackPressedCallback? = null
 
         // 1. 데이터 그룹화 로직 (startDate 기준)
         val groupedList = mutableListOf<RouteScheduleItem>()
@@ -1312,6 +1301,8 @@ class RouteFragment : Fragment() {
             countdownHandler.postDelayed(countdownRunnable, delayMillis)
         }
         dialog.setOnDismissListener {
+            routeScheduleBackCallback?.remove()
+            routeScheduleBackCallback = null
             countdownHandler.removeCallbacks(countdownRunnable)
             if (resetMapOverlayOnDismiss) {
                 updateRouteScheduleListMapOverlay(0)
@@ -1341,8 +1332,49 @@ class RouteFragment : Fragment() {
                 isDraggable = false
                 state = BottomSheetBehavior.STATE_EXPANDED
             }
-            updateRouteScheduleListMapOverlayBySheet(sheet)
+            sheet.post {
+                updateRouteScheduleListMapOverlayByTargetHeight(sheet, sheetHeight, "show:targetHeight", animate = true)
+            }
             setupGroupedRouteScheduleHandleDrag(sheetBinding, sheet, bottomSheetBehavior, sheetHeight)
+
+            fun closeRouteScheduleSheetFromBack() {
+                if (isBackDismissAnimating) {
+                    return
+                }
+                isBackDismissAnimating = true
+                sheet.animate().cancel()
+                val measuredSheetHeight = sheet.height.takeIf { it > 0 } ?: sheetHeight
+                sheet.animate()
+                    .translationY(measuredSheetHeight.toFloat())
+                    .setDuration(180L)
+                    .setUpdateListener {
+                        updateRouteScheduleListMapOverlayBySheet(sheet, "back:closeAnimation")
+                    }
+                    .withEndAction {
+                        updateRouteScheduleListMapOverlay(0)
+                        dialog.dismiss()
+                    }
+                    .start()
+            }
+
+            routeScheduleBackCallback?.remove()
+            routeScheduleBackCallback = object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    closeRouteScheduleSheetFromBack()
+                }
+            }.also { callback ->
+                dialog.onBackPressedDispatcher.addCallback(viewLifecycleOwner, callback)
+            }
+
+            dialog.setOnKeyListener { _, keyCode, event ->
+                if (keyCode != android.view.KeyEvent.KEYCODE_BACK) {
+                    return@setOnKeyListener false
+                }
+                if (event.action == android.view.KeyEvent.ACTION_UP) {
+                    closeRouteScheduleSheetFromBack()
+                }
+                true
+            }
         }
 
         dialog.show()
@@ -1441,7 +1473,7 @@ class RouteFragment : Fragment() {
                 MotionEvent.ACTION_MOVE -> {
                     val dragOffset = (startTranslationY + event.rawY - downY).coerceAtLeast(0f)
                     sheet.translationY = dragOffset
-                    updateRouteScheduleListMapOverlayBySheet(sheet)
+                    updateRouteScheduleListMapOverlayBySheet(sheet, "drag:move")
                     true
                 }
                 MotionEvent.ACTION_UP,
@@ -1453,7 +1485,7 @@ class RouteFragment : Fragment() {
                             .translationY(measuredSheetHeight.toFloat())
                             .setDuration(180L)
                             .setUpdateListener {
-                                updateRouteScheduleListMapOverlayBySheet(sheet)
+                                updateRouteScheduleListMapOverlayBySheet(sheet, "drag:closeAnimation")
                             }
                             .withEndAction {
                                 updateRouteScheduleListMapOverlay(0)
@@ -1465,10 +1497,10 @@ class RouteFragment : Fragment() {
                             .translationY(0f)
                             .setDuration(180L)
                             .setUpdateListener {
-                                updateRouteScheduleListMapOverlayBySheet(sheet)
+                                updateRouteScheduleListMapOverlayBySheet(sheet, "drag:restoreAnimation")
                             }
                             .withEndAction {
-                                updateRouteScheduleListMapOverlayBySheet(sheet)
+                                updateRouteScheduleListMapOverlayBySheet(sheet, "drag:restoreEnd")
                             }
                             .start()
                     }
@@ -1479,15 +1511,67 @@ class RouteFragment : Fragment() {
         }
     }
 
-    private fun updateRouteScheduleListMapOverlayBySheet(sheet: View): Int {
-        val parentHeight = (sheet.parent as? View)?.height ?: return 0
-        val currentTop = (sheet.top + sheet.translationY).toInt()
-        val currentSheetHeight = (parentHeight - currentTop).coerceAtLeast(0)
-        updateRouteScheduleListMapOverlay(currentSheetHeight)
+    private fun updateRouteScheduleListMapOverlayBySheet(
+        sheet: View,
+        source: String = "unknown",
+        animate: Boolean = false
+    ): Int {
+        val mapFragment = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+        val mapView = mapFragment?.view ?: return 0
+        val mapLocation = IntArray(2)
+        val sheetLocation = IntArray(2)
+        mapView.getLocationOnScreen(mapLocation)
+        sheet.getLocationOnScreen(sheetLocation)
+
+        val mapBottom = mapLocation[1] + mapView.height
+        val sheetTop = sheetLocation[1]
+        val maxMapPadding = (mapView.height - 1).coerceAtLeast(0)
+        val rawCoveredHeight = mapBottom - sheetTop
+        val currentSheetHeight = rawCoveredHeight.coerceIn(0, maxMapPadding)
+        updateRouteScheduleListMapOverlay(currentSheetHeight, animate)
         return currentSheetHeight
     }
 
-    private fun updateRouteScheduleListMapOverlay(currentSheetHeight: Int) {
+    private fun updateRouteScheduleListMapOverlayByTargetHeight(
+        sheet: View,
+        sheetHeight: Int,
+        source: String,
+        animate: Boolean
+    ): Int {
+        val mapFragment = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+        val mapView = mapFragment?.view ?: return 0
+        val mapLocation = IntArray(2)
+        val rootLocation = IntArray(2)
+        mapView.getLocationOnScreen(mapLocation)
+        sheet.rootView.getLocationOnScreen(rootLocation)
+
+        val mapBottom = mapLocation[1] + mapView.height
+        val targetSheetTop = rootLocation[1] + sheet.rootView.height - sheetHeight
+        val rawCoveredHeight = mapBottom - targetSheetTop
+        val maxMapPadding = (mapView.height - 1).coerceAtLeast(0)
+        val currentSheetHeight = rawCoveredHeight.coerceIn(0, maxMapPadding)
+        updateRouteScheduleListMapOverlay(currentSheetHeight, animate)
+        return currentSheetHeight
+    }
+
+    private fun updateRouteScheduleListMapOverlay(currentSheetHeight: Int, animate: Boolean = false) {
+        routeScheduleMapOverlayAnimator?.cancel()
+        if (animate && routeScheduleMapOverlayHeight != currentSheetHeight) {
+            routeScheduleMapOverlayAnimator = ValueAnimator.ofInt(routeScheduleMapOverlayHeight, currentSheetHeight).apply {
+                duration = 180L
+                interpolator = android.view.animation.DecelerateInterpolator()
+                addUpdateListener { animator ->
+                    applyRouteScheduleListMapOverlay(animator.animatedValue as Int)
+                }
+                start()
+            }
+            return
+        }
+        applyRouteScheduleListMapOverlay(currentSheetHeight)
+    }
+
+    private fun applyRouteScheduleListMapOverlay(currentSheetHeight: Int) {
+        routeScheduleMapOverlayHeight = currentSheetHeight
         val mapFragment = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
         mapFragment?.setMapPadding(currentSheetHeight)
         mapFragment?.updateButtonTranslation(currentSheetHeight.toFloat())
@@ -1592,18 +1676,12 @@ class RouteFragment : Fragment() {
 
             val bottomSheetView = binding.layoutRouteDetailOverlay.root.findViewById<View>(R.id.sheet_route_detail)
             val detailBehavior = BottomSheetBehavior.from(bottomSheetView) // 지역 변수 명확히 사용
+            initializeRouteDetailBottomSheet(bottomSheetView, detailBehavior, RouteDetailSheetMode.SEARCH_RESULT, "initial:searchResult")
 
-            detailBehavior.apply {
-                isHideable = false
-                isDraggable = false
-                isFitToContents = false
+            
                 // peekHeight를 전역 변수가 아닌 detailBehavior에 직접 설정
                 // 0.3f(30%)도 높다면 0.2f(20%) 정도로 조절하세요.
-                peekHeight = getRouteDetailPeekHeight()
-                state = BottomSheetBehavior.STATE_COLLAPSED // 강제로 접힌 상태 설정
-            }
-
-            setupRouteDetailHandle(bottomSheetView, detailBehavior)
+            
 
             val realtimeParams = RouteDetailHelper.setupData(requireContext(),bottomSheetView, item, selectedEndPlace?.first ?: "", selectedStartPlace?.first ?: "", parentFragmentManager) { lat, lng ->
                 val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
@@ -2782,7 +2860,7 @@ class RouteFragment : Fragment() {
             else{
                 exitSearchMode()
                 realtimePollingJob?.cancel()
-                binding.layoutRouteDetailOverlay.layoutRealtimeRefresh.visibility = View.GONE
+                setRouteDetailRealtimeRefreshVisible(false, animate = false)
 
                 mainBinding?.mainBnv?.visibility = View.VISIBLE
                 mainBinding?.mainBackIv?.visibility = View.GONE
@@ -2856,17 +2934,22 @@ class RouteFragment : Fragment() {
     }
 
     private fun handleCustomBackClick(){
+        logRouteBackState("back:start")
         if (isKeyboardVisible()) {
+            logRouteBackState("back:keyboard")
             hideKeyboard()
             return
         }
-        if (isBottomSheetHiddenByHandle) {
-            clearHiddenPlaceBottomSheetState(clearMode = false)
+        if (handleHiddenPlaceBottomSheetBack()) {
+            logRouteBackState("back:hiddenSheetHandled")
+            return
         }
         if (handleHistoryRouteReturnBack()) {
+            logRouteBackState("back:historyReturnHandled")
             return
         }
         if (isPoiMode) {
+            logRouteBackState("back:poi")
             val transaction = childFragmentManager.beginTransaction()
 
             val poiFrag = childFragmentManager.findFragmentByTag("POI_DETAIL")
@@ -2897,6 +2980,7 @@ class RouteFragment : Fragment() {
 
         val detailFrag = childFragmentManager.findFragmentByTag("DETAIL")
         if (detailFrag != null && detailFrag.isVisible) {
+            logRouteBackState("back:visibleDetail")
             isPlaceDetailSheetLocked = false
             childFragmentManager.popBackStack()
             bottomSheetBehavior.isDraggable = true
@@ -2923,6 +3007,7 @@ class RouteFragment : Fragment() {
         }
 
         if (isBottomSheetVisible()) {
+            logRouteBackState("back:visibleBottomSheet")
             bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
             enterSearchMode()
             return
@@ -2936,6 +3021,7 @@ class RouteFragment : Fragment() {
         }
 
         if (binding.layoutBookmarkHeader.root.visibility == View.VISIBLE) {
+            logRouteBackState("back:bookmark")
             exitBookmarkMode()
             return
         }
@@ -2975,7 +3061,7 @@ class RouteFragment : Fragment() {
 
         if (binding.layoutRouteDetailOverlay.root.visibility == View.VISIBLE && currentEntryMode!=EntryMode.MAIN) {
             realtimePollingJob?.cancel()
-            binding.layoutRouteDetailOverlay.layoutRealtimeRefresh.visibility = View.GONE
+            setRouteDetailRealtimeRefreshVisible(false, animate = false)
 
             binding.layoutRouteDetailOverlay.root.visibility = View.GONE
 
@@ -3095,7 +3181,7 @@ class RouteFragment : Fragment() {
     private fun handleScheduleBackClick(){
         if (binding.layoutRouteDetailOverlay.root.visibility == View.VISIBLE) {
             realtimePollingJob?.cancel()
-            binding.layoutRouteDetailOverlay.layoutRealtimeRefresh.visibility = View.GONE
+            setRouteDetailRealtimeRefreshVisible(false, animate = false)
 
             binding.layoutRouteDetailOverlay.root.visibility = View.GONE
 
@@ -4043,6 +4129,19 @@ class RouteFragment : Fragment() {
         return (56 * resources.displayMetrics.density).toInt()
     }
 
+    private fun getRouteDetailBottomOverlayHeight(): Int {
+        if (currentRouteDetailSheetMode != RouteDetailSheetMode.SEARCH_RESULT) return 0
+        return binding.layoutRouteDetailOverlay.layoutRouteSelectContainer
+            .takeIf { it.isVisible }
+            ?.height
+            ?.takeIf { it > 0 }
+            ?: getRouteDetailSelectButtonOverlapHeight()
+    }
+
+    private fun getRouteDetailBaseBottomSpaceHeight(): Int {
+        return (80 * resources.displayMetrics.density).toInt()
+    }
+
     private fun getRouteDetailHandleHeight(bottomSheetView: View? = null): Int {
         return bottomSheetView
             ?.findViewById<View>(R.id.bottom_sheet_route_detail_view)
@@ -4052,14 +4151,7 @@ class RouteFragment : Fragment() {
     }
 
     private fun getRouteDetailMinimizedPeekHeight(bottomSheetView: View): Int {
-        val belowFixedHeight = when (currentRouteDetailSheetMode) {
-            RouteDetailSheetMode.SEARCH_RESULT ->
-                binding.layoutRouteDetailOverlay.layoutRouteSelectContainer.height.takeIf { it > 0 }
-                    ?: getRouteDetailSelectButtonOverlapHeight()
-            RouteDetailSheetMode.MAIN_ROUTE ->
-                getBottomNavTopOffsetFromSheetParent(bottomSheetView)
-        }
-        return getRouteDetailHandleHeight(bottomSheetView) + belowFixedHeight
+        return getRouteDetailHandleHeight(bottomSheetView) + getRouteDetailBottomOverlayHeight()
     }
 
     private fun getBottomNavTopOffsetFromSheetParent(bottomSheetView: View): Int {
@@ -4079,6 +4171,32 @@ class RouteFragment : Fragment() {
         val rawOffset = (parentBottom - bottomNavTop).coerceAtLeast(0)
         val maxOffset = getRouteDetailSelectButtonOverlapHeight()
         return rawOffset.coerceIn(0, maxOffset)
+    }
+
+    private fun initializeRouteDetailBottomSheet(
+        bottomSheetView: View,
+        behavior: BottomSheetBehavior<View>,
+        mode: RouteDetailSheetMode,
+        source: String
+    ) {
+        currentRouteDetailSheetMode = mode
+        isRouteDetailMinimized = false
+        lastValidRouteDetailOverlayTop = null
+        bottomSheetView.animate().cancel()
+        bottomSheetView.translationY = 0f
+        behavior.apply {
+            isHideable = false
+            isDraggable = true
+            isFitToContents = false
+            skipCollapsed = false
+            peekHeight = getRouteDetailMinimizedPeekHeight(bottomSheetView)
+        }
+        setupRouteDetailHandle(bottomSheetView, behavior)
+        bottomSheetView.post {
+            if (_binding == null) return@post
+            if (currentRouteDetailSheetMode != mode) return@post
+            configureRouteDetailNormalBehavior(bottomSheetView, behavior, source)
+        }
     }
 
     private fun setupBottomSheetRestoreChip() {
@@ -4116,6 +4234,39 @@ class RouteFragment : Fragment() {
         }
     }
 
+    private fun handleHiddenPlaceBottomSheetBack(): Boolean {
+        logRouteBackState("hiddenSheetBack:entry")
+        if (!isBottomSheetHiddenByHandle) return false
+
+        when (currentPlaceBottomSheetMode) {
+            PlaceBottomSheetMode.SEARCH_RESULTS -> {
+                logRouteBackState("hiddenSheetBack:searchResultsBefore")
+                applySearchResultNormalState()
+                logRouteBackState("hiddenSheetBack:searchResultsAfter")
+            }
+            PlaceBottomSheetMode.PLACE_DETAIL -> {
+                logRouteBackState("hiddenSheetBack:placeDetailBefore")
+                restoreHiddenPlaceBottomSheet()
+                logRouteBackState("hiddenSheetBack:placeDetailAfter")
+            }
+            PlaceBottomSheetMode.NONE -> {
+                logRouteBackState("hiddenSheetBack:noneBefore")
+                clearHiddenPlaceBottomSheetState(clearMode = true)
+                logRouteBackState("hiddenSheetBack:noneAfter")
+            }
+        }
+        return true
+    }
+
+    private fun logRouteBackState(reason: String) {
+        val detail = childFragmentManager.findFragmentByTag("DETAIL")
+        val list = childFragmentManager.findFragmentByTag(LocationBottomSheetFragment.TAG)
+        val restoreChip = binding.root.findViewById<View>(R.id.layout_bottom_sheet_restore_chip)
+        val behaviorState = if (::bottomSheetBehavior.isInitialized) bottomSheetBehavior.state else -1
+        val backStackNames = (0 until childFragmentManager.backStackEntryCount)
+            .map { childFragmentManager.getBackStackEntryAt(it).name }
+    }
+
     private fun updateSearchResultBottomInset(currentSheetHeight: Int) {
         if (currentPlaceBottomSheetMode != PlaceBottomSheetMode.SEARCH_RESULTS) return
         val sheetFragment = childFragmentManager.findFragmentByTag(LocationBottomSheetFragment.TAG)
@@ -4126,13 +4277,29 @@ class RouteFragment : Fragment() {
     }
 
     private fun updatePlaceMapOverlayBySheet(bottomSheet: View): Int {
-        val parentHeight = (bottomSheet.parent as? View)?.height ?: return 0
+        val parent = bottomSheet.parent as? View ?: return 0
         val currentTop = (bottomSheet.top + bottomSheet.translationY).toInt()
-        val currentSheetHeight = (parentHeight - currentTop).coerceAtLeast(0)
+        val currentSheetHeight = getPlaceSheetVisibleHeight(bottomSheet, currentTop, parent)
         val mapFragment = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
         mapFragment?.setMapPadding(currentSheetHeight)
         mapFragment?.updateButtonTranslation(currentSheetHeight.toFloat())
         return currentSheetHeight
+    }
+
+    private fun getPlaceSheetVisibleHeight(bottomSheet: View, currentTop: Int, parent: View): Int {
+        val mapView = binding.routeMapFcv
+        if (mapView.height <= 0) {
+            return (parent.height - currentTop).coerceAtLeast(0)
+        }
+
+        val parentLocation = IntArray(2)
+        val mapLocation = IntArray(2)
+        parent.getLocationOnScreen(parentLocation)
+        mapView.getLocationOnScreen(mapLocation)
+
+        val sheetTopOnScreen = parentLocation[1] + currentTop
+        val mapBottomOnScreen = mapLocation[1] + mapView.height
+        return (mapBottomOnScreen - sheetTopOnScreen).coerceIn(0, mapView.height)
     }
 
     private fun updatePlaceOverlaysBySheet(bottomSheet: View) {
@@ -4235,228 +4402,105 @@ class RouteFragment : Fragment() {
         routeDetailBottomSheetCallback?.let { detailBehavior.removeBottomSheetCallback(it) }
         routeDetailBottomSheetCallback = object : BottomSheetBehavior.BottomSheetCallback() {
             override fun onStateChanged(bottomSheet: View, newState: Int) {
-                syncRouteDetailTranslationIfNeeded(bottomSheetView, detailBehavior)
+                logRouteDetailOverlayState("state:${bottomSheetStateToString(newState)}", bottomSheetView, detailBehavior)
                 if (newState == BottomSheetBehavior.STATE_DRAGGING ||
                     newState == BottomSheetBehavior.STATE_SETTLING
                 ) {
+                    updateRouteDetailScrollBottomInset(bottomSheetView)
+                    updateRouteDetailMapOverlayBySheet(bottomSheetView)
                     return
                 }
 
+                isRouteDetailMinimized = newState == BottomSheetBehavior.STATE_COLLAPSED
+                setRouteDetailRealtimeRefreshVisible(
+                    newState != BottomSheetBehavior.STATE_COLLAPSED,
+                    animate = true
+                )
                 updateRouteDetailScrollBottomInset(bottomSheetView)
                 updateRouteDetailMapOverlayBySheet(bottomSheetView)
-                if (newState == BottomSheetBehavior.STATE_COLLAPSED) {
-                    restorePendingRouteDetailScrollPosition(bottomSheetView)
-                } else if (newState == BottomSheetBehavior.STATE_EXPANDED) {
-                    restorePendingRouteDetailScrollPosition(bottomSheetView)
-                }
+                logRouteDetailStateMapping("stateSettled:${bottomSheetStateToString(newState)}", bottomSheetView, detailBehavior)
             }
 
             override fun onSlide(bottomSheet: View, slideOffset: Float) {
-                syncRouteDetailTranslationIfNeeded(bottomSheetView, detailBehavior)
+                updateRouteDetailScrollBottomInset(bottomSheetView)
                 updateRouteDetailMapOverlayBySheet(bottomSheetView)
+                logRouteDetailOverlayState("slide:$slideOffset", bottomSheetView, detailBehavior)
             }
         }
         detailBehavior.addBottomSheetCallback(routeDetailBottomSheetCallback!!)
 
         bottomSheetView.findViewById<View>(R.id.route_detail_scroll_view)?.let { scrollView ->
             ViewCompat.setNestedScrollingEnabled(scrollView, false)
+            scrollView.setOnTouchListener { view, event ->
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        detailBehavior.isDraggable = false
+                        view.parent?.requestDisallowInterceptTouchEvent(true)
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        detailBehavior.isDraggable = false
+                        view.parent?.requestDisallowInterceptTouchEvent(true)
+                    }
+                    MotionEvent.ACTION_UP,
+                    MotionEvent.ACTION_CANCEL -> {
+                        view.parent?.requestDisallowInterceptTouchEvent(false)
+                        bottomSheetView.post {
+                            detailBehavior.isDraggable = true
+                        }
+                    }
+                }
+                logRouteDetailScrollState("scrollTouch:${event.actionMasked}", bottomSheetView)
+                false
+            }
         }
 
         bottomSheetView.findViewById<View>(R.id.bottom_sheet_route_detail_view)?.setOnTouchListener(
-            createRouteDetailDragTouchListener(bottomSheetView, detailBehavior)
+            createRouteDetailHandleTouchListener(bottomSheetView, detailBehavior)
         )
     }
 
-    private fun createRouteDetailDragTouchListener(
+    private fun createRouteDetailHandleTouchListener(
         bottomSheetView: View,
         behavior: BottomSheetBehavior<View>
     ): View.OnTouchListener {
-        var downY = 0f
-        var startTop = 0
-        var parentHeight = 0
-        var target = RouteDetailDragTarget.NORMAL
-        var targetTop = 0
-
         return View.OnTouchListener { view, event ->
-            val parent = bottomSheetView.parent as? View ?: return@OnTouchListener true
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     bottomSheetView.animate().cancel()
-                    routeDetailPeekHeightAnimator?.cancel()
-                    downY = event.rawY
-                    startTop = bottomSheetView.top
-                    parentHeight = parent.height
-                    view.parent?.requestDisallowInterceptTouchEvent(true)
-                    true
+                    bottomSheetView.translationY = 0f
+                    behavior.isDraggable = true
+                    view.parent?.requestDisallowInterceptTouchEvent(false)
+                    logRouteDetailScrollState("handle:down", bottomSheetView)
+                    false
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    val expandedTop = getRouteDetailExpandedTop(bottomSheetView, parentHeight)
-                    val minimizedTop = getRouteDetailMinimizedTop(bottomSheetView, parentHeight)
-                    val currentTop = (startTop + event.rawY - downY)
-                        .toInt()
-                        .coerceIn(expandedTop, minimizedTop)
-                    bottomSheetView.translationY = (currentTop - startTop).toFloat()
-                    updateRouteDetailMapOverlayBySheet(bottomSheetView)
-                    updateRouteDetailScrollBottomInset(bottomSheetView)
-                    true
+                    logRouteDetailScrollState("handle:move", bottomSheetView)
+                    false
                 }
                 MotionEvent.ACTION_UP,
                 MotionEvent.ACTION_CANCEL -> {
-                    val currentTop = (startTop + bottomSheetView.translationY)
-                        .toInt()
-                        .coerceIn(0, parentHeight)
-                    val settleTarget = getRouteDetailDragTarget(bottomSheetView, behavior, currentTop, parentHeight)
-                    target = settleTarget.first
-                    targetTop = settleTarget.second
-
-                    bottomSheetView.animate()
-                        .translationY((targetTop - startTop).toFloat())
-                        .setDuration(180L)
-                        .setUpdateListener {
-                            updateRouteDetailMapOverlayBySheet(bottomSheetView)
-                            updateRouteDetailScrollBottomInset(bottomSheetView)
-                        }
-                        .withEndAction {
-                            settleRouteDetailDragTarget(bottomSheetView, behavior, target, targetTop)
-                        }
-                        .start()
+                    logRouteDetailScrollState("handle:up", bottomSheetView)
                     view.performClick()
-                    true
+                    false
                 }
-                else -> true
+                else -> false
             }
         }
-    }
-
-    private fun getRouteDetailDragTarget(
-        bottomSheetView: View,
-        behavior: BottomSheetBehavior<View>,
-        currentTop: Int,
-        parentHeight: Int
-    ): Pair<RouteDetailDragTarget, Int> {
-        val expandedTop = getRouteDetailExpandedTop(bottomSheetView, parentHeight)
-        val normalTop = getRouteDetailNormalTop(parentHeight)
-        val minimizedTop = getRouteDetailMinimizedTop(bottomSheetView, parentHeight)
-        val expandedThreshold = ((normalTop - expandedTop) * 0.2f).toInt()
-        val minimizedThreshold = ((minimizedTop - normalTop) * 0.2f).toInt()
-
-        return when {
-            behavior.state == BottomSheetBehavior.STATE_EXPANDED -> {
-                if (currentTop >= expandedTop + expandedThreshold) {
-                    RouteDetailDragTarget.NORMAL to normalTop
-                } else {
-                    RouteDetailDragTarget.EXPANDED to expandedTop
-                }
-            }
-            isRouteDetailMinimized -> {
-                if (currentTop <= minimizedTop - minimizedThreshold) {
-                    RouteDetailDragTarget.NORMAL to normalTop
-                } else {
-                    RouteDetailDragTarget.MINIMIZED to minimizedTop
-                }
-            }
-            currentTop <= normalTop - expandedThreshold -> RouteDetailDragTarget.EXPANDED to expandedTop
-            currentTop >= normalTop + minimizedThreshold -> RouteDetailDragTarget.MINIMIZED to minimizedTop
-            else -> RouteDetailDragTarget.NORMAL to normalTop
-        }
-    }
-
-    private fun settleRouteDetailDragTarget(
-        bottomSheetView: View,
-        behavior: BottomSheetBehavior<View>,
-        target: RouteDetailDragTarget,
-        targetTop: Int
-    ) {
-        when (target) {
-            RouteDetailDragTarget.EXPANDED -> {
-                routeDetailSyncTarget = target
-                routeDetailSyncTargetTop = targetTop
-                pendingRouteDetailScrollRatio = null
-                isRouteDetailMinimized = false
-                behavior.expandedOffset = targetTop
-                updateRouteDetailScrollBottomInsetForExpandedState(bottomSheetView)
-                behavior.state = BottomSheetBehavior.STATE_EXPANDED
-            }
-            RouteDetailDragTarget.NORMAL -> {
-                routeDetailSyncTarget = target
-                routeDetailSyncTargetTop = targetTop
-                isRouteDetailMinimized = false
-                pendingRouteDetailScrollRatio = captureRouteDetailScrollRatio(bottomSheetView)
-                keepRouteDetailVisibleThroughNextLayout(bottomSheetView, behavior, targetTop)
-                behavior.peekHeight = getRouteDetailPeekHeight()
-                behavior.state = BottomSheetBehavior.STATE_COLLAPSED
-            }
-            RouteDetailDragTarget.MINIMIZED -> {
-                routeDetailSyncTarget = target
-                routeDetailSyncTargetTop = targetTop
-                isRouteDetailMinimized = true
-                pendingRouteDetailScrollRatio = null
-                keepRouteDetailVisibleThroughNextLayout(bottomSheetView, behavior, targetTop)
-                behavior.peekHeight = getRouteDetailMinimizedPeekHeight(bottomSheetView)
-                behavior.state = BottomSheetBehavior.STATE_COLLAPSED
-            }
-        }
-        bottomSheetView.post {
-            syncRouteDetailTranslationIfNeeded(bottomSheetView, behavior)
-        }
-    }
-
-    private fun syncRouteDetailTranslationIfNeeded(
-        bottomSheetView: View,
-        behavior: BottomSheetBehavior<View>
-    ) {
-        val target = routeDetailSyncTarget ?: return
-        val targetTop = routeDetailSyncTargetTop ?: return
-        val state = behavior.state
-        if (state == BottomSheetBehavior.STATE_SETTLING || state == BottomSheetBehavior.STATE_DRAGGING) {
-            bottomSheetView.translationY = (targetTop - bottomSheetView.top).toFloat()
-            updateRouteDetailMapOverlayBySheet(bottomSheetView)
-            updateRouteDetailScrollBottomInset(bottomSheetView)
-            return
-        }
-
-        val isSettled =
-            target == RouteDetailDragTarget.EXPANDED && state == BottomSheetBehavior.STATE_EXPANDED ||
-                target != RouteDetailDragTarget.EXPANDED && state == BottomSheetBehavior.STATE_COLLAPSED
-        if (isSettled) {
-            bottomSheetView.translationY = 0f
-            routeDetailSyncTarget = null
-            routeDetailSyncTargetTop = null
-            updateRouteDetailMapOverlayBySheet(bottomSheetView)
-            updateRouteDetailScrollBottomInset(bottomSheetView)
-        }
-    }
-
-    private fun keepRouteDetailVisibleThroughNextLayout(
-        bottomSheetView: View,
-        behavior: BottomSheetBehavior<View>,
-        targetTop: Int
-    ) {
-        bottomSheetView.addOnLayoutChangeListener(object : View.OnLayoutChangeListener {
-            override fun onLayoutChange(
-                view: View,
-                left: Int,
-                top: Int,
-                right: Int,
-                bottom: Int,
-                oldLeft: Int,
-                oldTop: Int,
-                oldRight: Int,
-                oldBottom: Int
-            ) {
-                view.removeOnLayoutChangeListener(this)
-                view.translationY = (targetTop - view.top).toFloat()
-                syncRouteDetailTranslationIfNeeded(bottomSheetView, behavior)
-            }
-        })
     }
 
     private fun getRouteDetailExpandedTop(bottomSheetView: View, parentHeight: Int): Int {
         val scrollView = bottomSheetView.findViewById<View>(R.id.route_detail_scroll_view)
         val handleHeight = getRouteDetailHandleHeight(bottomSheetView)
         val childHeight = (scrollView as? ViewGroup)?.getChildAt(0)?.height ?: 0
+        val bottomSpace = bottomSheetView.findViewById<View>(R.id.view_bottom_space)
+        val dynamicBottomSpace = bottomSpace
+            ?.height
+            ?.takeIf { it > 0 }
+            ?.let { it - getRouteDetailBaseBottomSpaceHeight() }
+            ?.coerceAtLeast(0)
+            ?: 0
         val baseBottomPadding = (20 * resources.displayMetrics.density).toInt()
-        val requiredSheetHeight = (handleHeight + childHeight + baseBottomPadding)
+        val requiredSheetHeight = (handleHeight + childHeight - dynamicBottomSpace + baseBottomPadding)
             .coerceAtLeast(getRouteDetailPeekHeight())
             .coerceAtMost(parentHeight)
         return (parentHeight - requiredSheetHeight)
@@ -4470,6 +4514,47 @@ class RouteFragment : Fragment() {
 
     private fun getRouteDetailNormalTop(parentHeight: Int): Int {
         return (parentHeight - getRouteDetailPeekHeight()).coerceIn(0, parentHeight)
+    }
+
+    private fun getRouteDetailNormalHalfExpandedRatio(bottomSheetView: View): Float? {
+        val parentHeight = ((bottomSheetView.parent as? View)?.height ?: bottomSheetView.height)
+            .takeIf { it > 0 }
+            ?: return null
+        return (getRouteDetailPeekHeight().toFloat() / parentHeight.toFloat())
+            .coerceIn(0.1f, 0.9f)
+    }
+
+    private fun configureRouteDetailNormalBehavior(
+        bottomSheetView: View,
+        behavior: BottomSheetBehavior<View>,
+        source: String
+    ) {
+        val halfRatio = getRouteDetailNormalHalfExpandedRatio(bottomSheetView)
+        if (halfRatio == null) {
+            bottomSheetView.post {
+                configureRouteDetailNormalBehavior(bottomSheetView, behavior, "$source:posted")
+            }
+            return
+        }
+
+        bottomSheetView.animate().cancel()
+        bottomSheetView.translationY = 0f
+        isRouteDetailMinimized = false
+        behavior.apply {
+            isHideable = false
+            isDraggable = true
+            isFitToContents = false
+            halfExpandedRatio = halfRatio
+            expandedOffset = getRouteDetailExpandedTop(
+                bottomSheetView,
+                (bottomSheetView.parent as? View)?.height ?: bottomSheetView.height
+            )
+            peekHeight = getRouteDetailMinimizedPeekHeight(bottomSheetView)
+            state = BottomSheetBehavior.STATE_HALF_EXPANDED
+        }
+        updateRouteDetailScrollBottomInset(bottomSheetView)
+        updateRouteDetailMapOverlayBySheet(bottomSheetView)
+        logRouteDetailStateMapping(source, bottomSheetView, behavior)
     }
 
     private fun getRouteDetailMinimizedTop(bottomSheetView: View, parentHeight: Int): Int {
@@ -4506,7 +4591,7 @@ class RouteFragment : Fragment() {
                         .toInt()
                         .coerceIn(minTop, parentHeight)
                     sheet.translationY = (currentTop - startTop).toFloat()
-                    updatePlaceMapOverlayByCurrentTop(currentTop, parentHeight)
+                    updatePlaceMapOverlayByCurrentTop(sheet, currentTop, parent)
                     updateSearchResultBottomInset(parentHeight - currentTop)
                     true
                 }
@@ -4541,8 +4626,8 @@ class RouteFragment : Fragment() {
         }
     }
 
-    private fun updatePlaceMapOverlayByCurrentTop(currentTop: Int, parentHeight: Int) {
-        val currentSheetHeight = (parentHeight - currentTop).coerceAtLeast(0)
+    private fun updatePlaceMapOverlayByCurrentTop(bottomSheet: View, currentTop: Int, parent: View) {
+        val currentSheetHeight = getPlaceSheetVisibleHeight(bottomSheet, currentTop, parent)
         val mapFragment = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
         mapFragment?.setMapPadding(currentSheetHeight)
         mapFragment?.updateButtonTranslation(currentSheetHeight.toFloat())
@@ -4571,12 +4656,11 @@ class RouteFragment : Fragment() {
         preApplyInset: Boolean
     ) {
         isRouteDetailMinimized = false
-        pendingRouteDetailScrollRatio = captureRouteDetailScrollRatio(bottomSheetView)
+        setRouteDetailRealtimeRefreshVisible(true, animate = true)
         if (preApplyInset) {
             updateRouteDetailScrollBottomInsetForCollapsedState(bottomSheetView)
         }
-        behavior.state = BottomSheetBehavior.STATE_COLLAPSED
-        animateRouteDetailPeekHeight(bottomSheetView, behavior, getRouteDetailPeekHeight())
+        configureRouteDetailNormalBehavior(bottomSheetView, behavior, "apply:normal")
     }
 
     private fun applyRouteDetailMinimizedState(
@@ -4584,38 +4668,140 @@ class RouteFragment : Fragment() {
         behavior: BottomSheetBehavior<View>
     ) {
         isRouteDetailMinimized = true
-        pendingRouteDetailScrollRatio = null
-        val targetPeekHeight = getRouteDetailMinimizedPeekHeight(bottomSheetView)
+        setRouteDetailRealtimeRefreshVisible(false, animate = true)
+        bottomSheetView.animate().cancel()
+        bottomSheetView.translationY = 0f
+        behavior.peekHeight = getRouteDetailMinimizedPeekHeight(bottomSheetView)
         behavior.state = BottomSheetBehavior.STATE_COLLAPSED
-        animateRouteDetailPeekHeight(bottomSheetView, behavior, targetPeekHeight)
-    }
-
-    private fun animateRouteDetailPeekHeight(
-        bottomSheetView: View,
-        behavior: BottomSheetBehavior<View>,
-        targetPeekHeight: Int
-    ) {
-        val startPeekHeight = behavior.peekHeight
-        if (startPeekHeight == targetPeekHeight) return
-
-        routeDetailPeekHeightAnimator?.cancel()
-        routeDetailPeekHeightAnimator = ValueAnimator.ofInt(startPeekHeight, targetPeekHeight).apply {
-            duration = 220L
-            addUpdateListener { animator ->
-                behavior.peekHeight = animator.animatedValue as Int
-                updateRouteDetailMapOverlayBySheet(bottomSheetView)
-            }
-            start()
-        }
+        updateRouteDetailScrollBottomInset(bottomSheetView)
+        updateRouteDetailMapOverlayBySheet(bottomSheetView)
+        logRouteDetailStateMapping("apply:minimized", bottomSheetView, behavior)
     }
 
     private fun updateRouteDetailMapOverlayBySheet(bottomSheetView: View) {
         val parentHeight = (bottomSheetView.parent as? View)?.height ?: return
-        val currentTop = (bottomSheetView.top + bottomSheetView.translationY).toInt()
-        val currentSheetHeight = (parentHeight - currentTop).coerceAtLeast(0)
+        val rawTop = (bottomSheetView.top + bottomSheetView.translationY).toInt()
+        val minValidTop = getRouteDetailExpandedMinTop()
+        val currentTop = if (rawTop < minValidTop) {
+            val fallbackTop = lastValidRouteDetailOverlayTop ?: minValidTop
+            fallbackTop
+        } else {
+            rawTop.also { lastValidRouteDetailOverlayTop = it }
+        }
+        updateRouteDetailMapOverlayByTop(currentTop, parentHeight)
+    }
+
+    private fun updateRouteDetailMapOverlayByTop(currentTop: Int, parentHeight: Int) {
+        val routeSelectHeight = binding.layoutRouteDetailOverlay.layoutRouteSelectContainer
+            .takeIf { it.isVisible }
+            ?.height
+            ?.takeIf { it > 0 }
+            ?: 0
+        val bottomUiHeight = if (currentRouteDetailSheetMode == RouteDetailSheetMode.MAIN_ROUTE) {
+            getBottomNavTopOffsetFromSheetParent(binding.layoutRouteDetailOverlay.sheetRouteDetail.root)
+        } else {
+            routeSelectHeight
+        }
+        val currentSheetHeight = (parentHeight - currentTop)
+            .coerceIn(0, parentHeight)
+            .coerceAtLeast(bottomUiHeight)
+        val mapPadding = getRouteDetailCappedMapPadding(currentSheetHeight)
+        val buttonOffset = getRouteDetailCappedLocationButtonOffset(currentSheetHeight)
         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
-        mapFrag?.setMapPadding(currentSheetHeight)
-        mapFrag?.updateButtonTranslation(currentSheetHeight.toFloat())
+        mapFrag?.setMapPadding(mapPadding)
+        mapFrag?.updateButtonTranslation(buttonOffset)
+    }
+
+    private fun getRouteDetailTopAvoidBottomOnScreen(): Int? {
+        val avoidView = when (currentRouteDetailSheetMode) {
+            RouteDetailSheetMode.MAIN_ROUTE -> binding.layoutRouteDetailOverlay.layoutRouteDetailInfo
+                .takeIf { it.isVisible }
+            RouteDetailSheetMode.SEARCH_RESULT -> binding.layoutRouteDetailOverlay.btnRouteDetailBackDetail
+                .takeIf { it.isVisible }
+        } ?: return null
+
+        val location = IntArray(2)
+        avoidView.getLocationOnScreen(location)
+        return location[1] + avoidView.height
+    }
+
+    private fun getRouteDetailOverlayGapPx(): Int {
+        return (10 * resources.displayMetrics.density).toInt()
+    }
+
+    private fun getRouteDetailCappedMapPadding(rawPadding: Int): Int {
+        if (currentRouteDetailSheetMode != RouteDetailSheetMode.SEARCH_RESULT) return rawPadding
+        val avoidBottom = getRouteDetailTopAvoidBottomOnScreen() ?: return rawPadding
+        val mapView = binding.routeMapFcv
+        val mapLocation = IntArray(2)
+        mapView.getLocationOnScreen(mapLocation)
+        val mapBottom = mapLocation[1] + mapView.height
+        val maxPadding = (mapBottom - avoidBottom - getRouteDetailOverlayGapPx()).coerceAtLeast(0)
+        return rawPadding.coerceAtMost(maxPadding)
+    }
+
+    private fun getRouteDetailCappedLocationButtonOffset(rawOffset: Int): Float {
+        val avoidBottom = getRouteDetailTopAvoidBottomOnScreen() ?: return rawOffset.toFloat()
+        val mapFragment = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+        val button = mapFragment?.view?.findViewById<View>(R.id.btn_go_my_location) ?: return rawOffset.toFloat()
+        val buttonLocation = IntArray(2)
+        button.getLocationOnScreen(buttonLocation)
+        val baseButtonTop = buttonLocation[1] - button.translationY
+        val maxOffset = (baseButtonTop - avoidBottom - getRouteDetailOverlayGapPx()).coerceAtLeast(0f)
+        return rawOffset.toFloat().coerceAtMost(maxOffset)
+    }
+
+    private fun setRouteDetailRealtimeRefreshVisible(visible: Boolean, animate: Boolean) {
+        val refresh = binding.layoutRouteDetailOverlay.layoutRealtimeRefresh
+        val shouldShow = visible && currentRealtimeParams != null
+        refresh.animate().cancel()
+        if (shouldShow) {
+            if (refresh.visibility != View.VISIBLE) {
+                refresh.alpha = 0f
+                refresh.visibility = View.VISIBLE
+            }
+            if (animate) {
+                refresh.animate()
+                    .alpha(1f)
+                    .setDuration(180L)
+                    .start()
+            } else {
+                refresh.alpha = 1f
+            }
+        } else {
+            if (animate && refresh.visibility == View.VISIBLE) {
+                refresh.animate()
+                    .alpha(0f)
+                    .setDuration(180L)
+                    .withEndAction {
+                        refresh.visibility = View.GONE
+                    }
+                    .start()
+            } else {
+                refresh.alpha = 0f
+                refresh.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun logRouteDetailOverlayState(
+        source: String,
+        bottomSheetView: View,
+        behavior: BottomSheetBehavior<View>? = null
+    ) {
+    }
+
+    private fun bottomSheetStateToString(state: Int?): String {
+        return when (state) {
+            BottomSheetBehavior.STATE_DRAGGING -> "DRAGGING"
+            BottomSheetBehavior.STATE_SETTLING -> "SETTLING"
+            BottomSheetBehavior.STATE_EXPANDED -> "EXPANDED"
+            BottomSheetBehavior.STATE_COLLAPSED -> "COLLAPSED"
+            BottomSheetBehavior.STATE_HIDDEN -> "HIDDEN"
+            BottomSheetBehavior.STATE_HALF_EXPANDED -> "HALF_EXPANDED"
+            null -> "null"
+            else -> state.toString()
+        }
     }
 
     private fun updateRouteDetailScrollBottomInset(bottomSheetView: View) {
@@ -4638,16 +4824,38 @@ class RouteFragment : Fragment() {
 
     private fun updateRouteDetailScrollBottomInsetForSheetHeight(bottomSheetView: View, sheetHeight: Int) {
         val scrollView = bottomSheetView.findViewById<View>(R.id.route_detail_scroll_view) ?: return
+        val bottomSpace = bottomSheetView.findViewById<View>(R.id.view_bottom_space)
         val parentHeight = (bottomSheetView.parent as? View)?.height ?: bottomSheetView.height
         val hiddenSheetHeight = (parentHeight - sheetHeight).coerceAtLeast(0)
         val baseBottomPadding = (20 * resources.displayMetrics.density).toInt()
-        val bottomPadding = baseBottomPadding + hiddenSheetHeight
+        val baseBottomSpace = getRouteDetailBaseBottomSpaceHeight()
+        val viewportHeight = (sheetHeight - getRouteDetailHandleHeight(bottomSheetView))
+            .coerceAtLeast(0)
+
+        if (scrollView.layoutParams.height != viewportHeight) {
+            scrollView.layoutParams = scrollView.layoutParams.apply {
+                height = viewportHeight
+                if (this is ConstraintLayout.LayoutParams) {
+                    verticalBias = 0f
+                }
+            }
+        }
+
+        if (bottomSpace != null && bottomSpace.layoutParams.height != baseBottomSpace) {
+            bottomSpace.layoutParams = bottomSpace.layoutParams.apply {
+                height = baseBottomSpace
+            }
+        }
 
         scrollView.setPadding(
             scrollView.paddingLeft,
             scrollView.paddingTop,
             scrollView.paddingRight,
-            bottomPadding
+            baseBottomPadding
+        )
+        logRouteDetailScrollState(
+            "scrollInset sheetHeight=$sheetHeight hidden=$hiddenSheetHeight viewport=$viewportHeight bottomPadding=$baseBottomPadding bottomSpace=$baseBottomSpace",
+            bottomSheetView
         )
     }
 
@@ -4661,31 +4869,19 @@ class RouteFragment : Fragment() {
         }
     }
 
-    private fun captureRouteDetailScrollRatio(bottomSheetView: View): Float? {
-        val scrollView = bottomSheetView.findViewById<View>(R.id.route_detail_scroll_view) ?: return null
-        val child = (scrollView as? ViewGroup)?.getChildAt(0) ?: return null
-        val maxScroll = (child.height - scrollView.height).coerceAtLeast(0)
-        if (maxScroll == 0) return null
-        return (scrollView.scrollY.toFloat() / maxScroll.toFloat()).coerceIn(0f, 1f)
-    }
-
-    private fun restorePendingRouteDetailScrollPosition(bottomSheetView: View) {
-        val ratio = pendingRouteDetailScrollRatio ?: return
-        pendingRouteDetailScrollRatio = null
-        val scrollView = bottomSheetView.findViewById<View>(R.id.route_detail_scroll_view) ?: return
-        bottomSheetView.post {
-            scrollView.post {
-                val child = (scrollView as? ViewGroup)?.getChildAt(0) ?: return@post
-                val maxScroll = (child.height - scrollView.height).coerceAtLeast(0)
-                val targetY = (maxScroll * ratio).toInt()
-                scrollView.scrollTo(0, targetY)
-            }
-        }
-    }
-
     private fun resetRouteDetailScrollPosition(bottomSheetView: View) {
-        pendingRouteDetailScrollRatio = null
         bottomSheetView.findViewById<View>(R.id.route_detail_scroll_view)?.scrollTo(0, 0)
+        logRouteDetailScrollState("resetScroll", bottomSheetView)
+    }
+
+    private fun logRouteDetailScrollState(source: String, bottomSheetView: View) {
+    }
+
+    private fun logRouteDetailStateMapping(
+        source: String,
+        bottomSheetView: View,
+        behavior: BottomSheetBehavior<View>
+    ) {
     }
 
     private fun createHandleTouchListener(
@@ -4767,7 +4963,35 @@ class RouteFragment : Fragment() {
         currentPlaceBottomSheetMode = PlaceBottomSheetMode.PLACE_DETAIL
         isBottomSheetHiddenByHandle = false
         setBottomSheetRestoreChipVisible(false)
-        val compactHeight = getLocationDetailCompactPeekHeight()
+        val parentHeight = (binding.bottomSheetContainer.parent as? View)?.height
+            ?: binding.bottomSheetContainer.height
+        val maxSheetHeight = (parentHeight * 0.85f).toInt().takeIf { it > 0 } ?: Int.MAX_VALUE
+        val detailFragment = childFragmentManager.findFragmentByTag("DETAIL")
+        val compactHeight = maxOf(
+            getLocationDetailCompactPeekHeight(),
+            (detailFragment as? LocationDetailCompactFragment)?.getRequiredSheetHeight() ?: 0
+        ).coerceAtMost(maxSheetHeight)
+        val detailRequiredHeight = (detailFragment as? LocationDetailFragment)?.getRequiredSheetHeight() ?: 0
+        val detailBaseHeight = if (parentHeight > 0) {
+            (parentHeight * PLACE_DETAIL_HALF_EXPANDED_RATIO).toInt()
+        } else {
+            getLocationDetailPeekHeight()
+        }
+        val detailHeight = maxOf(detailBaseHeight, detailRequiredHeight)
+            .coerceAtMost(maxSheetHeight)
+        val detailRatio = if (parentHeight > 0) {
+            (detailHeight.toFloat() / parentHeight.toFloat())
+                .coerceIn(PLACE_DETAIL_HALF_EXPANDED_RATIO, 0.85f)
+        } else {
+            PLACE_DETAIL_HALF_EXPANDED_RATIO
+        }
+        Log.d(
+            "PlaceDetailHeightTrace",
+            "apply mode=${if (isPlaceDetailCompact) "compact" else "photo"} " +
+                "parentH=$parentHeight maxSheetH=$maxSheetHeight compactH=$compactHeight " +
+                "detailRequiredH=$detailRequiredHeight detailBaseH=$detailBaseHeight " +
+                "detailH=$detailHeight detailRatio=$detailRatio"
+        )
         setBottomSheetContainerHeight(null)
         binding.bottomSheetContainer.visibility = View.VISIBLE
         bottomSheetBehavior.apply {
@@ -4779,9 +5003,25 @@ class RouteFragment : Fragment() {
                 state = BottomSheetBehavior.STATE_COLLAPSED
             } else {
                 peekHeight = getLocationDetailPeekHeight()
-                halfExpandedRatio = PLACE_DETAIL_HALF_EXPANDED_RATIO
-                expandedOffset = getScreenHeightPercentage(1f - PLACE_DETAIL_HALF_EXPANDED_RATIO)
+                halfExpandedRatio = detailRatio
+                expandedOffset = if (parentHeight > 0) {
+                    (parentHeight * (1f - detailRatio)).toInt()
+                } else {
+                    getScreenHeightPercentage(1f - detailRatio)
+                }
                 state = BottomSheetBehavior.STATE_HALF_EXPANDED
+            }
+        }
+    }
+
+    fun refreshPlaceDetailSheetHeight() {
+        if (!::bottomSheetBehavior.isInitialized) return
+        if (currentPlaceBottomSheetMode != PlaceBottomSheetMode.PLACE_DETAIL) return
+        if (isBottomSheetHiddenByHandle) return
+        binding.bottomSheetContainer.post {
+            if (_binding == null) return@post
+            if (currentPlaceBottomSheetMode == PlaceBottomSheetMode.PLACE_DETAIL && !isBottomSheetHiddenByHandle) {
+                applyPlaceDetailNormalState()
             }
         }
     }
@@ -5312,7 +5552,15 @@ class RouteFragment : Fragment() {
         realtimePollingJob?.cancel()
         currentRealtimeParams = params
 
-        binding.layoutRouteDetailOverlay.layoutRealtimeRefresh.visibility = View.VISIBLE
+        setRouteDetailRealtimeRefreshVisible(!isRouteDetailMinimized, animate = false)
+        binding.layoutRouteDetailOverlay.sheetRouteDetail.root.post {
+            val bottomSheetView = binding.layoutRouteDetailOverlay.sheetRouteDetail.root
+            logRouteDetailOverlayState(
+                "realtimeRefresh:visible params=${params.size}",
+                bottomSheetView,
+                BottomSheetBehavior.from(bottomSheetView)
+            )
+        }
 
         realtimePollingJob = viewLifecycleOwner.lifecycleScope.launch {
             while (true) {
@@ -5465,7 +5713,7 @@ class RouteFragment : Fragment() {
 
     private fun stopRealtimePolling() {
         realtimePollingJob?.cancel()
-        binding.layoutRouteDetailOverlay.layoutRealtimeRefresh.visibility = View.GONE
+        setRouteDetailRealtimeRefreshVisible(false, animate = false)
     }
 
     override fun onHiddenChanged(hidden: Boolean) {

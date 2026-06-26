@@ -21,10 +21,6 @@ object ScheduleItemStyleUtils {
         if (schedule.type == "ROUTE") return false
         if (schedule.isAllDay) return false
 
-        val startDate = runCatching { LocalDate.parse(schedule.startDate.take(10)) }.getOrNull()
-            ?: return false
-        if (startDate != now.toLocalDate()) return false
-
         val endDateTime = parseScheduleEndDateTime(schedule) ?: return false
         return endDateTime.isBefore(now)
     }

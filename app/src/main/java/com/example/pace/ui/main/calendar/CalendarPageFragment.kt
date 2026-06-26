@@ -1094,15 +1094,13 @@ class CalendarPageFragment: Fragment() {
     private fun getAllDatesForThisSchedule(schedule: Schedule): List<String> = allSchedules.filter { it.id == schedule.id }.map{ it.startDate }.distinct().sorted()
 
     private fun getDisplayDatesForSchedule(schedule: Schedule): List<String> {
-        return if (!schedule.repeatRule.isNullOrEmpty()) {
-            val start = runCatching { LocalDate.parse(schedule.startDate) }.getOrNull() ?: return listOf(schedule.startDate)
-            val end = runCatching { LocalDate.parse(schedule.endDate) }.getOrNull() ?: return listOf(schedule.startDate)
-            generateSequence(start) { current ->
-                current.plusDays(1).takeIf { !it.isAfter(end) }
-            }.map { it.toString() }.toList()
-        } else {
-            getAllDatesForThisSchedule(schedule)
-        }
+        val start = runCatching { LocalDate.parse(schedule.startDate) }.getOrNull()
+            ?: return listOf(schedule.startDate)
+        val end = runCatching { LocalDate.parse(schedule.endDate) }.getOrNull()
+            ?: return listOf(schedule.startDate)
+        return generateSequence(start) { current ->
+            current.plusDays(1).takeIf { !it.isAfter(end) }
+        }.map { it.toString() }.toList()
     }
 
     private fun getOccurrenceKey(schedule: Schedule): String {
