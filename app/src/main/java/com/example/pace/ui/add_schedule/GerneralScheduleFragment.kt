@@ -5,6 +5,8 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
+import android.text.Editable
+import android.text.TextWatcher
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -143,8 +145,8 @@ class GeneralScheduleFragment : Fragment() {
             // UI 반영: XML에 정의된 정확한 ID인 tv_location_status를 사용합니다.
             binding.tvLocationStatus.apply {
                 text = selectedPlaceName
-                setTextColor(ContextCompat.getColor(requireContext(), R.color.black))
             }
+            updateLocationFieldColor(!selectedPlaceName.isNullOrBlank())
 
             Toast.makeText(context, "장소 선택: $selectedPlaceName", Toast.LENGTH_SHORT).show()
         }
@@ -203,6 +205,7 @@ class GeneralScheduleFragment : Fragment() {
                     if (currentSelectedAlarms == null) {
                         currentSelectedAlarms = it.scheduleAlarms.toIntArray()
                         updateAlarmText(currentSelectedAlarms!!)
+                        updateReminderFieldColor(currentSelectedAlarms!!)
                     }
                     // 캘린더 초기화
                     if (currentSelectedCalendarId == null) {
@@ -467,6 +470,7 @@ class GeneralScheduleFragment : Fragment() {
         }
         binding.etScheduleName.onFocusChangeListener = null
         installInputProtection()
+        setupStatusIconColors()
 
         binding.viewColorDot.backgroundTintList = ColorStateList.valueOf(getSaveColorInt())
         val selectedColorForPalette = colorIntToHex(getSaveColorInt())
@@ -619,13 +623,13 @@ class GeneralScheduleFragment : Fragment() {
                         }
                         // 기간 시작점
                         date == startDate -> {
-                            textView.setTextColor(Color.WHITE)
+                            textView.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
                             textView.setBackgroundResource(R.drawable.drawable_circle_green)
                             root.setBackgroundResource(R.drawable.bg_calendar_range_start)
                         }
                         // 기간 종료점
                         date == endDate -> {
-                            textView.setTextColor(Color.WHITE)
+                            textView.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
                             textView.setBackgroundResource(R.drawable.drawable_circle_green)
                             root.setBackgroundResource(R.drawable.bg_calendar_range_end)
                         }
@@ -715,7 +719,6 @@ class GeneralScheduleFragment : Fragment() {
         setFragmentResultListener("repeatKey") { _, bundle ->
             val resultText = bundle.getString("selectedRepeat")
             binding.tvRepeatStatus.text = resultText
-            binding.tvRepeatStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.black))
 
             // RepeatInfo 객체가 넘어올 경우 저장
             currentRepeatInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -725,6 +728,7 @@ class GeneralScheduleFragment : Fragment() {
                 bundle.getSerializable("repeatInfo") as? RepeatInfo
             }
             isRepeatChanged = true
+            updateRepeatFieldColor(currentRepeatInfo != null)
         }
 
     }
@@ -1002,7 +1006,44 @@ class GeneralScheduleFragment : Fragment() {
 
     private fun updateReminderFieldColor(alarms: IntArray) {
         val colorRes = if (alarms.isEmpty()) R.color.text_tertiary else R.color.text_primary
-        binding.tvRemindStatus.setTextColor(ContextCompat.getColor(requireContext(), colorRes))
+        val color = ContextCompat.getColor(requireContext(), colorRes)
+        binding.tvRemindStatus.setTextColor(color)
+        binding.ivRemind.setColorFilter(color)
+    }
+
+    private fun setupStatusIconColors() {
+        binding.ivCalendar.setColorFilter(ContextCompat.getColor(requireContext(), R.color.text_primary))
+        updateRepeatFieldColor(currentRepeatInfo != null)
+        updateLocationFieldColor(!selectedPlaceName.isNullOrBlank())
+        updateReminderFieldColor(currentSelectedAlarms ?: intArrayOf())
+        updateMemoFieldColor(binding.etMemo.text?.toString().orEmpty())
+
+        binding.etMemo.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                updateMemoFieldColor(s?.toString().orEmpty())
+            }
+            override fun afterTextChanged(s: Editable?) = Unit
+        })
+    }
+
+    private fun updateRepeatFieldColor(hasRepeat: Boolean) {
+        val colorRes = if (hasRepeat) R.color.text_primary else R.color.text_tertiary
+        val color = ContextCompat.getColor(requireContext(), colorRes)
+        binding.tvRepeatStatus.setTextColor(color)
+        binding.ivRepeat.setColorFilter(color)
+    }
+
+    private fun updateLocationFieldColor(hasLocation: Boolean) {
+        val colorRes = if (hasLocation) R.color.text_primary else R.color.text_tertiary
+        val color = ContextCompat.getColor(requireContext(), colorRes)
+        binding.tvLocationStatus.setTextColor(color)
+        binding.ivLocation.setColorFilter(color)
+    }
+
+    private fun updateMemoFieldColor(memo: String) {
+        val colorRes = if (memo.isBlank()) R.color.text_tertiary else R.color.text_primary
+        binding.ivMemo.setColorFilter(ContextCompat.getColor(requireContext(), colorRes))
     }
 
     private fun shouldSuppressKeyboardDismiss(): Boolean {
@@ -1224,48 +1265,53 @@ class GeneralScheduleFragment : Fragment() {
         val date = day.date
         val textView = container.textView
         val root = container.rootLayout
+        val rangeLeft = container.rangeLeft
+        val rangeRight = container.rangeRight
 
         textView.background = null
         textView.backgroundTintList = null
         root.background = null
+        rangeLeft.visibility = View.GONE
+        rangeRight.visibility = View.GONE
 
         if (day.position != com.kizitonwose.calendar.core.DayPosition.MonthDate) {
             textView.setTextColor(Color.LTGRAY)
         } else {
-            val colorPrimary300 = androidx.core.content.ContextCompat.getColor(requireContext(), R.color.primary_300)
-            val verticalInset = (8 * resources.displayMetrics.density).toInt()
+            val selectedColor = ContextCompat.getColor(requireContext(), R.color.semantic_info)
 
             when {
                 // [CASE 1] 시작일과 종료일이 모두 선택되었고, 두 날짜가 서로 다를 때만 막대 표시
                 startDate != null && endDate != null && startDate != endDate -> {
                     when (date) {
                         startDate -> {
-                            textView.setBackgroundResource(R.drawable.bg_calendar_start)
-                            textView.backgroundTintList = ColorStateList.valueOf(colorPrimary300)
-                            val startBg = androidx.core.content.ContextCompat.getDrawable(requireContext(), R.drawable.bg_calendar_range_start)
-                            root.background = android.graphics.drawable.InsetDrawable(startBg, 0, verticalInset, 0, verticalInset)
+                            textView.setBackgroundResource(R.drawable.drawable_circle_green)
+                            textView.backgroundTintList = ColorStateList.valueOf(selectedColor)
+                            textView.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
+                            rangeRight.visibility = View.VISIBLE
                         }
                         endDate -> {
-                            textView.setBackgroundResource(R.drawable.bg_calendar_end)
-                            textView.backgroundTintList = ColorStateList.valueOf(colorPrimary300)
-                            val endBg = androidx.core.content.ContextCompat.getDrawable(requireContext(), R.drawable.bg_calendar_range_end)
-                            root.background = android.graphics.drawable.InsetDrawable(endBg, 0, verticalInset, 0, verticalInset)
+                            textView.setBackgroundResource(R.drawable.drawable_circle_green)
+                            textView.backgroundTintList = ColorStateList.valueOf(selectedColor)
+                            textView.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
+                            rangeLeft.visibility = View.VISIBLE
                         }
                         else -> {
                             if (date.isAfter(startDate) && date.isBefore(endDate)) {
-                                val middleBg = androidx.core.content.ContextCompat.getDrawable(requireContext(), R.drawable.bg_calendar_range_middle)
-                                root.background = android.graphics.drawable.InsetDrawable(middleBg, 0, verticalInset, 0, verticalInset)
+                                textView.setTextColor(selectedColor)
+                                rangeLeft.visibility = View.VISIBLE
+                                rangeRight.visibility = View.VISIBLE
+                            } else {
+                                textView.setTextColor(getCalendarDateTextColor(date))
                             }
                         }
                     }
-                    textView.setTextColor(getCalendarDateTextColor(date))
                 }
 
                 // [CASE 2] 시작일만 선택되었거나, 시작일과 종료일이 같은 날짜일 때 (원만 표시)
                 date == startDate || date == endDate -> {
-                    textView.setTextColor(getCalendarDateTextColor(date))
+                    textView.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
                     textView.setBackgroundResource(R.drawable.drawable_circle_green)
-                    textView.backgroundTintList = ColorStateList.valueOf(colorPrimary300)
+                    textView.backgroundTintList = ColorStateList.valueOf(selectedColor)
                     root.background = null // 막대 제거
                 }
 
@@ -1542,12 +1588,12 @@ class GeneralScheduleFragment : Fragment() {
 
                     if (currentRepeatInfo != null) {
                         binding.tvRepeatStatus.text = viewModel.getRepeatDescription(currentRepeatInfo)
-                        binding.tvRepeatStatus.setTextColor(Color.BLACK)
+                        updateRepeatFieldColor(true)
                     }
                 } else {
                     currentRepeatInfo = null
                     binding.tvRepeatStatus.text = "반복 안 함"
-                    binding.tvRepeatStatus.setTextColor(Color.LTGRAY)
+                    updateRepeatFieldColor(false)
                 }
 
                 // 5. 장소 정보 복원 (Pace 전용 JSON 우선, 없으면 일반 location 텍스트)
@@ -1564,21 +1610,21 @@ class GeneralScheduleFragment : Fragment() {
                         } else {
                             s.location ?: "장소 정보 없음"
                         }
-                        binding.tvLocationStatus.setTextColor(Color.BLACK)
+                        updateLocationFieldColor(true)
                     } catch (e: Exception) {
                         // 파싱 실패 시 일반 텍스트로라도 보여줌
                         binding.tvLocationStatus.text = s.location ?: "장소 정보 없음"
-                        binding.tvLocationStatus.setTextColor(Color.BLACK)
+                        updateLocationFieldColor(true)
                     }
                 } else if (!s.location.isNullOrEmpty()) {
                     // 구글 캘린더 등 외부에서 온 일반 장소 텍스트만 있는 경우
                     selectedPlaceName = s.location
                     binding.tvLocationStatus.text = s.location
-                    binding.tvLocationStatus.setTextColor(Color.BLACK)
+                    updateLocationFieldColor(true)
                 } else {
                     // 둘 다 없는 경우
                     binding.tvLocationStatus.text = "장소를 선택해 주세요"
-                    binding.tvLocationStatus.setTextColor(Color.LTGRAY)
+                    updateLocationFieldColor(false)
                 }
 
                 // 6. 색상 및 알람
@@ -1686,6 +1732,8 @@ class GeneralScheduleFragment : Fragment() {
 class DayViewContainer(view: View, val onDateSelected: (LocalDate) -> Unit) : com.kizitonwose.calendar.view.ViewContainer(view) {
     val rootLayout: androidx.constraintlayout.widget.ConstraintLayout = view.findViewById(R.id.root_layout)
     val textView: android.widget.TextView = view.findViewById(R.id.calendarDayText)
+    val rangeLeft: View = view.findViewById(R.id.rangeLeft)
+    val rangeRight: View = view.findViewById(R.id.rangeRight)
 
     // date를 여기서 초기화하지 말고, 클릭 시점에 bind된 값을 사용하게 합니다.
     var currentDay: CalendarDay? = null

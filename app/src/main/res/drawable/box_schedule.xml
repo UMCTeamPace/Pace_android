@@ -3,7 +3,7 @@
     android:inset="2dp">
     <shape>
         <solid android:color="@color/white"/>
-        <corners android:radius="8dp"/>
+        <corners android:radius="2dp"/>
         <size android:height="36dp"/>
     </shape>
 </inset>

@@ -43,8 +43,7 @@
                         android:layout_width="16dp"
                         android:layout_height="16dp"
                         android:background="@drawable/circle_schedulecolor"
-                        android:backgroundTint="@color/schedule_5"
-                        android:padding="8dp" />
+                        android:backgroundTint="@color/schedule_5" />
 
                     <EditText
                         android:id="@+id/et_schedule_name"
@@ -100,9 +99,10 @@
 
                         <ImageView
                             android:id="@+id/btn_all_day"
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
-                            android:src="@drawable/ic_time" />
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_time"
+                            app:tint="@color/text_primary" />
 
                         <TextView
                             android:layout_width="match_parent"
@@ -207,6 +207,7 @@
                             android:id="@+id/tv_current_month"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:layout_marginStart="4dp"
                             android:text="2026년 2월"
                             android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
                             android:textColor="@color/text_primary" />
@@ -234,12 +235,16 @@
 
                     <include
                         android:id="@+id/legendLayout"
-                        layout="@layout/layout_calendar_day_legend_add_schedule" />
+                        layout="@layout/layout_calendar_day_legend_add_schedule"
+                        android:layout_marginStart="-11dp"
+                        android:layout_marginEnd="-11dp" />
 
                     <com.kizitonwose.calendar.view.CalendarView
                         android:id="@+id/calendarPicker"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginStart="-11dp"
+                        android:layout_marginEnd="-11dp"
                         app:cv_dayViewResource="@layout/item_calendar_day_addschedule" />
                 </LinearLayout>
 
@@ -303,11 +308,12 @@
                         android:gravity="center_vertical"
                         android:orientation="horizontal">
 
-                        <ImageView
-                            android:id="@+id/route_iv"
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
-                            android:src="@drawable/ic_route_unselected" />
+                    <ImageView
+                        android:id="@+id/route_iv"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_add_schedule_route_16"
+                        app:tint="@color/text_tertiary" />
 
                         <TextView
                             android:id="@+id/route_tv"
@@ -437,9 +443,11 @@
                     android:orientation="horizontal">
 
                     <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:src="@drawable/ic_alarm_schedule" />
+                        android:id="@+id/iv_alarm"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_alarm_schedule"
+                        app:tint="@color/text_tertiary" />
 
                     <TextView
                         android:id="@+id/tv_alarm_status"
@@ -468,9 +476,11 @@
                     android:orientation="horizontal">
 
                     <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:src="@drawable/ic_alarm_started" />
+                        android:id="@+id/iv_start_alarm"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_alarm_started"
+                        app:tint="@color/text_tertiary" />
 
                     <TextView
                         android:id="@+id/tv_startalarm_status"
@@ -497,9 +507,12 @@
                 android:paddingHorizontal="24dp">
 
                     <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:src="@drawable/ic_memo" />
+                        android:id="@+id/iv_memo"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_marginTop="2dp"
+                        android:src="@drawable/ic_memo"
+                        app:tint="@color/text_tertiary" />
 
                 <EditText
                     android:id="@+id/et_memo"
@@ -536,9 +549,10 @@
 
                     <ImageView
                         android:id="@+id/iv_calendar"
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:src="@drawable/ic_day_unselected" />
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_day_unselected"
+                        app:tint="@color/text_primary" />
 
                     <TextView
                         android:id="@+id/tv_calendar_status"
