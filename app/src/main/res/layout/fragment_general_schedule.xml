@@ -96,9 +96,10 @@
                         android:gravity="center_vertical"
                         android:orientation="horizontal">
                         <ImageView
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
-                            android:src="@drawable/ic_time" />
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_time"
+                            app:tint="@color/text_primary" />
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -163,7 +164,7 @@
                     android:visibility="visible">
 
                     <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingHorizontal="4dp">
-                        <TextView android:id="@+id/tv_current_month" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="2026년 2월" android:textAppearance="@style/TextAppearance.App.BodySm.Regular" android:textColor="@color/text_primary" />
+                        <TextView android:id="@+id/tv_current_month" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:text="2026년 2월" android:textAppearance="@style/TextAppearance.App.BodySm.Regular" android:textColor="@color/text_primary" />
                         <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true">
                             <ImageButton android:id="@+id/btn_prev_month" android:layout_width="32dp" android:layout_height="32dp" android:background="?attr/selectableItemBackgroundBorderless" android:src="@drawable/ic_arrow_opened" />
                             <ImageButton android:id="@+id/btn_next_month" android:layout_width="32dp" android:layout_height="32dp" android:background="?attr/selectableItemBackgroundBorderless" android:src="@drawable/ic_arrow_closed" />
@@ -172,11 +173,15 @@
 
                     <include
                         android:id="@+id/legendLayout"
-                        layout="@layout/layout_calendar_day_legend_add_schedule" />
+                        layout="@layout/layout_calendar_day_legend_add_schedule"
+                        android:layout_marginStart="-11dp"
+                        android:layout_marginEnd="-11dp" />
                     <com.kizitonwose.calendar.view.CalendarView
                         android:id="@+id/calendarPicker"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginStart="-11dp"
+                        android:layout_marginEnd="-11dp"
                         app:cv_dayViewResource="@layout/item_calendar_day_addschedule" />
                 </LinearLayout>
 
@@ -199,7 +204,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:gravity="center_vertical">
-                    <ImageView android:layout_width="16dp" android:layout_height="16dp" android:src="@drawable/ic_arrow_change" />
+                    <ImageView android:id="@+id/iv_repeat" android:layout_width="16dp" android:layout_height="16dp" android:src="@drawable/ic_add_schedule_repeat_16" app:tint="@color/text_tertiary" />
                     <TextView android:id="@+id/tv_repeat_status" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:layout_weight="1" android:ellipsize="end" android:maxLines="1" android:text="반복 안함" android:textAppearance="@style/TextAppearance.App.BodySm.Regular" android:textColor="@color/text_tertiary"/>
                 </LinearLayout>
             </LinearLayout>
@@ -213,7 +218,7 @@
                 android:paddingVertical="16dp"
                 android:paddingHorizontal="24dp">
                 <LinearLayout android:id="@+id/btn_route" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
-                    <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_route_unselected" />
+                    <ImageView android:id="@+id/iv_location" android:layout_width="16dp" android:layout_height="16dp" android:src="@drawable/ic_add_schedule_route_16" app:tint="@color/text_tertiary" />
                     <TextView android:id="@+id/tv_location_status" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_weight="1" android:ellipsize="end" android:maxLines="1" android:text="장소" android:textAppearance="@style/TextAppearance.App.BodySm.Regular" android:textColor="@color/text_tertiary"/>
                 </LinearLayout>
             </LinearLayout>
@@ -227,7 +232,7 @@
                 android:paddingVertical="16dp"
                 android:paddingHorizontal="24dp">
                 <LinearLayout android:id="@+id/btn_remindalarm" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
-                    <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_alarm_schedule" />
+                    <ImageView android:id="@+id/iv_remind" android:layout_width="16dp" android:layout_height="16dp" android:src="@drawable/ic_alarm_schedule" app:tint="@color/text_tertiary" />
                     <TextView android:id="@+id/tv_remind_status" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_weight="1" android:ellipsize="end" android:maxLines="1" android:text="일정 알림 안함" android:textAppearance="@style/TextAppearance.App.BodySm.Regular" android:textColor="@color/text_tertiary"/>
                 </LinearLayout>
             </LinearLayout>
@@ -243,10 +248,12 @@
                 android:paddingHorizontal="24dp">
 
                 <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
+                    android:id="@+id/iv_memo"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
                     android:layout_marginTop="2dp"
-                    android:src="@drawable/ic_memo" />
+                    android:src="@drawable/ic_memo"
+                    app:tint="@color/text_tertiary" />
 
 
                 <EditText
@@ -275,7 +282,7 @@
                 android:paddingVertical="16dp"
                 android:paddingHorizontal="24dp">
                 <LinearLayout android:id="@+id/btn_calendar" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
-                    <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_day_unselected" />
+                    <ImageView android:id="@+id/iv_calendar" android:layout_width="16dp" android:layout_height="16dp" android:src="@drawable/ic_day_unselected" app:tint="@color/text_primary" />
                     <TextView android:id="@+id/tv_calendar_status" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_weight="1" android:ellipsize="end" android:maxLines="1" android:text="캘린더" android:textAppearance="@style/TextAppearance.App.BodySm.Regular" android:textColor="@color/text_tertiary"/>
                 </LinearLayout>
             </LinearLayout>

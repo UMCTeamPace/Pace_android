@@ -9,6 +9,8 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -364,6 +366,7 @@ class RouteScheduleFragment : Fragment() {
             if (resultMinutes != null) {
                 currentSelectedStartAlarms = resultMinutes
                 updateDepartureAlarmText(resultMinutes)
+                updateDepartureAlarmFieldColor(resultMinutes)
             }
         }
 
@@ -471,6 +474,8 @@ class RouteScheduleFragment : Fragment() {
                     textView.setTextColor(Color.LTGRAY)
                     textView.background = null
                     root.background = null
+                    container.rangeLeft.visibility = View.GONE
+                    container.rangeRight.visibility = View.GONE
                     // 범위를 벗어난 날짜는 클릭 리스너를 무효화하거나 처리하지 않음
                     container.view.isEnabled = false // 클릭 방지
                     container.view.alpha = 0.4f     // 비활성화 시각화
@@ -482,19 +487,19 @@ class RouteScheduleFragment : Fragment() {
                     when {
                         // 시작일/종료일 동일 (원형)
                         date == startDate && (endDate == null || endDate == startDate) -> {
-                            textView.setTextColor(Color.WHITE)
+                            textView.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
                             textView.setBackgroundResource(R.drawable.drawable_circle_green)
                             root.background = null
                         }
                         // 기간 시작점
                         date == startDate -> {
-                            textView.setTextColor(Color.WHITE)
+                            textView.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
                             textView.setBackgroundResource(R.drawable.drawable_circle_green)
                             root.setBackgroundResource(R.drawable.bg_calendar_range_start)
                         }
                         // 기간 종료점
                         date == endDate -> {
-                            textView.setTextColor(Color.WHITE)
+                            textView.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
                             textView.setBackgroundResource(R.drawable.drawable_circle_green)
                             root.setBackgroundResource(R.drawable.bg_calendar_range_end)
                         }
@@ -699,6 +704,7 @@ class RouteScheduleFragment : Fragment() {
             handleExitAttempt()
         }
         installInputProtection()
+        setupStatusIconColors()
 
         setupKeyboardVisibilityListener()
 
@@ -752,7 +758,8 @@ class RouteScheduleFragment : Fragment() {
             val result = bundle.getString("selectedAlarm")
             result?.let {
                 binding.tvAlarmStatus.text = it
-                binding.tvAlarmStatus.setTextColor(Color.BLACK)
+                val hasAlarm = it != "알림 안함" && it != "일정 알림 안함"
+                updateRouteAlarmFieldColor(if (hasAlarm) intArrayOf(0) else intArrayOf())
             }
         }
 
@@ -1402,12 +1409,43 @@ class RouteScheduleFragment : Fragment() {
 
     private fun updateRouteAlarmFieldColor(alarms: IntArray) {
         val colorRes = if (alarms.isEmpty()) R.color.text_tertiary else R.color.text_primary
-        binding.tvAlarmStatus.setTextColor(ContextCompat.getColor(requireContext(), colorRes))
+        val color = ContextCompat.getColor(requireContext(), colorRes)
+        binding.tvAlarmStatus.setTextColor(color)
+        binding.ivAlarm.setColorFilter(color)
     }
 
     private fun updateCalendarFieldColor() {
-        val color = ContextCompat.getColor(requireContext(), R.color.black)
+        val color = ContextCompat.getColor(requireContext(), R.color.text_primary)
         binding.tvCalendarStatus.setTextColor(color)
+        binding.ivCalendar.setColorFilter(color)
+    }
+
+    private fun setupStatusIconColors() {
+        updateRouteFieldColor(lastRouteJson != null || lastDestName != null)
+        updateRouteAlarmFieldColor(currentSelectedAlarms ?: intArrayOf())
+        updateDepartureAlarmFieldColor(currentSelectedStartAlarms ?: intArrayOf())
+        updateCalendarFieldColor()
+        updateMemoFieldColor(binding.etMemo.text?.toString().orEmpty())
+
+        binding.etMemo.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                updateMemoFieldColor(s?.toString().orEmpty())
+            }
+            override fun afterTextChanged(s: Editable?) = Unit
+        })
+    }
+
+    private fun updateMemoFieldColor(memo: String) {
+        val colorRes = if (memo.isBlank()) R.color.text_tertiary else R.color.text_primary
+        binding.ivMemo.setColorFilter(ContextCompat.getColor(requireContext(), colorRes))
+    }
+
+    private fun updateDepartureAlarmFieldColor(alarms: IntArray) {
+        val colorRes = if (alarms.isEmpty()) R.color.text_tertiary else R.color.text_primary
+        val color = ContextCompat.getColor(requireContext(), colorRes)
+        binding.tvStartalarmStatus.setTextColor(color)
+        binding.ivStartAlarm.setColorFilter(color)
     }
 
     private fun observeRouteScheduleCount() {
@@ -1871,6 +1909,7 @@ class RouteScheduleFragment : Fragment() {
             if (currentSelectedStartAlarms == null) {
                 currentSelectedStartAlarms = settings.departureAlarms.toIntArray()
                 updateDepartureAlarmText(currentSelectedStartAlarms!!)
+                updateDepartureAlarmFieldColor(currentSelectedStartAlarms!!)
                 Log.d("ROUTE_INIT", "온보딩 값 로드: ${currentSelectedStartAlarms?.contentToString()}")
             }
 
@@ -1910,17 +1949,20 @@ class RouteScheduleFragment : Fragment() {
         val date = day.date
         val textView = container.textView
         val root = container.rootLayout
+        val rangeLeft = container.rangeLeft
+        val rangeRight = container.rangeRight
 
         textView.background = null
         textView.backgroundTintList = null
         root.background = null
+        rangeLeft.visibility = View.GONE
+        rangeRight.visibility = View.GONE
 
         if (day.position != com.kizitonwose.calendar.core.DayPosition.MonthDate) {
             textView.setTextColor(Color.LTGRAY)
         } else {
-            val colorPrimary300 =
-                androidx.core.content.ContextCompat.getColor(requireContext(), R.color.primary_300)
-            val verticalInset = (8 * resources.displayMetrics.density).toInt()
+            val selectedColor =
+                ContextCompat.getColor(requireContext(), R.color.semantic_info)
 
             when {
                 // [CASE 1] 시작일과 종료일이 모두 선택되었고, 두 날짜가 서로 다를 때만 막대 표시
@@ -1928,60 +1970,35 @@ class RouteScheduleFragment : Fragment() {
                     when (date) {
                         startDate -> {
                             textView.setBackgroundResource(R.drawable.drawable_circle_green)
-                            textView.backgroundTintList = ColorStateList.valueOf(colorPrimary300)
-                            val startBg = androidx.core.content.ContextCompat.getDrawable(
-                                requireContext(),
-                                R.drawable.bg_calendar_range_start
-                            )
-                            root.background = android.graphics.drawable.InsetDrawable(
-                                startBg,
-                                0,
-                                verticalInset,
-                                0,
-                                verticalInset
-                            )
+                            textView.backgroundTintList = ColorStateList.valueOf(selectedColor)
+                            textView.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
+                            rangeRight.visibility = View.VISIBLE
                         }
 
                         endDate -> {
                             textView.setBackgroundResource(R.drawable.drawable_circle_green)
-                            textView.backgroundTintList = ColorStateList.valueOf(colorPrimary300)
-                            val endBg = androidx.core.content.ContextCompat.getDrawable(
-                                requireContext(),
-                                R.drawable.bg_calendar_range_end
-                            )
-                            root.background = android.graphics.drawable.InsetDrawable(
-                                endBg,
-                                0,
-                                verticalInset,
-                                0,
-                                verticalInset
-                            )
+                            textView.backgroundTintList = ColorStateList.valueOf(selectedColor)
+                            textView.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
+                            rangeLeft.visibility = View.VISIBLE
                         }
 
                         else -> {
                             if (date.isAfter(startDate) && date.isBefore(endDate)) {
-                                val middleBg = androidx.core.content.ContextCompat.getDrawable(
-                                    requireContext(),
-                                    R.drawable.bg_calendar_range_middle
-                                )
-                                root.background = android.graphics.drawable.InsetDrawable(
-                                    middleBg,
-                                    0,
-                                    verticalInset,
-                                    0,
-                                    verticalInset
-                                )
+                                textView.setTextColor(selectedColor)
+                                rangeLeft.visibility = View.VISIBLE
+                                rangeRight.visibility = View.VISIBLE
+                            } else {
+                                textView.setTextColor(getCalendarDateTextColor(date))
                             }
                         }
                     }
-                    textView.setTextColor(getCalendarDateTextColor(date))
                 }
 
                 // [CASE 2] 시작일만 선택되었거나, 시작일과 종료일이 같은 날짜일 때 (원만 표시)
                 date == startDate || date == endDate -> {
-                    textView.setTextColor(getCalendarDateTextColor(date))
+                    textView.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
                     textView.setBackgroundResource(R.drawable.drawable_circle_green)
-                    textView.backgroundTintList = ColorStateList.valueOf(colorPrimary300)
+                    textView.backgroundTintList = ColorStateList.valueOf(selectedColor)
                     root.background = null // 막대 제거
                 }
 
@@ -2030,7 +2047,7 @@ class RouteScheduleFragment : Fragment() {
     private fun updateDepartureAlarmText(minutesArray: IntArray) {
         if (minutesArray.isEmpty()) {
             binding.tvStartalarmStatus.text = "출발 알림 안함"
-            binding.tvStartalarmStatus.setTextColor(requireContext().getColor(R.color.gray_500))
+            updateDepartureAlarmFieldColor(minutesArray)
             return
         }
         val texts = minutesArray.sorted().map { minutes ->
@@ -2041,7 +2058,7 @@ class RouteScheduleFragment : Fragment() {
         } else {
             "출발 ${texts.joinToString(", ")}"
         }
-        binding.tvStartalarmStatus.setTextColor(Color.BLACK) // 선택되면 검정색으로 변경
+        updateDepartureAlarmFieldColor(minutesArray)
     }
 
     private fun applyCalendarColor(calendarId: Long?) {
