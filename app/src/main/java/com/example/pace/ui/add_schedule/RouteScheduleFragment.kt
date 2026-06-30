@@ -1091,6 +1091,26 @@ class RouteScheduleFragment : Fragment() {
                         "${data.transitDetail.departureStop} 승차"
 
                     binding.routeVehicleLl.addView(vehicleBinding.root)
+
+                    if (index == route.routeDetails.size - 1) {
+                        val arrivalBinding = ItemRouteVehicleBinding.inflate(
+                            LayoutInflater.from(context),
+                            binding.routeVehicleLl,
+                            false
+                        )
+                        arrivalBinding.itemRouteVehicleIv.setImageResource(R.drawable.ic_route_item_arrival_icon)
+                        arrivalBinding.itemRouteVehicleLineTv.text = "도착"
+                        arrivalBinding.itemRouteVehicleLineTv.setTextColor(
+                            ContextCompat.getColor(
+                                context,
+                                R.color.black
+                            )
+                        )
+                        arrivalBinding.itemRouteVehicleView.visibility = View.GONE
+                        arrivalBinding.itemRouteVehicleTv.text = endName
+
+                        binding.routeVehicleLl.addView(arrivalBinding.root)
+                    }
                 }
 
                 // 상단 바(Brief) 뷰 추가 (Weight 적용)

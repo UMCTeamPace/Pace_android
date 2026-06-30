@@ -353,11 +353,13 @@ class RouteFragment : Fragment() {
 
         // 일정 모드 UI 세팅
         binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.VISIBLE
-        scheduleName = scheduleInfo.title ?: "일정 없음"
+        scheduleName = scheduleInfo.title.takeIf { it.isNotBlank() } ?: "일정명"
         val rawTime = scheduleInfo.startTime ?: "00:00:00"
+        val rawEndTime = scheduleInfo.endTime ?: rawTime
         scheduleTime = if (rawTime.length >= 5) rawTime.take(5) else rawTime
+        scheduleEndTime = if (rawEndTime.length >= 5) rawEndTime.take(5) else rawEndTime
         binding.layoutRouteDetailOverlay.tvScheduleRouteDetailName.text = scheduleName
-        binding.layoutRouteDetailOverlay.tvScheduleRouteDetailTime.text = scheduleTime
+        binding.layoutRouteDetailOverlay.tvScheduleRouteDetailTime.text = "$scheduleTime - $scheduleEndTime"
 
         try {
             // 2. 데이터 파싱
@@ -1647,7 +1649,7 @@ class RouteFragment : Fragment() {
 
             val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
             binding.layoutRouteDetailOverlay.root.visibility = View.VISIBLE
-            binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.VISIBLE
+            binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.GONE
             binding.layoutRouteDetailOverlay.btnRouteDetailBackDetail.visibility = View.VISIBLE
             binding.layoutRouteDetailOverlay.layoutRouteSelectContainer.visibility = View.VISIBLE
             binding.layoutRouteDetailOverlay.bottomSheetRouteDetail.visibility = View.VISIBLE
@@ -1657,11 +1659,7 @@ class RouteFragment : Fragment() {
                 onRouteSelectedFinal(item)
             }
 
-            if(currentEntryMode == EntryMode.SCHEDULE_ROUTE){
-                binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.VISIBLE
-            }else{
-                binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.GONE
-            }
+            binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.GONE
             try {
                 val colorInt = Color.parseColor(scheduleColor)
 
@@ -4504,12 +4502,28 @@ class RouteFragment : Fragment() {
             .coerceAtLeast(getRouteDetailPeekHeight())
             .coerceAtMost(parentHeight)
         return (parentHeight - requiredSheetHeight)
-            .coerceAtLeast(getRouteDetailExpandedMinTop())
+            .coerceAtLeast(getRouteDetailExpandedLimitTop(bottomSheetView))
             .coerceIn(0, parentHeight)
     }
 
     private fun getRouteDetailExpandedMinTop(): Int {
         return (32 * resources.displayMetrics.density).toInt()
+    }
+
+    private fun getRouteDetailExpandedLimitTop(bottomSheetView: View): Int {
+        val parent = bottomSheetView.parent as? View ?: return getRouteDetailExpandedMinTop()
+        val avoidBottom = getRouteDetailTopAvoidBottomOnScreen() ?: return getRouteDetailExpandedMinTop()
+        val mapFragment = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+        val button = mapFragment?.view?.findViewById<View>(R.id.btn_go_my_location)
+            ?: return getRouteDetailExpandedMinTop()
+        val buttonLocation = IntArray(2)
+        button.getLocationOnScreen(buttonLocation)
+        val baseButtonTop = buttonLocation[1] - button.translationY
+        val maxButtonOffset = (baseButtonTop - avoidBottom - getRouteDetailOverlayGapPx())
+            .coerceAtLeast(0f)
+        return (parent.height - maxButtonOffset.toInt())
+            .coerceIn(0, parent.height.takeIf { it > 0 } ?: Int.MAX_VALUE)
+            .coerceAtLeast(getRouteDetailExpandedMinTop())
     }
 
     private fun getRouteDetailNormalTop(parentHeight: Int): Int {
@@ -4681,10 +4695,10 @@ class RouteFragment : Fragment() {
     private fun updateRouteDetailMapOverlayBySheet(bottomSheetView: View) {
         val parentHeight = (bottomSheetView.parent as? View)?.height ?: return
         val rawTop = (bottomSheetView.top + bottomSheetView.translationY).toInt()
-        val minValidTop = getRouteDetailExpandedMinTop()
+        val minValidTop = getRouteDetailExpandedLimitTop(bottomSheetView)
         val currentTop = if (rawTop < minValidTop) {
             val fallbackTop = lastValidRouteDetailOverlayTop ?: minValidTop
-            fallbackTop
+            fallbackTop.coerceAtLeast(minValidTop)
         } else {
             rawTop.also { lastValidRouteDetailOverlayTop = it }
         }
@@ -4730,7 +4744,6 @@ class RouteFragment : Fragment() {
     }
 
     private fun getRouteDetailCappedMapPadding(rawPadding: Int): Int {
-        if (currentRouteDetailSheetMode != RouteDetailSheetMode.SEARCH_RESULT) return rawPadding
         val avoidBottom = getRouteDetailTopAvoidBottomOnScreen() ?: return rawPadding
         val mapView = binding.routeMapFcv
         val mapLocation = IntArray(2)

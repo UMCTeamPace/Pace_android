@@ -113,6 +113,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
+        android:gravity="center_vertical"
         android:clickable="true"
         android:paddingBottom="17dp"
         android:layout_marginTop="12dp"
@@ -137,8 +138,7 @@
             android:id="@+id/item_route_detail_vehicle_arrow_down_iv"
             android:layout_width="12dp"
             android:layout_height="12dp"
-            android:src="@drawable/ic_arrow_down"
-            android:layout_marginTop="3dp"
+            android:src="@drawable/ic_route_detail_arrow_down"
             android:layout_marginStart="3dp" />
     </LinearLayout>
     <androidx.recyclerview.widget.RecyclerView

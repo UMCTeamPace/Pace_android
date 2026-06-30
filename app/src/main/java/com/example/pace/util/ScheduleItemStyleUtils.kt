@@ -21,6 +21,9 @@ object ScheduleItemStyleUtils {
         if (schedule.type == "ROUTE") return false
         if (schedule.isAllDay) return false
 
+        val endDate = parseScheduleEndDate(schedule) ?: return false
+        if (endDate != now.toLocalDate()) return false
+
         val endDateTime = parseScheduleEndDateTime(schedule) ?: return false
         return endDateTime.isBefore(now)
     }
@@ -73,6 +76,7 @@ object ScheduleItemStyleUtils {
             .asSequence()
             .filterNot { it.type == "ROUTE" }
             .filterNot { it.isAllDay }
+            .filter { parseScheduleEndDate(it) == now.toLocalDate() }
             .mapNotNull(::parseScheduleEndDateTime)
             .filter { !it.isBefore(now) }
             .minOrNull()
@@ -83,10 +87,13 @@ object ScheduleItemStyleUtils {
     }
 
     private fun parseScheduleEndDateTime(schedule: Schedule): LocalDateTime? {
-        val endDate = runCatching { LocalDate.parse(schedule.endDate.take(10)) }.getOrNull()
-            ?: return null
+        val endDate = parseScheduleEndDate(schedule) ?: return null
         val endTime = parseTime(schedule.endTime) ?: return null
         return LocalDateTime.of(endDate, endTime)
+    }
+
+    private fun parseScheduleEndDate(schedule: Schedule): LocalDate? {
+        return runCatching { LocalDate.parse(schedule.endDate.take(10)) }.getOrNull()
     }
 
     private fun parseTime(value: String): LocalTime? {
