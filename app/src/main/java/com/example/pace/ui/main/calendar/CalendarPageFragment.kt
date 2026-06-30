@@ -913,7 +913,7 @@ class CalendarPageFragment: Fragment() {
                         else{
                             // 장기 일정 바인딩
                             val binding = ItemMonthViewMultipleDaysBinding.inflate(layoutInflater)
-                            binding.itemMonthViewMultipleDays.backgroundTintList = setBackgroundTintByScheduleColor(schedule)
+                            binding.itemMonthViewMultipleDays.backgroundTintList = setPeriodBackgroundTintByScheduleColor(schedule)
                             binding.itemMonthViewMultipleDays.setBackgroundResource(when{
                                 isStart -> R.drawable.bg_item_month_view_first
                                 isEnd -> R.drawable.bg_item_month_view_last
@@ -996,7 +996,7 @@ class CalendarPageFragment: Fragment() {
                         else{
                             // 장기 일정 바인딩
                             val binding = ItemWeekViewBinding.inflate(layoutInflater)
-                            binding.itemWeekTv.backgroundTintList = setBackgroundTintByScheduleColor(schedule)
+                            binding.itemWeekTv.backgroundTintList = setPeriodBackgroundTintByScheduleColor(schedule)
                             binding.itemWeekTv.setBackgroundResource(when{
                                 isStart -> R.drawable.bg_item_week_view_first
                                 isEnd -> R.drawable.bg_item_week_view_last
@@ -1205,6 +1205,11 @@ class CalendarPageFragment: Fragment() {
             schedule.calendarColor != null && schedule.calendarColor != 0 -> ColorStateList.valueOf(schedule.calendarColor)
             else -> ColorStateList.valueOf(Color.parseColor("#A2BD3B"))
         }
+    }
+
+    private fun setPeriodBackgroundTintByScheduleColor(schedule: Schedule): ColorStateList {
+        val color = setBackgroundTintByScheduleColor(schedule).defaultColor
+        return ColorStateList.valueOf(Color.argb(128, Color.red(color), Color.green(color), Color.blue(color)))
     }
     // 화면에 표시할 아이템 개수 설정
     private fun setPageItemNumber(sortedEvents: List<Schedule>):Int = if(sortedEvents.size > 4) 3 else 4

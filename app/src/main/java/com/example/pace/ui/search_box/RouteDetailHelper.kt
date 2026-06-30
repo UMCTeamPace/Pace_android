@@ -242,12 +242,12 @@ object RouteDetailHelper {
                     }else{
                         expandedVehicleBinding.itemRouteDetailVehicleStationsLl.setOnClickListener {
                             if(moreStation){
-                                expandedVehicleBinding.itemRouteDetailVehicleArrowDownIv.setImageResource(R.drawable.ic_arrow_down)
+                                expandedVehicleBinding.itemRouteDetailVehicleArrowDownIv.setImageResource(R.drawable.ic_route_detail_arrow_down)
                                 expandedVehicleBinding.itemRouteDetailVehicleRv.visibility = View.GONE
                                 expandedVehicleBinding.itemRouteDetailVehicleStationsLl.setPadding(0, 0, 0, (17 * context.resources.displayMetrics.density).toInt())
                                 moreStation = false
                             }else{
-                                expandedVehicleBinding.itemRouteDetailVehicleArrowDownIv.setImageResource(R.drawable.ic_arrow_up)
+                                expandedVehicleBinding.itemRouteDetailVehicleArrowDownIv.setImageResource(R.drawable.ic_route_detail_arrow_up)
                                 expandedVehicleBinding.itemRouteDetailVehicleRv.visibility = View.VISIBLE
                                 expandedVehicleBinding.itemRouteDetailVehicleStationsLl.setPadding(0)
                                 moreStation = true
