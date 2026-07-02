@@ -6,6 +6,7 @@ import biweekly.util.ICalDate
 import biweekly.util.Recurrence
 import com.example.pace.data.model.request.RepeatInfo
 import java.text.SimpleDateFormat
+import java.time.LocalDate
 import java.util.Locale
 import java.util.TimeZone
 
@@ -95,11 +96,15 @@ object RepeatRuleHelper {
         }
     }
 
-    fun parseRecurrenceString(rruleStr: String): Recurrence? {
+    fun parseRecurrenceString(rruleStr: String, fallbackDate: LocalDate? = null): Recurrence? {
         return try {
             val params = parseParams(rruleStr)
             val freqStr = params["FREQ"] ?: return null
-            val builder = Recurrence.Builder(Frequency.valueOf(freqStr))
+            val frequency = Frequency.valueOf(freqStr)
+            val builder = Recurrence.Builder(frequency)
+            val hasByDay = !params["BYDAY"].isNullOrBlank()
+            val hasByMonthDay = !params["BYMONTHDAY"].isNullOrBlank()
+            val hasByMonth = !params["BYMONTH"].isNullOrBlank()
 
             params["INTERVAL"]?.toIntOrNull()?.let { builder.interval(it) }
             params["COUNT"]?.toIntOrNull()?.let { builder.count(it) }
@@ -128,6 +133,10 @@ object RepeatRuleHelper {
             params["BYMONTHDAY"]?.split(",")
                 ?.mapNotNull { it.trim().toIntOrNull() }
                 ?.forEach { builder.byMonthDay(it) }
+
+            if (frequency == Frequency.YEARLY && hasByMonth && !hasByMonthDay && !hasByDay) {
+                fallbackDate?.let { builder.byMonthDay(it.dayOfMonth) }
+            }
 
             params["BYMONTH"]?.split(",")
                 ?.mapNotNull { it.trim().toIntOrNull() }

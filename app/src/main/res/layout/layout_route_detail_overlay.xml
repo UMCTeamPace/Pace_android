@@ -124,7 +124,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:fontFamily="@font/pretendard_semibold"
-                android:text="15"
+                android:text="60"
                 android:textColor="@color/black"
                 android:textSize="12sp" />
 

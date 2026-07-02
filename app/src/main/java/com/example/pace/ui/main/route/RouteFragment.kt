@@ -78,6 +78,7 @@ import com.example.pace.ui.main.calendar.ScheduleListRVAdapter
 import com.example.pace.ui.main.home.DeleteScheduleDialog
 import com.example.pace.ui.search_box.*
 import com.example.pace.util.ScheduleCountdownUtils
+import com.example.pace.util.ScheduleDisplayTextUtils
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.libraries.places.api.net.SearchNearbyRequest
@@ -120,6 +121,7 @@ private const val ROUTE_ONLY_SCHEDULE_FETCH_THROTTLE_MS = 1000L
 private const val ROUTE_SCHEDULE_LIST_HEIGHT_NUMERATOR = 500f
 private const val ROUTE_SCHEDULE_LIST_HEIGHT_DENOMINATOR = 800f
 private const val PLACE_DETAIL_HALF_EXPANDED_RATIO = 0.54f
+private const val REALTIME_REFRESH_INTERVAL_SECONDS = 60
 
 @AndroidEntryPoint
 class RouteFragment : Fragment() {
@@ -353,7 +355,7 @@ class RouteFragment : Fragment() {
 
         // 일정 모드 UI 세팅
         binding.layoutRouteDetailOverlay.layoutRouteDetailInfo.visibility = View.VISIBLE
-        scheduleName = scheduleInfo.title.takeIf { it.isNotBlank() } ?: "일정명"
+        scheduleName = ScheduleDisplayTextUtils.titleOrDefault(scheduleInfo.title)
         val rawTime = scheduleInfo.startTime ?: "00:00:00"
         val rawEndTime = scheduleInfo.endTime ?: rawTime
         scheduleTime = if (rawTime.length >= 5) rawTime.take(5) else rawTime
@@ -722,6 +724,16 @@ class RouteFragment : Fragment() {
         val start = startLatLng
         val end = endLatLng
 
+        if (isSameRouteEndpoint()) {
+            Log.w(
+                "RouteHomeWorkTrace",
+                "fetchRouteData skipped: same start/end selectedStart=$selectedStartPlace selectedEnd=$selectedEndPlace start=$start end=$end"
+            )
+            realtimePollingJob?.cancel()
+            showEmptyRouteResult()
+            return
+        }
+
         if (start == null || end == null) {
             Log.w(
                 "RouteHomeWorkTrace",
@@ -827,7 +839,7 @@ class RouteFragment : Fragment() {
         currentEntryMode = EntryMode.SCHEDULE_ROUTE
 
         val nameExtra = intent.getStringExtra("SCHEDULE_NAME")
-        scheduleName = if(nameExtra.isNullOrBlank()) "일정명" else nameExtra
+        scheduleName = ScheduleDisplayTextUtils.titleOrDefault(nameExtra)
         scheduleColor = intent.getStringExtra("SCHEDULE_COLOR") ?: "#DC354B"
         var tmpDate = intent.getStringExtra("SCHEDULE_DATE") ?: "2032-12-02"
         scheduleDate = tmpDate
@@ -934,9 +946,6 @@ class RouteFragment : Fragment() {
         mainBinding?.mainBnv?.visibility = View.GONE
 
         if (isStart) {
-            if(placeId == selectedEndPlace?.second || itemName == selectedEndPlace?.first){
-                swapLocations()
-            }
             Log.d("Route", "onLocationSelected 출발지로!")
             selectedStartPlace = Pair(itemName, placeId)
             lifecycleScope.launch {
@@ -949,9 +958,7 @@ class RouteFragment : Fragment() {
             binding.layoutRouteInputHeader.tvRouteStart.setText(itemName)
             updateClearButtonVisibility()
         } else {
-            if(placeId == selectedStartPlace?.second || itemName == selectedEndPlace?.first){
-                swapLocations()
-            }
+            applyCurrentLocationAsStartIfEmpty()
             selectedEndPlace = Pair(itemName, placeId)
             lifecycleScope.launch {
                 Log.d("RouteHomeWorkTrace", "onLocationSelected end fetch launch placeId=$placeId")
@@ -980,6 +987,83 @@ class RouteFragment : Fragment() {
             "RouteHomeWorkTrace",
             "onLocationSelected exit selectedStart=$selectedStartPlace selectedEnd=$selectedEndPlace startLatLng=$startLatLng endLatLng=$endLatLng"
         )
+    }
+
+    private fun isSameRouteEndpoint(): Boolean {
+        if (isSamePlace(selectedStartPlace, selectedEndPlace)) return true
+
+        val start = startLatLng
+        val end = endLatLng
+        return start != null && end != null &&
+            abs(start.latitude - end.latitude) < 0.000001 &&
+            abs(start.longitude - end.longitude) < 0.000001
+    }
+
+    private fun isSamePlace(first: Pair<String, String>?, second: Pair<String, String>?): Boolean {
+        if (first == null || second == null) return false
+
+        val firstId = first.second.trim()
+        val secondId = second.second.trim()
+        if (firstId.isNotBlank() && secondId.isNotBlank() && firstId != "내 위치" && secondId != "내 위치") {
+            return firstId == secondId
+        }
+
+        val firstName = first.first.trim()
+        val secondName = second.first.trim()
+        return firstName.isNotBlank() && firstName == secondName
+    }
+
+    private fun showEmptyRouteResult() {
+        val destination = selectedEndPlace?.first ?: "도착지 없음"
+        binding.layoutNoSearchResult.visibility = View.GONE
+
+        binding.routeSearchFcv.post {
+            val fragment = childFragmentManager.findFragmentByTag("ROUTE_RESULT") as? RouteResultFragment
+            fragment?.setLoading(false)
+            fragment?.updateRoutes(emptyList(), destination)
+        }
+    }
+
+    private fun applyCurrentLocationAsStartIfEmpty() {
+        if (selectedStartPlace != null || startLatLng != null) return
+        if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            mainActivity?.checkPermissionAndStart()
+            return
+        }
+
+        val location = mainActivity?.myLocation
+        if (location == null) {
+            mainActivity?.startLocationUpdates()
+            return
+        }
+
+        val latLng = LatLng(location.latitude, location.longitude)
+        startLatLng = latLng
+        selectedStartPlace = Pair("현재 위치", "내 위치")
+        binding.layoutRouteInputHeader.tvRouteStart.text = "현재 위치"
+        updateClearButtonVisibility()
+
+        lifecycleScope.launch {
+            val address = withContext(Dispatchers.IO) {
+                try {
+                    @Suppress("DEPRECATION")
+                    android.location.Geocoder(requireContext(), Locale.KOREAN)
+                        .getFromLocation(location.latitude, location.longitude, 1)
+                        ?.firstOrNull()
+                        ?.getAddressLine(0)
+                        ?.replace("대한민국 ", "")
+                        ?: "현재 위치"
+                } catch (e: Exception) {
+                    "현재 위치"
+                }
+            }
+            val nearbyPlaceId = getNearbyPlaceId(latLng) ?: "내 위치"
+            if (startLatLng == latLng && selectedStartPlace?.second == "내 위치") {
+                selectedStartPlace = Pair(address, nearbyPlaceId)
+                binding.layoutRouteInputHeader.tvRouteStart.text = address
+                updateClearButtonVisibility()
+            }
+        }
     }
 
     fun onScheduleLocationSelected(name: String, placeId: String) {
@@ -2157,17 +2241,11 @@ class RouteFragment : Fragment() {
 
     private fun applyCurrentLocationSelection(address: String, latLng: LatLng) {
         if (isSelectingStart) {
-            if(selectedEndPlace?.first == address){
-                swapLocations()
-            }
             selectedStartPlace = Pair(address, "내 위치")
             startLatLng = latLng
             binding.layoutRouteInputHeader.tvRouteStart.text = address
             updateClearButtonVisibility()
         } else {
-            if(selectedStartPlace?.first == address){
-                swapLocations()
-            }
             selectedEndPlace = Pair(address, "내 위치")
             endLatLng = latLng
             binding.layoutRouteInputHeader.tvRouteEnd.text = address
@@ -4766,7 +4844,7 @@ class RouteFragment : Fragment() {
 
     private fun setRouteDetailRealtimeRefreshVisible(visible: Boolean, animate: Boolean) {
         val refresh = binding.layoutRouteDetailOverlay.layoutRealtimeRefresh
-        val shouldShow = visible && currentRealtimeParams != null
+        val shouldShow = visible && !currentRealtimeParams.isNullOrEmpty()
         refresh.animate().cancel()
         if (shouldShow) {
             if (refresh.visibility != View.VISIBLE) {
@@ -5376,7 +5454,7 @@ class RouteFragment : Fragment() {
         if (_binding == null) return false
 
         return binding.routeSearchFcv.visibility == View.VISIBLE ||
-            binding.bottomSheetContainer.visibility == View.VISIBLE ||
+            isBottomSheetVisible() ||
             binding.layoutRouteInputHeader.root.visibility == View.VISIBLE ||
             binding.layoutBookmarkHeader.root.visibility == View.VISIBLE ||
             binding.layoutMapSelectOverlay.root.visibility == View.VISIBLE
@@ -5563,7 +5641,13 @@ class RouteFragment : Fragment() {
 
     private fun startRealtimePolling(params: List<RealtimeParam>) {
         realtimePollingJob?.cancel()
-        currentRealtimeParams = params
+        currentRealtimeParams = params.takeIf { it.isNotEmpty() }
+
+        if (params.isEmpty()) {
+            binding.layoutRouteDetailOverlay.tvRefreshCountdown.text = REALTIME_REFRESH_INTERVAL_SECONDS.toString()
+            setRouteDetailRealtimeRefreshVisible(false, animate = false)
+            return
+        }
 
         setRouteDetailRealtimeRefreshVisible(!isRouteDetailMinimized, animate = false)
         binding.layoutRouteDetailOverlay.sheetRouteDetail.root.post {
@@ -5591,9 +5675,9 @@ class RouteFragment : Fragment() {
                         }
                     }
                 }
-                Log.d("RouteFragment", "실시간 데이터 15초 갱신 완료!")
+                Log.d("RouteFragment", "실시간 데이터 ${REALTIME_REFRESH_INTERVAL_SECONDS}초 갱신 완료!")
 
-                for (i in 15 downTo 1) {
+                for (i in REALTIME_REFRESH_INTERVAL_SECONDS downTo 1) {
                     binding.layoutRouteDetailOverlay.tvRefreshCountdown.text = i.toString()
                     delay(1000) // 1초 대기
                 }

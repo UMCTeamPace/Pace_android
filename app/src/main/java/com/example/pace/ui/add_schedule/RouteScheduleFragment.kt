@@ -153,6 +153,7 @@ class RouteScheduleFragment : Fragment() {
     private var colorAdapter: ColorAdapter? = null
     private var hasUserSelectedEventColor = false
     private var initialFormSnapshot: FormSnapshot? = null
+    private var isSubmitInProgress = false
     private var isKeyboardVisible = false
     private var isTouchingInputArea = false
     private var suppressKeyboardDismissUntil = 0L
@@ -437,6 +438,7 @@ class RouteScheduleFragment : Fragment() {
 
                         false -> {
                             //Toast.makeText(context, "일정 저장에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                            setSubmitInProgress(false)
                             viewModel.resetCreateEvent()
                         }
 
@@ -521,6 +523,8 @@ class RouteScheduleFragment : Fragment() {
         }
 
         binding.btnConfirm.setOnClickListener {
+            if (isSubmitInProgress) return@setOnClickListener
+
             val scheduleName = binding.etScheduleName.text.toString().trim()
             enforceValidTimeRange()
             val finalStartDate = startDate ?: LocalDate.now()
@@ -535,12 +539,18 @@ class RouteScheduleFragment : Fragment() {
             Log.d("ConfirmMode", "isEditMode: $isEditMode, scheduleId: $scheduleId, selectedColor: $selectedColorHex, calendarId: $currentSelectedCalendarId")
             // 경로가 없다면 일반 일정으로 저장
             if(lastRouteJson == null && route == null){
+                setSubmitInProgress(true)
+                var isNoRouteConfirmed = false
                 val dialog = NoRouteDialog(requireContext()){
+                    isNoRouteConfirmed = true
                     // todo: 수정 시 기존 경로 일정 삭제되는 지 확인
                     if(isEditMode && scheduleId != -1L){
                         viewModel.deleteSchedule(scheduleId, true)
                     }
                     saveAsNormalSchedule()
+                }
+                dialog.setOnDismissListener {
+                    if (!isNoRouteConfirmed) setSubmitInProgress(false)
                 }
                 dialog.show()
             }else{
@@ -603,6 +613,7 @@ class RouteScheduleFragment : Fragment() {
 
                 // 4. [수정] 모드 판정 및 호출
                 // 여기서 scheduleId가 정상적으로 (예: 54) 찍히는지 로그를 확인해야 합니다.
+                setSubmitInProgress(true)
                 if (isEditMode && scheduleId != -1L) {
                     Log.d("ConfirmMode", "수정 로직 실행 - ID: $scheduleId")
 
@@ -694,6 +705,7 @@ class RouteScheduleFragment : Fragment() {
                         activity?.finish()
                     } else if (isSuccess == false) {
                         Toast.makeText(context, "수정에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                        setSubmitInProgress(false)
                         viewModel.resetUpdateEvent()
                     }
                 }
@@ -1418,6 +1430,13 @@ class RouteScheduleFragment : Fragment() {
         binding.etMemo.post {
             binding.etMemo.text?.length?.let(binding.etMemo::setSelection)
         }
+    }
+
+    private fun setSubmitInProgress(inProgress: Boolean) {
+        isSubmitInProgress = inProgress
+        if (_binding == null) return
+        binding.btnConfirm.isClickable = !inProgress
+        binding.btnCancel.isClickable = !inProgress
     }
 
     private fun updateRouteFieldColor(hasRoute: Boolean) {

@@ -123,6 +123,7 @@ class GeneralScheduleFragment : Fragment() {
     private var scheduleIdForEdit: Long = -1L
     private var occurrenceDateForEdit: LocalDate? = null
     private var initialFormSnapshot: FormSnapshot? = null
+    private var isSubmitInProgress = false
     private var isKeyboardVisible = false
     private var isTouchingInputArea = false
     private var suppressKeyboardDismissUntil = 0L
@@ -262,6 +263,8 @@ class GeneralScheduleFragment : Fragment() {
 
         // 1. 저장 버튼 클릭 리스너 부분
         binding.btnConfirm.setOnClickListener {
+            if (isSubmitInProgress) return@setOnClickListener
+
             val scheduleName = binding.etScheduleName.text.toString().trim()
 
             // 1. 필수 유효성 체크 (시작일)
@@ -301,10 +304,16 @@ class GeneralScheduleFragment : Fragment() {
 
             if (isEditMode && scheduleIdForEdit != -1L) {
                 // A. 수정 모드
+                setSubmitInProgress(true)
                 viewLifecycleOwner.lifecycleScope.launch {
                     val originalSchedule = viewModel.getScheduleById(scheduleIdForEdit)
 
-                    originalSchedule?.let { existing ->
+                    if (originalSchedule == null) {
+                        setSubmitInProgress(false)
+                        return@launch
+                    }
+
+                    originalSchedule.let { existing ->
                         // 수정된 정보로 객체 생성
                         val updatedSchedule = existing.copy(
                             title = scheduleName,
@@ -335,13 +344,18 @@ class GeneralScheduleFragment : Fragment() {
                             }.getOrNull() ?: LocalDate.now()
 
                             EditRepeatScheduleDialog(requireContext()).apply {
+                                var isOptionSelected = false
                                 setOnOptionSelectedListener { option ->
+                                    isOptionSelected = true
                                     viewModel.updateRecurringSchedule(
                                         originalSchedule = existing,
                                         updatedSchedule = updatedSchedule,
                                         occurrenceDate = occurrenceDate,
                                         scope = option
                                     )
+                                }
+                                setOnDismissListener {
+                                    if (!isOptionSelected) setSubmitInProgress(false)
                                 }
                             }.show()
                         } else {
@@ -352,6 +366,7 @@ class GeneralScheduleFragment : Fragment() {
                 }
             } else {
                 // B. 생성 모드
+                setSubmitInProgress(true)
                 viewModel.createScheduleWithDefaultSettings(
                     title = scheduleName,
                     memo = binding.etMemo.text?.toString(),
@@ -1383,6 +1398,7 @@ class GeneralScheduleFragment : Fragment() {
                     }
                     false -> {
                         Toast.makeText(context, "일정 저장에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                        setSubmitInProgress(false)
                         viewModel.resetCreateEvent()
                     }
                     null -> {}
@@ -1701,6 +1717,7 @@ class GeneralScheduleFragment : Fragment() {
                     }
                     false -> {
                         Toast.makeText(context, "일정 수정에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                        setSubmitInProgress(false)
                         viewModel.resetUpdateEvent()
                     }
                     null -> {}
@@ -1721,6 +1738,13 @@ class GeneralScheduleFragment : Fragment() {
             )
             viewModel.clearLastEditResult()
         }
+    }
+
+    private fun setSubmitInProgress(inProgress: Boolean) {
+        isSubmitInProgress = inProgress
+        if (_binding == null) return
+        binding.btnConfirm.isClickable = !inProgress
+        binding.btnCancel.isClickable = !inProgress
     }
 
     override fun onDestroyView() {

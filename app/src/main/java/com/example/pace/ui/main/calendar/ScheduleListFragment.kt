@@ -333,7 +333,10 @@ class ScheduleListFragment : Fragment() {
 
         if (groupedMap.isNotEmpty()) {
             withContext(Dispatchers.Default) {
+                val minDate = today.minusYears(5)
+                val maxDate = today.plusYears(5)
                 val sortedDates = groupedMap.keys
+                    .filter { date -> !date.isBefore(minDate) && !date.isAfter(maxDate) }
                     .sorted()
 
                 for (date in sortedDates) {

@@ -13,12 +13,17 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.pace.data.model.Schedule
+import com.example.pace.data.model.response.RouteInfo
+import com.example.pace.data.model.response.RouteOnlyScheduleData
+import com.example.pace.data.model.response.ScheduleInfo
 import com.example.pace.data.viewmodel.RouteViewModel
 import com.example.pace.data.viewmodel.ScheduleViewModel
 import com.example.pace.databinding.FragmentRouteScheduleListBinding
 import com.example.pace.ui.main.calendar.ScheduleListItem
 import com.example.pace.ui.main.calendar.ScheduleListRVAdapter
 import com.example.pace.ui.main.home.DeleteScheduleDialog
+import com.example.pace.util.ScheduleDisplayTextUtils
+import com.google.gson.Gson
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -38,6 +43,7 @@ class RouteScheduleListFragment : Fragment() {
     private var currentRouteSchedules: List<Schedule> = emptyList()
     private var latestGroupedMap: Map<LocalDate, List<Schedule>> = emptyMap()
     private val pendingDeletedRouteIds = mutableSetOf<Long>()
+    private val gson = Gson()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -117,7 +123,14 @@ class RouteScheduleListFragment : Fragment() {
             onSelectionToggle = { schedule ->
                 toggleSelection(schedule)
             },
-            onItemClick = {}
+            onItemClick = { schedule ->
+                if (schedule.type == "ROUTE") {
+                    buildRouteScheduleData(schedule)?.let { routeSchedule ->
+                        routeViewModel.selectRouteSchedule(routeSchedule)
+                        parentFragmentManager.popBackStack()
+                    }
+                }
+            }
         )
 
         binding.routeScheduleListRv.apply {
@@ -184,6 +197,35 @@ class RouteScheduleListFragment : Fragment() {
         return runCatching {
             date.format(DateTimeFormatter.ofPattern("yyyy년 MM월 dd일 (E)", Locale.KOREAN))
         }.getOrElse { date.toString() }
+    }
+
+    private fun buildRouteScheduleData(schedule: Schedule): RouteOnlyScheduleData? {
+        val route = viewModel.routeDetails.value[schedule.id]
+            ?: schedule.routeJson
+                ?.takeIf { it.isNotBlank() }
+                ?.let { json -> runCatching { gson.fromJson(json, RouteInfo::class.java) }.getOrNull() }
+            ?: return null
+
+        val colorHex = (schedule.eventColor ?: schedule.calendarColor)?.let { color ->
+            String.format(Locale.US, "#%06X", 0xFFFFFF and color)
+        }
+
+        return RouteOnlyScheduleData(
+            scheduleId = schedule.id,
+            scheduleInfo = ScheduleInfo(
+                title = ScheduleDisplayTextUtils.titleOrDefault(schedule.title),
+                isAllDay = schedule.isAllDay,
+                startDate = schedule.startDate,
+                endDate = schedule.endDate,
+                startTime = schedule.startTime,
+                endTime = schedule.endTime,
+                memo = schedule.memo,
+                isPathIncluded = true,
+                color = colorHex,
+                calendarId = schedule.calendarId.toString()
+            ),
+            route = route
+        )
     }
 
     private fun enterEditMode() {
