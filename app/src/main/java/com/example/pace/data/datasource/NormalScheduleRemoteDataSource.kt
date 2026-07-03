@@ -95,13 +95,15 @@ class NormalScheduleRemoteDataSource @Inject constructor(
         val scheduleList = mutableListOf<Schedule>()
 
         val calendar = Calendar.getInstance()
-        calendar.add(Calendar.MONTH, -30)
+        calendar.add(Calendar.YEAR, -5)
         val startRange = calendar.timeInMillis
-        calendar.add(Calendar.MONTH, 60)
+        calendar.add(Calendar.YEAR, 10)
         val endRange = calendar.timeInMillis
 
-        val selection = "(${CalendarContract.Events.DTSTART} >= ? AND ${CalendarContract.Events.DTSTART} <= ?) AND " +
-                "(${CalendarContract.Events.DELETED} = 0)"
+        val selection = "(${CalendarContract.Events.DELETED} = 0) AND (" +
+                "(${CalendarContract.Events.RRULE} IS NOT NULL AND ${CalendarContract.Events.RRULE} != '') OR " +
+                "(${CalendarContract.Events.DTSTART} >= ? AND ${CalendarContract.Events.DTSTART} <= ?)" +
+                ")"
 
         val selectionArgs = arrayOf(startRange.toString(), endRange.toString())
 
@@ -163,21 +165,16 @@ class NormalScheduleRemoteDataSource @Inject constructor(
                     val title = it.getString(titleIdx) ?: ""
                     val dtStart = it.getLong(dtStartIdx)
                     val durationStr = it.getString(durationIdx)
+                    val rrule = it.getString(rruleIdx)
 
                     // When recurring events store DURATION, reconstruct DTEND for display
                     var dtEnd = it.getLong(dtEndIdx)
 
-                    if (dtEnd < dtStart && !durationStr.isNullOrEmpty()) {
-                        try {
-                            val numericValue = durationStr.replace(Regex("[^0-9]"), "").toLongOrNull() ?: 0L
-                            dtEnd = if (durationStr.contains("D")) {
-                                dtStart + (numericValue * 24 * 60 * 60 * 1000)
-                            } else {
-                                dtStart + (numericValue * 1000)
-                            }
-                        } catch (e: Exception) {
-                            dtEnd = dtStart
-                        }
+                    val durationMillis = parseCalendarDurationMillis(durationStr)
+                    if (!rrule.isNullOrBlank() && durationMillis != null) {
+                        dtEnd = dtStart + durationMillis
+                    } else if (dtEnd < dtStart && durationMillis != null) {
+                        dtEnd = dtStart + durationMillis
                     } else if (dtEnd < dtStart) {
                         dtEnd = dtStart
                     }
@@ -194,7 +191,6 @@ class NormalScheduleRemoteDataSource @Inject constructor(
                     val endTime = if (isAllDay) "23:59" else formatMillisToTime(normalizedEndMillis)
                     val memo = it.getString(descIdx)
                     val location = it.getString(locIdx)
-                    val rrule = it.getString(rruleIdx)
                     val exdate = it.getString(exdateIdx)
                     val calendarId = it.getLong(calIdIdx)
                     val calendarName = it.getString(calNameIdx)
@@ -255,6 +251,21 @@ class NormalScheduleRemoteDataSource @Inject constructor(
             }
         }
         return reminderList
+    }
+
+    private fun parseCalendarDurationMillis(duration: String?): Long? {
+        val value = duration?.trim()?.uppercase(Locale.US)?.takeIf { it.isNotBlank() } ?: return null
+        val match = Regex("""^P(?:(\d+)W)?(?:(\d+)D)?(?:T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$""")
+            .matchEntire(value)
+            ?: return null
+
+        val weeks = match.groupValues[1].toLongOrNull() ?: 0L
+        val days = match.groupValues[2].toLongOrNull() ?: 0L
+        val hours = match.groupValues[3].toLongOrNull() ?: 0L
+        val minutes = match.groupValues[4].toLongOrNull() ?: 0L
+        val seconds = match.groupValues[5].toLongOrNull() ?: 0L
+        val totalSeconds = (((weeks * 7L + days) * 24L + hours) * 60L + minutes) * 60L + seconds
+        return (totalSeconds * 1000L).takeIf { it > 0L }
     }
     
     private fun formatMillisToDate(millis: Long): String {

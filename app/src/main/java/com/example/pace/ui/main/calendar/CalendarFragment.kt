@@ -57,19 +57,14 @@ class CalendarFragment: Fragment() {
         mainActivity.binding.scheduleAddIv.setOnClickListener {
             val currentTab = binding.calendarVp.currentItem // 0: List, 1: Calendar
             val intent = Intent(requireContext(), AddScheduleActivity::class.java)
+            val selectedDate = viewModel.selectedDate.value.toString()
 
             when (currentTab) {
                 0 -> {
-                    // List 탭: 무조건 오늘 날짜 전달
-                    val today = java.time.LocalDate.now().toString()
-                    intent.putExtra("selected_date", today)
+                    intent.putExtra("selected_date", selectedDate)
                     intent.putExtra("mode", "LIST_ADD")
                 }
                 1 -> {
-                    // Calendar 탭: 선택된 날짜 전달 (없으면 오늘 날짜)
-                    val selectedDate = viewModel.selectedDate.value?.toString()
-                        ?: java.time.LocalDate.now().toString()
-
                     intent.putExtra("selected_date", selectedDate)
                     intent.putExtra("mode", "CALENDAR_ADD")
                 }

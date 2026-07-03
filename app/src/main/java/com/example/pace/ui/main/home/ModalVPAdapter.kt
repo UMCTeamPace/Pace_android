@@ -286,6 +286,23 @@ class ModalVPAdapter(
                                 vehicleBinding.itemRouteVehicleTv.text = "${data.transitDetail.departureStop} 승차"
 
                                 binding.modalRouteVehicleLl.addView(vehicleBinding.root)
+
+                                if (index == route.routeDetails.size - 1) {
+                                    val arrivalBinding = ItemRouteVehicleBinding.inflate(
+                                        LayoutInflater.from(context),
+                                        binding.modalRouteVehicleLl,
+                                        false
+                                    )
+                                    arrivalBinding.itemRouteVehicleIv.setImageResource(R.drawable.ic_route_item_arrival_icon)
+                                    arrivalBinding.itemRouteVehicleLineTv.text = "도착"
+                                    arrivalBinding.itemRouteVehicleLineTv.setTextColor(
+                                        ContextCompat.getColor(context, R.color.black)
+                                    )
+                                    arrivalBinding.itemRouteVehicleView.visibility = View.GONE
+                                    arrivalBinding.itemRouteVehicleTv.text = route.destName
+
+                                    binding.modalRouteVehicleLl.addView(arrivalBinding.root)
+                                }
                             }
 
                             // 상단 바(Brief) 뷰 추가 (Weight 적용)

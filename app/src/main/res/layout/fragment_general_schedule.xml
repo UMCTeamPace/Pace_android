@@ -306,6 +306,8 @@
             android:layout_marginEnd="8dp"
             android:layout_weight="1"
             android:background="@drawable/btn_cancel_bg"
+            android:elevation="0dp"
+            android:stateListAnimator="@null"
             android:text="취소" />
 
         <androidx.appcompat.widget.AppCompatButton
@@ -315,6 +317,8 @@
             android:layout_marginStart="8dp"
             android:layout_weight="1"
             android:background="@drawable/btn_confirm_bg"
+            android:elevation="0dp"
+            android:stateListAnimator="@null"
             android:text="확인"
             android:textColor="@android:color/white" />
     </LinearLayout>

@@ -63,7 +63,8 @@ class ScheduleRepositoryImpl @Inject constructor(
         private val ROUTE_SOURCE_ZONE: ZoneId = ZoneId.of("Asia/Seoul")
         private val UTC_API_TIME_FORMATTER: DateTimeFormatter =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
-        private const val RECURRENCE_EXPANSION_RANGE_YEARS = 3L
+        private const val RECURRENCE_EXPANSION_RANGE_YEARS = 5L
+        private const val MAX_ROUTE_SCHEDULE_PAGE_FETCH_COUNT = 20
         private const val SWAGGER_LOG_TAG = "SwaggerScheduleRequest"
         private const val LOG_CHUNK_SIZE = 3000
     }
@@ -785,7 +786,7 @@ class ScheduleRepositoryImpl @Inject constructor(
                         val event = VEvent()
                         event.setDateStart(DateStart(dtStartDate))
 
-                        val recur = parseRecurrenceString(schedule.repeatRule!!)
+                        val recur = parseRecurrenceString(schedule.repeatRule!!, startLocalDate)
                         if (recur != null) event.setRecurrenceRule(RecurrenceRule(recur))
 
                         // EXDATE from stored schedule
@@ -908,7 +909,8 @@ class ScheduleRepositoryImpl @Inject constructor(
         return expandedList
     }
 
-    private fun parseRecurrenceString(rruleStr: String): Recurrence? = RepeatRuleHelper.parseRecurrenceString(rruleStr)
+    private fun parseRecurrenceString(rruleStr: String, fallbackDate: LocalDate? = null): Recurrence? =
+        RepeatRuleHelper.parseRecurrenceString(rruleStr, fallbackDate)
 
     // Map server create response to local entity
     private fun CreateScheduleResponse.toEntity(selectedColorStr: String?, fallbackCalendarId: Long?): Schedule {
@@ -1096,18 +1098,12 @@ class ScheduleRepositoryImpl @Inject constructor(
 
         cleanUpExpiredServerRouteSchedules()
 
-        val response = api.getScheduleList(
-            accessToken = accessToken,
-            startDate = startDate,
-            endDate = endDate,
-            lastDate = null,
-            lastId = null
-        )
+        val response = fetchSchedulePages(accessToken, startDate, endDate)
         val nowTime = java.time.LocalTime.now()
 
-        val mappedData: RouteOnlyScheduleData? = response.result?.content
-            ?.filter { item ->
-                val isRouteItem = item.place == null && item.route != null
+        val mappedData: RouteOnlyScheduleData? = response.result.orEmpty()
+            .filter { item ->
+                val isRouteItem = item.isRouteScheduleItem()
                 val isSameDate = item.scheduleInfo.startDate == startDate
 
                 val isFuture = try {
@@ -1118,7 +1114,7 @@ class ScheduleRepositoryImpl @Inject constructor(
                 }
                 isRouteItem && isSameDate && isFuture
             }
-            ?.minByOrNull { item ->
+            .minByOrNull { item ->
                 item.scheduleInfo.startTime ?: "23:59:59"
             }
             ?.let { item ->
@@ -1145,17 +1141,11 @@ class ScheduleRepositoryImpl @Inject constructor(
 
         cleanUpExpiredServerRouteSchedules()
 
-        val response = api.getScheduleList(
-            accessToken = accessToken,
-            startDate = startDate,
-            endDate = endDate,
-            lastDate = null,
-            lastId = null
-        )
+        val response = fetchSchedulePages(accessToken, startDate, endDate)
 
-        val mappedList: List<RouteOnlyScheduleData?> = response.result?.content
-            ?.filter { it.place == null && it.route != null }
-            ?.map { item ->
+        val mappedList: List<RouteOnlyScheduleData?> = response.result.orEmpty()
+            .filter { it.isRouteScheduleItem() }
+            .map { item ->
                 val route = item.route
                 val flattenedDetails = route?.routeDetails?.map { detail ->
                     detail.copy(
@@ -1172,7 +1162,7 @@ class ScheduleRepositoryImpl @Inject constructor(
                     scheduleInfo = item.scheduleInfo.withCalendarColorFallback(),
                     route = route?.copy(routeDetails = flattenedDetails)
                 )
-            } ?: emptyList()
+            }
 
         return RawDefaultResponse(
             code = response.code,
@@ -1180,6 +1170,67 @@ class ScheduleRepositoryImpl @Inject constructor(
             isSuccess = response.isSuccess,
             result = mappedList
         )
+    }
+
+    private suspend fun fetchSchedulePages(
+        accessToken: String,
+        startDate: String,
+        endDate: String?
+    ): RawDefaultResponse<List<ScheduleItem>> {
+        val allItems = mutableListOf<ScheduleItem>()
+        var lastDate: String? = null
+        var lastId: Long? = null
+        var code = "200"
+        var message = "OK"
+        var isSuccess = true
+
+        repeat(MAX_ROUTE_SCHEDULE_PAGE_FETCH_COUNT) {
+            val response = api.getScheduleList(
+                accessToken = accessToken,
+                startDate = startDate,
+                endDate = endDate,
+                lastDate = lastDate,
+                lastId = lastId
+            )
+
+            code = response.code
+            message = response.message
+            isSuccess = response.isSuccess
+
+            if (!response.isSuccess) {
+                return RawDefaultResponse(code = code, message = message, isSuccess = false, result = allItems)
+            }
+
+            val page = response.result ?: return RawDefaultResponse(
+                code = code,
+                message = message,
+                isSuccess = isSuccess,
+                result = allItems
+            )
+
+            val content = page.content
+            if (content.isEmpty()) {
+                return RawDefaultResponse(code = code, message = message, isSuccess = isSuccess, result = allItems)
+            }
+
+            allItems += content
+
+            if (page.last) {
+                return RawDefaultResponse(code = code, message = message, isSuccess = isSuccess, result = allItems)
+            }
+
+            val cursorItem = content.last()
+            val nextLastDate = cursorItem.scheduleInfo.startDate
+            val nextLastId = cursorItem.scheduleId
+            if (nextLastDate == lastDate && nextLastId == lastId) {
+                return RawDefaultResponse(code = code, message = message, isSuccess = isSuccess, result = allItems)
+            }
+
+            lastDate = nextLastDate
+            lastId = nextLastId
+        }
+
+        return RawDefaultResponse(code = code, message = message, isSuccess = isSuccess, result = allItems)
     }
 
     override suspend fun getLocalRouteSchedules(
@@ -1479,7 +1530,7 @@ class ScheduleRepositoryImpl @Inject constructor(
         serverSchedules: List<ScheduleItem>
     ) {
         val serverRouteIds = serverSchedules
-            .filter { item -> item.place == null && item.route != null }
+            .filter { item -> item.isRouteScheduleItem() }
             .map { it.scheduleId }
             .toSet()
 
@@ -1507,6 +1558,10 @@ class ScheduleRepositoryImpl @Inject constructor(
 
         scheduleDao.deleteSchedulesByIds(expiredRouteIds)
         Log.d("ScheduleRepository", "Expired route schedules removed: ${expiredRouteIds.joinToString()}")
+    }
+
+    private fun ScheduleItem.isRouteScheduleItem(): Boolean {
+        return route != null || scheduleInfo.isPathIncluded == true
     }
 
 }

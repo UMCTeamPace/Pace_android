@@ -24,7 +24,6 @@ import androidx.fragment.app.Fragment
 import com.example.pace.R
 import com.example.pace.databinding.ActivityMainBinding
 import com.example.pace.ui.main.calendar.CalendarFragment
-import com.example.pace.ui.main.calendar.SearchFragment
 import com.example.pace.ui.main.home.HomeFragment
 import com.example.pace.ui.main.route.RouteFragment
 import com.example.pace.ui.search_box.*
@@ -139,8 +138,6 @@ class MainActivity : AppCompatActivity() {
 
         // 1. 초기화 (위치, Places API, 바텀시트)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        spf.edit().remove("SELECTED_DATE").apply()
-
         checkCalendarPermissions()
 
         locationCallback = object : LocationCallback() {
@@ -337,7 +334,6 @@ class MainActivity : AppCompatActivity() {
             R.id.home -> {
                 switchFragment(TAG_HOME) { HomeFragment() }
                 supportFragmentManager.executePendingTransactions()
-                (supportFragmentManager.findFragmentByTag(TAG_HOME) as? HomeFragment)?.resetToToday()
                 currentBottomMenuItem = R.id.home
                 binding.mainLogoIv.visibility = View.VISIBLE
                 binding.mainSettingsIv.visibility = View.VISIBLE
@@ -352,20 +348,8 @@ class MainActivity : AppCompatActivity() {
             }
 
             R.id.calendar -> {
-                val skipCalendarReset = supportFragmentManager.findFragmentById(R.id.main_fcv) is SearchFragment
-                val existingCalendarFragment =
-                    supportFragmentManager.findFragmentByTag(TAG_CALENDAR) as? CalendarFragment
-
-                if (!skipCalendarReset && existingCalendarFragment != null) {
-                    existingCalendarFragment.resetToTodayState()
-                }
-
                 switchFragment(TAG_CALENDAR) { CalendarFragment() }
                 supportFragmentManager.executePendingTransactions()
-
-                if (!skipCalendarReset && existingCalendarFragment == null) {
-                    (supportFragmentManager.findFragmentByTag(TAG_CALENDAR) as? CalendarFragment)?.resetToTodayState()
-                }
                 currentBottomMenuItem = R.id.calendar
                 binding.mainLogoIv.visibility = android.view.View.GONE
                 binding.mainSettingsIv.visibility = android.view.View.GONE

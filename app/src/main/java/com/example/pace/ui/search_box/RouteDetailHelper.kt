@@ -28,6 +28,13 @@ import com.example.pace.databinding.ItemRouteDetailBriefBinding
 import com.example.pace.databinding.ItemRouteDetailVehicleBinding
 import com.example.pace.databinding.ItemRouteDetailWalkBinding
 import com.example.pace.ui.RouteCalculator
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
+import java.time.format.DateTimeParseException
 import kotlin.math.absoluteValue
 
 data class RealtimeParam(
@@ -39,6 +46,8 @@ data class RealtimeParam(
 )
 
 object RouteDetailHelper {
+    private val seoulZone: ZoneId = ZoneId.of("Asia/Seoul")
+
     fun setupData(
         context: Context,
         bottomSheetView: View,
@@ -79,6 +88,7 @@ object RouteDetailHelper {
         binding.routeDetailExpandedLl.removeAllViews()
 
         var lastArrivalStop: String? = null
+        val isRouteRealtimeAvailable = isRouteRealtimeAvailable(item.departureTime)
 
         // 데이터 동적 바인딩
         item.routeDetails.forEach { data ->
@@ -135,33 +145,11 @@ object RouteDetailHelper {
                     val lineColor = Color.parseColor(data.transitDetail.lineColor)
                     var moreStation = false
 
-                    var isRealtimeAvailable = false
-                    try {
-                        // 현재 시간 (KST)
-                        val nowKst = java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Seoul"))
-
-                        // 서버에서 온 UTC 시간을 KST(+9시간)로 변환
-                        val depTimeKst = java.time.LocalDateTime.parse(data.transitDetail.departureTime).plusHours(9)
-                        val arrTimeKst = java.time.LocalDateTime.parse(data.transitDetail.arrivalTime).plusHours(9)
-
-                        val startTime = depTimeKst.minusMinutes(15)
-                        val endTime = arrTimeKst
-
-                        if (nowKst.isAfter(startTime) && nowKst.isBefore(endTime)) {
-                            isRealtimeAvailable = true
-                        }
-
-                        Log.d("TimeCheck", "현재시간: $nowKst | 출발: $depTimeKst | 허용구간: $startTime ~ $endTime | 표시여부: $isRealtimeAvailable")
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                        isRealtimeAvailable = true // 시간 파싱 에러 시 화면에 안 나오는 것보단 낫게 방어(true) 처리
-                    }
-
                     if (transitType == "BUS") {
                         val busDrawable = ContextCompat.getDrawable(context, R.drawable.ic_bus)
                         layoutDrawable.setDrawableByLayerId(R.id.ic_route_detail_vehicle, busDrawable)
                         expandedVehicleBinding.itemRouteDetailVehicleTimetableTv.visibility = View.INVISIBLE
-                        if (isRealtimeAvailable) {
+                        if (isRouteRealtimeAvailable) {
                             expandedVehicleBinding.itemRouteDetailRealtimeLl.visibility = View.VISIBLE
                             realtimeParams.add(RealtimeParam("BUS", lineName, departureStopName, arrivalStopName, expandedVehicleBinding.itemRouteDetailRealtimeLl))
                         } else {
@@ -172,7 +160,7 @@ object RouteDetailHelper {
                         layoutDrawable.setDrawableByLayerId(R.id.ic_route_detail_vehicle, subwayDrawable)
                         expandedVehicleBinding.itemRouteDetailVehicleTimetableTv.visibility = View.VISIBLE
 
-                        if (isRealtimeAvailable) {
+                        if (isRouteRealtimeAvailable) {
                             expandedVehicleBinding.itemRouteDetailRealtimeLl.visibility = View.VISIBLE
                             realtimeParams.add(RealtimeParam("SUBWAY", lineName, departureStopName, arrivalStopName, expandedVehicleBinding.itemRouteDetailRealtimeLl))
                         } else {
@@ -287,6 +275,41 @@ object RouteDetailHelper {
         binding.routeDetailExpandedLl.addView(arrivalBinding.root)
 
         return realtimeParams
+    }
+
+    private fun isRouteRealtimeAvailable(routeDepartureTime: String?): Boolean {
+        val departureKst = parseServerTimeToKst(routeDepartureTime) ?: return false
+        val nowKst = ZonedDateTime.now(seoulZone)
+        val isToday = departureKst.toLocalDate() == nowKst.toLocalDate()
+        val isWithinNextHour = !departureKst.isBefore(nowKst) && !departureKst.isAfter(nowKst.plusHours(1))
+        val available = isToday && isWithinNextHour
+
+        Log.d(
+            "RouteRealtime",
+            "now=$nowKst | routeDeparture=$departureKst | today=$isToday | withinNextHour=$isWithinNextHour | visible=$available"
+        )
+
+        return available
+    }
+
+    private fun parseServerTimeToKst(raw: String?): ZonedDateTime? {
+        if (raw.isNullOrBlank()) return null
+
+        return try {
+            Instant.parse(raw).atZone(seoulZone)
+        } catch (_: DateTimeParseException) {
+            try {
+                OffsetDateTime.parse(raw).atZoneSameInstant(seoulZone)
+            } catch (_: DateTimeParseException) {
+                try {
+                    LocalDateTime.parse(raw)
+                        .atZone(ZoneOffset.UTC)
+                        .withZoneSameInstant(seoulZone)
+                } catch (_: DateTimeParseException) {
+                    null
+                }
+            }
+        }
     }
 
     fun updateSubwayUI(context: Context, targetLayout: LinearLayout, resultList: List<SubwayTransitResult>?) {
