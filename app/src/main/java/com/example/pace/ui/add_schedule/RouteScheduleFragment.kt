@@ -262,7 +262,7 @@ class RouteScheduleFragment : Fragment() {
             }
             dialog.show()
         }
-        val initialStartDateTime = roundedCurrentDateTime()
+        val initialStartDateTime = initialRouteStartDateTime()
         val initialEndDateTime = initialStartDateTime.plusHours(1)
         applyStartDateTime(initialStartDateTime)
         applyEndDateTime(initialEndDateTime)
@@ -1787,6 +1787,14 @@ class RouteScheduleFragment : Fragment() {
             else -> 5 - remainder
         }
         return base.plusMinutes(minutesToAdd.toLong())
+    }
+
+    private fun initialRouteStartDateTime(): LocalDateTime {
+        val roundedNow = roundedCurrentDateTime()
+        val initialDate = arguments?.getString("selected_date")
+            ?.let { raw -> runCatching { LocalDate.parse(raw.take(10)) }.getOrNull() }
+            ?: roundedNow.toLocalDate()
+        return initialDate.atTime(roundedNow.toLocalTime())
     }
 
     private fun parseDateTime(date: LocalDate?, timeText: CharSequence?): LocalDateTime? {

@@ -106,7 +106,10 @@ class HomeFragment: Fragment() {
 
         binding.homeAddScheduleLl.setOnClickListener {
             pendingModalEditDate = null
-            scheduleActivityLauncher.launch(Intent(context, AddScheduleActivity::class.java))
+            val intent = Intent(context, AddScheduleActivity::class.java).apply {
+                putExtra("selected_date", selectedDate.toString())
+            }
+            scheduleActivityLauncher.launch(intent)
         }
         binding.homeAlarmTestLl.setOnClickListener {
             startActivity(Intent(requireContext(), AlarmTestActivity::class.java))

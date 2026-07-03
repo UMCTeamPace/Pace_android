@@ -48,6 +48,7 @@ class AddScheduleActivity : AppCompatActivity() {
                     putLong("SCHEDULE_ID", intent.getLongExtra("SCHEDULE_ID", -1L))
                     putString("SCHEDULE_TYPE", intent.getStringExtra("SCHEDULE_TYPE"))
                     putString("OCCURRENCE_DATE", intent.getStringExtra("OCCURRENCE_DATE"))
+                    putString("selected_date", intent.getStringExtra("selected_date"))
                     putString("START_NAME", intent.getStringExtra("START_NAME"))
                     putDouble("START_LAT", intent.getDoubleExtra("START_LAT", Double.NaN))
                     putDouble("START_LNG", intent.getDoubleExtra("START_LNG", Double.NaN))

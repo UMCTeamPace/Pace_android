@@ -222,9 +222,9 @@ class GeneralScheduleFragment : Fragment() {
         }
 
         if (!isEditMode) {
-            val today = LocalDate.now()
-            startDate = today
-            endDate = today
+            val initialDate = resolveInitialScheduleDate()
+            startDate = initialDate
+            endDate = initialDate
             updateDateDisplay() // 위에서 만든 함수를 쓰면 텍스트뷰까지 한 번에 업데이트됩니다.
         }
 
@@ -237,16 +237,6 @@ class GeneralScheduleFragment : Fragment() {
             if (initialFormSnapshot == null) {
                 resetInitialFormSnapshot()
             }
-        }
-
-        val selectedDate = arguments?.getString("selected_date")
-        val mode = arguments?.getString("mode")
-        if (selectedDate != null) {
-            val message = "날짜: $selectedDate\n모드: $mode"
-            Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
-
-            // 팁: 받아온 날짜를 화면의 날짜 텍스트뷰(예: btnStartDate)에도 바로 넣어주면 좋습니다.
-            // binding.btnStartDate.text = selectedDate
         }
 
         binding.layoutScheduleName.setOnClickListener {
@@ -1533,13 +1523,19 @@ class GeneralScheduleFragment : Fragment() {
             loadExistingSchedule(scheduleIdForEdit)
         } else {
             // 기존 신규 생성 로직 (오늘 날짜 기본값 설정)
-            val today = LocalDate.now()
-            startDate = today
-            endDate = today
-            binding.tvStartDate.text = today.format(dateFormatter)
-            binding.tvEndDate.text = today.format(dateFormatter)
+            val initialDate = resolveInitialScheduleDate()
+            startDate = initialDate
+            endDate = initialDate
+            binding.tvStartDate.text = initialDate.format(dateFormatter)
+            binding.tvEndDate.text = initialDate.format(dateFormatter)
             binding.root.post { resetInitialFormSnapshot() }
         }
+    }
+
+    private fun resolveInitialScheduleDate(): LocalDate {
+        return arguments?.getString("selected_date")
+            ?.let { raw -> runCatching { LocalDate.parse(raw.take(10)) }.getOrNull() }
+            ?: LocalDate.now()
     }
 
     private fun loadExistingSchedule(id: Long) {
