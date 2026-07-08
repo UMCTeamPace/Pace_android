@@ -63,7 +63,10 @@ class ScheduleDetailFragment : Fragment() {
         currentScheduleId = updatedScheduleId
         currentOccurrenceDate = data.getStringExtra("UPDATED_OCCURRENCE_DATE").orEmpty()
         currentScheduleType = data.getStringExtra("UPDATED_SCHEDULE_TYPE").orEmpty()
-        loadSchedule()
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.refreshSchedulesNow()
+            loadSchedule()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -148,14 +151,13 @@ class ScheduleDetailFragment : Fragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.allSchedules.collect { schedules ->
                     val updatedSchedule = schedules.firstOrNull { it.id == currentScheduleId } ?: return@collect
-                    val originalSchedule = viewModel.getScheduleById(currentScheduleId) ?: updatedSchedule
-                    currentSchedule = originalSchedule
-                    val cachedDetail = if (originalSchedule.type == "ROUTE" || currentScheduleType == "ROUTE") {
-                        viewModel.scheduleDetailInfoMap.value[originalSchedule.id]
+                    currentSchedule = updatedSchedule
+                    val cachedDetail = if (updatedSchedule.type == "ROUTE" || currentScheduleType == "ROUTE") {
+                        viewModel.scheduleDetailInfoMap.value[updatedSchedule.id]
                     } else {
                         null
                     }
-                    bindSchedule(originalSchedule, cachedDetail)
+                    bindSchedule(updatedSchedule, cachedDetail)
                 }
             }
         }
