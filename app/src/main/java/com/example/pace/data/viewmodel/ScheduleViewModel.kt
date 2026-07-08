@@ -386,6 +386,29 @@ class ScheduleViewModel @Inject constructor(
         }
     }
 
+    suspend fun refreshSchedulesNow() {
+        try {
+            val token = authDataStore.getAccessToken().orEmpty()
+            if (token.isNotEmpty()) {
+                val fullToken = if (token.startsWith("Bearer ")) token else "Bearer $token"
+                val today = LocalDate.now().format(dateFormatter)
+                val oneMonthLater = LocalDate.now().plusMonths(1).format(dateFormatter)
+                repository.getScheduleList(fullToken, today, oneMonthLater, null, null)
+            }
+
+            withContext(Dispatchers.IO) {
+                repository.cleanUpSystemDeletedSchedules()
+                repository.refreshSchedules()
+            }
+
+            if (lastQuery.isNotEmpty()) {
+                searchSchedules(lastQuery)
+            }
+        } catch (e: Exception) {
+            Log.e("API_SYNC", "?숆린???ㅽ뙣: ${e.message}")
+        }
+    }
+
     fun updateSchedule(schedule: Schedule) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
