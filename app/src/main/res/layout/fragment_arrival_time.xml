@@ -5,7 +5,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@color/white"
-    android:padding="24dp">
+    android:padding="25dp">
 
     <TextView
         android:id="@+id/tv_description"
@@ -14,7 +14,7 @@
         android:text="일정 시작 몇 분 전에 도착하는것을 선호하시나요?"
         android:textAppearance="@style/TextAppearance.App.BodySm.Regular"
         android:gravity="center"
-        android:layout_marginTop="40dp"
+        android:layout_marginTop="41dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"/>
@@ -53,7 +53,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="20dp"
-        android:layout_marginBottom="60dp"
+        android:layout_marginBottom="20dp"
         android:background="@drawable/btn_white_round"
         android:text="다음"
         android:textAppearance="@style/TextAppearance.App.BodySm.Regular"

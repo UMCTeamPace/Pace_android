@@ -210,6 +210,9 @@ class RouteFragment : Fragment() {
     private var placeSheetSyncTargetTop: Int? = null
     private var currentPlaceBottomSheetMode = PlaceBottomSheetMode.NONE
     private var lastSearchResultItems: List<SearchItem> = emptyList()
+    private var shouldReturnToSearchResultsFromDetail = false
+    private var firstPlaceDetailBeforePoi: SearchItem? = null
+    private var firstPlaceDetailBeforePoiFromRecommend = false
 
     private enum class PlaceBottomSheetMode {
         NONE,
@@ -1072,9 +1075,9 @@ class RouteFragment : Fragment() {
             if(isBookmarkSearchMode){
                 handleBookmarkSingleRegistration(finalName, placeId)
 
-                val transaction = childFragmentManager.beginTransaction()
                 val detailFrag = childFragmentManager.findFragmentByTag("DETAIL")
                 val listFrag = childFragmentManager.findFragmentByTag(LocationBottomSheetFragment.TAG)
+                val transaction = childFragmentManager.beginTransaction()
                 if (detailFrag != null) transaction.remove(detailFrag)
                 if (listFrag != null) transaction.remove(listFrag)
                 transaction.commitAllowingStateLoss()
@@ -1847,6 +1850,9 @@ class RouteFragment : Fragment() {
 
     private fun enterSearchMode() {
         exitPoiMode()
+        shouldReturnToSearchResultsFromDetail = false
+        firstPlaceDetailBeforePoi = null
+        firstPlaceDetailBeforePoiFromRecommend = false
         hideSearchThisAreaButton()
         val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
         mapFrag?.clearMap()
@@ -2422,48 +2428,18 @@ class RouteFragment : Fragment() {
 
                 val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
                 mapFrag?.showTemporaryMarker(item)
+                currentPlaceDetailItem?.let { previousItem ->
+                    if (previousItem.placeId != item.placeId) {
+                        if (firstPlaceDetailBeforePoi == null) {
+                            firstPlaceDetailBeforePoi = previousItem
+                            firstPlaceDetailBeforePoiFromRecommend = isDetailFromRecommend
+                        }
+                    }
+                }
                 isPoiMode = true
                 showLocationDetail(item)
                 mainBinding?.mainBackIv?.visibility = View.VISIBLE
                 return@addOnCompleteListener
-
-                val transaction = childFragmentManager.beginTransaction()
-
-                val existingList = childFragmentManager.findFragmentByTag(LocationBottomSheetFragment.TAG)
-                if (existingList != null && !existingList.isHidden) {
-                    transaction.hide(existingList)
-                }
-
-                // B. 혹시 이전에 떠 있던 '상세(DETAIL)'가 있다면 숨기기
-                val existingDetail = childFragmentManager.findFragmentByTag("DETAIL")
-                if (existingDetail != null && !existingDetail.isHidden) {
-                    transaction.hide(existingDetail)
-                }
-
-                // C. 혹시 이전에 떠 있던 'POI 상세(POI_DETAIL)'가 있다면 제거 (새로 띄워야 하니까)
-                val oldPoi = childFragmentManager.findFragmentByTag("POI_DETAIL")
-                if (oldPoi != null) {
-                    transaction.remove(oldPoi)
-                }
-
-                // D. 새로운 POI 바텀시트 추가 (Add)
-                // *주의* addToBackStack을 쓰지 않습니다. 우리가 수동으로 관리할 거니까요.
-                val newPoiFrag = LocationDetailFragment.newInstance(item, false, false)
-                transaction.add(R.id.bottom_sheet_container, newPoiFrag, "POI_DETAIL")
-
-                transaction.commitAllowingStateLoss()
-                // ================= 핵심 로직 끝 =================
-
-                // 4. 바텀시트 올라오게 설정
-                bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
-                setMapPaddingToBottomSheetHeight()
-
-                // 5. "나 지금 POI 모드야" 라고 깃발 들기
-                isPoiMode = true
-
-                // 6. 뒤로가기 버튼 보이게 하기
-                mainBinding?.mainBackIv?.visibility = View.VISIBLE
-
             } else {
                 val exception = task.exception
                 android.util.Log.e("PlacesAPI", "Place not found: ${exception?.message}")
@@ -3026,30 +3002,21 @@ class RouteFragment : Fragment() {
         }
         if (isPoiMode) {
             logRouteBackState("back:poi")
-            val transaction = childFragmentManager.beginTransaction()
-
-            val poiFrag = childFragmentManager.findFragmentByTag("POI_DETAIL")
-            if (poiFrag != null) {
-                transaction.remove(poiFrag)
+            isPlaceDetailSheetLocked = false
+            if (restorePreviousPlaceDetailAfterPoi()) {
+                return
             }
-
-            val hiddenDetail = childFragmentManager.findFragmentByTag("DETAIL")
-            val hiddenList = childFragmentManager.findFragmentByTag(LocationBottomSheetFragment.TAG)
-
-            if (hiddenDetail != null && hiddenDetail.isHidden) {
-                transaction.show(hiddenDetail)
-            } else if (hiddenList != null && hiddenList.isHidden) {
-                transaction.show(hiddenList)
+            if (restoreSearchResultListAfterDetail()) {
+                isPoiMode = false
+                return
+            } else {
+                childFragmentManager.popBackStackImmediate("DETAIL", FragmentManager.POP_BACK_STACK_INCLUSIVE)
+                val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+                mapFrag?.clearTemporaryMarker()
+                mapFrag?.restoreAllMarkers()
+                bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+                clearHiddenPlaceBottomSheetState(clearMode = true)
             }
-
-            transaction.commitAllowingStateLoss()
-
-            val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
-            mapFrag?.clearTemporaryMarker()
-
-            bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
-            setMapPaddingToBottomSheetHeight()
-
             isPoiMode = false
             return
         }
@@ -3058,6 +3025,12 @@ class RouteFragment : Fragment() {
         if (detailFrag != null && detailFrag.isVisible) {
             logRouteBackState("back:visibleDetail")
             isPlaceDetailSheetLocked = false
+            if (restorePreviousPlaceDetailAfterPoi()) {
+                return
+            }
+            if (restoreSearchResultListAfterDetail()) {
+                return
+            }
             childFragmentManager.popBackStack()
             bottomSheetBehavior.isDraggable = true
             if (isDetailFromRecommend) {
@@ -3066,7 +3039,7 @@ class RouteFragment : Fragment() {
                 if (!isBookmarkSearchMode) {
                     enterSearchMode()
                 }
-            } else {
+            } else if (shouldReturnToSearchResultsFromDetail) {
                 bottomSheetBehavior.isHideable = false
                 val density = resources.displayMetrics.density
 //                bottomSheetBehavior.peekHeight = (130 * density).toInt()
@@ -3076,8 +3049,15 @@ class RouteFragment : Fragment() {
                 bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
 
                 setMapPaddingToBottomSheetHeight()
+            } else {
+                bottomSheetBehavior.isHideable = true
+                bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+                if (!isBookmarkSearchMode) {
+                    enterSearchMode()
+                }
             }
             val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+            mapFrag?.clearTemporaryMarker()
             mapFrag?.restoreAllMarkers()
             return
         }
@@ -3107,6 +3087,57 @@ class RouteFragment : Fragment() {
         } else {
             handleMainBackClick()
         }
+    }
+
+    private fun restoreSearchResultListAfterDetail(): Boolean {
+        if (!shouldReturnToSearchResultsFromDetail) return false
+        if (lastSearchResultItems.isEmpty()) return false
+
+        childFragmentManager.popBackStackImmediate("DETAIL", FragmentManager.POP_BACK_STACK_INCLUSIVE)
+
+        binding.layoutRouteDetailOverlay.root.visibility = View.GONE
+        binding.layoutRouteInputHeader.layoutFilterOptions.visibility = View.GONE
+        binding.layoutRouteInputHeader.root.visibility = View.GONE
+        binding.routeSearchFcv.visibility = View.GONE
+        binding.bottomSheetContainer.visibility = View.VISIBLE
+
+        mainBinding?.mainSearchLl?.visibility = View.VISIBLE
+        mainBinding?.mainToolbar?.visibility = View.VISIBLE
+        mainBinding?.mainBackIv?.visibility = View.VISIBLE
+        mainBinding?.mainBnv?.visibility = View.GONE
+
+        isPoiMode = false
+        isDetailFromRecommend = false
+        isPlaceDetailSheetLocked = false
+
+        val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+        mapFrag?.clearTemporaryMarker()
+        mapFrag?.restoreAllMarkers()
+        mapFrag?.showMultipleMarkers(lastSearchResultItems, moveCamera = false) { clickedItem ->
+            isDetailFromRecommend = false
+            showLocationDetail(clickedItem)
+        }
+
+        showBottomSheet(lastSearchResultItems)
+        setMapPaddingToBottomSheetHeight()
+        return true
+    }
+
+    private fun restorePreviousPlaceDetailAfterPoi(): Boolean {
+        val previousItem = firstPlaceDetailBeforePoi ?: return false
+        val previousFromRecommend = firstPlaceDetailBeforePoiFromRecommend
+        firstPlaceDetailBeforePoi = null
+        firstPlaceDetailBeforePoiFromRecommend = false
+        val mapFrag = childFragmentManager.findFragmentById(R.id.route_map_fcv) as? MapFragment
+        mapFrag?.clearTemporaryMarker()
+        mapFrag?.restoreAllMarkers()
+
+        isPoiMode = false
+        isDetailFromRecommend = previousFromRecommend
+        isPlaceDetailSheetLocked = false
+        mainBinding?.mainBackIv?.visibility = View.VISIBLE
+        showLocationDetail(previousItem)
+        return true
     }
 
     private fun handleMainBackClick() {
@@ -3778,6 +3809,7 @@ class RouteFragment : Fragment() {
     private fun showBottomSheet(items: List<SearchItem>) {
         isPlaceDetailSheetLocked = false
         lastSearchResultItems = items
+        shouldReturnToSearchResultsFromDetail = true
         binding.bottomSheetContainer.visibility = View.VISIBLE
         var sheetFragment = childFragmentManager.findFragmentByTag(LocationBottomSheetFragment.TAG) as? LocationBottomSheetFragment
         val currentBottomSheetFragment = childFragmentManager.findFragmentById(R.id.bottom_sheet_container)
@@ -4296,6 +4328,9 @@ class RouteFragment : Fragment() {
         setBottomSheetRestoreChipVisible(false)
         binding.bottomSheetContainer.visibility = View.GONE
         setBottomSheetContainerHeight(null)
+        shouldReturnToSearchResultsFromDetail = false
+        firstPlaceDetailBeforePoi = null
+        firstPlaceDetailBeforePoiFromRecommend = false
         if (clearMode) {
             currentPlaceBottomSheetMode = PlaceBottomSheetMode.NONE
         }
@@ -4334,14 +4369,7 @@ class RouteFragment : Fragment() {
         return true
     }
 
-    private fun logRouteBackState(reason: String) {
-        val detail = childFragmentManager.findFragmentByTag("DETAIL")
-        val list = childFragmentManager.findFragmentByTag(LocationBottomSheetFragment.TAG)
-        val restoreChip = binding.root.findViewById<View>(R.id.layout_bottom_sheet_restore_chip)
-        val behaviorState = if (::bottomSheetBehavior.isInitialized) bottomSheetBehavior.state else -1
-        val backStackNames = (0 until childFragmentManager.backStackEntryCount)
-            .map { childFragmentManager.getBackStackEntryAt(it).name }
-    }
+    private fun logRouteBackState(@Suppress("UNUSED_PARAMETER") reason: String) = Unit
 
     private fun updateSearchResultBottomInset(currentSheetHeight: Int) {
         if (currentPlaceBottomSheetMode != PlaceBottomSheetMode.SEARCH_RESULTS) return
@@ -5183,6 +5211,10 @@ class RouteFragment : Fragment() {
         currentPlaceDetailItem = item
         binding.bottomSheetContainer.visibility = View.VISIBLE
         isPlaceDetailCompact = !hasPhotos
+        currentPlaceBottomSheetMode = PlaceBottomSheetMode.PLACE_DETAIL
+        isBottomSheetHiddenByHandle = false
+        setBottomSheetRestoreChipVisible(false)
+        childFragmentManager.popBackStackImmediate("DETAIL", FragmentManager.POP_BACK_STACK_INCLUSIVE)
         val isSchedule = currentEntryMode == EntryMode.SCHEDULE
         val detailFragment: Fragment = if (hasPhotos) {
             LocationDetailFragment.newInstance(item, isSchedule, isBookmarkSearchMode)

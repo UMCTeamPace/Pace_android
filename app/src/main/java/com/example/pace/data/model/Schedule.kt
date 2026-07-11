@@ -123,5 +123,11 @@ data class Schedule(
     val routeId: Long? = null,
 
     @ColumnInfo(name = "route_json")
-    val routeJson: String? = null
+    val routeJson: String? = null,
+
+    @ColumnInfo(name = "converted_from_route_id")
+    val convertedFromRouteId: Long? = null,
+
+    @ColumnInfo(name = "route_converted_at")
+    val routeConvertedAt: String? = null
 )

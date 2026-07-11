@@ -91,7 +91,7 @@ class CalendarSelectFragment : Fragment() {
         val checkBox = CheckBox(requireContext()).apply {
             text = "$name\n($account)"
             buttonDrawable = null
-            setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.selector_circle_checkbox, 0)
+            setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.selector_circle_checkbox_18, 0)
             setPadding(48, 32, 48, 32)
             background = null
             layoutParams = LinearLayout.LayoutParams(

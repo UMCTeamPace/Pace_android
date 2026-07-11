@@ -7,7 +7,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -105,7 +104,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private lateinit var spf: SharedPreferences
     private var currentBottomMenuItem = R.id.home
 
     companion object {
@@ -128,8 +126,6 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
-        spf = getSharedPreferences("HOME_CALENDAR", MODE_PRIVATE)
 
 //        // 테스트를 위해 바로 AlertActivity 실행!
 //        val intent = Intent(this, AlertActivity::class.java)
@@ -205,7 +201,6 @@ class MainActivity : AppCompatActivity() {
 
     fun openHomeTabWithDate(dateText: String) {
         val targetDate = runCatching { LocalDate.parse(dateText.take(10)) }.getOrNull() ?: return
-        spf.edit().putString("SELECTED_DATE", targetDate.toString()).apply()
 
         switchFragment(TAG_HOME) { HomeFragment() }
         supportFragmentManager.executePendingTransactions()

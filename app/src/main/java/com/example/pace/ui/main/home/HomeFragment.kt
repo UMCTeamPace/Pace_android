@@ -1,8 +1,6 @@
 package com.example.pace.ui.main.home
 
-import android.content.Context.MODE_PRIVATE
 import android.content.Intent
-import android.content.SharedPreferences
 import android.os.Bundle
 import android.text.SpannableString
 import android.text.Spanned
@@ -36,7 +34,6 @@ import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.launch
 import androidx.fragment.app.activityViewModels // 추가 확인
 import com.example.pace.data.model.response.ScheduleDetailResponse
-import com.example.pace.ui.alarm.AlarmTestActivity
 import com.example.pace.util.ScheduleRefreshReason
 import com.example.pace.util.ScheduleSortUtils
 import com.example.pace.util.ScheduleUiRefreshTicker
@@ -83,8 +80,6 @@ class HomeFragment: Fragment() {
         selectDateFromExternal(resultDate)
     }
 
-    // 선택한 날짜 저장 및 불러오기
-    private lateinit var spf: SharedPreferences
     private lateinit var selectedDate: LocalDate
     private var scheduleMap: Map<LocalDate, List<Schedule>> = emptyMap()
     private lateinit var horizontalCalendarAdapter: HorizontalCalendarRVAdapter
@@ -97,8 +92,7 @@ class HomeFragment: Fragment() {
         savedInstanceState: Bundle?
     ): View? {
         binding = FragmentHomeBinding.inflate(inflater, container, false)
-        spf = requireContext().getSharedPreferences("HOME_CALENDAR", MODE_PRIVATE)
-        selectedDate = LocalDate.parse(spf.getString("SELECTED_DATE", LocalDate.now().toString()))
+        selectedDate = LocalDate.now()
 
         setupRecyclerView()
         setupCalendar()
@@ -111,10 +105,6 @@ class HomeFragment: Fragment() {
             }
             scheduleActivityLauncher.launch(intent)
         }
-        binding.homeAlarmTestLl.setOnClickListener {
-            startActivity(Intent(requireContext(), AlarmTestActivity::class.java))
-        }
-
         isViewReady = true
         applyPendingResetIfNeeded()
 
@@ -249,7 +239,6 @@ class HomeFragment: Fragment() {
                     date.minusDays(diff)
                 }
                 selectedDate = centerDate
-                spf.edit().putString("SELECTED_DATE", selectedDate.toString()).apply()
                 filterAndDisplaySchedules()
             }
         })
@@ -276,7 +265,6 @@ class HomeFragment: Fragment() {
                         binding.homeHorizontalCalendarTv.text = calendarText
                         
                         selectedDate = centerDate
-                        spf.edit().putString("SELECTED_DATE", selectedDate.toString()).apply()
                         filterAndDisplaySchedules()
                     }
                 }
@@ -437,15 +425,12 @@ class HomeFragment: Fragment() {
 
     fun selectDateFromExternal(date: LocalDate) {
         if (!isAdded || !isViewReady) {
-            spf.edit().putString("SELECTED_DATE", date.toString()).apply()
             selectedDate = date
             return
         }
 
         suppressNextScheduleAnimation = true
         selectedDate = date
-        spf.edit().putString("SELECTED_DATE", selectedDate.toString()).apply()
-        viewModel.setSelectedDate(selectedDate)
 
         if (::horizontalCalendarAdapter.isInitialized) {
             val baseDate = calendarBaseDate ?: selectedDate
@@ -487,8 +472,6 @@ class HomeFragment: Fragment() {
     private fun performResetToToday() {
         suppressNextScheduleAnimation = true
         selectedDate = LocalDate.now()
-        spf.edit().putString("SELECTED_DATE", selectedDate.toString()).apply()
-        viewModel.setSelectedDate(selectedDate)
 
         if (::horizontalCalendarAdapter.isInitialized) {
             val layoutManager = binding.homeHorizontalCalendarRv.layoutManager as? LinearLayoutManager

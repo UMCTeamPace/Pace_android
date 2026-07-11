@@ -5,7 +5,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
     android:background="@color/white"
-    android:padding="24dp">
+    android:padding="25dp">
 
     <TextView
         android:id="@+id/tv_description"
@@ -13,7 +13,7 @@
         android:layout_height="wrap_content"
         android:text="일정 알림을 언제 보내 드릴까요?"
         android:gravity="center"
-        android:layout_marginTop="40dp"
+        android:layout_marginTop="32dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"/>
@@ -36,7 +36,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/box_schedule"
-            app:cardCornerRadius="12dp"
+            app:cardCornerRadius="4dp"
             app:cardElevation="0dp"
             android:layout_marginTop="24dp"
             app:layout_constraintEnd_toEndOf="parent"
@@ -57,7 +57,7 @@
                     android:layout_marginStart="24dp"
                     android:text="안함"
                     android:button="@null"
-                    android:drawableEnd="@drawable/selector_circle_checkbox"
+                    android:drawableEnd="@drawable/selector_circle_checkbox_18"
                     android:paddingEnd="16dp"
                     android:background="@null" />
 
@@ -72,7 +72,7 @@
                     android:layout_marginStart="24dp"
                     android:text="일정 시작 시간"
                     android:button="@null"
-                    android:drawableEnd="@drawable/selector_circle_checkbox"
+                    android:drawableEnd="@drawable/selector_circle_checkbox_18"
                     android:paddingEnd="16dp"
                     android:background="@null" />
 
@@ -87,7 +87,7 @@
                     android:layout_marginStart="24dp"
                     android:text="5분 전"
                     android:button="@null"
-                    android:drawableEnd="@drawable/selector_circle_checkbox"
+                    android:drawableEnd="@drawable/selector_circle_checkbox_18"
                     android:paddingEnd="16dp"
                     android:background="@null" />
 
@@ -102,7 +102,7 @@
                     android:layout_marginStart="24dp"
                     android:text="10분 전"
                     android:button="@null"
-                    android:drawableEnd="@drawable/selector_circle_checkbox"
+                    android:drawableEnd="@drawable/selector_circle_checkbox_18"
                     android:paddingEnd="16dp"
                     android:background="@null" />
 
@@ -117,7 +117,7 @@
                     android:layout_marginStart="24dp"
                     android:text="15분 전"
                     android:button="@null"
-                    android:drawableEnd="@drawable/selector_circle_checkbox"
+                    android:drawableEnd="@drawable/selector_circle_checkbox_18"
                     android:paddingEnd="16dp"
                     android:background="@null" />
 
@@ -132,7 +132,7 @@
                     android:layout_marginStart="24dp"
                     android:text="30분 전"
                     android:button="@null"
-                    android:drawableEnd="@drawable/selector_circle_checkbox"
+                    android:drawableEnd="@drawable/selector_circle_checkbox_18"
                     android:paddingEnd="16dp"
                     android:background="@null" />
 
@@ -147,7 +147,7 @@
                     android:layout_marginStart="24dp"
                     android:text="1시간 전"
                     android:button="@null"
-                    android:drawableEnd="@drawable/selector_circle_checkbox"
+                    android:drawableEnd="@drawable/selector_circle_checkbox_18"
                     android:paddingEnd="16dp"
                     android:background="@null" />
 
@@ -162,7 +162,7 @@
                     android:layout_marginStart="24dp"
                     android:text="2시간 전"
                     android:button="@null"
-                    android:drawableEnd="@drawable/selector_circle_checkbox"
+                    android:drawableEnd="@drawable/selector_circle_checkbox_18"
                     android:paddingEnd="16dp"
                     android:background="@null" />
 
@@ -177,7 +177,7 @@
                     android:layout_marginStart="24dp"
                     android:text="1일 전"
                     android:button="@null"
-                    android:drawableEnd="@drawable/selector_circle_checkbox"
+                    android:drawableEnd="@drawable/selector_circle_checkbox_18"
                     android:paddingEnd="16dp"
                     android:background="@null" />
 
@@ -192,7 +192,7 @@
                     android:layout_marginStart="24dp"
                     android:text="2일 전"
                     android:button="@null"
-                    android:drawableEnd="@drawable/selector_circle_checkbox"
+                    android:drawableEnd="@drawable/selector_circle_checkbox_18"
                     android:paddingEnd="16dp"
                     android:background="@null" />
 
@@ -207,7 +207,7 @@
                     android:layout_marginStart="24dp"
                     android:background="@null"
                     android:button="@null"
-                    android:drawableEnd="@drawable/selector_circle_checkbox"
+                    android:drawableEnd="@drawable/selector_circle_checkbox_18"
                     android:paddingEnd="16dp"
                     android:text="1주일 전" />
 
@@ -224,11 +224,10 @@
             android:id="@+id/tv_alarm_description"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:layout_marginBottom="25dp"
+            android:layout_marginBottom="24dp"
             android:text="*알림은 총 5개 까지 설정할 수 있습니다."
             android:gravity="center"
-            android:textAppearance="@style/TextAppearance.App.BodySm.Semibold"
+            android:textAppearance="@style/TextAppearance.App.ModalSm.Regular"
             android:textColor="@color/text_secondary"
             android:textSize="14sp"
             app:layout_constraintBottom_toTopOf="@id/btn_next"
@@ -240,7 +239,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="20dp"
-        android:layout_marginBottom="60dp"
+        android:layout_marginBottom="20dp"
         android:background="@drawable/btn_white_round"
         android:text="다음"
         android:elevation="0dp"
