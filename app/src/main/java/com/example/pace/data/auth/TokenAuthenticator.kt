@@ -141,7 +141,7 @@ class TokenAuthenticator @Inject constructor(
 
     companion object {
         private const val TAG = "TokenAuthenticator"
-        private const val BASE_URL = "https://pace-server.kro.kr/"
+        private const val BASE_URL = "http://pace-server.kro.kr/"
         private const val BEARER_PREFIX = "Bearer "
         @Volatile private var hasRedirectedToSplash: Boolean = false
     }

@@ -315,10 +315,9 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     fun showTemporaryMarker(item: SearchItem) {
         val map = googleMap ?: return
 
-        map.clear()
-        currentMarkers.clear()
         tempPoiMarker?.remove()
         tempPoiMarker = null
+        currentMarkers.forEach { it.isVisible = false }
 
         val position = LatLng(item.lat, item.lng)
         val markerOptions = MarkerOptions()

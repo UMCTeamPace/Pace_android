@@ -1,6 +1,5 @@
 package com.example.pace.ui.onboarding
 
-import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -36,9 +35,9 @@ class AppSettingPagerFragment : Fragment() {
                 val indicators = listOf(binding.step1, binding.step2, binding.step3, binding.step4)
                 indicators.forEachIndexed { index, view ->
                     if (index == position) {
-                        view.setBackgroundResource(R.color.primary_500)
+                        view.setBackgroundResource(R.drawable.bg_onboarding_step_active)
                     } else {
-                        view.setBackgroundResource(R.color.primary_300)
+                        view.setBackgroundResource(R.drawable.bg_onboarding_step_inactive)
                     }
                 }
             }

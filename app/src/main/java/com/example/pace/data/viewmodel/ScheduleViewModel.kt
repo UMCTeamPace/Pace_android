@@ -1125,6 +1125,13 @@ class ScheduleViewModel @Inject constructor(
                         ExistingWorkPolicy.REPLACE,
                         workRequest
                     )
+            } else {
+                viewModelScope.launch(Dispatchers.IO) {
+                    val success = repository.convertRouteToNormalLocal(scheduleId)
+                    if (success) {
+                        refreshSchedulesNow()
+                    }
+                }
             }
         } catch (e: Exception) {
             Log.e("WorkManager", "작업 예약 실패: ${e.message}")

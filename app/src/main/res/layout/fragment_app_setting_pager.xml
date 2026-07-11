@@ -12,8 +12,7 @@
         android:layout_width="match_parent"
         android:layout_height="4dp"
         android:layout_marginHorizontal="20dp"
-        android:layout_marginTop="20dp"
-        android:layout_marginBottom="20dp"
+        android:layout_marginTop="37dp"
         android:orientation="horizontal"
         android:weightSum="4"
         app:layout_constraintTop_toTopOf="parent">
@@ -24,7 +23,7 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_marginEnd="4dp"
-            android:background="@color/primary_500" />
+            android:background="@drawable/bg_onboarding_step_active" />
 
         <View
             android:id="@+id/step2"
@@ -32,7 +31,7 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_marginEnd="4dp"
-            android:background="@color/primary_500" />
+            android:background="@drawable/bg_onboarding_step_active" />
 
         <View
             android:id="@+id/step3"
@@ -40,7 +39,7 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_marginEnd="4dp"
-            android:background="@color/primary_500" />
+            android:background="@drawable/bg_onboarding_step_active" />
 
         <View
             android:id="@+id/step4"
@@ -48,7 +47,7 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_marginEnd="4dp"
-            android:background="@color/primary_500" />
+            android:background="@drawable/bg_onboarding_step_active" />
 
     </LinearLayout>
 
@@ -56,7 +55,6 @@
         android:id="@+id/app_setting_viewpager"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="10dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintTop_toBottomOf="@id/layout_indicator" />
 

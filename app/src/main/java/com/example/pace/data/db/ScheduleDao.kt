@@ -95,6 +95,26 @@ interface ScheduleDao {
     @Query("SELECT * FROM schedules WHERE id = :id")
     suspend fun getScheduleById(id: Long): Schedule?
 
+    @Query("SELECT * FROM schedules WHERE converted_from_route_id = :routeId LIMIT 1")
+    suspend fun getScheduleConvertedFromRouteId(routeId: Long): Schedule?
+
+    @Query("UPDATE schedules SET converted_from_route_id = :routeId WHERE id = :scheduleId")
+    suspend fun updateConvertedFromRouteId(scheduleId: Long, routeId: Long)
+
+    @Query("UPDATE schedules SET route_converted_at = :convertedAt WHERE id = :routeId")
+    suspend fun markRouteConverted(routeId: Long, convertedAt: String)
+
+    @Query("""
+        SELECT id FROM schedules
+        WHERE source_type = 'SERVER'
+        AND type = 'ROUTE'
+        AND route_converted_at IS NOT NULL
+        UNION
+        SELECT converted_from_route_id FROM schedules
+        WHERE converted_from_route_id IS NOT NULL
+    """)
+    suspend fun getConvertedRouteIds(): List<Long>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSingle(schedule: Schedule)
 

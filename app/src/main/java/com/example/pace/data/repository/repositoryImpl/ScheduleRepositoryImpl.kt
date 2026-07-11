@@ -71,7 +71,7 @@ class ScheduleRepositoryImpl @Inject constructor(
 
     // Expose schedules after recurrence expansion
     override val allSchedules: Flow<List<Schedule>> = scheduleDao.getAllSchedules()
-        .map { rawList -> expandSchedules(rawList) }
+        .map { rawList -> expandSchedules(rawList.filterNot(::shouldHideRouteSchedule)) }
         .flowOn(Dispatchers.IO)
 
     override val calendarEvents: Flow<Unit> = createCalendarObserver(context)
@@ -227,6 +227,8 @@ class ScheduleRepositoryImpl @Inject constructor(
                                 sourceType = local.sourceType,
                                 serverId = local.serverId,
                                 routeId = local.routeId,
+                                convertedFromRouteId = local.convertedFromRouteId,
+                                routeConvertedAt = local.routeConvertedAt,
 
                                 // 4. Prefer provider-derived fields, but keep local-only flags
                                 calendarId = if (remote.calendarId == 0L) local.calendarId else remote.calendarId,
@@ -300,6 +302,8 @@ class ScheduleRepositoryImpl @Inject constructor(
                 if (existing != null && existing.withRoute == true) {
                     val protectedEntity = entity.copy(
                         withRoute = true,
+                        routeConvertedAt = existing.routeConvertedAt,
+                        convertedFromRouteId = existing.convertedFromRouteId
                     )
                     scheduleDao.insertSingle(protectedEntity)
                 } else {
@@ -357,7 +361,7 @@ class ScheduleRepositoryImpl @Inject constructor(
     ): List<Schedule> {
         val raw = scheduleDao.getSchedulesInRange(startDate, endDate)
 
-        return expandSchedules(raw).filter { schedule ->
+        return expandSchedules(raw.filterNot(::shouldHideRouteSchedule)).filter { schedule ->
             val titleMatch = query.isBlank() || SearchTextMatcher.contains(schedule.title, query)
             val calendarMatch = if (schedule.type == "ROUTE") {
                 true
@@ -735,6 +739,41 @@ class ScheduleRepositoryImpl @Inject constructor(
     }
 
     // Expand recurring schedules and exclude canceled/overridden occurrences
+    private fun shouldHideRouteSchedule(schedule: Schedule): Boolean {
+        if (schedule.type != "ROUTE") return false
+        if (!schedule.routeConvertedAt.isNullOrBlank()) return true
+
+        val arrivalTime = parseRouteInfo(schedule)?.arrivalTime ?: return false
+        val arrivalDateTime = parseRouteDateTime(schedule.startDate, arrivalTime) ?: return false
+        return !arrivalDateTime.isAfter(LocalDateTime.now())
+    }
+
+    private fun parseRouteInfo(schedule: Schedule): RouteInfo? {
+        return sequenceOf(schedule.routeJson, schedule.placeJson)
+            .filterNotNull()
+            .filter { it.isNotBlank() }
+            .mapNotNull { json -> runCatching { Gson().fromJson(json, RouteInfo::class.java) }.getOrNull() }
+            .firstOrNull { route ->
+                !route.departureTime.isNullOrBlank() || !route.arrivalTime.isNullOrBlank()
+            }
+    }
+
+    private fun parseRouteDateTime(startDate: String, time: String?): LocalDateTime? {
+        if (time.isNullOrBlank()) return null
+
+        return runCatching {
+            if (time.contains("T")) {
+                OffsetDateTime.parse(time)
+                    .atZoneSameInstant(ROUTE_SOURCE_ZONE)
+                    .toLocalDateTime()
+            } else {
+                LocalDateTime.parse("$startDate ${time.take(5)}", DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+            }
+        }.recoverCatching {
+            LocalDateTime.parse(time.replace("T", " ").take(16), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+        }.getOrNull()
+    }
+
     private fun expandSchedules(rawSchedules: List<Schedule>): List<Schedule> {
         val expandedList = mutableListOf<Schedule>()
         val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
@@ -1084,7 +1123,9 @@ class ScheduleRepositoryImpl @Inject constructor(
             placeJson = placeJsonString,
             routeJson = routeJsonString,
             repeatRule = existing?.repeatRule,
-            exDate = existing?.exDate
+            exDate = existing?.exDate,
+            convertedFromRouteId = existing?.convertedFromRouteId,
+            routeConvertedAt = existing?.routeConvertedAt
         )
     }
 
@@ -1099,20 +1140,15 @@ class ScheduleRepositoryImpl @Inject constructor(
         cleanUpExpiredServerRouteSchedules()
 
         val response = fetchSchedulePages(accessToken, startDate, endDate)
-        val nowTime = java.time.LocalTime.now()
+        val convertedRouteIds = scheduleDao.getConvertedRouteIds().toSet()
 
         val mappedData: RouteOnlyScheduleData? = response.result.orEmpty()
             .filter { item ->
                 val isRouteItem = item.isRouteScheduleItem()
                 val isSameDate = item.scheduleInfo.startDate == startDate
-
-                val isFuture = try {
-                    val itemTime = java.time.LocalTime.parse(item.scheduleInfo.startTime)
-                    itemTime.isAfter(nowTime)
-                } catch (e: Exception) {
-                    false
-                }
-                isRouteItem && isSameDate && isFuture
+                val isNotConverted = item.scheduleId !in convertedRouteIds
+                val isNotArrived = !item.isExpiredRouteItem()
+                isRouteItem && isSameDate && isNotConverted && isNotArrived
             }
             .minByOrNull { item ->
                 item.scheduleInfo.startTime ?: "23:59:59"
@@ -1142,9 +1178,10 @@ class ScheduleRepositoryImpl @Inject constructor(
         cleanUpExpiredServerRouteSchedules()
 
         val response = fetchSchedulePages(accessToken, startDate, endDate)
+        val convertedRouteIds = scheduleDao.getConvertedRouteIds().toSet()
 
         val mappedList: List<RouteOnlyScheduleData?> = response.result.orEmpty()
-            .filter { it.isRouteScheduleItem() }
+            .filter { it.isRouteScheduleItem() && it.scheduleId !in convertedRouteIds && !it.isExpiredRouteItem() }
             .map { item ->
                 val route = item.route
                 val flattenedDetails = route?.routeDetails?.map { detail ->
@@ -1238,6 +1275,7 @@ class ScheduleRepositoryImpl @Inject constructor(
         endDate: String
     ): List<RouteOnlyScheduleData> = withContext(Dispatchers.IO) {
         scheduleDao.getServerRouteSchedulesInRange(startDate, endDate)
+            .filterNot(::shouldHideRouteSchedule)
             .mapNotNull { it.toLocalRouteOnlyScheduleData() }
     }
 
@@ -1425,11 +1463,8 @@ class ScheduleRepositoryImpl @Inject constructor(
 
                 Log.d("CONVERT_DEBUG", "변환 대상 일정: ${oldSchedule.title}, 날짜: ${oldSchedule.startDate}, 시간: ${oldSchedule.startTime}")
 
-                val deleteResult = deleteRouteSchedule(scheduleId)
-
-                if (deleteResult.isSuccess) {
-                    cancelRouteRuntime(oldSchedule)
-
+                val convertedSchedule = scheduleDao.getScheduleConvertedFromRouteId(scheduleId)
+                    ?: run {
                     val gson = Gson()
                     val placeRequest = try {
                         val routeData = gson.fromJson(oldSchedule.placeJson, RouteRequest::class.java)
@@ -1486,11 +1521,31 @@ class ScheduleRepositoryImpl @Inject constructor(
 
                     Log.d("CONVERT_DEBUG", "변환 생성 결과: ${response.isSuccess}, message: ${response.message}")
 
-                    response.isSuccess
-                } else {
-                    Log.e("CONVERT_DEBUG", "서버 경로 일정 삭제 실패로 변환 중단")
-                    false
+                    if (!response.isSuccess) {
+                        return@withContext false
+                    }
+
+                    val createdScheduleId = response.result?.scheduleId ?: return@withContext false
+                    scheduleDao.updateConvertedFromRouteId(createdScheduleId, scheduleId)
+                    scheduleDao.getScheduleById(createdScheduleId)
                 }
+
+                if (convertedSchedule == null) {
+                    Log.e("CONVERT_DEBUG", "변환된 일반 일정 조회 실패: routeId=$scheduleId")
+                    return@withContext false
+                }
+
+                val convertedAt = OffsetDateTime.now(ROUTE_SOURCE_ZONE).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+                scheduleDao.markRouteConverted(scheduleId, convertedAt)
+                cancelRouteRuntime(oldSchedule)
+
+                val deleteResult = deleteRouteSchedule(scheduleId)
+                if (!deleteResult.isSuccess) {
+                    Log.e("CONVERT_DEBUG", "일반 일정 생성 및 변환 마킹 완료, 경로 일정 삭제 실패: ${deleteResult.message}")
+                } else {
+                    Log.d("CONVERT_DEBUG", "경로 일정 삭제 완료: routeId=$scheduleId")
+                }
+                true
             } catch (e: Exception) {
                 Log.e("RepoImpl", "변환 중 예외 발생: ${e.message}")
                 false
@@ -1562,6 +1617,12 @@ class ScheduleRepositoryImpl @Inject constructor(
 
     private fun ScheduleItem.isRouteScheduleItem(): Boolean {
         return route != null || scheduleInfo.isPathIncluded == true
+    }
+
+    private fun ScheduleItem.isExpiredRouteItem(): Boolean {
+        val arrivalTime = route?.arrivalTime ?: return false
+        val arrivalDateTime = parseRouteDateTime(scheduleInfo.startDate, arrivalTime) ?: return false
+        return !arrivalDateTime.isAfter(LocalDateTime.now())
     }
 
 }

@@ -55,6 +55,7 @@ class ArrivalTimeFragment : Fragment() {
             minValue = 0
             maxValue = 60
             value = 0
+            displayedValues = Array(61) { minute -> String.format("%02d", minute) }
 
             //0~60 순환되게
             wrapSelectorWheel = true
